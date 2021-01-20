@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+    <meta http-equiv="content-Type" content="text/html;charset=UTF-8" />
+    <meta http-equiv="Access-Control-Allow-Origin" content="*" />
+    <meta name="keywords" content="<?php echo $keywords ?>">
+    <meta name="description" content="<?php echo $describe ?>">
+    <title><?php echo $title ?></title>
+    <link rel="stylesheet" href="official/css/main.css" />
+    <link rel="stylesheet" href="official/css/product.css" />
+</head>
+
+<body>
+    <div id="app">
+        <div class="nav">
+            <div class="nav-a">
+                <div class="nav-logo">
+                    <img src="<?php echo $top['logo']?>" alt="" />
+                </div>
+                <?php foreach($top['navigation'] as $kk=>$vv) {?>
+                <a href="<?php echo $vv['url']?>">
+                    <div class="nav-li <?php if($vv[tool]==$name){?>nav-selected<?php }?>">
+                        <?php echo $vv['name']?>
+                    </div>
+                </a>
+                <?php }?>
+                <?php if ($top['is_sign'] == 1) {?>
+                <a href="#" id="jump-url">
+                    <div class="nav-login">立即登录</div>
+                </a>
+                <?php }?>
+            </div>
+        </div>
+
+        <?php echo $content;?>
+
+        <?php echo $tail;?>
+        <div class="all-relation">
+            <div class="relation-btn" id="relation-btn">
+                <div class="relation-btn-one" id="callus">
+                    <img src="official/images/lianxikefu.png" alt="">
+                    <div>联系客服</div>
+                </div>
+                <div class="relation-btn-one" id="back-top">
+                    <img src="official/images/huidaodingbu.png" alt="">
+                    <div>回到顶部</div>
+                </div>
+            </div>
+            <div class="relation">
+                <div class="relation-title">在线咨询</div>
+                <a href="<?php echo $basic['cus_link']?>" title="点击咨询">
+                    <div class="relation-tel">
+                        <div class="relation-tel-img">
+                            <img src="official/images/suspension_qq.png" alt="" />
+                        </div>
+                        <div class="relation-tel-word">在线客服</div>
+                    </div>
+                </a>
+                <div class="relation-tel">
+                    <div class="relation-tel-img">
+                        <img src="official/images/suspension_tel.png" alt="" />
+                    </div>
+                    <div class="relation-tel-word"><?php echo $basic['cus_mobile']?></div>
+                </div>
+                <div class="relation-tel relation-tel1">
+                    <div class="relation-tel-img">
+                        <img src="official/images/suspension_wechat.png" alt="" />
+                    </div>
+                    <div class="relation-tel-word">微信二维码</div>
+                </div>
+                <div class="qr-img">
+                    <div class="qr-img"><img src="<?php echo $basic['cus_url']?>" alt="" /></div>
+                </div>
+                <img id="close-btn" src="official/images/adsystem_icon_cancle.png" alt="">
+            </div>
+        </div>
+    </div>
+    <script type="text/javascript">
+        window.onload = function() {
+            url = window.location.protocol + "//" + window.location.host + "/admin.html";
+            if(document.getElementById("jump-url")) {
+                document.getElementById("jump-url").setAttribute("href", url);
+            }
+            var index=1;
+            for(let i=1;i<6;i++) {
+                document.getElementById("tabs-one"+i).onclick = function (e) {
+                    console.log(e.currentTarget.children)
+                    if(index == i){
+                        return;
+                    }
+                    e.currentTarget.children[0].classList.add("tabs-one-word");
+                    document.getElementById("tabs-one"+index).children[0].classList.remove("tabs-one-word");
+                    document.getElementById("tabs-b"+i).classList.add("tabs-b-show");
+                    document.getElementById("tabs-b"+index).classList.remove("tabs-b-show");
+                    index = i;
+                };
+            }
+            document.getElementById("callus").onclick = function(e) {
+                document.getElementById("relation-btn").style.display="none";
+                document.getElementsByClassName("all-relation")[0].classList.add("all-relation-hover")
+            }
+            document.getElementById("close-btn").onclick = function(e) {
+                document.getElementById("relation-btn").style.display="inline-block";
+                document.getElementsByClassName("all-relation")[0].classList.remove("all-relation-hover")
+            }
+
+            var scrollTop = document.documentElement.scrollTop || document.body.scrollTop;
+            if(scrollTop>0) {
+                document.getElementById("back-top").style.display = 'block'
+            }
+            else{
+                document.getElementById("back-top").style.display = 'none'
+            }
+
+            document.getElementById("back-top").onclick = function(e) {
+                if(document.documentElement.scrollTop) {
+                    document.documentElement.scrollTop = 0;
+                }
+                else{
+                    document.body.scrollTop = 0;
+                }
+            }
+
+            window.onscroll = function() {
+                var scrollTop = document.documentElement.scrollTop || document.body.scrollTop;
+                if(scrollTop>0) {
+                    document.getElementById("back-top").style.display = 'block'
+                }
+                else{
+                    document.getElementById("back-top").style.display = 'none'
+                }
+            }
+        }
+    </script>
+</body>
+</html>

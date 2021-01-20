@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+    <meta http-equiv="content-Type" content="text/html;charset=UTF-8" />
+    <meta http-equiv="Access-Control-Allow-Origin" content="*" />
+    <meta name="keywords" content="<?php echo $keywords ?>">
+    <meta name="description" content="<?php echo $describe ?>">
+    <title><?php echo $title ?></title>
+    <link rel="stylesheet" href="official/css/main.css" />
+    <link rel="stylesheet" href="official/css/resource.css" />
+</head>
+
+<body>
+<div id="app">
+    <div class="nav">
+        <div class="nav-a">
+            <div class="nav-logo">
+                <img src="<?php echo $top['logo']?>" alt="" />
+            </div>
+            <?php foreach($top['navigation'] as $kk=>$vv) {?>
+            <a href="<?php echo $vv['url']?>">
+                <div class="nav-li <?php if($vv[tool]==$name){?>nav-selected<?php }?>">
+                    <?php echo $vv['name']?>
+                </div>
+            </a>
+            <?php }?>
+            <?php if ($top['is_sign'] == 1) {?>
+            <a href="#" id="jump-url">
+                <div class="nav-login">立即登录</div>
+            </a>
+            <?php }?>
+        </div>
+    </div>
+
+    <?php echo $content;?>
+
+    <?php echo $tail;?>
+
+    <div class="all-relation">
+        <div class="relation-btn" id="relation-btn">
+            <div class="relation-btn-one" id="callus">
+                <img src="official/images/lianxikefu.png" alt="">
+                <div>联系客服</div>
+            </div>
+            <div class="relation-btn-one" id="back-top">
+                <img src="official/images/huidaodingbu.png" alt="">
+                <div>回到顶部</div>
+            </div>
+        </div>
+        <div class="relation">
+            <div class="relation-title">在线咨询</div>
+            <a href="<?php echo $basic['cus_link']?>" title="点击咨询">
+                <div class="relation-tel">
+                    <div class="relation-tel-img">
+                        <img src="official/images/suspension_qq.png" alt="" />
+                    </div>
+                    <div class="relation-tel-word">在线客服</div>
+                </div>
+            </a>
+            <div class="relation-tel">
+                <div class="relation-tel-img">
+                    <img src="official/images/suspension_tel.png" alt="" />
+                </div>
+                <div class="relation-tel-word"><?php echo $basic['cus_mobile']?></div>
+            </div>
+            <div class="relation-tel relation-tel1">
+                <div class="relation-tel-img">
+                    <img src="official/images/suspension_wechat.png" alt="" />
+                </div>
+                <div class="relation-tel-word">微信二维码</div>
+            </div>
+            <div class="qr-img">
+                <div class="qr-img"><img src="<?php echo $basic['cus_url']?>" alt="" /></div>
+            </div>
+            <img id="close-btn" src="official/images/adsystem_icon_cancle.png" alt="">
+        </div>
+    </div>
+</div>
+
+<script>
+    var article_list = [];
+    var category_list = <?php echo json_encode($article); ?>;
+    var problem_list = <?php echo json_encode($help); ?>;
+    var category_index = 0;
+    var article_index = 0;
+    var nav_index = 1;
+    var problem_index = 0;
+    window.onload = function () {
+        url = window.location.protocol + "//" + window.location.host + "/admin.html";
+        if(document.getElementById("jump-url")) {
+            document.getElementById("jump-url").setAttribute("href", url);
+        }
+        // 二级导航切换
+        for (let i = 1; i < 4; i++) {
+            document.getElementById("sec-nav-one" + i).onclick = function (e) {
+                if (i == nav_index) {
+                    return;
+                }
+                e.currentTarget.style.color = "#00a2ff";
+                document.getElementById("sec-nav-one" + nav_index).style.color =
+                    "#666";
+                document.getElementById("tab" + i).style.display = "block";
+                document.getElementById("tab" + nav_index).style.display = "none";
+                nav_index = i;
+            };
+        }
+        // 分类列表
+        for (let i = 1; i <= category_list.length; i++) {
+            let ids = document.getElementById("category_ul");
+            let div1 = document.createElement("div");
+            div1.classList.add("rticle-one-col");
+            div1.setAttribute("id", "rticle-one-col" + i);
+            ids.appendChild(div1);
+
+            let div2 = document.createElement("div");
+            div2.classList.add("rticle-one-col-word");
+            div2.setAttribute("id", "rticle-one-col-word" + i);
+            document.getElementById("rticle-one-col" + i).appendChild(div2);
+
+            let text1 = document.createTextNode(category_list[i - 1].name);
+            document.getElementById("rticle-one-col-word" + i).appendChild(text1);
+
+            let div3 = document.createElement("div");
+            div3.classList.add("rticle-one-col-icon");
+            div3.setAttribute("id", "rticle-one-col-icon" + i);
+            document.getElementById("rticle-one-col" + i).appendChild(div3);
+
+            let text2 = document.createTextNode(">");
+            document.getElementById("rticle-one-col-icon" + i).appendChild(text2);
+        }
+        if (category_list.length > 0) {
+            category_index = 1;
+            document.getElementById(
+                "rticle-one-col" + category_index
+            ).style.color = "#00a2ff";
+            document.getElementById("category_name1").innerHTML =
+                category_list[category_index - 1].name;
+            document.getElementById("category_name2").innerHTML =
+                category_list[category_index - 1].name;
+            article_list = category_list[category_index - 1].datas
+        }
+
+        // 文章列表
+        getArticle();
+
+        // 绑定分类切换事件
+        var cat_list = document.getElementsByClassName("rticle-one-col");
+        for (let i = 1; i <= cat_list.length; i++) {
+            cat_list[i - 1].onclick = function (e) {
+                if (category_index == i) {
+                    return;
+                }
+                article_index = 0;
+                e.currentTarget.style.color = "#00a2ff";
+                document.getElementById(
+                    "rticle-one-col" + category_index
+                ).style.color = "#000";
+
+                // 请求文章数据
+                article_list = category_list[i - 1].datas;
+                getArticle();
+
+                document.getElementById("category_name1").innerHTML =
+                    category_list[i - 1].name;
+                document.getElementById("category_name2").innerHTML =
+                    category_list[i - 1].name;
+                category_index = i;
+            };
+        }
+        // 搜索
+        document.getElementById("search-btn").onclick = function (e) {
+            let val=document.getElementById('search-input').value;
+            let arr = [];
+            problem_list.forEach((item,index) =>{
+                if(item.title.indexOf(val) != -1) {
+                    console.log(item.title)
+                    arr.push(item);
+                }
+            });
+            getProblem(arr);
+        };
+        // 问题列表
+        getProblem();
+
+        document.getElementById("callus").onclick = function(e) {
+            document.getElementById("relation-btn").style.display="none";
+            document.getElementsByClassName("all-relation")[0].classList.add("all-relation-hover")
+        }
+        document.getElementById("close-btn").onclick = function(e) {
+            document.getElementById("relation-btn").style.display="inline-block";
+            document.getElementsByClassName("all-relation")[0].classList.remove("all-relation-hover")
+        }
+
+        var scrollTop = document.documentElement.scrollTop || document.body.scrollTop;
+        if(scrollTop>0) {
+            document.getElementById("back-top").style.display = 'block'
+        }
+        else{
+            document.getElementById("back-top").style.display = 'none'
+        }
+
+        document.getElementById("back-top").onclick = function(e) {
+            if(document.documentElement.scrollTop) {
+                document.documentElement.scrollTop = 0;
+            }
+            else{
+                document.body.scrollTop = 0;
+            }
+        }
+
+        window.onscroll = function() {
+            var scrollTop = document.documentElement.scrollTop || document.body.scrollTop;
+            if(scrollTop>0) {
+                document.getElementById("back-top").style.display = 'block'
+            }
+            else{
+                document.getElementById("back-top").style.display = 'none'
+            }
+        }
+    };
+    function getArticle() {
+        // 文章列表
+        // 先清空子节点
+        let id = document.getElementById("article-ul");
+        while(id.hasChildNodes()) {
+            id.removeChild(id.firstChild);
+        }
+        // 赋值
+        for (let i = 1; i <= article_list.length; i++) {
+            let ids = document.getElementById("article-ul");
+
+            let div7 = document.createElement("a");
+            div7.setAttribute("id", "article-a" + i);
+            div7.setAttribute("href", article_list[i-1].url);
+            ids.appendChild(div7);
+
+
+            let div0 = document.createElement("div");
+            div0.classList.add("article-two-li");
+            div0.setAttribute("id", "article-two-li" + i);
+            document.getElementById("article-a"+i).appendChild(div0);
+
+            let div1 = document.createElement("div");
+            div1.classList.add("article-two-left");
+            div1.setAttribute("id", "article-two-left" + i);
+            document.getElementById("article-two-li" + i).appendChild(div1);
+
+            let div2 = document.createElement("img");
+            div2.setAttribute("src", article_list[i - 1].img);
+            document.getElementById("article-two-left" + i).appendChild(div2);
+
+            let div3 = document.createElement("div");
+            div3.classList.add("article-two-right");
+            div3.setAttribute("id", "article-two-right" + i);
+            document.getElementById("article-two-li" + i).appendChild(div3);
+
+            let div4 = document.createElement("div");
+            div4.classList.add("article-two-right-title");
+            div4.innerHTML = article_list[i - 1].title;
+            document.getElementById("article-two-right" + i).appendChild(div4);
+
+            let div5 = document.createElement("div");
+            div5.classList.add("article-two-right-content");
+            div5.innerHTML = article_list[i - 1].content;
+            document.getElementById("article-two-right" + i).appendChild(div5);
+
+            let div6 = document.createElement("div");
+            div6.classList.add("article-two-right-tip");
+            div6.innerHTML =
+                `<div class="article-author">` +
+                article_list[i - 1].author +
+                `</div>
+            <div class="article-time">` +
+                article_list[i - 1].created_at +
+                `</div>`;
+            document.getElementById("article-two-right" + i).appendChild(div6);
+        }
+    }
+    function getProblem(arr) {
+        // 问题列表
+        if(!arr) {
+            arr = problem_list
+        }
+        problem_index = 0;
+        // 先清空子节点
+        let id = document.getElementById("problem-con");
+        while(id.hasChildNodes()) {
+            id.removeChild(id.firstChild);
+        }
+        for (let i = 1; i <= arr.length; i++) {
+            let ids = document.getElementById("problem-con");
+            let div1 = document.createElement("div");
+            div1.classList.add("problem-li");
+            div1.setAttribute("id", "problem-li" + i);
+            div1.innerHTML =
+                `<div class="problem-title" id="problem-title` +
+                i +
+                `">` +
+                arr[i - 1].title +
+                `</div>
+                <div class="problem-detail" id="problem-detail` +
+                i +
+                `" style="display:none">` +
+                arr[i - 1].content +
+                `</div>`;
+            ids.appendChild(div1);
+            // 点击事件
+            document.getElementById("problem-title" + i).onclick = function () {
+                if (i == problem_index) {
+                    document.getElementById(
+                        "problem-detail" + problem_index
+                    ).style.display = "none";
+                    problem_index = 0;
+                    return;
+                }
+                document.getElementById("problem-detail" + i).style.display =
+                    "block";
+                if (problem_index != 0) {
+                    document.getElementById(
+                        "problem-detail" + problem_index
+                    ).style.display = "none";
+                }
+                problem_index = i;
+            };
+        }
+    }
+
+</script>
+</body>
+</html>

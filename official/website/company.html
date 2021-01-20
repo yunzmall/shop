@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html>
+  <head lang="en">
+    <meta http-equiv="content-Type" content="text/html;charset=UTF-8" />
+    <meta http-equiv="Access-Control-Allow-Origin" content="*" />
+    <meta name="keywords" content="<?php echo $keywords ?>">
+    <meta name="description" content="<?php echo $describe ?>">
+    <title><?php echo $title ?></title>
+    <link rel="stylesheet" href="official/website/css/main.css" />
+  </head>
+
+  <body>
+    <div id="app">
+      <div class="nav">
+        <div class="nav-a">
+          <div class="nav-ul">
+            <div class="nav-logo">
+              <img src="<?php echo $top['logo']?>" alt="" />
+            </div>
+            <?php foreach($top['navigation'] as $kk=>$vv) {?>
+            <div class="nav-li <?php if($vv[tool]==$name){?> nav-selected <?php }?>">
+              <a href="<?php echo $vv['url']?>"><?php echo $vv['name']?></a>
+            </div>
+            <?php }?>
+            <?php if ($top['is_sign'] == 1) {?>
+            <a href="#" id="jump-url">
+              <div class="nav-login">
+                <div>立即登录</div>
+              </div>
+            </a>
+            <?php }?>
+          </div>
+        </div>
+      </div>
+      <div style="height: 74px"></div>
+
+      <?php echo $content;?>
+          <div class="b_condition-title2"></div>
+          <div class="b_condition-title3"><a onclick="changeList()">⟳换一批</a><input type="hidden" id="pager" value="<?php echo $pager;?>"></div>
+          <div class="b_condition-ul">
+            <div class="b_condition-ul-left">
+              <?php foreach($web_rel as $kk=>$vv) {?>
+              <?php if (($kk%2) != 0) {?>
+              <div class="b_condition-li">
+                <a href="<?php echo $vv['web_url']?>"><?php echo $vv['title']?></a>
+              </div>
+              <?php }?>
+              <?php }?>
+            </div>
+            <div class="b_condition-ul-right">
+              <?php foreach($web_rel as $kk=>$vv) {?>
+              <?php if (($kk%2) == 0) {?>
+              <div class="b_condition-li">
+                <a href="<?php echo $vv['web_url']?>"><?php echo $vv['title']?></a>
+              </div>
+              <?php }?>
+              <?php }?>
+            </div>
+          </div>
+        </div>
+        
+      </div>
+
+      <?php echo $tail;?>
+
+      <div class="all-relation">
+        <div class="relation-btn" id="relation-btn">
+          <div class="relation-btn-one" id="callus">
+            <img src="official/website/images/lianxikefu.png" alt="" />
+            <div>联系客服</div>
+          </div>
+          <div class="relation-btn-one" id="back-top">
+            <img src="official/website/images/huidaodingbu.png" alt="" />
+            <div>回到顶部</div>
+          </div>
+        </div>
+        <div class="relation">
+          <div class="relation-title">在线咨询</div>
+          <a href="<?php echo $basic['cus_link']?>" title="点击咨询">
+            <div class="relation-tel">
+              <div class="relation-tel-img">
+                <img src="official/website/images/suspension_qq.png" alt="" />
+              </div>
+              <div class="relation-tel-word">在线客服</div>
+            </div>
+          </a>
+          <div class="relation-tel">
+            <div class="relation-tel-img">
+              <img src="official/website/images/suspension_tel.png" alt="" />
+            </div>
+            <div class="relation-tel-word"><?php echo $basic['cus_mobile']?></div>
+          </div>
+          <div class="relation-tel relation-tel1">
+            <div class="relation-tel-img">
+              <img src="official/website/images/suspension_wechat.png" alt="" />
+            </div>
+            <div class="relation-tel-word">微信二维码</div>
+          </div>
+          <div class="qr-img">
+            <img src="<?php echo $basic['cus_url']?>" alt="" />
+          </div>
+          <img id="close-btn" style="position: absolute; top: -15px; right: -25px" src="official/website/images/adsystem_icon_cancle.png" alt=""/>
+        </div>
+      </div>
+    </div>
+    <script type="text/javascript">
+      var url = "";
+      window.onload = function () {
+          url = window.location.protocol+"//"+window.location.host+"/admin.html";
+          if(document.getElementById("jump-url")) {
+              document.getElementById("jump-url").setAttribute("href", url);
+          }
+
+        let dom1 = document.querySelectorAll(".news-li");
+        if (dom1 && dom1.length > 0) {
+          for (let i = 0; i < dom1.length; i++) {
+            dom1[i].onmouseover = function (e) {
+              e.currentTarget.classList.add("news-li-selected");
+            };
+            dom1[i].onmouseout = function (e) {
+              e.currentTarget.classList.remove("news-li-selected");
+            };
+          }
+        }
+        let dom2 = document.querySelectorAll(".news-right-content");
+        if (dom2 && dom2.length > 0) {
+          for (let i = 0; i < dom2.length; i++) {
+            dom2[i].onmouseover = function (e) {
+              var ev = e || window.event; // 事件
+              var target = e.target || e.srcElement; // 获得事件源
+              target.classList.add("news-li-selected");
+            };
+            dom2[i].onmouseout = function (e) {
+              var ev = e || window.event; // 事件
+              var target = e.target || e.srcElement; // 获得事件源
+              target.classList.remove("news-li-selected");
+            };
+          }
+        }
+
+        document.getElementById("callus").onclick = function (e) {
+          document.getElementById("relation-btn").style.display = "none";
+          document
+            .getElementsByClassName("all-relation")[0]
+            .classList.add("all-relation-hover");
+        };
+        document.getElementById("close-btn").onclick = function (e) {
+          document.getElementById("relation-btn").style.display =
+            "inline-block";
+          document
+            .getElementsByClassName("all-relation")[0]
+            .classList.remove("all-relation-hover");
+        };
+
+        var scrollTop =
+          document.documentElement.scrollTop || document.body.scrollTop;
+        if (scrollTop > 0) {
+          document.getElementById("back-top").style.display = "block";
+        } else {
+          document.getElementById("back-top").style.display = "none";
+        }
+
+        document.getElementById("back-top").onclick = function (e) {
+          if (document.documentElement.scrollTop) {
+            document.documentElement.scrollTop = 0;
+          } else {
+            document.body.scrollTop = 0;
+          }
+        };
+
+        window.onscroll = function () {
+          var scrollTop =
+            document.documentElement.scrollTop || document.body.scrollTop;
+          if (scrollTop > 0) {
+            document.getElementById("back-top").style.display = "block";
+          } else {
+            document.getElementById("back-top").style.display = "none";
+          }
+        };
+      };
+    </script>
+  <script>
+      function changeList() {
+          var url = "<?php echo $follow_url;?>";
+          var pager = document.getElementById("pager").value;
+          ajax({
+              url: url, //请求地址
+              type: "POST", //请求方式
+              data: {page:pager}, //请求参数
+              dataType: "json",
+              success: function (response, xml) {
+                  // 此处放成功后执行的代码
+                  // alert('提交成功！');
+                  // let list = [{},{},{},{},{}];//数据格式
+                  let data = JSON.parse(response);
+                  //console.log(response.data);
+                  let list =  data.data.news;
+                  let list2 = data.data.read;
+                  setList(list);
+                  setList2(list2);
+                  document.getElementById("pager").value = parseInt(pager)+1;
+              },
+              fail: function (status) {
+                  // 此处放失败后执行的代码
+                  // alert('提交失败！');
+              },
+          });
+
+
+      }
+      function setList(list) {
+          if (list.length && list != null && list.length > 0) {
+              let html = "";
+              list.forEach((item, index) => {
+                  html += `
+              <div class="b_condition-li">
+                <a href="`+item.detail_url+`">`+item.title+`</a>
+              </div>
+            `;
+              });
+              // 清空原来子节点
+              var div = document.getElementsByClassName("b_condition-ul-left")[0];
+              if (div) {
+                  while (div.hasChildNodes()) {
+                      //当div下还存在子节点时 循环继续
+                      div.removeChild(div.firstChild);
+                  }
+                  //console.log(html);
+                  div.innerHTML = html;
+              }
+          }
+      }
+
+      function setList2(list) {
+          if (list.length && list != null && list.length > 0) {
+              let html = "";
+              list.forEach((item, index) => {
+                  html += `
+              <div class="b_condition-li">
+                <a href="`+item.detail_url+`">`+item.title+`</a>
+              </div>
+            `;
+              });
+              // 清空原来子节点
+              var div = document.getElementsByClassName("b_condition-ul-right")[0];
+              if (div) {
+                  while (div.hasChildNodes()) {
+                      //当div下还存在子节点时 循环继续
+                      div.removeChild(div.firstChild);
+                  }
+                  //console.log(html);
+                  div.innerHTML = html;
+              }
+          }
+      }
+
+      // ajax
+      function ajax(options) {
+          options = options || {};
+          options.type = (options.type || "GET").toUpperCase();
+          options.dataType = options.dataType || "json";
+          var params = formatParams(options.data);
+
+          //创建 - 非IE6 - 第一步
+          if (window.XMLHttpRequest) {
+              var xhr = new XMLHttpRequest();
+          } else {
+              //IE6及其以下版本浏览器
+              var xhr = new ActiveXObject("Microsoft.XMLHTTP");
+          }
+
+          //接收 - 第三步
+          xhr.onreadystatechange = function () {
+              if (xhr.readyState == 4) {
+                  var status = xhr.status;
+                  if (status >= 200 && status < 300) {
+                      options.success &&
+                      options.success(xhr.responseText, xhr.responseXML);
+                  } else {
+                      options.fail && options.fail(status);
+                  }
+              }
+          };
+
+          //连接 和 发送 - 第二步
+          if (options.type == "GET") {
+              xhr.open("GET", options.url + "?" + params, true);
+              xhr.send(null);
+          } else if (options.type == "POST") {
+              xhr.open("POST", options.url, true);
+              //设置表单提交时的内容类型
+              xhr.setRequestHeader(
+                  "Content-Type",
+                  "application/x-www-form-urlencoded"
+              );
+              xhr.send(params);
+          }
+      }
+      //格式化参数
+      function formatParams(data) {
+          var arr = [];
+          for (var name in data) {
+              arr.push(
+                  encodeURIComponent(name) + "=" + encodeURIComponent(data[name])
+              );
+          }
+          arr.push(("v=" + Math.random()).replace(".", ""));
+          return arr.join("&");
+      }
+  </script>
+  </body>
+</html>

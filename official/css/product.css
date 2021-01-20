@@ -1,0 +1,144 @@
+.product-banner {
+  height: 670px;
+  background-image: url(./../images/product_bannerbg.png);
+  background-repeat: no-repeat;
+  color: #fff;
+}
+.product-banner-a {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  height: 100%;
+  align-items: center;
+}
+.product-banner-left {
+  flex: 1;
+}
+.product-banner-left-one {
+  font-size: 28px;
+}
+.product-banner-left-two {
+  font-size: 40px;
+  font-weight: 600;
+  padding: 20px 0;
+  letter-spacing: 2px;
+  border-bottom: 1px solid #fff;
+  display: inline-block;
+}
+
+.product-banner-left-three {
+  font-size: 20px;
+  font-weight: 400;
+  letter-spacing: 4px;
+  line-height: 40px;
+  padding-top: 20px;
+}
+.product-banner-right {
+  flex: 1;
+  text-align: right;
+}
+.product-banner-right img {
+  width: 427px;
+  height: 351px;
+}
+.tabs {
+  padding: 30px 0;
+  line-height: 50px;
+}
+.tabs-a {
+  max-width: 1200px;
+  margin: 0 auto;
+  border-bottom: 1px #ccc solid;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.tabs-one {
+  flex: 1;
+  text-align: center;
+  display: inline-block;
+  font-weight: 600;
+  cursor: pointer;
+}
+.tabs-one-word {
+  border-bottom: 2px solid #00a2ff;
+  display: inline-block;
+  padding: 0 10px;
+  color: #00a2ff;
+}
+.tabs-b {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding-top: 50px;
+  display: none;
+}
+.tabs-b-show{
+  display: flex;
+}
+.tabs-b-left {
+  flex: 0 0 500px;
+  text-align: center;
+}
+.tabs-b-left img {
+  width: 338px;
+  height: 338px;
+}
+.tabs-b-right {
+  flex: 1;
+  line-height: 48px;
+  margin-right: 50px;
+  font-size: 18px;
+}
+.tradition {
+  text-align: center;
+  overflow: hidden;
+}
+.tradition-title {
+  padding: 50px 0;
+  color: #666666;
+  font-size: 32px;
+}
+.tradition-con {
+  max-width: 1200px;
+  overflow-x: hidden;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  /* flex-wrap: wrap; */
+}
+.tradition-one {
+  flex: 0 0 200px;
+  margin: 4%;
+  text-align: center;
+}
+.tradition-one img {
+  width: 50px;
+  height: 50px;
+}
+.tradition-one-title {
+  font-size: 18px;
+  height: 18px;
+  padding: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+}
+.tradition-one-content {
+  font-size: 14px;
+  padding: 10px;
+  color: #999;
+  line-height: 24px;
+  height: 134px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 6;
+  -webkit-box-orient: vertical;
+  text-align: justify;
+  text-justify: inter-ideograph;
+}

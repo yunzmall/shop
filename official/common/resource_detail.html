@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+    <meta http-equiv="content-Type" content="text/html;charset=UTF-8" />
+    <meta http-equiv="Access-Control-Allow-Origin" content="*" />
+    <meta name="keywords" content="<?php echo $keywords ?>">
+    <meta name="description" content="<?php echo $describe;?>">
+    <title><?php echo $title;?></title>
+    <link rel="stylesheet" href="official/css/main.css" />
+</head>
+
+<body>
+<div id="app">
+    <div class="nav">
+        <div class="nav-a">
+            <div class="nav-logo">
+                <img src="<?php echo $top['logo']?>" alt="" />
+            </div>
+            <?php foreach($top['navigation'] as $kk=>$vv) {?>
+            <a href="<?php echo $vv['url']?>">
+                <div class="nav-li <?php if($vv[tool]==$name){?>nav-selected<?php }?>">
+                    <?php echo $vv['name']?>
+                </div>
+            </a>
+            <?php }?>
+            <?php if ($top['is_sign'] == 1) {?>
+            <a href="#" id="jump-url">
+                <div class="nav-login">立即登录</div>
+            </a>
+            <?php }?>
+        </div>
+    </div>
+    <div class="article nav-bottom">
+        <div class="menu">
+                <a href="<?php echo $rel['off_url']?>">资源中心</a>&nbsp;&nbsp;>&nbsp;&nbsp;
+            <a href="<?php echo $rel['off_url']?>">电子合同百科</a>&nbsp;&nbsp;>&nbsp;&nbsp;<?php echo $rel['category_name']?>&nbsp;&nbsp;><span class="word-blue"><?php echo $rel['title']?></span>
+            <div class="detail-title" id="detail-title"><?php echo $rel['title']?></div>
+            <div class="detail-content" id="detail-content"><?php echo $rel['content'];?></div>
+        </div>
+
+    </div>
+    <!--<?php echo $rel['content'];?>-->
+
+    <?php echo $tail;?>
+
+    <div class="all-relation">
+        <div class="relation-btn" id="relation-btn">
+            <div class="relation-btn-one" id="callus">
+                <img src="official/images/lianxikefu.png" alt="">
+                <div>联系客服</div>
+            </div>
+            <div class="relation-btn-one" id="back-top">
+                <img src="official/images/huidaodingbu.png" alt="">
+                <div>回到顶部</div>
+            </div>
+        </div>
+        <div class="relation">
+            <div class="relation-title">在线咨询</div>
+            <a href="<?php echo $basic['cus_link']?>" title="点击咨询">
+                <div class="relation-tel">
+                    <div class="relation-tel-img">
+                        <img src="official/images/suspension_qq.png" alt="" />
+                    </div>
+                    <div class="relation-tel-word">在线客服</div>
+                </div>
+            </a>
+            <div class="relation-tel">
+                <div class="relation-tel-img">
+                    <img src="official/images/suspension_tel.png" alt="" />
+                </div>
+                <div class="relation-tel-word"><?php echo $basic['cus_mobile']?></div>
+            </div>
+            <div class="relation-tel relation-tel1">
+                <div class="relation-tel-img">
+                    <img src="official/images/suspension_wechat.png" alt="" />
+                </div>
+                <div class="relation-tel-word">微信二维码</div>
+            </div>
+            <div class="qr-img">
+                <div class="qr-img"><img src="<?php echo $basic['cus_url']?>" alt="" /></div>
+            </div>
+            <img id="close-btn" src="official/images/adsystem_icon_cancle.png" alt="">
+        </div>
+    </div>
+</div>
+</body>
+</html>
+<script>
+    document.getElementById("callus").onclick = function(e) {
+        document.getElementById("relation-btn").style.display="none";
+        document.getElementsByClassName("all-relation")[0].classList.add("all-relation-hover")
+    }
+    document.getElementById("close-btn").onclick = function(e) {
+        document.getElementById("relation-btn").style.display="inline-block";
+        document.getElementsByClassName("all-relation")[0].classList.remove("all-relation-hover")
+    }
+
+    var scrollTop = document.documentElement.scrollTop || document.body.scrollTop;
+    if(scrollTop>0) {
+        document.getElementById("back-top").style.display = 'block'
+    }
+    else{
+        document.getElementById("back-top").style.display = 'none'
+    }
+
+    document.getElementById("back-top").onclick = function(e) {
+        if(document.documentElement.scrollTop) {
+            document.documentElement.scrollTop = 0;
+        }
+        else{
+            document.body.scrollTop = 0;
+        }
+    }
+
+    window.onscroll = function() {
+        var scrollTop = document.documentElement.scrollTop || document.body.scrollTop;
+        if(scrollTop>0) {
+            document.getElementById("back-top").style.display = 'block'
+        }
+        else{
+            document.getElementById("back-top").style.display = 'none'
+        }
+    }
+    window.onload = function () {
+        url = window.location.protocol + "//" + window.location.host + "/admin.html";
+        if(document.getElementById("jump-url")) {
+            document.getElementById("jump-url").setAttribute("href", url);
+        }
+    }
+</script>

@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+  <head>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>404</title>
+    <style>
+      body {
+        padding: 0;
+        margin: 0;
+      }
+
+      .container {
+        background: #00a2ff;
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100vh;
+        overflow: hidden;
+      }
+      .container-title {
+        width: 800px;
+        height: 450px;
+        left: 50%;
+        top: 50%;
+        text-align: center;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+        display: flex;
+        -webkit-transform: translate(-50%, -50%);
+        transform: translate(-50%, -50%);
+        position: absolute;
+        color: white;
+        line-height: 1;
+        font-weight: 700;
+      }
+
+      .title > * {
+        display: inline-block;
+        font-size: 200px;
+      }
+
+      .number {
+        text-shadow: 20px 20px 20px rgba(0, 0, 0, 0.2);
+        padding: 50px;
+      }
+
+      .tip {
+        font-size: 25px;
+        margin-top: 1.5em;
+        text-shadow: 4px 4px 4px rgba(0, 0, 0, 0.2);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="container-title">
+        <div class="title">
+          <div class="number">4</div>
+          <div class="number">0</div>
+          <div class="number">4</div>
+        </div>
+        <div class="tip">找不到当前网页。</div>
+      </div>
+    </div>
+  </body>
+</html>
