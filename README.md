@@ -7,6 +7,8 @@
 ![image](https://b.yunzmall.com/images/10/2021/01/KKZVuBUUw0g0gI8FbI83UF880KG3jv.jpg)
 ![image](https://b.yunzmall.com/images/10/2021/01/xEweLsRg1MeML5pzspr95N5SgeEnlm.jpg)
 
+未能看到图片的，可访问链接 https://bbs.yunzmall.com/forum.php?mod=viewthread&tid=24201  查看介绍！
+
 
 ## 其他版本功能请访问：
 https://www.yunzmall.com/addons/yun_shop/?menu#/home?i=10&type=5&mid=0&shop_id
@@ -14,8 +16,12 @@ https://www.yunzmall.com/addons/yun_shop/?menu#/home?i=10&type=5&mid=0&shop_id
 或者扫码体验、咨询
 ![image](https://yunzmall-1251768088.cos.ap-guangzhou.myqcloud.com/yunzhong/%E5%AE%98%E7%BD%91/175751uwidbw2qymgbdaq2%E5%89%AF%E6%9C%AC.png)
 
+未能看到图片的，可访问链接 https://bbs.yunzmall.com/forum.php?mod=viewthread&tid=24201  查看！
+
 ## # 芸众商城系统支持宝塔一键部署！
 ![image](https://yunzmall-1251768088.cos.ap-guangzhou.myqcloud.com/yunzhong/%E5%85%8D%E8%B4%B9%E7%89%88/183100q04ncasxr14bpprc.png)
+
+未能看到图片的，可访问链接 https://bbs.yunzmall.com/forum.php?mod=viewthread&tid=24201 查看
 
 # 服务器环境要求：
 必须使用centos7以上（最好最新版）、nginx、PHP7.2、https，请务必确认您的系统环境是否满足要求https://bbs.yunzmall.com/forum.php?mod=viewthread&tid=24382
