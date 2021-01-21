@@ -2,7 +2,7 @@
 ![image](https://yunzmall-1251768088.cos.ap-guangzhou.myqcloud.com/yunzhong/%E6%A1%86%E6%9E%B6%E5%9B%BE202007.jpeg)
 
 # 芸众社交电商系统功能介绍：免费版
-![image](https://github.com/yunzmall/shop/blob/main/static/images/%E5%95%86%E5%9F%8E%E7%B3%BB%E7%BB%9F%E7%A4%BE%E4%BA%A4%E7%94%B5%E5%95%86_01.jpg)
+![image](https://b.yunzmall.com/images/10/2021/01/VZg0SQFi0BEdEhkQkeZqqysSif0b10.jpg)
 ![image](https://b.yunzmall.com/images/10/2021/01/grRV8ju70B2xXv8ZJRv55U1JzIXm2j.jpg)
 ![image](https://b.yunzmall.com/images/10/2021/01/KKZVuBUUw0g0gI8FbI83UF880KG3jv.jpg)
 ![image](https://b.yunzmall.com/images/10/2021/01/xEweLsRg1MeML5pzspr95N5SgeEnlm.jpg)
