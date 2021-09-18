@@ -10,6 +10,7 @@ namespace app\backend\modules\withdraw\controllers;
 
 
 use app\backend\models\Withdraw;
+use app\common\events\withdraw\BalanceWithdrawRejectEvent;
 use app\common\exceptions\ShopException;
 use app\common\services\credit\ConstService;
 use app\common\services\finance\BalanceChange;
@@ -25,6 +26,7 @@ class AuditRejectedController extends PreController
     {
         $result = $this->auditedRebut();
         if ($result == true) {
+             event(new BalanceWithdrawRejectEvent($this->withdrawModel));
 //            BalanceNoticeService::withdrawRejectNotice($this->withdrawModel);
             return $this->message('驳回成功', yzWebUrl("withdraw.detail.index", ['id' => $this->withdrawModel->id]));
         }

@@ -3,7 +3,11 @@
 namespace app\frontend\modules\wechat\controllers;
 
 use app\common\components\BaseController;
+use app\common\facades\EasyWeChat;
 use app\common\models\AccountWechats;
+use app\common\models\frame\Rule;
+use app\common\models\frame\RuleKeyword;
+use app\common\models\QrCode;
 
 /**
  * Created by PhpStorm.
@@ -23,7 +27,6 @@ class IndexController extends BaseController
         $uniacid = request('id');
 
         //设置uniacid
-        \config::set('app.global', array_merge(\config::get('app.global'), ['uniacid' => $uniacid]));
         \YunShop::app()->uniacid = $uniacid;
         \Setting::$uniqueAccountId = $uniacid;
         //设置公众号信息
@@ -54,12 +57,13 @@ class IndexController extends BaseController
             }
         } else {// 不是接入，则触发事件，交给监听者处理.
             // 获取第三方库easyWechat的app对象
-            $wechatApp = new \app\common\modules\wechat\WechatApplication();
+            $wechatApp = EasyWeChat::officialAccount();
             $server = $wechatApp->server;
             try {
                 $message = $server->getMessage();// 异常代码
                 if (\Setting::get('plugin.wechat.is_open')) {//公众号开启，才进行事件触发
-                    event(new \app\common\events\WechatMessage($wechatApp,$server,$message));
+                    $plugin = $this->checkPlugin($message);
+                    event(new \app\common\events\WechatMessage($wechatApp,$server,$message,$plugin));
                     if($message['Event']=="subscribe" && app('plugins')->isEnabled('pet')){
                         event(new \app\common\events\PetWeChatEvent($_GET));
                     }
@@ -69,5 +73,44 @@ class IndexController extends BaseController
                 \Log::debug('----------公众号异常---------',$exception->getMessage());
             }
         }
+    }
+
+    protected function checkPlugin($message)
+    {
+        if ($message['MsgType'] == 'event') {
+            $keyword = '';
+            if ($message['Event'] == 'SCAN') {
+                $eventKey = $message['EventKey'];
+                $qrCode = QrCode::uniacid()->where('scene_str', $eventKey)->first();
+                if (empty($qrCode)) {
+                    return '';
+                }
+                $keyword = $qrCode->keyword;
+            } elseif ($message['Event'] == 'CLICK') {
+                $keyword = $message['EventKey'];
+            } elseif ($message['Event'] == 'TEMPLATESENDJOBFINISH') {
+                exit('success');    //发送模板消息的回调推送事件直接返回success
+            }
+        } elseif ($message['MsgType'] == 'text') {
+            $keyword = $message['Content'];
+        } else {
+             return '';
+        }
+
+        if (!$keyword) {
+            return '';
+        }
+        $keyword = RuleKeyword::uniacid()->where(['content'=>$keyword, 'status'=>1])->first();
+        if (!$keyword) {
+            return '';
+        }
+        $rule = Rule::find($keyword->rid);
+        if (!$rule) {
+            return '';
+        }
+        $names = explode(':', $rule['name']);
+        $plugin = isset($names[1]) ? $names[1] : '';
+
+        return $plugin;
     }
 }

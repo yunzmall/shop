@@ -200,15 +200,15 @@
                                     <template slot="description">
                                         <div>[[process_item1.desc]]</div>
 
-                                        <template v-if="process_item1.value == 20 && refundApply.returnExpress != null">
-                                            <div>快递名称：[[refundApply.returnExpress.express_company_name]]</div>
-                                            <div>快递单号：[[refundApply.returnExpress.express_sn]]</div>
-                                            <el-button plain size="mini" type="primary" @click="selectLogistics(process_item1.value)">查看物流</el-button>
+                                        <template v-if="process_item1.value == 20 && refundApply.return_express != null">
+                                            <div>快递名称：[[refundApply.return_express.express_company_name]]</div>
+                                            <div>快递单号：[[refundApply.return_express.express_sn]]</div>
+                                            <el-button plain size="mini" type="primary" @click="selectRefundLogistics(process_item1.value)">查看物流</el-button>
                                         </template>
 
-                                        <template v-if="process_item1.value == 30 && refundApply.resendExpress != null">
-                                            <div>快递名称：[[refundApply.resendExpress.express_company_name]]</div>
-                                            <div>快递单号：[[refundApply.resendExpress.express_sn]]</div>
+                                        <template v-if="process_item1.value == 30 && refundApply.resend_express != null">
+                                            <div>快递名称：[[refundApply.resend_express.express_company_name]]</div>
+                                            <div>快递单号：[[refundApply.resend_express.express_sn]]</div>
                                             <el-button plain size="mini" type="primary" @click="selectRefundLogistics(process_item1.value)">查看物流</el-button>
                                         </template>
 
@@ -236,6 +236,12 @@
                         <el-form-item label="说明" prop="">
                             <div>[[refundApply.content]]</div>
                         </el-form-item>
+                        <el-form-item v-if="refundApply.images != null && refundApply.images.length > 0" label="图片凭证" prop="">
+                            <div>
+                                <el-image style="width: 150px" v-for="(refund_img,imgskey3) in refundApply.images" :src="refund_img"></el-image>
+                            </div>
+                        </el-form-item>
+
                     </div>
                 </div>
                 <!-- 发票 todo 这里的页面感觉需要优化一下-->
@@ -276,10 +282,21 @@
                                 <div class="upload-box" @click="openUpload('thumb')" v-if="!form.thumb_url">
                                     <i class="el-icon-plus" style="font-size:32px"></i>
                                 </div>
-                                <div @click="openUpload('thumb')" class="upload-boxed" v-if="form.thumb_url" style="height:82px">
+                                <div @click="openUpload('thumb')" class="upload-boxed" v-if="form.thumb_url&&!is_pdf" style="height:82px">
+                                    <!-- <embed :src="form.thumb_url" width="100%" height="100%" :href="form.thumb_url"></embed> -->
                                     <img :src="form.thumb_url" alt="" style="width:150px;height:82px;border-radius: 5px;cursor: pointer;">
                                     <i class="el-icon-close" @click.stop="clearImg('advert_one','img')" title="点击清除图片"></i>
                                     <div class="upload-boxed-text">点击重新上传</div>
+                                </div>
+                                <div @click="openUpload('thumb')" class="upload-boxed" v-if="form.thumb_url&&is_pdf" style="height:82px;border:1px solid #ccc">
+                                    <div style="text-align:center;">PDF文件</div>
+                                    <!-- <embed :src="form.thumb_url" width="100%" height="100%" :href="form.thumb_url"></embed> -->
+                                    <!-- <img :src="form.thumb_url" alt="" style="width:150px;height:82px;border-radius: 5px;cursor: pointer;"> -->
+                                    <i class="el-icon-close" @click.stop="clearImg('advert_one','img')" title="点击清除图片"></i>
+                                    <div class="upload-boxed-text">点击重新上传</div>
+                                </div>
+                                <div v-if="is_pdf">
+                                    <a :href="form.thumb_url" target="_blank">预览PDF文件</a>
                                 </div>
                             </el-form-item>
                             <el-form-item label="" prop="">
@@ -923,8 +940,8 @@
     <!-- <script src="{{resource_get('static/yunshop/tinymceTemplate.js')}}"></script> -->
     
     @include('public.admin.tinymceee')  
-    @include('public.admin.uploadImg')  
-
+    <!-- @include('public.admin.uploadImg')   -->
+    @include('public.admin.uploadfile')
     <script>
         var app = new Vue({
             el:"#app",
@@ -932,6 +949,7 @@
             name: 'test',
             data() {
                 return{
+                    is_pdf:false,
                     street: '{!! \Setting::get("shop.trade")['is_street'] !!}',
                     id:0,
                     getDataUrl: '{!! yzWebFullUrl('order.detail.get-data') !!}',//获取订单数据链接
@@ -1076,6 +1094,15 @@
                                 if (response.data.data.order.invoice) {
                                     this.form.thumb_url = response.data.data.order.invoice;
                                     this.form.thumb = response.data.data.order.invoice;
+                                    let url = this.form.thumb_url.split('.')
+                                    console.log(url)
+
+                                    if(url[url.length-1] == 'pdf') {
+                                        this.is_pdf = true;
+                                    }
+                                    else {
+                                        this.is_pdf = false;
+                                    }
                                 }
 
                                 loading.close();
@@ -1824,6 +1851,16 @@
                 sureImg(name,image,image_url) {
                     this.form[name] = image;
                     this.form[name+'_url'] = image_url;
+                    let url = image_url.split('.')
+                        console.log(url)
+
+                    if(url[url.length-1] == 'pdf') {
+                        this.is_pdf = true;
+                    }
+                    else {
+                        this.is_pdf = false;
+
+                    }
                 },
                 clearImg(str) {
                     this.form[str] = "";

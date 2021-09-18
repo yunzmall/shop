@@ -3,6 +3,11 @@
 @section('title', trans('系统升级'))
 
 @section('css')
+    <style>
+        .main-panel{
+            background: white;!important;
+        }
+    </style>
     <link href="{{static_url('resource/css/upgrade.css')}}" rel="stylesheet">
     <style>
         .version-box{border-left:1px solid #e9e9e9;margin:0;}

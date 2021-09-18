@@ -8,6 +8,7 @@
 
 namespace app\frontend\modules\refund\services\operation;
 
+use app\common\models\Order;
 use app\frontend\modules\order\services\OrderService;
 
 
@@ -32,8 +33,14 @@ class ReceiveResendGoods extends ChangeStatusOperation
     public function execute()
     {
         parent::execute();
-        if($this->status == 2){
-            OrderService::orderReceive(['order_id'=>$this->order_id]);
+
+
+        if ($this->order->status == Order::WAIT_SEND) {
+            OrderService::orderSend(['order_id' => $this->order_id]);
+            OrderService::orderReceive(['order_id' => $this->order_id]);
+        } else if ($this->order->status == Order::WAIT_RECEIVE) {
+            OrderService::orderReceive(['order_id' => $this->order_id]);
         }
+
     }
 }

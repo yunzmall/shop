@@ -16,7 +16,7 @@ class AlipayJsapiPayment extends WebPayment
             return false;
         }
         $face_setting = \Setting::get('plugin.face-payment');
-        if (!$face_setting['switch'] || !$face_setting['method']['weixin'] || $face_setting['button']['wechat']) {
+        if (!$face_setting['switch'] || !$face_setting['method']['alipay'] || $face_setting['button']['alipay']) {
             return false;
         }
         return parent::canUse();

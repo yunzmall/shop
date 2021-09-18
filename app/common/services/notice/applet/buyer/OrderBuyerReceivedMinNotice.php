@@ -36,7 +36,7 @@ class OrderBuyerReceivedMinNotice extends BaseMessageBody
 //        $order_sn = preg_replace('|[a-zA-Z]+|','',$order_sn);   //截取字母
         $this->data = [
             'thing6'=>['value'=> $this->checkDataLength($this->goodsTitle,20)],//  商品名称
-            'thing4'=>['value'=> $this->checkDataLength(\Setting::get('shop.shop')['name'],20)],//商户名称
+            'thing4'=>['value'=> $this->checkDataLength((\Setting::get('shop.shop')['name']?:''),20)],//商户名称
             'character_string8'=>['value'=>  $this->checkDataLength($order_sn,32)],// 订单编码
             'date7'=>['value'=> $this->timeData['finish_time']],//  收货时间
             'phrase3'=>['value'=> "已收货"]//  订单状态xiao

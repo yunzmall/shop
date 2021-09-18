@@ -26,7 +26,7 @@ class Comment extends \app\common\models\Comment
             });
         }
         $commentModdel->with(['goods' => function ($query) {
-            return $query->select(['id', 'title', 'thumb']);
+            return $query->select(['id', 'title', 'thumb','plugin_id']);
         }]);
         $commentModdel->where('comment_id', '0');
 

@@ -3,6 +3,7 @@
 
 namespace app\common\listeners;
 
+use app\common\facades\Setting;
 use app\common\models\UniAccount;
 use app\backend\modules\member\models\Member;
 use app\common\services\txyunsms\SmsSingleSender;
@@ -16,37 +17,102 @@ class SmsBalanceListener
 
     public function subscribe(Dispatcher $events)
     {
+        //todo 梳理逻辑临时更改，可以提出余额定时短信提醒模型验证
 
         $events->listen('cron.collectJobs', function () {
-            \Log::debug('-------------IN_IA-----------',defined('IN_IA'));
-            if (defined('IN_IA')) {
-                \Log::debug('----定时任务执行----');
-                $uniAccounts = UniAccount::getEnable();
-                foreach ($uniAccounts as $uniAccount) {
-                    \YunShop::app()->uniacid = $uniAccount->uniacid;
-                    \Setting::$uniqueAccountId = $uniAccount->uniacid;
-                    $unicid = \YunShop::app()->uniacid;
-                    $balanceSet = \Setting::get('finance.balance');
-                    if ($balanceSet['sms_send'] == 0) {
-                        \Log::debug($uniAccount->uniacid . '未开启');
-                        continue;
-                    }
 
-                    $smsSet = \Setting::get('shop.sms');
-                    //sms_hour 时间
-                    //sms_hour_amount 金额
-                    if (($smsSet['type'] != 3 && $smsSet['aly_templateBalanceCode'] == null) && ($smsSet['type'] != 5 && $smsSet['tx_templateBalanceCode'] == null)) {
-                        \Log::debug('短信功能设置' . $smsSet);
-                        continue;
-                    }
-                    $time = '0 ' . $balanceSet['sms_hour'] . ' * * *';
-                    \Log::debug('-----------time--------',$time);
-                    \Cron::add('smsMeaggeToMemberMobile' . $uniAccount->uniacid, $time, function () use ($unicid) {
-                        $this->handle($unicid);
+            \Log::debug('-------------IN_IA-----------', defined('IN_IA'));
+
+            if (defined('IN_IA')) {
+                foreach ($this->enableAccount() as $uniAccount) {
+
+                    \Setting::$uniqueAccountId = \YunShop::app()->uniacid = $uniAccount->uniacid;
+
+                    if (!$this->smsIsEnable()) continue;
+                    
+                    if (!$this->aliSmsIsEnable() && !$this->txSmsIsEnable()) continue;
+
+                    \Cron::add('smsMessageToMemberMobile' . $uniAccount->uniacid, $this->cronTime(), function () use ($uniAccount) {
+                        $this->handle($uniAccount->uniacid);
                     });
                 }
             }
         });
+    }
+
+    /**
+     * 余额定时提醒是否开启（余额设置：开启余额定时提醒）
+     *
+     * @return bool
+     */
+    private function smsIsEnable()
+    {
+        return (bool)Setting::get('finance.balance.sms_send');
+    }
+
+    /**
+     * 阿里短信余额定时提醒
+     *
+     * @return bool
+     */
+    private function aliSmsIsEnable()
+    {
+        return $this->smsSetType() == 3 && $this->aliSmsCode();
+    }
+
+    /**
+     * 腾讯云短信余额定时提醒
+     *
+     * @return bool
+     */
+    private function txSmsIsEnable()
+    {
+        return $this->smsSetType() == 5 && $this->txSmsCode();
+    }
+
+    /**
+     * 阿里短信余额定时提醒模版
+     *
+     * @return string
+     */
+    private function aliSmsCode()
+    {
+        return (string)Setting::get('shop.sms.aly_templateBalanceCode');
+    }
+
+    /**
+     * 腾讯云短信余额定时提醒模版
+     *
+     * @return string
+     */
+    private function txSmsCode()
+    {
+        return (string)Setting::get('shop.sms.tx_templateBalanceCode');
+    }
+
+    /**
+     * 短信设置类型，阿里--3，腾讯--5
+     *
+     * @return string
+     */
+    private function smsSetType()
+    {
+        return (string)Setting::get('shop.sms.type');
+    }
+
+    private function cronTime()
+    {
+        return '0 ' . $this->setTime() . ' * * *';
+    }
+
+    private function setTime()
+    {
+        return (string)Setting::get('finance.balance.sms_hour');
+    }
+
+    private function enableAccount()
+    {
+        return UniAccount::getEnable();
     }
 
     /**
@@ -65,24 +131,12 @@ class SmsBalanceListener
             \Log::debug($uniacid . '未开启');
             return true;
         }
-        $smsSet = \Setting::get('shop.sms');
-        //sms_hour 时间
-        //sms_hour_amount 金额
-//        if ($smsSet['type'] != 3 || empty($smsSet['aly_templateBalanceCode'])) {
-//            \Log::debug('短信功能设置' . $smsSet);
-//            return true;
-//        }
-        if ($smsSet['type'] == 3 && $smsSet['aly_templateSendMessageCode']) {
-            return $this->aliYun($smsSet,$balanceSet,$uniacid);
-        } elseif ($smsSet['type'] == 5 && $smsSet['tx_templateSendMessageCode']) {
-            return $this->txYun($smsSet,$balanceSet,$uniacid);
-        } else {
-            \Log::debug('短信功能设置' . $smsSet);
-            return true;
-        }
+        $this->sendSms($balanceSet ,$uniacid);
+        return true;
+
     }
 
-    private function aliYun($smsSet,$balanceSet,$uniacid)
+    private function sendSms($balanceSet, $uniacid)
     {
         //查询余额,获取余额超过该值的用户，并把没有手机号的筛选掉
         $mobile = Member::uniacid()
@@ -96,65 +150,22 @@ class SmsBalanceListener
         } else {
             $mobile = $mobile->toArray();
         }
-        $u = UniAccount::where('uniacid',$uniacid)->first();
+        $u = UniAccount::where('uniacid', $uniacid)->first();
         foreach ($mobile as $key => $value) {
             if (!$value['mobile']) {
                 continue;
             }
             //todo 发送短信
-            $aly_sms = new \app\common\services\aliyun\AliyunSMS(trim($smsSet['aly_appkey']), trim($smsSet['aly_secret']));
-            $response = $aly_sms->sendSms(
-                $smsSet['aly_signname'], // 短信签名
-                $smsSet['aly_templateBalanceCode'], // 发货提醒短信
-                $value['mobile'], // 短信接收者
-                Array(  // 短信模板中字段的值
-                    'preshop' => $u->name,
-                    'amount' => $value['credit2'],
-                    'endshop' => $u->name,
-                )
+
+            $data = Array(  // 短信模板中字段的值
+                'preshop' => $u->name,
+                'amount' => $value['credit2'],
+                'endshop' => $u->name,
             );
-            if ($response->Code == 'OK' && $response->Message == 'OK') {
-                \Log::debug($value['mobile'] . '阿里云短信发送成功');
-            } else {
-                \Log::debug($value['mobile'] . '阿里云短信发送失败' . $response->Message);
-            }
-        }
-        return true;
-    }
-
-    private function txYun($smsSet,$balanceSet,$uniacid)
-    {
-        //查询余额,获取余额超过该值的用户，并把没有手机号的筛选掉
-        $mobile = Member::uniacid()
-            ->select('uid', 'mobile', 'credit2')
-            ->whereNotNull('mobile')
-            ->where('credit2', '>', $balanceSet['sms_hour_amount'])
-            ->get();
-        if (empty($mobile)) {
-            \Log::debug('未找到满足条件会员');
+            app('sms')->sendBalance($value['mobile'], $data);
             return true;
-        } else {
-            $mobile = $mobile->toArray();
-        }
-
-        $u = UniAccount::where('uniacid',$uniacid)->first();
-        foreach ($mobile as $key => $value) {
-            if (!$value['mobile']) {
-                continue;
-            }
-            //todo 发送短信
-            $ssender = new SmsSingleSender(trim($smsSet['tx_sdkappid']), trim($smsSet['tx_appkey']));
-            $param = [$u->name, $value['credit2'], $u->name];
-            $response = $ssender->sendWithParam('86', $mobile, $smsSet['tx_templateBalanceCode'],
-                $param, $smsSet['tx_signname'], "", "");  // 签名参数不能为空串
-            $response = json_decode($response);
-            if ($response->result == 0 && $response->errmsg == 'OK') {
-                \Log::debug($value['mobile'] . '腾讯云短信发送成功');
-            } else {
-                \Log::debug($value['mobile'] . '腾讯云短信发送失败' . $response->errmsg);
-            }
-
         }
         return true;
     }
+
 }

@@ -31,7 +31,6 @@ class Setting extends Facade
         return self::$instance;
     }
 
-
     /**
      * 设置配置信息
      *

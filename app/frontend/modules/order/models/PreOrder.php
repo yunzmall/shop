@@ -303,6 +303,20 @@ class PreOrder extends Order
 
         $this->setOrderAddress();
 
+        if(app('plugins')->isEnabled('pc-terminal') && request()->pc && request()->type == 5){
+            //pc端限制下单必须绑定手机
+            $status = \Yunshop\PcTerminal\service\SetService::bindMobileStatus();
+            if(!$status){
+                return;
+            }
+            $member = \app\frontend\models\Member::current();
+            if(empty($member)){
+                throw new \app\common\exceptions\AppException('会员信息错误');
+            }
+            if(empty($member->mobile)){
+                throw new \app\common\exceptions\AppException('请先绑定手机号再下单');
+            }
+        }
     }
 
     /**
@@ -427,7 +441,7 @@ class PreOrder extends Order
             'collect_name' => $this->getRequest()->input('call'),//抬头或单位名称
             'company_number' => $this->getRequest()->input('company_number'),//单位识别号
         );
-
+//dd($this->priceCache);
         $attributes = array_merge($this->getAttributes(), $attributes);
         $this->setRawAttributes($attributes);
 
@@ -459,6 +473,9 @@ class PreOrder extends Order
     public function setOrderRequest(array $input)
     {
         $orderRequest = new OrderRequest();
+        if ($input['address']) {
+            $input['address'] = urldecode($input['address']);
+        }
         $orderRequest->request = $input;
         $orderRequest->ip = $this->request->getClientIp();
         $this->setRelation('orderRequest', $orderRequest);
@@ -617,6 +634,27 @@ class PreOrder extends Order
     protected function getShopName()
     {
         return \Setting::get('shop.shop.name') ?: '平台自营';
+    }
+
+
+    /**
+     * 是否禁用订单抵扣
+     * @return bool true 禁用 false 正常
+     */
+    public function isDeductionDisable()
+    {
+
+        return false;
+    }
+
+    /**
+     * 是否禁用订单优惠
+     * @return bool true 禁用 false 正常
+     */
+    public function isDiscountDisable()
+    {
+
+        return false;
     }
 
     /**

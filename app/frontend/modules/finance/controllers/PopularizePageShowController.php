@@ -11,11 +11,13 @@ namespace app\frontend\modules\finance\controllers;
 
 use app\common\components\BaseController;
 use app\common\facades\Setting;
+use app\framework\Http\Request;
+
 class PopularizePageShowController extends BaseController
 {
 
 
-    public function index($request,$integrated = null)
+    public function index(Request $request,$integrated = null)
     {
         $all_set =  \Setting::get("popularize");
         $data = [

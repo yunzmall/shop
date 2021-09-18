@@ -6,7 +6,7 @@
  * Time: 10:57
  */
 
-namespace app\common\services\alipay\request;
+namespace app\common\services\alipay;
 
 
 use app\common\exceptions\ShopException;

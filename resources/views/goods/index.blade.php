@@ -110,6 +110,7 @@
                                 <el-button size="small" @click="batchPutAway(1)">批量上架</el-button>
                                 <el-button size="small" @click="batchPutAway(0)">批量下架</el-button>
                                 <el-button size="small" @click="batchDestroy">批量删除</el-button>
+                                <el-button size="small" @click="openCategory">批量修改分类</el-button>
                             </div>
                             <div>
                                 <template>
@@ -294,6 +295,24 @@
                             </div>
                         </div>
                     </div>
+                    
+                    <el-dialog :visible.sync="category_show" width="60%" center  title="选择分类">
+                        <div style="height:500px">
+                            <el-select v-model="batch_v1" placeholder="请选择一级分类" clearable @change="batchChangeV1($event)" :style="{width:catlevel==3?'33%':'48%'}">
+                                <el-option v-for="(item,index) in batch_category" :key="item.id" :label="item.name" :value="item.id"></el-option>
+                            </el-select>
+                            <el-select v-model="batch_v2" placeholder="请选择二级分类" clearable @change="batchChangeV2($event)" :style="{width:catlevel==3?'33%':'48%'}">
+                                <el-option v-for="item in batch_category_v2" :key="item.id" :label="item.name" :value="item.id"></el-option>
+                            </el-select>
+                            <el-select v-model="batch_v3" placeholder="请选择三级分类" clearable v-if="catlevel==3" style="width:33%">
+                                <el-option v-for="item in batch_category_v3" :key="item.id" :label="item.name" :value="item.id"></el-option>
+                            </el-select>
+                        </div>
+                        <span slot="footer" class="dialog-footer">
+                            <el-button @click="category_show = false">取 消</el-button>
+                            <el-button type="primary" @click="batchCategory">确 定 </el-button>
+                        </span>
+                    </el-dialog>
                     <!-- 分页 -->
                     <div class="vue-page" v-show="total>1">
                         <el-row>
@@ -355,6 +374,15 @@
                     form: {},
                     level_list: [],
 
+                    //批量修改分类
+                    batch_category:[],
+                    batch_category_v2:[],
+                    batch_category_v3:[],
+                    batch_v1:'',
+                    batch_v2:'',
+                    batch_v3:'',
+                    category_show:false,
+
                     loading: false,
                     table_loading: false,
                     rules: {},
@@ -362,6 +390,7 @@
                     total: 0,
                     per_size: 0,
                     current_page: 0,
+                    this_page:0,
                     rules: {},
                 }
             },
@@ -470,6 +499,7 @@
                 },
                 // 搜索、分页
                 search(page) {
+                    this.this_page = page;
                     var that = this;
                     console.log(that.search_form)
                     // 商品类型
@@ -689,6 +719,92 @@
                         this.$message({type: 'info', message: '已取消修改'});
                     });
                 },
+                // 批量修改分类-打开分类选择框
+                openCategory() {
+                    this.category_show = true;
+                    if(this.batch_category.length==0) {
+                        this.getBatchCategory();
+                    }
+                },
+                getBatchCategory() {
+                    var that = this;
+                    that.$http.post("{!! yzWebFullUrl('goods.category.get-all-shop-category') !!}", {}).then(response => {
+                        console.log(response);
+                        if (response.data.result == 1) {
+                            this.batch_category = response.data.data.list;
+                        } else {
+                            that.$message.error(response.data.msg);
+                        }
+                    }), function (res) {
+                        console.log(res);
+                    };
+                },
+                batchCategory() {
+                    let that = this;
+                    let json = {
+                        level_1:this.batch_v1,
+                        level_2:this.batch_v2,
+                        goods_id_arr:[],
+                    };
+                    if(!json.level_1) {
+                        this.$message.error('请选择一级分类')
+                        return;
+                    }
+                    if(!json.level_2) {
+                        this.$message.error('请选择二级分类')
+                        return;
+                    }
+                    that.goods_list.forEach((item, index) => {
+                        if (item.is_choose == 1) {
+                            json.goods_id_arr.push(item.id);
+                        }
+                    })
+                    if(this.catlevel == 3) {
+                        json.level_3 = this.batch_v3
+                        if(!json.level_3) {
+                            this.$message.error('请选择三级分类')
+                            return;
+                        }
+                    }
+
+                    that.$http.post("{!! yzWebFullUrl('goods.category.change-many-goods-category') !!}", json).then(response => {
+                        console.log(response);
+                        if (response.data.result == 1) {
+                            that.$message.success('操作成功！');
+                            that.is_all_choose = 0;
+                            that.search(1);
+                        } else {
+                            that.$message.error(response.data.msg);
+                        }
+                    }), function (res) {
+                        console.log(res);
+                    };
+                },
+                batchChangeV1(val) {
+                    console.log(val)
+                    this.batch_category_v2 = [];
+                    this.batch_category_v3 = [];
+                    this.batch_v2 = '';
+                    this.batch_v3 = '';
+                    let obj = this.batch_category.find((item,index) => {
+                        return item.id == val
+                    })
+                    this.batch_category_v2 = obj?obj.has_many_children:[]
+                    
+                },
+                batchChangeV2(val) {
+                    if(this.catlevel!=3) {
+                        return
+                    }
+                    this.batch_category_v3 = [];
+                    this.batch_v3 = '';
+                    let obj = this.batch_category_v2.find((item,index) => {
+                        return item.id == val
+                    })
+                    this.batch_category_v3 = obj?obj.has_many_children:[]
+                    
+                },
+                
                 // 新品、热卖、推荐、促销、
                 setProperty(id, index, type) {
                     var that = this;
@@ -780,7 +896,7 @@
                                 e.initEvent('click', true, true)
                                 document.getElementById('app').dispatchEvent(e)
                             }
-                            that.search(1);
+                            that.search(this.this_page);
                         } else {
                             that.$message.error(response.data.msg);
                         }

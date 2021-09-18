@@ -24,7 +24,7 @@ class ConvergeAlipayPayListener
     {
         $set = \Setting::get('plugin.convergePay_set');
 
-        if (\YunShop::plugin()->get('converge_pay') && !is_null($set) && 1 == $set['converge_pay_status'] && 1 == $set['alipay']['alipay_status'] && \YunShop::request()->type != 7) {
+        if (\YunShop::plugin()->get('converge_pay') && !is_null($set) && 1 == $set['converge_pay_status'] && 1 == $set['alipay']['alipay_status']) {
             $result = [
                 'name' => '支付宝支付(HJ)',
                 'value' => '29',

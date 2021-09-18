@@ -330,6 +330,17 @@ $redis[\'password\'] = \'' . $pwd . '\';
         $filename = base_path().'/.env';
         $env = file_get_contents($filename);
 
+        $validatePassword = validatePassword($user['password']);
+
+        // 验证超级管理员信息
+        if (!$user['username'] || !$user['password']) {
+            return $this->errorJson('用户名或密码不能为空');
+        } elseif ($user['password'] !== $user['repassword']) {
+            return $this->errorJson('两次密码不一致');
+        } elseif ($validatePassword !== true) {
+            return $this->errorJson($validatePassword);
+        }
+
         foreach ($set as $item=>$value) {
             // 获取键第一次出现位置
             $check_env_key = strpos($env, $item);
@@ -434,12 +445,6 @@ $redis[\'cache_database\'] = \'' . $redis['cache_database']. '\';
             return $this->errorJson('失败', '');
         }
 
-        // 保存超级管理员信息
-        if (!$user['username'] || !$user['password']) {
-            return $this->errorJson('用户名或密码不能为空');
-        } elseif ($user['password'] !== $user['repassword']) {
-            return $this->errorJson('两次密码不一致');
-        }
         $user['password'] = bcrypt($user['password']);
         $user['status'] = 0;
         $user['type'] = 0;
@@ -537,4 +542,38 @@ $redis[\'cache_database\'] = \'' . $redis['cache_database']. '\';
         }
 
     }
+
+    //生成6位随机账号
+    public function getRandomUser()
+    {
+        $digits    = array_flip(range('0', '9'));
+        $lowercase = array_flip(range('a', 'z'));
+        $combined  = array_merge($digits, $lowercase);
+        $password  = str_shuffle(array_rand($digits) .
+            array_rand($lowercase) .
+            implode(array_rand($combined,4))
+        );
+
+        return $this->successJson('生成随机账号成功',$password);
+    }
+
+    //生成12位随机密码串
+    public function getRandomPsw()
+    {
+        $digits    = array_flip(range('0', '9'));
+        $lowercase = array_flip(range('a', 'z'));
+        $uppercase = array_flip(range('A', 'Z'));
+        $special   = array_flip(str_split('.!@#$%^&*()_+-?'));
+        $combined  = array_merge($digits, $lowercase, $uppercase, $special);
+
+        $password  = str_shuffle(array_rand($digits) .
+            array_rand($lowercase) .
+            array_rand($uppercase) .
+            array_rand($special) .
+            implode(array_rand($combined,8))
+        );
+
+        return $this->successJson('生成随机密码成功',$password);
+    }
+
 }

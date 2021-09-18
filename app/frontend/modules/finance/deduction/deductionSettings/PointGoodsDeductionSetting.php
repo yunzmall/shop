@@ -59,6 +59,7 @@ class PointGoodsDeductionSetting implements DeductionSettingInterface
 
     public function getMaxPriceProportion()
     {
+
         if (!$this->setting->max_point_deduct) {
             return false;
         }

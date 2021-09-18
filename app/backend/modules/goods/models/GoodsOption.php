@@ -50,11 +50,14 @@ class GoodsOption extends \app\common\models\GoodsOption
                 "red_price" => '',
                 'thumb' => $optionPost['option_thumb_' . $ids][0],
             ];
-            if(isset($optionPost['option_stock_' . $ids][0])){
-                $goodsOption['stock'] = $optionPost['option_stock_' . $ids][0];
+
+            $this_stock = $optionPost['option_stock_' . $ids][0];
+            if(isset($this_stock)){
+                $goodsOption['stock'] = $this_stock;
             }
-
-
+//            if(isset($optionPost['option_stock_' . $ids][0])){
+//                $goodsOption['stock'] = $optionPost['option_stock_' . $ids][0];
+//            }
             //$totalstocks += $a['stock'];
             if (empty($get_option_id)) {
                 //dd($goodsOption);

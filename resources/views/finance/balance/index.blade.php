@@ -148,6 +148,17 @@
                         </div>
                     </div>
 
+                    <div class="form-group">
+                        <label class="col-xs-12 col-sm-3 col-md-2 control-label">余额团队转账</label>
+                        <div class="col-sm-9 col-xs-12">
+                            <label class='radio-inline'><input type='radio' name='balance[team_transfer]' value='1'
+                                                               @if($balance['team_transfer'] ==1) checked @endif/>开启</label>
+                            <label class='radio-inline'><input type='radio' name='balance[team_transfer]' value='0'
+                                                               @if($balance['team_transfer'] ==0) checked @endif/> 关闭</label>
+                            <span class='help-block'>开启后用户只能对团队成员转账</span>
+                        </div>
+                    </div>
+
 
 
                 </div>
@@ -320,6 +331,77 @@
 
             </div>
 
+            <div>
+                <div class="form-group">
+                    <label class="col-xs-12 col-sm-3 col-md-2 control-label">余额抵扣</label>
+                    <div class="col-sm-9 col-xs-12">
+                        <label class="radio-inline">
+                            <input type="radio" name="balance[balance_deduct]" value='1'
+                                   @if ($balance['balance_deduct'] == 1) checked @endif /> 开启
+                        </label>
+                        <label class="radio-inline">
+                            <input type="radio" name="balance[balance_deduct]" value='0'
+                                   @if (empty($balance['balance_deduct'])) checked @endif /> 关闭
+                        </label>
+                        <span class='help-block'>开启后订单不支持余额支付</span>
+                        {{--<span class='help-block'>开启余额抵扣，订单使用余额抵扣则不能使用余额支付；<br/>--}}
+                            {{--开启后门店、酒店收银台订单不支持余额支付--}}
+                        {{--</span>--}}
+                    </div>
+                </div>
+
+                {{--<div class="form-group">--}}
+                    {{--<label class="col-xs-12 col-sm-3 col-md-2 control-label">余额抵扣运费</label>--}}
+                    {{--<div class="col-sm-9 col-xs-12">--}}
+                        {{--<label class="radio-inline">--}}
+                            {{--<input type="radio" name="balance[balance_deduct_freight]" value='1'--}}
+                                   {{--@if ($balance['balance_deduct_freight'] == 1) checked @endif /> 开启--}}
+                        {{--</label>--}}
+                        {{--<label class="radio-inline">--}}
+                            {{--<input type="radio" name="balance[balance_deduct_freight]" value='0'--}}
+                                   {{--@if (empty($balance['balance_deduct_freight'])) checked @endif /> 关闭--}}
+                        {{--</label>--}}
+                        {{--<span class='help-block'>前置需要开启余额抵扣才会生效</span>--}}
+                    {{--</div>--}}
+                {{--</div>--}}
+
+                <div class="form-group">
+                    <label class="col-xs-12 col-sm-3 col-md-2 control-label">余额返还</label>
+                    <div class="col-sm-9 col-xs-12">
+                        <label class="radio-inline">
+                            <input type="radio" name="balance[balance_deduct_rollback]" value='1'
+                                   @if ($balance['balance_deduct_rollback'] == 1) checked @endif /> 开启
+                        </label>
+                        <label class="radio-inline">
+                            <input type="radio" name="balance[balance_deduct_rollback]" value='0'
+                                   @if (empty($balance['balance_deduct_rollback'])) checked @endif /> 关闭
+                        </label>
+                        <span class='help-block'>开启余额返还：未付款订单、退款订单关闭订单后，用于抵扣的余额返还到会员账户</span>
+                    </div>
+                </div>
+
+                <div id="balance_deduct_set" class="form-group" @if($balance['balance_deduct'] !=1 ) style="display:none" @endif >
+                    <label class="col-xs-12 col-sm-3 col-md-2 control-label">商品抵扣</label>
+                    <div class="col-sm-3">
+                        <div class='input-group'>
+                            <span class='input-group-addon'>最多可抵扣</span>
+                            <input type="text" name="balance[money_max]" value="{{$balance['money_max']}}"
+                                   class="form-control"/>
+                            <span class='input-group-addon'>%</span>
+                        </div>
+                        <span class='help-block'>商品最高抵扣比例</span>
+                    </div>
+                    {{--<div class="col-sm-3">--}}
+                        {{--<div class='input-group'>--}}
+                            {{--<span class='input-group-addon'>最少需抵扣</span>--}}
+                            {{--<input type="text" name="set[money_min]" value="{{$set['money_min']}}"--}}
+                                   {{--class="form-control"/>--}}
+                            {{--<span class='input-group-addon'>%</span>--}}
+                        {{--</div>--}}
+                        {{--<span class='help-block'>商品最少抵扣比例</span>--}}
+                    {{--</div>--}}
+                </div>
+            </div>
             <div class="form-group">
                 <label class="col-xs-12 col-sm-3 col-md-2 control-label"></label>
                 <div class="col-sm-9 col-xs-12">
@@ -356,6 +438,15 @@
         }
 
         $(function () {
+
+            $(":radio[name='balance[balance_deduct]']").click(function () {
+
+                if ($(this).val() == 1) {
+                    $("#balance_deduct_set").show();
+                } else {
+                    $("#balance_deduct_set").hide();
+                }
+            });
 
             $(":radio[name='balance[love_swich]']").click(function () {
 

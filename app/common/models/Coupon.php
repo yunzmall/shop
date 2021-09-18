@@ -53,6 +53,7 @@ class  Coupon extends BaseModel
     const COUPON_ONE_HOTEL_USE = 6; //适用范围 - 单个酒店
     const COUPON_MORE_HOTEL_USE = 7; //适用范围 - 多个酒店
     const COUPON_EXCHANGE_USE = 8; //兑换券
+    const COUPON_GOODS_AND_STORE_USE = 9; //指定商品+指定门店
 
     const COUPON_MONEY_OFF = 1; //优惠方式- 立减
     const COUPON_DISCOUNT = 2; //优惠方式- 折扣
@@ -109,6 +110,9 @@ class  Coupon extends BaseModel
                 break;
             case Coupon::COUPON_EXCHANGE_USE:
                 $name = '兑换券';
+                break;
+            case Coupon::COUPON_GOODS_AND_STORE_USE:
+                $name = '商品和门店';
                 break;
             default:
                 $name = '未知类型';
@@ -239,6 +243,11 @@ class  Coupon extends BaseModel
                 return [
                     'type' => self::COUPON_SINGLE_STORE_USE,
                     'scope' => $categoryIds,
+                ];
+                break;
+            case self::COUPON_GOODS_AND_STORE_USE:
+                return [
+                    'type' => self::COUPON_GOODS_AND_STORE_USE,
                 ];
                 break;
             default:

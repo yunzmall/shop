@@ -33,10 +33,10 @@ class Check
         $setting = Setting::getNotUniacid('platform_shop.key');
 
         if ((!$setting['key'] || !$setting['secret']) && (request()->path() != 'admin/index' && !strpos(request()->path(), 'siteRegister'))) {
-            $this->errorJson('', [
-                'status' => -5
-            ])->send();
-            exit;
+             $this->errorJson('', [
+                 'status' => -5
+             ])->send();
+             exit;
         }
     }
 

@@ -8,6 +8,7 @@
 
 namespace app\frontend\models\order;
 
+use app\backend\modules\order\services\models\ExcelModel;
 use app\common\exceptions\MinOrderDeductionNotEnough;
 use app\common\models\order\OrderDeduction;
 use app\common\models\VirtualCoin;
@@ -91,7 +92,8 @@ class PreOrderDeduction extends OrderDeduction
      */
     public function getCoinAttribute()
     {
-        return $this->getMinDeduction()->getCoin() + $this->getUsablePoint()->getCoin();
+        //todo 为了保证显示不超过两位小数，这里使用了四舍五入
+        return round($this->getMinDeduction()->getCoin() + $this->getUsablePoint()->getCoin(),2);
     }
 
     /**
@@ -368,13 +370,18 @@ class PreOrderDeduction extends OrderDeduction
     public function isChecked()
     {
         if (!isset($this->isChecked)) {
+        	
             if (!$this->order->uid) {
                 return $this->isChecked = false;
             }
             if ($this->mustBeChecked()) {
                 // 必须选中
                 $this->isChecked = true;
-            } else {
+            } elseif (!$this->order->getRequest()->no_deduction_ids &&
+	            \Setting::get('point.set')['default_deduction'] &&
+	            ($this->order->plugin_id == 0 || $this->order->plugin_id == 92)){//no_deduction_ids 新添参数,状态为空和设置为1 则开启默认抵扣按钮
+            	$this->isChecked = $this->getCode() == 'point';//添加默认开启积分抵扣 ,暂时只做积分的
+            }else {
                 // 用户选中
                 $deduction_codes = $this->order->getParams('deduction_ids');
 

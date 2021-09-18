@@ -68,9 +68,16 @@ b{
             <el-form ref="first_list"  label-width="15%" >
                 <div class="block">
                 <div class="title"><span style="width: 4px;height: 18px;background-color: #29ba9c;margin-right:15px;display:inline-block;"></span><b>选择问题分类</b></div>
-                    <div class="tabs" style="display:flex;align-items:center;">
-                        <div v-for="(item,index,key) in category_list.slice(1,category_list.length)" class="tab" :class="item.id==category_id?'other':''"  @click="tap(item)">[[item.label]]</div>
-                    </div>
+                    <el-form-item label="选择分类:">
+                        <el-select v-model="category_id" placeholder="请选择" style="width:360px;">
+                            <el-option
+                            v-for="item in category_list.slice(1,category_list.length)"
+                            :key="item.value"
+                            :label="item.label"
+                            :value="item.id">
+                            </el-option>
+                        </el-select>
+                    </el-form-item>   
                 </div>
                 <div class="block">
                 <div class="title"><span style="width: 4px;height: 18px;background-color: #29ba9c;margin-right:15px;display:inline-block;"></span><b>基本问题</b></div>
@@ -84,7 +91,15 @@ b{
                         <el-form-item >
                         <tinymce v-model="question_describe" style="width:70%;"></tinymce>
                         <div class="form-group" style="margin-bottom:20px;">
-                            <el-upload style="margin-top:20px;" class="upload-demo" :on-remove="removeUP" action="{!!yzWebFullUrl('setting.work-order.upload-file')!!}" :on-success="onSuccess" :before-remove="beforeRemove" multiple  :limit="3"  :before-upload="beforeUpload" :on-exceed="handleExceed" :file-list="fileList">
+                            <el-upload style="margin-top:20px;" class="upload-demo"
+                                       :on-remove="removeUP"
+                                       action="{!!yzWebFullUrl('setting.work-order.upload-file')!!}"
+                                       :on-success="onSuccess"
+                                       :before-remove="beforeRemove" multiple
+                                       :limit="3"
+                                       :before-upload="beforeUpload"
+                                       :on-exceed="handleExceed"
+                                       :file-list="fileList">
                                 <el-button size="small" type="primary">点击上传</el-button>
                                 <div slot="tip" class="el-upload__tip">支持上传excel、word、txt和图片等文件</div>
                             </el-upload>
@@ -310,6 +325,7 @@ b{
             // 上传成功的
             onSuccess(res, file, fileList) {
                 if (res.result == 1) {
+                        this.thumb_url.push(res.data.thumb_url);
                     this.$message.success('上传成功')
                 } else {
                     this.$message.error(res.msg)
@@ -317,9 +333,11 @@ b{
 
             },
             removeUP(file, fileList){
-                 fileList.map(item=>{
-                    this.thumb_url.push(item.response.data.thumb_url);
-                 })
+                this.thumb_url.forEach((item,index)=>{
+                    if(item==file.response.data.thumb_url){
+                        this.thumb_url.splice(index,1)
+                    }
+                })
             },
             beforeRemove(file, fileList) {
                 return this.$confirm(`确定移除 ${ file.name }？`);

@@ -12,7 +12,9 @@ use app\common\components\ApiController;
 use app\common\helpers\Client;
 use app\common\helpers\Url;
 use app\common\models\Member;
+use app\common\models\Protocol;
 use app\common\services\Session;
+use app\frontend\models\MemberShopInfo;
 use app\frontend\modules\member\services\factory\MemberFactory;
 use app\frontend\modules\member\services\MemberService;
 use Illuminate\Contracts\Encryption\DecryptException;
@@ -45,33 +47,42 @@ class LoginController extends ApiController
             $type = 10;
         }
 
+        if (\YunShop::request()->client) {
+            $type = 17;
+        }
+
         if (!empty($type)) {
-                $member = MemberFactory::create($type);
+            $member = MemberFactory::create($type);
 
-                if ($member !== NULL) {
-                    $msg = $member->login();
+            if ($member !== NULL) {
+                $msg = $member->login();
 
-                    if (!empty($msg)) {
-                        if ($msg['status'] == 1) {
-                            $url = Url::absoluteApp('member', ['i' => $uniacid, 'mid' => $mid]);
+                if (!empty($msg)) {
+                    if ($msg['status'] == 1 || $msg['status'] == 11) {
+                        $url = Url::absoluteApp('member', ['i' => $uniacid, 'mid' => $mid]);
 
-                            if (isset($msg['json']['redirect_url'])) {
-                                $url = $msg['json']['redirect_url'];
-                            }
-
-                            $data = $msg['variable'];
-                            $data['status'] = $msg['status'];
-                            $data['url'] = $url;
-                            return $this->successJson($msg['json'], $data);
-                        } else {
-                            return $this->errorJson($msg['json'], ['status'=> $msg['status']]);
+                        if (isset($msg['json']['redirect_url'])) {
+                            $url = $msg['json']['redirect_url'];
                         }
+
+                        if (isset($msg['variable']['url'])) {
+                            $url = $msg['variable']['url'];
+                        }
+
+                        $data = $msg['variable'];
+                        $data['status'] = $msg['status'];
+                        $data['url'] = $url;
+                        $this->updateLastLoginTime($msg['json']['uid']);
+                        return $this->successJson($msg['json'], $data);
                     } else {
-                        return $this->errorJson('登录失败', ['status' => 3]);
+                        return $this->errorJson($msg['json'], ['status'=> $msg['status']]);
                     }
                 } else {
-                    return $this->errorJson('登录异常', ['status'=> 2]);
+                    return $this->errorJson('登录失败', ['status' => 3]);
                 }
+            } else {
+                return $this->errorJson('登录异常', ['status'=> 2]);
+            }
         } else {
             return $this->errorJson('客户端类型错误', ['status'=> 0]);
         }
@@ -87,6 +98,9 @@ class LoginController extends ApiController
         return $this->successJson('', ['status'=> 1, 'wetach_login' => $weixin_oauth]);
     }
 
+    public function updateLastLoginTime($uid){
+        MemberShopInfo::where('member_id',$uid)->update(['last_login_time' => time()]);
+    }
     public function phoneSetGet()
     {
         $phone_oauth = \Setting::get('shop_app.pay.phone_oauth');
@@ -129,6 +143,8 @@ class LoginController extends ApiController
 
         $data['sms'] = $result;
         $data['mobile_login_code'] = \Setting::get('shop.member.mobile_login_code') ?: 0;
+        $data['logo'] = !empty(\Setting::get('shop.shop')['logo']) ? yz_tomedia(\Setting::get('shop.shop')['logo']) : 0;
+        $data['protocol_title'] = Protocol::uniacid()->value('title') ?: '平台用户协议';
 
         if (!is_null(\app\common\modules\shop\ShopConfig::current()->get('wechat_qrcode_config'))) {
             $class    = array_get(\app\common\modules\shop\ShopConfig::current()->get('wechat_qrcode_config'), 'class');
@@ -137,7 +153,8 @@ class LoginController extends ApiController
             $data['wechat_qrcode_config'] = [
                 'is_open' => $wechat_qrcode_config['is_open'],
                 'is_wechat_login' => $wechat_qrcode_config['is_wechat_login'],
-                'callback' => $wechat_qrcode_config['callback']
+                'callback' => $wechat_qrcode_config['callback'],
+                'wechat_login_type' => $wechat_qrcode_config['wechat_login_type'],
             ];
             unset($wechat_qrcode_config);
         }

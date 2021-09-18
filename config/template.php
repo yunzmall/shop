@@ -296,6 +296,22 @@ return [
             '昵称', '时间','会员等级','过期时间'
         ]
     ],
+    'consume_coupon_get' => [
+        'title' => '消费券获取',
+        'subtitle' => '消费券获取通知',
+        'value' => 'consume_coupon_get',
+        'param' => [
+            '昵称','时间','获得数量',
+        ]
+    ],
+    'consume_coupon_use' => [
+        'title' => '消费券使用',
+        'subtitle' => '消费券使用通知',
+        'value' => 'consume_coupon_use',
+        'param' => [
+            '昵称','时间','使用数量',
+        ]
+    ],
     'consumption_points' => [
         'title' => '消费积分【变动通知】',
         'subtitle' => '消费积分变动通知',

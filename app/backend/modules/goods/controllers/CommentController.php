@@ -90,11 +90,19 @@ class CommentController extends UploadVerificationBaseController
 
         $requestComment = request()->comment;
 
+
         if ($requestComment) {
             $requestComment['goods_id'] = $goods_id;
+            $comment_time = time();
+            if ( $requestComment['time_state'] && $requestComment['comment_time'] > 0){
+                $comment_time = $requestComment['comment_time'] / 1000;
+            }
+            unset($requestComment['time_state']);
+            unset($requestComment['comment_time']);
+
             //将数据赋值到model
             $commentModel->setRawAttributes($requestComment);
-            //            dd($commentModel);
+
             //其他字段赋值
             $commentModel->uniacid = \YunShop::app()->uniacid;
             if (empty($commentModel->nick_name)) {
@@ -103,14 +111,20 @@ class CommentController extends UploadVerificationBaseController
             if (empty($commentModel->head_img_url)) {
                 $commentModel->head_img_url = Member::getRandAvatar()->avatar;
             }
+
+
             $commentModel = CommentService::comment($commentModel);
             //字段检测
             $validator = $commentModel->validator($commentModel->getAttributes());
             if ($validator->fails()) {
                 $this->errorJson($validator->messages());
             } else {
+                $commentData = $commentModel->getAttributes();
+                $commentData['created_at'] = $comment_time;
+                $commentData['updated_at'] = $comment_time;
                 //数据保存
-                if ($commentModel->save()) {
+//                if ($commentModel->save()) {
+                if ($commentModel->insert($commentData)) {
                     Goods::updatedComment($commentModel->goods_id);
                     //显示信息并跳转
                     return $this->successJson('评论创建成功');
@@ -183,14 +197,19 @@ class CommentController extends UploadVerificationBaseController
             return $this->errorJson('无此记录或已被删除');
         }
 
-        $goods_id = $commentModel->goods_id;
-        if (!empty(request()->goods_id) && request()->goods_id != $commentModel->goods_id){
-            if($goods = Goods::getGoodsById(request()->goods_id)) $goods_id = $goods->id;
-            else return $this->errorJson('选择的商品不存在或已删除');
-        }
-
         $requesComment = request()->comment;
         if ($requesComment) {
+            $goods_id = $commentModel->goods_id;
+            if (!empty(request()->goods_id) && request()->goods_id != $goods_id){
+                if (!$goods = Goods::getGoodsById(request()->goods_id)) return $this->errorJson('选择的商品不存在或已删除');
+                $goods_id = $goods->id;
+            }
+            $comment_time = 0;
+            if ($requesComment['time_state'] && $requesComment['comment_time'] > 0){
+                $comment_time = $requesComment['comment_time'] / 1000;
+            }
+            unset($requesComment['time_state']);
+            unset($requesComment['comment_time']);
 
             //将数据赋值到model
             $commentModel->setRawAttributes($requesComment);
@@ -201,10 +220,11 @@ class CommentController extends UploadVerificationBaseController
                 $commentModel->head_img_url = Member::getRandAvatar()->avatar;
             }
 
-            $commentModel = CommentService::comment($commentModel);
+            $commentModel->images = isset($commentModel->images) && is_array($commentModel->images) ? serialize($commentModel->images) : serialize([]);
 
-
+            if ($comment_time) $commentModel->created_at = $comment_time;
             $commentModel->goods_id = $goods_id;
+
             //字段检测
             $validator = $commentModel->validator($commentModel->getAttributes());
             if ($validator->fails()) {
@@ -226,7 +246,11 @@ class CommentController extends UploadVerificationBaseController
             $item = yz_tomedia($item);
         }
         $commentModel['images_url'] = $imgs;
+        $commentModel['comment_time'] = is_numeric($commentModel['created_at']) ? : strtotime($commentModel['created_at']);
+
+        $goods = Goods::getGoodsById($commentModel->goods_id);
         $goods['thumb'] = yz_tomedia($goods['thumb']);
+
         $data = [
             'id' => $id,
             'comment' => $commentModel,
@@ -275,10 +299,22 @@ class CommentController extends UploadVerificationBaseController
             }
         }
         $goods['thumb'] = yz_tomedia($goods['thumb']);
+
         $data = [
             'comment' => $commentModel,
-            'goods' => $goods
+            'goods' => $goods,
         ];
+
+        if(!is_null($comment_detail_arr = \app\common\modules\shop\ShopConfig::current()->get('comment_detail_data'))){
+            foreach ($comment_detail_arr as $v){
+                $class    = array_get($v, 'class');
+                $function = array_get($v, 'function');
+                if ($other_data = $class::$function($commentModel)){
+                    $data[$other_data['key']] = $other_data;
+                }
+            }
+        }
+
         return $this->successJson('ok', $data);
         //        return view('goods.comment.reply', [
         //            'comment' => $commentModel,

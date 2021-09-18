@@ -88,7 +88,8 @@ class IncomeWithdraw
         );
         $events->listen(
             WithdrawPayedEvent::class,
-            self::class . '@withdrawArrival'
+            self::class . '@withdrawArrival',
+            -999
         );
     }
 }

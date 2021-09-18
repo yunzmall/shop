@@ -2,35 +2,34 @@
 @section('content')
 <link href="{{static_url('yunshop/balance/balance.css')}}" media="all" rel="stylesheet" type="text/css"/>
 <div class="w1200 m0a">
+
     <div class="rightlist" id="member-blade">
         @include('layouts.tabs')
+
         <div class="panel panel-default">
             <div class="panel-body">
-                <form action="" method="post" class="form-horizontal" role="form" id="form1">
-
-                    <div class="form-group col-sm-11 col-lg-11 col-xs-12">
+                <div class="form-group col-sm-12 col-lg-12 col-xs-12">
+                    <div class="col-sm-6 col-lg-6 col-xs-12">
+                        <p class="">注：每天凌晨1点执行数据统计，统计截止到前一天的数据；建议不要再同一时间设置数据自动备份、快照等计划任务！</p>
+                    </div>
+                    <div class="col-sm-1 col-lg-1 col-xs-12">
                         <div class="">
-                            <div class='input-group'>
-
-                                <div class='form-input'>
-                                    <p class="input-group-addon" >会员ID</p>
-                                    <input class="form-control price" style="width: 40%;" type="text" name="search[member_id]" value="{{ $search['member_id'] or ''}}">
-                                </div>
-
-                                <div class='form-input'>
-                                    <p class="input-group-addon" >会员信息</p>
-                                    <input class="form-control price" style="width: 40%;" type="text" name="search[member_info]" value="{{ $search['member_info'] or ''}}">
-                                </div>
-
-                                <div class=''>
-                                    <p class="" align="center">注：每天凌晨1点执行数据统计，统计截止到前一天的数据；建议不要再同一时间设置数据自动备份、快照等计划任务！</p>
-                                </div>
-
-                            </div>
+                            <input type="submit" class="btn btn-block btn-primary update" onclick="update()" value="刷新数据">
                         </div>
                     </div>
+                </div>
+                <form action="" method="post" class="form-horizontal" role="form" id="form1">
 
-                    <div class="form-group col-sm-1 col-lg-1 col-xs-12">
+                    <div class="form-group col-xs-12 col-sm-2">
+                        <input class="form-control" name="search[member_id]" id="" type="text"
+                               value="{{$search['member_id']}}" placeholder="会员ID">
+                    </div>
+                    <div class="form-group col-xs-12 col-sm-2">
+                        <input class="form-control" name="search[member_info]" id="" type="text"
+                               value="{{$search['member_info']}}" placeholder="会员信息">
+                    </div>
+
+                    <div class="form-group col-xs-12 col-sm-2 ">
                         <div class="">
                             <input type="submit" class="btn btn-block btn-success" value="搜索">
                         </div>
@@ -87,4 +86,20 @@
         </div>
     </div>
 </div>
+    <script>
+        function update() {
+            $('.update').val('刷新中...')
+            $.ajax({
+                url: "{!! yzWebUrl('charts.member.offline-count.update') !!}",
+                type: "post",
+                data: {},
+                cache: false,
+                success: function ($data) {
+                    console.log($data);
+                    $('.update').val('成功')
+                    location.reload();
+                }
+            })
+        }
+    </script>
 @endsection

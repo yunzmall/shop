@@ -10,6 +10,7 @@ namespace app\payment\controllers;
 
 use app\backend\modules\refund\services\RefundOperationService;
 use app\common\events\finance\AlipayWithdrawEvent;
+use app\common\events\order\AfterOrderPaidRedirectEvent;
 use app\common\helpers\Url;
 use app\common\models\Order;
 use app\common\models\OrderPay;
@@ -37,7 +38,6 @@ class AlipayController extends PaymentController
 
     public function notifyUrl()
     {
-
         $this->log($_POST, '支付宝支付');
         if ($_POST['sign_type'] == 'MD5') {
             $verify_result = $this->getSignResult();
@@ -53,7 +53,7 @@ class AlipayController extends PaymentController
             if ($_POST['trade_status'] == 'TRADE_SUCCESS') {
                 if ($_POST['sign_type'] == 'RSA2') {
                     if (strpos($_POST['out_trade_no'], '_') !== false) {
-                        $out_trade_no = substr($_POST['out_trade_no'], strpos($_POST['out_trade_no'], '_')+1);
+                        $out_trade_no = substr($_POST['out_trade_no'], strpos($_POST['out_trade_no'], '_') + 1);
                     } else {
                         $out_trade_no = $_POST['out_trade_no'];
                     }
@@ -97,7 +97,7 @@ class AlipayController extends PaymentController
             if ($_POST['trade_status'] == 'TRADE_SUCCESS') {
                 if ($_POST['sign_type'] == 'RSA2') {
                     if (strpos($_POST['out_trade_no'], '_') !== false) {
-                        $out_trade_no = substr($_POST['out_trade_no'], strpos($_POST['out_trade_no'], '_')+1);
+                        $out_trade_no = substr($_POST['out_trade_no'], strpos($_POST['out_trade_no'], '_') + 1);
                     } else {
                         $out_trade_no = $_POST['out_trade_no'];
                     }
@@ -144,94 +144,26 @@ class AlipayController extends PaymentController
         } else {
             $out_trade_no = $this->substr_var($_GET['out_trade_no']);
         }
-        //\Log::debug('pay appointment order plugin.appointment.exits：',\app\common\modules\shop\ShopConfig::current()->get('plugin.appointment.exits'));
-        //预约商品订单支付成功后跳转预约插件设置的页面
-        if ($out_trade_no) {
-            //todo 判断插件是否开启的方法无效，没查出原因。用订单的plugin_id判断是否是预约商品
-            $orderPay = OrderPay::where('pay_sn', $out_trade_no)->first();
-            $orders = Order::whereIn('id', $orderPay->order_ids)->get();
-            \Log::debug('pay appointment order $orders：',$orders);
-            // 只有一个订单
-            if ($orders->count() == 1) {
-                $order = $orders[0];
-                // 是预约商品的订单
-                if ($order->plugin_id == 101) {
-
-                    \Log::debug('pay appointment order $order->plugin_id：',$order->plugin_id);
-                    $set = \Setting::get('plugin.appointment');
-                    $appointment_h5_pay_return_url = $set['h5_pay_return_url'];
-                    \Log::debug('pay appointment order $appointment_h5_pay_return_url：',$appointment_h5_pay_return_url);
-                    $appointment_pay_return_url_map = [
-                        '1'=>'client_project',
-                    ];
-                    if($appointment_h5_pay_return_url&&$appointment_pay_return_url_map[$appointment_h5_pay_return_url]){
-                        $appointment_redirect = Url::absoluteApp($appointment_pay_return_url_map[$appointment_h5_pay_return_url], ['i' => \YunShop::app()->uniacid]);
-                    }
-                    //$appointment_redirect = \Yunshop\Appointment\common\service\SetService::getPayReturnUrl();
-                    //\Log::debug('pay appointment order $appointment_redirect：',$appointment_redirect);
-                    if($appointment_redirect){
-                        redirect($appointment_redirect)->send();
-                    }
-                }
-
-            }
-        }
-        // 拼团订单支付成功后跳转该团页面
-        // 插件开启
-        if (app('plugins')->isEnabled('fight-groups')) {
-            $orderPay = OrderPay::where('pay_sn', $out_trade_no)->first();
-            $orders = Order::whereIn('id', $orderPay->order_ids)->get();
-            // 只有一个订单
-            if ($orders->count() == 1) {
-                $order = $orders[0];
-                // 是拼团的订单
-                if ($order->plugin_id == 54) {
-                    $fightGroupsTeamMember = \Yunshop\FightGroups\common\models\FightGroupsTeamMember::uniacid()->with(['hasOneTeam'])->where('order_id', $order->id)->first();
-                    // 有团员并且有团队，跳到拼团详情页
-                    if (!empty($fightGroupsTeamMember) && !empty($fightGroupsTeamMember->hasOneTeam)) {
-                        redirect(Url::absoluteApp('group_detail/' . $fightGroupsTeamMember->hasOneTeam->id, ['i' => \YunShop::app()->uniacid]))->send();
-                    } else {
-                        redirect(Url::absoluteApp('home'))->send();
-                    }
-                }
-            }
-        }
+        $orderPay = OrderPay::where('pay_sn', $out_trade_no)->first();
+        $orders = Order::whereIn('id', $orderPay->order_ids)->get();
 
         $trade = \Setting::get('shop.trade');
         //这里做支付后跳转，需要取到支付流水号
+        $redirect = Url::absoluteApp('home');
         if (!is_null($trade) && isset($trade['redirect_url']) && !empty($trade['redirect_url'])) {
-            return redirect($trade['redirect_url'].'&outtradeno='.$out_trade_no)->send();
-        }
-
-        if ($_GET['sign_type'] == 'MD5') {
-            $verify_result = $this->getSignResult();
-            if ($verify_result) {
-                if ($_GET['trade_status'] == 'TRADE_SUCCESS') {
-                  
-                    redirect(Url::absoluteApp('member/payYes'))->send();
-                } else {
-                    redirect(Url::absoluteApp('member/payErr', ['i' => \YunShop::app()->uniacid]))->send();
-                }
-            } else {
-                redirect(Url::absoluteApp('member/payErr', ['i' => \YunShop::app()->uniacid]))->send();
-            }
-        } else {
-            if ($out_trade_no) {
-                $orderPay = OrderPay::where('pay_sn', $out_trade_no)->first();
-
-                $orders = Order::whereIn('id', $orderPay->order_ids)->get();
-                if (is_null($orderPay)) {
-                    redirect(Url::absoluteApp('home'))->send();
-                }
-                if ($orders->count() > 1) {
-                    redirect(Url::absoluteApp('member/orderlist/', ['i' => \YunShop::app()->uniacid]))->send();
-                } else {
-                    redirect(Url::absoluteApp('member/orderdetail/'.$orders->first()->id, ['i' => \YunShop::app()->uniacid]))->send();
-                }
-            } else {
-                redirect(Url::absoluteApp('home'))->send();
+            $redirect = $trade['redirect_url'];
+            preg_match("/^(http:\/\/)?([^\/]+)/i", $trade['redirect_url'], $matches);
+            $host = $matches[2];
+            // 从主机名中取得后面两段
+            preg_match("/[^\.\/]+\.[^\.\/]+$/", $host, $matches);
+            if ($matches) {//判断域名是否一致
+                $redirect = $trade['redirect_url'] . '&outtradeno=' . $out_trade_no;
             }
         }
+        event($event = new AfterOrderPaidRedirectEvent($orders, $orderPay->id));
+        $redirect = $event->getData()['redirect'] ?: $redirect;
+        redirect($redirect)->send();
+
     }
 
     public function jsapiNotifyUrl()
@@ -270,7 +202,7 @@ class AlipayController extends PaymentController
 
                 ];
 
-                $this->alipayPayResult($data,$trade_no[2]);
+                $this->alipayPayResult($data, $trade_no[2]);
                 $this->payResutl($data);
             }
 
@@ -291,7 +223,7 @@ class AlipayController extends PaymentController
         $order = $orderPay->orders->first();
         $store_order = StoreOrder::where('order_id', $order->id)->first();
         $store_id = $store_order->store_id;
-        request()->offsetSet('store_id',$store_id);
+        request()->offsetSet('store_id', $store_id);
         $data = [
             'uniacid' => \Yunshop::app()->uniacid,
             'order_id' => $order->id,
@@ -305,8 +237,10 @@ class AlipayController extends PaymentController
         ];
         AlipayPayOrder::create($data);
     }
+
     //判断返回的数据是否是json格式
-    protected function is_json($string) {
+    protected function is_json($string)
+    {
         json_decode($string);
         return (json_last_error() == JSON_ERROR_NONE);
     }
@@ -438,6 +372,7 @@ class AlipayController extends PaymentController
         $params['sign'] = null;
         return $this->verify2($this->getSignContent($params), $sign);
     }
+
     /**
      * app2.0签名验证
      *
@@ -458,11 +393,12 @@ class AlipayController extends PaymentController
      * @param $sign
      * @return bool
      */
-    function verify($data, $sign) {
+    function verify($data, $sign)
+    {
         $alipay_sign_public = \Setting::get('shop_app.pay.alipay_sign_public');
         //如果isnewalipay为1，则为rsa2支付类型
         $isnewalipay = \Setting::get('shop_app.pay.newalipay');
-        if(!$this->checkEmpty($alipay_sign_public)){
+        if (!$this->checkEmpty($alipay_sign_public)) {
             $res = "-----BEGIN PUBLIC KEY-----\n" .
                 wordwrap($alipay_sign_public, 64, "\n", true) .
                 "\n-----END PUBLIC KEY-----";
@@ -486,12 +422,13 @@ class AlipayController extends PaymentController
      * @param $sign
      * @return bool
      */
-    function verify2($data, $sign) {
+    function verify2($data, $sign)
+    {
         $set = \Setting::get('shop.pay');
-        $alipay_sign_public =decrypt($set['rsa_public_key']);
+        $alipay_sign_public = decrypt($set['rsa_public_key']);
         //如果isnewalipay为1，则为rsa2支付类型
         $isnewalipay = \Setting::get('shop.pay.alipay_pay_api');
-        if(!$this->checkEmpty($alipay_sign_public)){
+        if (!$this->checkEmpty($alipay_sign_public)) {
             $res = "-----BEGIN PUBLIC KEY-----\n" .
                 wordwrap($alipay_sign_public, 64, "\n", true) .
                 "\n-----END PUBLIC KEY-----";
@@ -514,12 +451,13 @@ class AlipayController extends PaymentController
      * @param $sign
      * @return bool
      */
-    function verify3($data, $sign) {
+    function verify3($data, $sign)
+    {
         $res = '';
         $set = \Setting::get('shop.alipay_set');
         $alipay_sign_public = $set['alipay_public_key'];
         //如果isnewalipay为1，则为rsa2支付类型
-        if(!$this->checkEmpty($alipay_sign_public)){
+        if (!$this->checkEmpty($alipay_sign_public)) {
             $res = "-----BEGIN PUBLIC KEY-----\n" .
                 wordwrap($alipay_sign_public, 64, "\n", true) .
                 "\n-----END PUBLIC KEY-----";
@@ -528,7 +466,7 @@ class AlipayController extends PaymentController
         //调用openssl内置方法验签，返回bool值
         $result = (bool)openssl_verify($data, base64_decode($sign), $res, OPENSSL_ALGO_SHA256);
 
-        if(!$this->checkEmpty($alipay_sign_public)) {
+        if (!$this->checkEmpty($alipay_sign_public)) {
             //释放资源
             openssl_free_key($res);
         }
@@ -541,7 +479,8 @@ class AlipayController extends PaymentController
      * @param $params
      * @return string
      */
-    public function getSignContent($params) {
+    public function getSignContent($params)
+    {
         ksort($params);
         $stringToBeSigned = "";
         $i = 0;
@@ -569,7 +508,8 @@ class AlipayController extends PaymentController
      *  if not set ,return true;
      *    if is null , return true;
      **/
-    protected function checkEmpty($value) {
+    protected function checkEmpty($value)
+    {
         if (!isset($value))
             return true;
         if ($value === null)
@@ -586,7 +526,8 @@ class AlipayController extends PaymentController
      * @param $targetCharset
      * @return string
      */
-    function characet($data, $targetCharset) {
+    function characet($data, $targetCharset)
+    {
 
         if (!empty($data)) {
             $fileType = $this->fileCharset;
@@ -657,7 +598,7 @@ class AlipayController extends PaymentController
         $pay_refund_model->type = $data['pay_type'];
         $pay_refund_model->save();
 
-        $refundApply = RefundApply::where('alipay_batch_sn',$data['batch_no'])->first();
+        $refundApply = RefundApply::where('alipay_batch_sn', $data['batch_no'])->first();
 
         if (!isset($refundApply)) {
             return \Log::error('订单退款信息不存在', $data);
@@ -681,7 +622,7 @@ class AlipayController extends PaymentController
     public function withdrawResutl($params)
     {
         if (!empty($params)) {
-            foreach ($params as $data ) {
+            foreach ($params as $data) {
                 $pay_refund_model = PayWithdrawOrder::getOrderInfo($data['trade_no']);
 
                 if ($pay_refund_model) {
@@ -706,7 +647,7 @@ class AlipayController extends PaymentController
         $trade_no = [];
 
         if (!empty($params)) {
-            foreach ($params as $data ) {
+            foreach ($params as $data) {
                 $pay_refund_model = PayWithdrawOrder::getOrderInfo($data['trade_no']);
 
                 if ($pay_refund_model) {

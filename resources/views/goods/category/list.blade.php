@@ -23,21 +23,54 @@
                 </el-link>
             </div>
         </div>
-        
+
         <div class="vue-main">
-            
-            
+
+
             <div class="vue-main-form">
+                <ul style="margin-bottom:10px;">
+                    <li>
+                        一键显示：
+                        <el-button size="mini" @click="patchDisplayCategory(1)">
+                            开启
+                        </el-button>
+                        <el-button size="mini" @click="patchDisplayCategory(0)">
+                            关闭
+                        </el-button>
+                    </li>
+                    <li style="display:block;margin-top:5px;">
+                         一键推荐：
+                        <el-button size="mini" @click="patchRecommendCategory(1)">
+                            开启
+                        </el-button>
+                        <el-button size="mini" @click="patchRecommendCategory(0)">
+                            关闭
+                        </el-button>
+                    </el-switch>
+                    </li>
+                </ul>
                 <el-table
                     v-if="show_table"
-                    :data="list" 
+                    :data="list"
                     row-key="id"
                     ref="table"
                     default-expand-all
                     :tree-props="{children: 'has_many_children'}"
                     style="width: 100%"
+                    row-key="id" border @select="select" @select-all="selectAll"
                 >
+                    <el-table-column type="selection" width="55"></el-table-column>
                     <el-table-column prop="name" label="分类名称"></el-table-column>
+                    <el-table-column label="显示" width="100">
+                        <template slot-scope="scope">
+                            <el-switch v-model="scope.row.enabled" @change="displayCategory(scope.row)"></el-switch>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="推荐" width="100">
+                        <template slot-scope="scope">
+                            <el-switch v-model="scope.row.is_home" @change="recommendCateogry(scope.row)"></el-switch>
+                        </template>
+                    </el-table-column>
                     <el-table-column prop="refund_time" label="操作" align="left" width="400">
                         <template slot-scope="scope">
                             <div style="text-align:left">
@@ -54,7 +87,7 @@
                                     <i class="iconfont icon-ht_operation_delete"></i>
                                 </el-link>
                             </div>
-                            
+
                         </template>
                     </el-table-column>
                 </el-table>
@@ -88,6 +121,9 @@
                 current_page:1,
                 total:1,
                 per_page:1,
+                selectedCategoies:[],
+                batchDisplay:false,
+                batchRecommend:false
             }
         },
         created() {
@@ -97,11 +133,192 @@
             this.getData(1);
         },
         methods: {
+            setChildren(children, type) {
+                // 编辑多个子层级
+                children.map((j) => {
+                    this.toggleSelection(j, type)
+                    if (j.has_many_children) {
+                    this.setChildren(j.has_many_children, type)
+                    }
+                })
+            },
+            // 选中父节点时，子节点一起选中取消
+            select(selection, row) {
+                this.selectedCategoies=selection;
+                if (
+                    selection.some((el) => {
+                    return row.id === el.id
+                    })
+                ) {
+                    if (row.has_many_children) {
+                    // 解决子组件没有被勾选到
+                    this.setChildren(row.has_many_children, true)
+                    }
+                } else {
+                    if (row.has_many_children) {
+                    this.setChildren(row.has_many_children, false)
+                    }
+                }
+            },
+            toggleSelection(row, select) {
+            if (row) {
+                this.$nextTick(() => {
+                    this.$refs.table && this.$refs.table.toggleRowSelection(row, select)
+                })
+            }
+            },
+            // 选择全部
+            selectAll(selection) {
+                this.selectedCategoies=selection;
+                // tabledata第一层只要有在selection里面就是全选
+                const isSelect = selection.some((el) => {
+                    const tableDataIds = this.list.map((j) => j.id)
+                    return tableDataIds.includes(el.id)
+                })
+                // tableDate第一层只要有不在selection里面就是全不选
+                const isCancel = !this.list.every((el) => {
+                    const selectIds = selection.map((j) => j.id)
+                    return selectIds.includes(el.id)
+                })
+                if (isSelect) {
+                    selection.map((el) => {
+                        if (el.has_many_children) {
+                            // 解决子组件没有被勾选到
+                            this.setChildren(el.has_many_children, true)
+                        }
+                    })
+                }
+                if (isCancel) {
+                    this.list.map((el) => {
+                        if (el.has_many_children) {
+                            // 解决子组件没有被勾选到
+                            this.setChildren(el.has_many_children, false)
+                        }
+                    })
+                }
+            },
+            recommendCateogry(row){
+                this.$http.post("{!! yzWebFullUrl('goods.category.batch-recommend') !!}",{
+                    ids:[row.id],
+                    is_home:row.is_home?1:0
+                }).then(res=>{
+                    if(res.result==0){
+                        this.$toast(res.msg);
+                        row.is_home=!Boolean(row.is_home);
+                        return;
+                    }
+                })
+            },
+            patchRecommendCategory(flag){
+                let ids=[];
+                for (const item of this.selectedCategoies) {
+                    if (item.has_many_children && item.has_many_children.length > 0){
+                        for (const itemChildren of item.has_many_children) {
+                            ids.push(itemChildren.id)
+                            if (itemChildren.has_many_children && itemChildren.has_many_children.length > 0){
+                                for (const itemChildrenLower of itemChildren.has_many_children) {
+                                    ids.push(itemChildrenLower.id)
+                                }
+                            }
+                        }
+                    }
+                    ids.push(item.id)
+                }
+                this.$http.post("{!! yzWebFullUrl('goods.category.batch-recommend') !!}",{
+                    ids,
+                    is_home:flag
+                }).then(res=>{
+                    if(res.result==0){
+                        this.$toast(res.msg);
+                        return;
+                    }
+                    for (const item of this.selectedCategoies) {
+                        item.is_home=Boolean(flag);
+                        if (item.has_many_children && item.has_many_children.length > 0){
+                            for (const itemChildren of item.has_many_children) {
+                                itemChildren.is_home=Boolean(flag)
+                                if (itemChildren.has_many_children && itemChildren.has_many_children.length > 0){
+                                    for (const itemChildrenLower of itemChildren.has_many_children) {
+                                        itemChildrenLower.is_home=Boolean(flag)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                })
+            },
+            displayCategory(row){
+                this.$http.post("{!! yzWebFullUrl('goods.category.batch-display') !!}",{
+                    ids:[row.id],
+                    enabled:row.enabled?1:0
+                }).then(res=>{
+                    if(res.result==0){
+                        this.$toast(res.msg);
+                        row.enabled=!Boolean(row.enabled);
+                        return;
+                    }
+                })
+            },
+            patchDisplayCategory(flag){
+                let ids=[];
+                for (const item of this.selectedCategoies) {
+                    if (item.has_many_children && item.has_many_children.length > 0){
+                        for (const itemChildren of item.has_many_children) {
+                            ids.push(itemChildren.id)
+                            if (itemChildren.has_many_children && itemChildren.has_many_children.length > 0){
+                                for (const itemChildrenLower of itemChildren.has_many_children) {
+                                    ids.push(itemChildrenLower.id)
+                                }
+                            }
+                        }
+                    }
+                    ids.push(item.id)
+                }
+                this.$http.post("{!! yzWebFullUrl('goods.category.batch-display') !!}",{
+                    ids,
+                    enabled:flag
+                }).then(res=>{
+                    if(res.result==0){
+                        this.$toast(res.msg);
+                        row.enabled=!Boolean(row.enabled);
+                        return;
+                    }
+                    for (const item of this.selectedCategoies) {
+                        item.enabled=Boolean(flag);
+                        if (item.has_many_children && item.has_many_children.length > 0) {
+                            for (const itemChildren of item.has_many_children) {
+                                itemChildren.enabled=Boolean(flag);
+                                if (itemChildren.has_many_children && itemChildren.has_many_children.length > 0) {
+                                    for (const itemChildrenLower of itemChildren.has_many_children) {
+                                        itemChildrenLower.enabled=Boolean(flag);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                })
+            },
             getData(page) {
                 let loading = this.$loading({target:document.querySelector(".content"),background: 'rgba(0, 0, 0, 0)'});
                 this.show_table = false;
-                this.$http.post('{!! yzWebFullUrl('goods.category.index') !!}',{page:page,keyword:this.keyword}).then(function(response) {
+                this.$http.post("{!! yzWebFullUrl('goods.category.index') !!}",{page:page,keyword:this.keyword}).then(function(response) {
                     if (response.data.result) {
+                        for (const item of response.data.data.data.data) {
+                            if(item.has_many_children && item.has_many_children.length>0){
+                                for (const subItem of item.has_many_children) {
+                                    subItem['is_home']=Boolean(subItem['is_home']);
+                                    subItem['enabled']=Boolean(subItem['enabled']);
+                                    if(subItem.has_many_children && subItem.has_many_children.length>0){
+                                        for (const subItemChildren of subItem.has_many_children) {
+                                            subItemChildren['is_home']=Boolean(subItemChildren['is_home']);
+                                            subItemChildren['enabled']=Boolean(subItemChildren['enabled']);
+                                        }
+                                    }
+                                }
+                            }
+                            item['is_home']=Boolean(item['is_home']);
+                            item['enabled']=Boolean(item['enabled']);
+                        }
                         this.list = response.data.data.data.data;
                         this.current_page=response.data.data.data.current_page;
                         this.total=response.data.data.data.total;
@@ -128,7 +345,7 @@
                     this.show_table = true;
                 });
             },
-            
+
             search(val) {
                 if(this.keyword == "") {
                     this.getData(val);
@@ -136,9 +353,16 @@
                 }
                 this.show_table = false;
                 let loading = this.$loading({target:document.querySelector(".content"),background: 'rgba(0, 0, 0, 0)'});
-                this.$http.post('{!! yzWebFullUrl('goods.category.index') !!}',{page:val,keyword:this.keyword}).then(function(response) {
+                this.$http.post("{!! yzWebFullUrl('goods.category.index') !!}",{page:val,keyword:this.keyword}).then(function(response) {
                     if (response.data.result) {
-                        this.list = response.data.data.data;
+                        for (const item of response.data.data.data) {
+                            for (const subItem of item.has_many_children) {
+                                subItem['is_home']=Boolean(subItem['is_home']);
+                                subItem['enabled']=Boolean(subItem['enabled']);
+                            }
+                            item['is_home']=Boolean(item['is_home']);
+                            item['enabled']=Boolean(item['enabled']);
+                        }
                         this.list = response.data.data.data;
                         this.current_page=response.data.data.current_page;
                         this.total=response.data.data.total;
@@ -175,7 +399,7 @@
                         this.$refs.table.toggleRowExpansion(item, true)
                     }
                 })
-                
+
             },
             closeAll() {
                 this.list.forEach((item,index) => {
@@ -229,7 +453,7 @@
                     this.$message({type: 'info',message: '已取消删除'});
                 });
             },
-            
+
         },
     })
 </script>

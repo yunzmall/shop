@@ -67,6 +67,10 @@ class Widget
                     'title' => '限时购',
                     'class' => 'app\backend\widgets\goods\LimitBuyWidget'
                 ],
+                'tb_advertising' => [
+                    'title' => '广告宣传语',
+                    'class' => 'app\backend\widgets\goods\AdvertisingWidget'
+                ],
                 'tab_filtering' => [
                     'title' => '商品标签',
                     'class' => 'app\backend\widgets\goods\FilteringWidget'

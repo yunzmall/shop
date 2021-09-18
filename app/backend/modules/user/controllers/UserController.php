@@ -18,6 +18,8 @@ use app\common\models\user\User;
 use app\common\models\user\YzRole;
 use app\common\services\Utils;
 use app\common\models\user\YzUserRole;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 
 class UserController extends BaseController
 {
@@ -93,11 +95,10 @@ class UserController extends BaseController
 
     public function store()
     {
-
         $userModel = new User();
-
         $requestUser = request()->user;
         if ($requestUser) {
+            $requestUser['username'] = trim($requestUser['username']);
             $userData = $this->addedUserData($requestUser);
 
             if (config('app.framework') == 'platform') {
@@ -112,11 +113,17 @@ class UserController extends BaseController
             if ($validator->fails()) {
                 return $this->errorJson($validator->messages());
             } else {
+                $verifyPassword = verifyPasswordStrength($userModel->password);
+                if($verifyPassword !== true){
+                    return $this->errorJson($verifyPassword);
+                }
+
                 if (config('app.framework') == 'platform') {
                     $userModel->password = bcrypt($userModel->password);
                 } else {
                     $userModel->password = $this->password($userModel->password, $userModel->salt);
                 }
+
                 if ($userModel->save()) {
                     Cache::flush();
                     return $this->successJson('添加操作员成功.', Url::absoluteWeb('user.user.index'));
@@ -148,7 +155,6 @@ class UserController extends BaseController
     {
         $id = request()->id;
         $userModel = User::getUserByid($id);
-        //dd($userModel);
 
         if (!$userModel) {
             return $this->errorJson("未找到数据或已删除！");
@@ -173,6 +179,10 @@ class UserController extends BaseController
             //dd(\YunShop::request());
             $userModel->status = $requestUser['status'];
             if ($requestUser['password']) {
+                $verifyPassword = verifyPasswordStrength($requestUser['password']);
+                if($verifyPassword !== true){
+                    return $this->errorJson($verifyPassword);
+                }
                 $userModel->password = user_hash($requestUser['password'], $userModel->salt);
             }
             $userModel->widgets = request()->widgets;
@@ -216,6 +226,64 @@ class UserController extends BaseController
         $this->debugLog();
 
         return $this->successJson("删除操作员成功。", Url::absoluteWeb('user.user.index'));
+    }
+
+    /**
+     * 获取当前登录用户信息
+     */
+    public function getAdminUserInfo()
+    {
+        //获取当前登录用户的账号
+        $array = [];
+        $array['uid'] = \YunShop::app()->uid;
+        $array['uniacid'] = \YunShop::app()->uniacid;
+        $array['acid'] = \YunShop::app()->acid;
+        $array['username'] = \YunShop::app()->username;
+
+        //获取当前登录用户的手机号
+        $array['mobile'] = DB::table('yz_users_profile')->where('uid',$array['uid'])->value('mobile');
+
+        return $this->successJson("获取成功", $array);
+    }
+
+    /**
+     * 修改用户登录密码
+     */
+    public function resetPassword()
+    {
+        $old_password = request()->old_password;
+        $new_pass = request()->new_pass;
+        $username = request()->username;
+ 
+        $userModel = User::where('uid',\YunShop::app()->uid)->first();
+
+        if (!$userModel) 
+        {
+            return $this->errorJson('用户不存在');
+        }
+
+        if (!Hash::check($old_password, $userModel->password)) 
+        {
+            return $this->errorJson('原密码错误');
+        }
+
+        //平台的验证统一使用 validatePassword方法
+        $verifyPassword = validatePassword($new_pass);
+        if($verifyPassword !== true){
+            return $this->errorJson($verifyPassword);
+        }
+        //密码加密
+        if (config('app.framework') == 'platform') 
+        {
+            $new_pass = bcrypt($new_pass);
+        } else {
+            $new_pass = $this->password($old_pass, $userModel->salt);
+        }
+
+        $data = [];
+        $data['password'] = $new_pass;
+        $res = User::where('uid', $userModel->uid)->update($data);
+        return $this->successJson("修改成功");
     }
 
     /**

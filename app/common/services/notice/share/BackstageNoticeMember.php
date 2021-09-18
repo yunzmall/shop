@@ -28,7 +28,6 @@ Trait BackstageNoticeMember
 //                $this->openids[] = $vv['openid'];
             }
             if($this->member_ids){
-                //修复选择通知人之后，yz_setting表中选中用户的openid本来是有的，之后莫名会变成null（暂未发现原因）
                 $fans = McMappingFans::uniacid()->select('openid')->whereIn('uid',$this->member_ids)->get();
                 if(!$fans->isEmpty()){
                     $fans = $fans->toArray();

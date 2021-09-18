@@ -119,6 +119,7 @@ abstract class BaseOrderGoodsPrice extends OrderGoodsPrice
         return $this->priceClass;
     }
 
+    //弃用
     public function getVipPrice()
     {
         if ($this->isCoinExchange()) {
@@ -135,37 +136,57 @@ abstract class BaseOrderGoodsPrice extends OrderGoodsPrice
     private function isCoinExchange()
     {
 
-        //获取商城设置: 判断 积分、余额 是否有自定义名称
-        $shopSet = \Setting::get('shop.shop');
-
         if (!isset($this->isCoinExchange)) {
+
+            //blank not deduction
+            if ($this->orderGoods->order->isDeductionDisable()) {
+                $this->isCoinExchange = false;
+                return $this->isCoinExchange;
+            }
 
             if (!$this->orderGoods->goods->hasOneSale->has_all_point_deduct) {
                 $this->isCoinExchange = false;
             } else {
                 $this->isCoinExchange = true;
-                // 优惠记录
-                $preOrderGoodsDiscount = new PreOrderGoodsDiscount([
-                    'discount_code' => 'coinExchange',
-                    'amount' => $this->getGoodsPrice() ?: 0,
-                    'name' => $shopSet['credit1'] ? $shopSet['credit1'] . '全额抵扣' : '积分全额抵扣',
-                ]);
-                $preOrderGoodsDiscount->setOrderGoods($this->orderGoods);
-                // 全额抵扣记录
-                $orderGoodsCoinExchange = new PreOrderGoodsCoinExchange([
-                    'code' => 'point',
-                    'amount' => $this->getGoodsPrice() ?: 0,
-                    'coin' => $this->orderGoods->goods->hasOneSale->all_point_deduct * $this->orderGoods->total,
-                    'name' => $shopSet['credit1'] ? $shopSet['credit1'] . '全额抵扣' : '积分全额抵扣',
-                ]);
-                $orderGoodsCoinExchange->setOrderGoods($this->orderGoods);
-                $orderCoinExchange = new PreOrderCoinExchange([
-                    'code' => 'point',
-                    'amount' => $this->getGoodsPrice() ?: 0,
-                    'coin' => $this->orderGoods->goods->hasOneSale->all_point_deduct * $this->orderGoods->total,
-                    'name' => $shopSet['credit1'] ? $shopSet['credit1'] . '全额' : '积分全额',
-                    'uid' => $this->orderGoods->uid,
-                ]);
+
+                $relations = collect(\app\common\modules\shop\ShopConfig::current()->get('shop-foundation.coin-exchange'))->sortBy('weight');
+                foreach ($relations as $configItem) {
+                    $coinExchange = call_user_func($configItem['class'], $this);
+                    if(!$coinExchange->validate()){
+                        continue;
+                    }
+                    $orderCoinExchange = $coinExchange->setLog();
+                    //todo 权重最大的过了直接断循环
+                    break;
+                }
+
+                if(empty($orderCoinExchange)){
+                    //获取商城设置: 判断 积分、余额 是否有自定义名称
+                    $shopSet = \Setting::get('shop.shop');
+
+                    // 优惠记录
+                    $preOrderGoodsDiscount = new PreOrderGoodsDiscount([
+                        'discount_code' => 'coinExchange',
+                        'amount' => $this->getGoodsPrice() ?: 0,
+                        'name' => $shopSet['credit1'] ? $shopSet['credit1'] . '全额抵扣' : '积分全额抵扣',
+                    ]);
+                    $preOrderGoodsDiscount->setOrderGoods($this->orderGoods);
+                    // 全额抵扣记录
+                    $orderGoodsCoinExchange = new PreOrderGoodsCoinExchange([
+                        'code' => 'point',
+                        'amount' => $this->getGoodsPrice() ?: 0,
+                        'coin' => $this->orderGoods->goods->hasOneSale->all_point_deduct * $this->orderGoods->total,
+                        'name' => $shopSet['credit1'] ? $shopSet['credit1'] . '全额抵扣' : '积分全额抵扣',
+                    ]);
+                    $orderGoodsCoinExchange->setOrderGoods($this->orderGoods);
+                    $orderCoinExchange = new PreOrderCoinExchange([
+                        'code' => 'point',
+                        'amount' => $this->getGoodsPrice() ?: 0,
+                        'coin' => $this->orderGoods->goods->hasOneSale->all_point_deduct * $this->orderGoods->total,
+                        'name' => $shopSet['credit1'] ? $shopSet['credit1'] . '全额' : '积分全额',
+                        'uid' => $this->orderGoods->uid,
+                    ]);
+                }
 
                 $this->orderGoods->order->getOrderCoinExchanges()->addAndGroupByCode($orderCoinExchange);
             }
@@ -185,7 +206,6 @@ abstract class BaseOrderGoodsPrice extends OrderGoodsPrice
             $this->paymentAmount = max($this->paymentAmount, 0);
 
         }
-
         return $this->paymentAmount;
     }
 
@@ -246,6 +266,26 @@ abstract class BaseOrderGoodsPrice extends OrderGoodsPrice
         return $this->deductionAmount;
     }
 
+    protected $vipDiscountAmount;
+    protected $vipDiscountLog;
+
+    public function getMemberLevelDiscountAmount()
+    {
+        if (!isset($this->vipDiscountAmount)) {
+            $this->vipDiscountAmount = $this->_getVipDiscountAmount($this->goodsPriceManager());
+            $this->vipDiscountLog = $this->goods()->vipDiscountLog;
+        }
+        return $this->vipDiscountAmount;
+    }
+    public function getVipDiscountLog()
+    {
+        if (!isset($this->vipDiscountLog)) {
+            $this->getMemberLevelDiscountAmount();
+        }
+        return $this->vipDiscountLog;
+
+    }
+
     /**
      * 商品的会员等级折扣金额
      * @return mixed
@@ -257,11 +297,15 @@ abstract class BaseOrderGoodsPrice extends OrderGoodsPrice
     }
 
     /**
+     * 需要弃用
      * 商品的会员等级折扣金额(缓存)
      * @return mixed
      */
     public function getVipDiscountAmount($price)
     {
+
+        return 0;
+
         if (!isset($this->vipDiscountAmount)) {
             $this->vipDiscountAmount = $this->_getVipDiscountAmount($price);
             if ($this->vipDiscountAmount) {

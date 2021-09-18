@@ -23,6 +23,8 @@ use app\common\services\alipay\f2fpay\model\request\AlipayTradeOrderSettleReques
 use app\common\services\alipay\f2fpay\model\request\AlipayTradePayRequest;
 use app\common\services\alipay\f2fpay\model\request\AlipayTradePrecreateRequest;
 use app\common\services\alipay\f2fpay\model\request\AlipayTradeQueryRequest;
+use app\common\services\alipay\f2fpay\model\request\AlipayTradeWapPayRequest;
+use app\common\services\alipay\f2fpay\model\request\AlipayTradeRefundRequest;
 use app\common\services\alipay\f2fpay\model\result\AlipayF2FPayResult;
 use app\common\services\alipay\f2fpay\model\result\AlipayF2FPrecreateResult;
 use app\common\services\alipay\f2fpay\model\result\AlipayF2FQueryResult;

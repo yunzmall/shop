@@ -10,11 +10,13 @@ namespace app\frontend\modules\order\controllers;
 
 use app\common\components\ApiController;
 use app\common\components\BaseController;
+use app\common\events\order\AfterOrderPaidRedirectEvent;
 use app\common\events\order\BeforeOrderPayEvent;
 use app\common\events\payment\GetOrderPaymentTypeEvent;
 use app\common\exceptions\AppException;
 use app\common\exceptions\GoodsStockNotEnough;
 use app\common\models\Order;
+use app\common\models\OrderBehalfPayRecord;
 use app\common\models\OrderPay;
 use app\common\models\PayType;
 use app\common\services\password\PasswordService;
@@ -31,15 +33,15 @@ use app\common\helpers\Url;
 use Yunshop\StoreCashier\common\models\StoreOrder;
 
 
-class MergePayController extends BaseController
+class MergePayController extends ApiController
 {
     public $transactionActions = ['*'];
     /**
      * @var OrderCollection
      */
     protected $orders;
-    protected $publicAction = ['alipay'];
-    protected $ignoreAction = ['alipay'];
+    protected $publicAction = ['alipay', 'alipayPayHj', 'yopAlipay', 'yopProAlipay', 'alipayScanPayHj', 'alipayJsapiPay', 'alipayToutiao', 'cloudAliPay', 'yunPayAlipay', 'wftAlipay'];
+    protected $ignoreAction = ['alipay', 'alipayPayHj', 'yopAlipay', 'yopProAlipay', 'alipayScanPayHj', 'alipayJsapiPay', 'alipayToutiao', 'cloudAliPay', 'yunPayAlipay', 'wftAlipay'];
 
 
     /**
@@ -116,7 +118,7 @@ class MergePayController extends BaseController
     {
         $this->validate([
             'order_ids' => 'required',
-            'pid' => 'required'
+            'pid'       => 'required'
         ]);
 
         // 订单集合
@@ -139,10 +141,28 @@ class MergePayController extends BaseController
         });
 
         $member = Member::getMemberById(request()->input('pid'));
-
+        //添加代付记录
+        if (\YunShop::app()->getMemberId() != $orderPay->uid) {
+            OrderBehalfPayRecord::create([
+                'uniacid'      => \YunShop::app()->uniacid,
+                'order_ids'    => $orderPay->order_ids,
+                'order_pay_id' => $orderPay->id,
+                'pay_sn'       => $orderPay->pay_sn,
+                'member_id'    => $orderPay->uid,
+                'behalf_type'  => $this->behalfType(),
+                'behalf_id'    => \YunShop::app()->getMemberId()
+            ]);
+        }
         $data = ['order_pay' => $orderPay, 'member' => $member, 'buttons' => $buttons, 'typename' => ''];
 
+        $data['plugin_name'] = app('plugins')->isEnabled('parent-payment') ? PARENT_PAYMENT : '上级代付';
+
         return $this->successJson('成功', $data);
+    }
+
+    private function behalfType()
+    {
+        return request()->input('plugin') == 'parent_payment' ? 2 : 1;
     }
 
     /**
@@ -194,11 +214,17 @@ class MergePayController extends BaseController
                     $names = TEAM_REWARDS_DEPOSIT . '支付';
                 }
             }
+            //上级代付
+            if ($paymentType->getCode() == 'parentPayment') {
+                if (app('plugins')->isEnabled('parent-payment')) {
+                    $names = PARENT_PAYMENT;
+                }
+            }
             return [
-                'name' => $names ?: $paymentType->getName(),
-                'value' => $paymentType->getId(),
+                'name'          => $names ?: $paymentType->getName(),
+                'value'         => $paymentType->getId(),
                 'need_password' => $paymentType->needPassword(),
-                'code' => $paymentType->getCode(),
+                'code'          => $paymentType->getCode(),
             ];
         });
         return $result;
@@ -225,10 +251,10 @@ class MergePayController extends BaseController
 
 
         //支付类型 小程序、公众号
-        if (request()->input('type') == 2 || \YunShop::request()->app_type == 'wechat' ) {
+        if (request()->input('type') == 2 || \YunShop::request()->app_type == 'wechat') {
             $payTypeId = PayFactory::WECHAT_MIN_PAY;
         } else {
-            $payTypeId= PayFactory::PAY_WEACHAT;
+            $payTypeId = PayFactory::PAY_WEACHAT;
         }
 
 
@@ -236,48 +262,15 @@ class MergePayController extends BaseController
         $data['js'] = json_decode($data['js'], 1);
 
         $trade = \Setting::get('shop.trade');
-        $redirect = '';
+        $redirect = $admin_set_redirect = '';
 
         if (!is_null($trade) && isset($trade['redirect_url']) && !empty($trade['redirect_url'])) {
             $redirect = $trade['redirect_url'] . '&outtradeno=' . request()->input('order_pay_id');
         }
-        // 拼团订单支付成功后跳转该团页面
-        // 插件开启
-        if (app('plugins')->isEnabled('fight-groups')) {
-            $orders = Order::whereIn('id', $orderPay->order_ids)->get();
-            // 只有一个订单
-            if ($orders->count() == 1) {
-                $order = $orders[0];
-                // 是拼团的订单
-                if ($order->plugin_id == 54) {
-                    $fightGroupsTeamMember = \Yunshop\FightGroups\common\models\FightGroupsTeamMember::uniacid()->with(['hasOneTeam'])->where('order_id', $order->id)->first();
-                    // 有团员并且有团队，跳到拼团详情页
-                    if (!empty($fightGroupsTeamMember) && !empty($fightGroupsTeamMember->hasOneTeam)) {
-                        $redirect = Url::absoluteApp('group_detail/' . $fightGroupsTeamMember->hasOneTeam->id, ['i' => \YunShop::app()->uniacid]);
-                    } else {
-                        $redirect = Url::absoluteApp('home');
-                    }
-                }
-            }
-        }
-        //预约商品订单支付成功后跳转预约插件设置的页面
-        if (\app\common\modules\shop\ShopConfig::current()->get('plugin.appointment.exits')) {
-            $orders = Order::whereIn('id', $orderPay->order_ids)->get();
-            \Log::debug('pay appointment order $orders：',$orders);
-            // 只有一个订单
-            if ($orders->count() == 1) {
-                $order = $orders[0];
-                // 是预约商品的订单
-                if ($order->plugin_id == 101) {
-                    \Log::debug('pay appointment order $order->plugin_id：',$order->plugin_id);
-                    $redirect = \Yunshop\Appointment\common\service\SetService::getPayReturnUrl();
-                    \Log::debug('pay appointment order $appointment_redirect：',$redirect);
-                }
-
-            }
-        }
-        $data['redirect'] = $redirect;
-
+        //跳转页面
+		$orders = Order::whereIn('id', $orderPay->order_ids)->get();
+		event($event = new AfterOrderPaidRedirectEvent($orders,$orderPay->id));
+		$data['redirect'] = $event->getData()['redirect']?:$redirect;
         return $this->successJson('成功', $data);
     }
 
@@ -321,6 +314,57 @@ class MergePayController extends BaseController
         $data = $orderPay->getPayResult(PayFactory::PAY_APP_WEACHAT);
         return $this->successJson('成功', $data);
     }
+
+    /**
+     * 微信聚合CPSAPP支付
+     * @return \Illuminate\Http\JsonResponse
+     * @throws AppException
+     * @throws \app\common\exceptions\ShopException
+     */
+    public function wechatCpsAppPay()
+    {
+
+        $this->validate([
+            'order_pay_id' => 'required|integer'
+        ]);
+
+        if (!app('plugins')->isEnabled('aggregation-cps')){
+            throw new AppException('聚合CPS插件未开启');
+        }
+
+        $setting = \Setting::get('plugin.aggregation-cps.pay_info');
+        if (!$setting['weixin_pay']){
+            throw new AppException('聚合CPS未开启微信支付');
+        }
+
+        /**
+         * @var \app\frontend\models\OrderPay $orderPay
+         */
+        $orderPay = \app\frontend\models\OrderPay::find(request()->input('order_pay_id'));
+        $data = $orderPay->getPayResult(PayFactory::WECHAT_CPS_APP_PAY);
+
+        $arr = [
+            'appid'=>$data['config']['appId'],
+            'partnerid'=>$data['config']['partnerid'],
+            'prepayid'=>$data['config']['prepayId'],
+            'package'=>'Sign=WXPay',
+            'noncestr'=>$data['config']['nonceStr'],
+            'timestamp'=>$data['config']['timestamp'],
+        ];
+
+        ksort($arr);
+        $str  = '';
+        foreach ($arr as $k=>$v){
+            $str .=$k.'='.$v.'&';
+        }
+        $str .='key='.$setting['weixin_apisecret'];
+        $data['config']['paySign'] = strtoupper(md5($str));
+        $data['redirect_url'] = \Setting::get('shop.trade.redirect_url') ? : '';
+
+        return $this->successJson('成功', $data);
+
+    }
+
 
     /**
      * 支付宝app支付
@@ -453,15 +497,45 @@ class MergePayController extends BaseController
         /**
          * @var \app\frontend\models\OrderPay $orderPay
          */
-        $orderPay = \app\frontend\models\OrderPay::find(request()->input('order_pay_id'));
-        $orderPay->getPayResult(PayFactory::PAY_COD);
-        $orderPay->pay();
+
         $trade = \Setting::get('shop.trade');
         $redirect = '';
 
         if (!is_null($trade) && isset($trade['redirect_url']) && !empty($trade['redirect_url'])) {
             $redirect = $trade['redirect_url'];
         }
+
+
+        if (app('plugins')->isEnabled('consumer-reward')) {
+            if (request()->type == 2) {//小程序
+                //跳转小程序 携带参数is_show_charity_fund_poster
+                $redirect = '/packageH/consumerReward/consumerRewardPaySuccess/consumerRewardPaySuccess?pay_id=' . request()->input('order_pay_id');
+            } else {//公众号
+                $redirect = yzAppFullUrl('consumerRewardPaySuccess') . '&pay_id=' . request()->input('order_pay_id');
+            }
+
+        }
+
+
+        if (!is_null($event_arr = \app\common\modules\shop\ShopConfig::current()->get('plugin_delivery_pay_function'))) {
+            foreach ($event_arr as $v) {
+                $class = array_get($v, 'class');
+                $function = array_get($v, 'function');
+                $res = $class::$function(request()->input('order_pay_id'));
+                if (!$res['result']) {
+                    throw new AppException($res['msg']);
+                }
+                if ($res['result'] && $res['data']['process'] == 'break') {
+                    return $this->successJson('成功', ['redirect' => $redirect]);
+                }
+            }
+        }
+
+
+        $orderPay = \app\frontend\models\OrderPay::find(request()->input('order_pay_id'));
+        $orderPay->getPayResult(PayFactory::PAY_COD);
+        $orderPay->pay();
+
 
         return $this->successJson('成功', ['redirect' => $redirect]);
     }
@@ -681,7 +755,10 @@ class MergePayController extends BaseController
 
             $trade = \Setting::get('shop.trade');
 
-            $data['redirect_url'] = $trade['redirect_url'];
+            //跳转页面
+            $orders = Order::whereIn('id', $orderPay->order_ids)->get();
+            event($event = new AfterOrderPaidRedirectEvent($orders,$orderPay->id));
+            $data['redirect_url'] = $event->getData()['redirect']?:$trade['redirect_url'];
 
             return $this->successJson($data['msg'], $data);
         } else {
@@ -1071,6 +1148,19 @@ class MergePayController extends BaseController
             $redirect = $trade['redirect_url'];
         }
 
+        // 盲盒订单支付成功后跳转盲盒订单详情页
+        if (app('plugins')->isEnabled('blind-box')) {
+            $orders = Order::whereIn('id', $orderPay->order_ids)->get();
+            // 只有一个订单
+            if ($orders->count() == 1) {
+                $order = $orders[0];
+                // 是拼团的订单
+                if ($order->plugin_id == 107) {
+                    $redirect = Url::absoluteApp('member/orderdetail/' . $order->id . '/shop/', ['i' => \YunShop::app()->uniacid]);
+                }
+            }
+        }
+
         return $this->successJson('成功', ['redirect' => $redirect]);
     }
 
@@ -1100,4 +1190,107 @@ class MergePayController extends BaseController
         return $this->successJson('成功', $data);
     }
 
+    /**
+     * 微信H5支付
+     * @return \Illuminate\Http\JsonResponse
+     * @throws AppException
+     * @throws \app\common\exceptions\ShopException
+     */
+    public function wechatNative()
+    {
+        $this->validate([
+            'order_pay_id' => 'required|integer'
+        ]);
+        if (\Setting::get('shop.pay.weixin') == false) {
+            throw new AppException('商城未开启微信支付');
+        }
+        /**
+         * @var $orderPay \app\frontend\models\OrderPay
+         */
+        $orderPay = \app\frontend\models\OrderPay::find(request()->input('order_pay_id'));
+
+        $data = $orderPay->getPayResult(PayFactory::WECHAT_NATIVE);
+
+
+        return $this->successJson('成功', $data);
+    }
+
+    /**
+     * Dcm扫码支付
+     * @return \Illuminate\Http\JsonResponse
+     * @throws AppException
+     * @throws \Exception
+     */
+    public function dcmScanPay()
+    {
+        $this->validate([
+            'order_pay_id' => 'required|integer'
+        ]);
+
+        if (\Setting::get('plugin.dcm-scan-pay.switch') == false) {
+            throw new AppException('未开启该付款方式');
+        }
+        /**
+         * @var \app\frontend\models\OrderPay $orderPay
+         */
+        $orderPay = \app\frontend\models\OrderPay::find(request()->input('order_pay_id'));
+
+        $data = $orderPay->getPayResult(PayType::DCM_SCAN_PAY);
+
+
+        $trade = \Setting::get('shop.trade');
+        $redirect = '';
+
+        if (!is_null($trade) && isset($trade['redirect_url']) && !empty($trade['redirect_url'])) {
+            $redirect = $trade['redirect_url'];
+        }
+        $data['redirect'] = $redirect;
+        return $this->successJson('成功', $data);
+    }
+
+    /**
+     * 商云客支付-支付宝
+     *
+     * @param \Request $request
+     * @return \Illuminate\Http\JsonResponse
+     * @throws AppException
+     */
+    public function xfpayAlipay()
+    {
+        if (\Setting::get('plugin.xfpay_set.xfpay.pay_type.alipay.enabled') == false && !app('plugins')->isEnabled('xfpay')) {
+            throw new AppException('商城未开启支付宝支付-商云客聚合支付');
+        }
+
+        $orderPay = \app\frontend\models\OrderPay::find(request()->input('order_pay_id'));
+        $data = $orderPay->getPayResult(PayFactory::XFPAY_ALIPAY);
+
+        if ($data['msg'] == '成功') {
+            return $this->successJson($data['msg'], $data);
+        } else {
+            return $this->errorJson($data['msg']);
+        }
+    }
+
+    /**
+     * 商云客支付-微信
+     *
+     * @param \Request $request
+     * @return \Illuminate\Http\JsonResponse
+     * @throws AppException
+     */
+    public function xfpayWechat()
+    {
+        if (\Setting::get('plugin.xfpay_set.xfpay.pay_type.wechat.enabled') == false && !app('plugins')->isEnabled('xfpay')) {
+            throw new AppException('商城未开启支付宝支付-商云客聚合支付');
+        }
+
+        $orderPay = \app\frontend\models\OrderPay::find(request()->input('order_pay_id'));
+        $data = $orderPay->getPayResult(PayFactory::XFPAY_WECHAT);
+
+        if ($data['msg'] == '成功') {
+            return $this->successJson($data['msg'], $data);
+        } else {
+            return $this->errorJson($data['msg']);
+        }
+    }
 }

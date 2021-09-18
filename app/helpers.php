@@ -1,5 +1,6 @@
 <?php
 
+use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Str;
 use Illuminate\Support\Arr;
 use app\common\services\PermissionService;
@@ -177,6 +178,7 @@ if (!function_exists("yz_tpl_ueditor")) {
     }
 
 }
+
 if (!function_exists("html_images")) {
 
     function html_images($detail = '')
@@ -284,27 +286,14 @@ if (!function_exists("tomedia")) {
     }
 }
 
-
-
-
 //内容审核，判断插件是否开启后，抛出事件去审核返回审核结果
-if(!function_exists("do_upload_verificaton")){
-
+if (!function_exists("do_upload_verificaton")) {
     //file支持传入图片文件，文字，视频url，语音文件(多种类型:仅支持pcm、wav、amr、m4a),
     //type为固定值：img，text，video，   audio_pcm（_wav,_amr,_m4a）
-
-    function do_upload_verificaton($file,$type){
+    function do_upload_verificaton($file,$type) {
        return event((new Yunshop\UploadVerification\service\UploadVerificationEvent($file,$type)));
     }
 }
-
-
-
-
-
-
-
-
 
 /**
  * 获取附件的HTTP绝对路径
@@ -1268,26 +1257,22 @@ if (!function_exists('file_is_image')) {
 }
 
 if (!function_exists('file_remote_upload_wq')) {
-    function file_remote_upload_wq($filename, $auto_delete_local = true, $remote = '', $frontend = false)
+    function file_remote_upload_wq($filename, $auto_delete_local = true, $remote = [], $frontend = false)
     {
         // $filename 文件名
         // $auto_delete_local 是否自动删除本地资源 true 删除 false 不删除
         // $remote 远程配置信息
-        // $frontend 是否前端调用 true 前端 false 后台
-        global $_W;
-
-        if (!empty($remote) && $frontend == true) {
+        if (!empty($remote)) {
             $remote_setting = $remote;
             $upload_type = $remote['type'];
         } else {
+            global $_W;
             $remote_setting = $_W['setting']['remote'];
             $upload_type = $_W['setting']['remote']['type'];
         }
-
         if (empty($upload_type)) {
             return false;
         }
-
         if ($upload_type == '1') {
             $ftp_config = array(
                 'hostname' => $remote_setting['ftp']['host'],
@@ -1351,17 +1336,16 @@ if (!function_exists('file_remote_upload_wq')) {
                 $remote_setting['cos']['bucket'],
                 $remote_setting['cos']['appid']
             ))->upload($filename);
-
             if ($auto_delete_local) {
                 file_deletes($filename);
             }
-
             if ($result === true) {
                 return true;
             } else {
                 return error(-1, $result);
             }
         }
+        return true;
     }
 }
 
@@ -1476,7 +1460,7 @@ if (!function_exists('file_remote_upload')) {
             $endpoint = 'http://' . $buckets[$bucket]['location'] . $host_name;
             try {
                 $ossClient = new \app\common\services\aliyunoss\OssClient($remote['alioss']['key'], $remote['alioss']['secret'], $endpoint);
-                $ossClient->uploadFile($bucket, $filename, base_path() . '/static/upload/' . $filename);
+                $ossClient->uploadFile($bucket, $filename, base_path('static/upload/') . $filename);
             } catch (\app\common\services\aliyunoss\OSS\Core\OssException $e) {
                 \Log::info('-----alioss上传失败信息-----', $e->getMessage());
                 return error(1, $e->getMessage());
@@ -2347,7 +2331,7 @@ if (!function_exists('ihttp_allow_host')) {
             return false;
         }
         $pattern = "/^(10|172|192|127)/";
-        $global = \config::get('app.global');
+        $global = YunShop::app();
         if (preg_match($pattern, $host) && isset($global['setting']['ip_white_list'])) {
             $ip_white_list = $global['setting']['ip_white_list'];
             if ($ip_white_list && isset($ip_white_list[$host]) && !$ip_white_list[$host]['status']) {
@@ -2888,9 +2872,8 @@ if (!function_exists('istrlen')) {
      */
     function istrlen($string, $charset = '')
     {
-        $global = \config::get('app.global');
         if (!$charset) {
-            $charset = $global['charset'];
+            $charset = \YunShop::app()['charset'];
         }
         if (strtolower($charset) == 'gbk') {
             $charset = 'gbk';
@@ -3285,6 +3268,37 @@ if (!function_exists('upload_image_local')) {
     }
 }
 
+if (!function_exists('change_to_local_url')) {
+    function change_to_local_url($file)
+    {
+        if (strexists($file, 'storage')) {
+            $file = strstr($file, 'storage');
+            return request()->getSchemeAndHttpHost() . DIRECTORY_SEPARATOR . $file;
+        }
+        if (strexists($file, 'static/upload/')) {
+            $file = strstr($file, 'static/upload/');
+            return request()->getSchemeAndHttpHost() . DIRECTORY_SEPARATOR . $file;
+        }
+        if (strexists($file, 'attachment/')) {
+            $file = strstr($file, 'attachment/');
+            return request()->getSchemeAndHttpHost() . DIRECTORY_SEPARATOR . $file;
+        }
+        $disks = config('filesystems.disks');
+        foreach ($disks as $key => $disk) {
+            if (strexists($file, $key)) {
+                $file = strstr($file, $key);
+                break;
+            }
+        }
+        if (config('app.framework') == 'platform') {
+            $file = request()->getSchemeAndHttpHost() . DIRECTORY_SEPARATOR . 'static/upload/' . $file;
+        } else {
+            $file = request()->getSchemeAndHttpHost() . DIRECTORY_SEPARATOR . 'attachment/' . $file;
+        }
+        return $file;
+    }
+}
+
 if (!function_exists('setSystemVersion')) {
     function setSystemVersion($version, $file)
     {
@@ -3331,3 +3345,267 @@ if (!function_exists('changeSpecialSymbols')) {
         return preg_replace($regex,'', $str);
     }
 }
+
+if (!function_exists('verifyPasswordStrength')) {
+    /**
+     * 校验密码强度（更多用于操作员之类的密码效验）
+     * @param string $password
+     * @return bool|\Illuminate\Http\JsonResponse
+     */
+    function verifyPasswordStrength($password = '')
+    {
+//        if (preg_match('/[\x{4e00}-\x{9fa5}]/u', $password)>0) {
+//            return '密码不能含有中文';
+//        }
+
+        $is_check = 0;
+        if (config('app.APP_Framework', false) == 'platform') {
+            //独立版
+            $loginset = SystemSetting::settingLoad('loginset', 'system_loginset');
+            $is_check = $loginset['password_verify'];
+        }elseif(config('app.APP_Framework', false) != 'platform'){
+            //微擎版
+            if (\Illuminate\Support\Facades\Schema::hasTable('core_settings')) {
+                $setting = \Illuminate\Support\Facades\DB::table('core_settings')->where('key','register')->first();
+                if($setting){
+                    $value = unserialize($setting['value']);
+                    $is_check = $value['safe']?:0;
+                }
+            }
+        }
+
+        if($is_check == 1){
+//            if (!preg_match('/^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[!~@#$%^&*?\(\)]).{8,18}$/', $password)) {
+//                return '密码至少为8-16个字符,至少1个大写字母，1个小写字母和一个数字，其他可以任意字符';
+//            }
+            if (!preg_match('/(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,30}/', $password)) {
+                return '密码至少为8-16个字符,至少1个大写字母，1个小写字母和一个数字，其他可以任意字符';
+            }
+        }
+        return true;
+    }
+
+}
+if (!function_exists('getMiniAccessToken')) {
+	/**
+	 * 获取小程序全局access_token
+	 * @param false $force_refresh 强制刷新
+	 * @return false|mixed
+	 * @throws \GuzzleHttp\Exception\GuzzleException
+	 */
+	function getMiniAccessToken($force_refresh = false)
+	{
+		$set = \Setting::get('plugin.min_app');
+		$cache_key = 'mini_token:'.$set['key'];
+		$token = Redis::get($cache_key);
+		if ($force_refresh || empty($token)) {
+			$get_token_url = 'https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=%s&secret=%s';
+			$get_token_url = sprintf($get_token_url, $set['key'],$set['secret']);
+			$res = (new \GuzzleHttp\Client)->request('GET', $get_token_url);
+			$token = json_decode($res->getBody()->getContents(), JSON_FORCE_OBJECT);
+
+			if (isset($token['errcode'])) {
+				\Log::debug('------生成小程序二维码获取token出错------', $token);
+				return false;
+			}
+			Redis::setex($cache_key,$token['expires_in']-1500,$token['access_token']);
+			return $token['access_token'];
+		}
+		return $token;
+	}
+
+}
+
+if (!function_exists('miniVersionCompare')) {
+	/**
+	 * 小程序版本比较，小于传入版本返回false，其他返回true
+	 * @param string $version
+	 * @return bool
+	 */
+	function miniVersionCompare($version = '')
+	{
+		//不是小程序直接返回
+		if (request()->type != 2) {
+			return true;
+		}
+		$mini_version = request()->mini_version;
+		$mini_version = str_replace('v','',$mini_version);
+		$mini_version = explode('.',$mini_version);
+		$version = explode('.',$version);
+		//版本验证
+		foreach ($mini_version as $key=>$value) {
+			if ($mini_version[$key] < $version[$key]) {
+				return false;
+			}
+		}
+		return true;
+	}
+}
+
+if (!function_exists('versionCompare')) {
+	/**
+	 * H5版本比较，小于传入版本返回false，其他返回true
+	 * @param string $version
+	 * @return bool
+	 */
+	function versionCompare($version = '')
+	{
+		if (request()->type == 2) {
+			return true;
+		}
+		$front_version = request()->version;
+		$front_version = str_replace('v','',$front_version);
+		$front_version = explode('.',$front_version);
+		$version = explode('.',$version);
+		//版本验证
+		foreach ($front_version as $key=>$value) {
+			if ($front_version[$key] < $version[$key]) {
+				return false;
+			}
+		}
+		return true;
+	}
+}
+
+if (!function_exists('substrCut')) {
+	/**
+	 * 只保留字符串首尾字符，隐藏中间用*代替（两个字符时只显示第一个）
+	 * @param string $user_name 姓名
+	 * @return string 格式化后的姓名
+	 */
+	function substrCut($user_name) {
+		$strlen = mb_strlen($user_name, 'utf-8');
+		$firstStr = mb_substr($user_name, 0, 1, 'utf-8');
+		$lastStr = mb_substr($user_name, -1, 1, 'utf-8');
+		if ($strlen < 2) {
+			return $user_name;
+		} else {
+			return $strlen == 2 ? $firstStr . str_repeat('*', mb_strlen($user_name, 'utf-8') - 1) : $firstStr . str_repeat("*", $strlen - 2) . $lastStr;
+		}
+	}
+}
+
+if (!function_exists('validatePassword')) {
+    /**
+     * 密码强度效验统一规则（更多用于平台的密码强度效验）
+     * @param $password
+     * @return string
+     */
+    function validatePassword($password) {
+        if (!preg_match('/^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[.!~@#$%^&*?\(\)+_-]).{8,18}$/', $password)) {
+            return '密码长度至少为8位,要求包括数字，大小写字母和特殊字符';
+        }
+        return true;
+    }
+/*
+    if (!function_exists("yz_tpl_ueditor")) {
+        function yz_tpl_ueditor($id, $value = '', $options = array()){
+            $upload_url1 = yzWebFullUrl('upload.uploadV2.upload-vue');
+            if (config('app.framework') == 'platform') {
+                $file_dir = '';
+            } else {
+                $file_dir = '../addons/yun_shop';
+            }
+            $s = '';
+            $s .= '<script src="'.$file_dir.'/static/yunshop/tinymce4.7.5/tinymce.min.js"></script>
+            <script>
+                tinymce.init({
+                    selector: \'#textarea\',
+                    fontsize_formats: "8px 10px 12px 14px 18px 24px 36px",
+                    plugins: [\'advlist anchor autolink autoresize code codesample colorpicker contextmenu directionality emoticons fullscreen hr image imagetools insertdatetime link charmap lists media nonbreaking noneditable pagebreak preview print save searchreplace spellchecker tabfocus table template textcolor textpattern visualblocks visualchars wordcount powerpaste bdmap \'],
+                    toolbar: [\'forecolor backcolor searchreplace bold italic underline strikethrough fontsizeselect\',\'alignleft aligncenter alignright outdent indent  ltr rtl blockquote undo redo removeformat subscript superscript code codesample\', \'hr bullist numlist link image charmap preview anchor pagebreak print insertdatetime media table emoticons fullscreen bdmap \'],
+                    language:\'zh_CN\',
+                    height: "500px",
+                    file_picker_callback: function(callback, value, meta) {
+                    //文件分类
+                    var filetype = \'.pdf, .jpg, .jpeg, .png, .gif, .mp3, .mp4\';
+                    //后端接收上传文件的地址
+                    var upurl = \''.$upload_url1.'\' +\'&upload_type=video\';
+                    //为不同插件指定文件类型及后端地址
+                    switch (meta.filetype) {
+                        case \'image\':
+                            upurl = \''.$upload_url1.'\' +\'&upload_type=image\';
+                            filetype = \'.jpg, .jpeg, .png, .gif\';
+                            break;
+                        case \'media\':
+                            filetype = \'.mp3, .mp4\';
+                            break;
+                        case \'file\':
+                        default:
+                    }
+                    //模拟出一个input用于添加本地文件
+                    var input = document.createElement(\'input\');
+                    input.setAttribute(\'type\', \'file\');
+                    input.setAttribute(\'accept\', filetype);
+                    input.click();
+                    input.onchange = function(F) {
+                        var file = this.files[0];
+//                        const loading = component.$loading({
+//                            lock: true,
+//                            text: \'正在上传\',
+//                            spinner: \'el-icon-loading\',
+//                            background: \'rgba(0, 0, 0, 0.7)\'
+//                        });
+                        var xhr, formData;
+                        // console.log(file, file.name);
+                        xhr = new XMLHttpRequest();
+                        xhr.withCredentials = false;
+                        xhr.open(\'POST\', upurl);
+                        xhr.onload = function() {
+                            var json;
+                            if (xhr.status != 200) {
+                                loading.close();
+                                // failure(\'HTTP Error: \' + xhr.status);
+                                return;
+                            }
+                            json = JSON.parse(xhr.responseText);
+                            if (!json || typeof json.location != \'string\') {
+                                // failure(\'Invalid JSON: \' + xhr.responseText);
+                                return;
+                            }
+                            // loading.close();
+                            callback(encodeURI(json.location), {
+                                title: file.name
+                            });
+                        };
+                        formData = new FormData();
+                        formData.append(\'file\', file, file.name);
+                        xhr.send(formData);
+                    };
+                },
+                    media_url_resolver: (data, resolve)=> {
+                        try {
+                            let videoUri = encodeURI(data.url);
+                            if(data.url.indexOf(\'.mp4\')>-1) {
+                                // 判断是否mp4  否则用ifarme嵌套
+                                let embedHtml = `<p>
+                                        <video src=${ data.url } width="100%" height="auto" style="max-width: 100%;" allowfullscreen="false" controls="controls" controlslist="nodownload">
+                                        </video>
+                                    </p>`;
+                                resolve({ html: embedHtml });
+                            }else {
+                                let embedHtml = `<p>
+                                        <iframe frameborder="0" src=${ data.url } width="100%" height="100%" style="max-width: 100%;">
+                                        </iframe>
+                                    </p>`;
+                                resolve({ html: embedHtml });
+                            }
+                        
+                        } catch (e) {
+                            resolve({ html: "" });
+                        }
+                    },
+                });
+            </script>
+            ';
+
+            $s .= '
+            <form method="post">
+                <textarea id="textarea" name="'.$id.'" style="height:500px;">'.$value.'</textarea>
+            </form>';
+            return $s;
+            }
+    }
+*/
+}
+

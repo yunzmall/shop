@@ -43,7 +43,7 @@ class MemberLowerGroupOrderJob implements ShouldQueue
         $members = DB::select('select member_id, parent_id from '. DB::getTablePrefix() . 'yz_member where uniacid =' . \YunShop::app()->uniacid );
         $tree = $this->tree($members);
         unset($members);
-        $this->getTreeData($tree,$orders,0);
+        $this->getTreeData($tree,$orders);
         unset($tree[0]);
 
         $insert_data = array_chunk($this->insert_data,2000);

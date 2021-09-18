@@ -8,8 +8,6 @@
 
 namespace app\frontend\modules\member\models;
 
-
-
 class MemberHistory extends \app\common\models\MemberHistory
 {
 
@@ -55,24 +53,44 @@ class MemberHistory extends \app\common\models\MemberHistory
      * @return object $list */
     public static function getMemberHistoryList($memberId)
     {
-//        return MemberHistory::uniacid()
-//            ->where('member_id', $memberId)
-//            ->with(['goods' => function($query) {
-//                return $query->select('id', 'thumb', 'price', 'market_price', 'title');
-//            }])
-//            ->orderBy('updated_at', 'desc')
-//            ->get()->toArray();
-         $data = MemberHistory::uniacid()
+        $data = MemberHistory::uniacid()
             ->where('member_id', $memberId)
-            ->with(['goods' => function($query) {
+            ->has('goods')
+            ->with(['goods' => function ($query) {
                 return $query->select('id', 'thumb', 'price', 'market_price', 'title');
             }])
             ->orderBy('updated_at', 'desc')
-            ->get();
-         foreach ($data as &$itme){
-             $itme['vip_level_status'] = $itme->goods->vip_level_status;
-         }
-         return $data->toArray();
+            ->paginate();
+        foreach ($data as &$itme) {
+            $itme['vip_level_status'] = $itme->goods->vip_level_status;
+        }
+
+        $data = $data->toArray();
+        if (app('plugins')->isEnabled('point-mall')) {
+            $data = \Yunshop\PointMall\api\models\PointMallGoodsModel::setHistoryPointGoods($data);
+        }
+        $data['member_histories'] = $data['data'];
+        unset($data['data']);
+
+        if (!empty($data['member_histories'])){
+            foreach ($data['member_histories'] as &$value) {
+
+                //过滤空数组
+                if(!empty($value['goods']['thumb'])) {
+                    $value['goods']['thumb'] = yz_tomedia($value['goods']['thumb']);
+                }
+            }
+        }
+
+        return $data;
     }
 
+    public static function getMemberHistoryCount($memberId)
+    {
+        $data = MemberHistory::uniacid()
+            ->where('member_id', $memberId)
+            ->has('goods')
+            ->count();
+        return $data;
+    }
 }

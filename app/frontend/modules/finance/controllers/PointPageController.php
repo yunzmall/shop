@@ -12,34 +12,59 @@ namespace app\frontend\modules\finance\controllers;
 
 use app\common\components\ApiController;
 use app\common\facades\Setting;
+use app\common\services\password\PasswordService;
 use app\frontend\models\Member;
 
 class PointPageController extends ApiController
 {
+    /**
+     * @var Member
+     */
     private $memberModel;
-
 
     public function index()
     {
         $this->getMemberInfo();
-        if ($this->memberModel) {
-            $result['credit1'] = $this->memberModel->credit1;
-            $result['transfer'] = $this->getTransferStatus();
-            $result['activity'] = $this->getActivityStatus();
-            $result['rate'] = $this->getRateSet();
 
-            if (app('plugins')->isEnabled('point_exchange')) {
-                $result['lan_plugin'] = 1;
-            } else {
-                $result['lan_plugin'] = 0;
-            }
+        if (!$this->memberModel) return $this->errorJson('未获取到会员信息');
 
-            $set = \Setting::get('plugin.point-exchange');
-            $result['lan_name'] = empty($set['plugin_name']) ? "蓝牛积分" : $set['plugin_name'];
+        return $this->successJson('ok', $this->apiData());
+    }
 
-            return $this->successJson('ok',$result);
-        }
-        return $this->errorJson('未获取到会员信息');
+    private function apiData()
+    {
+        return [
+            'credit1'       => $this->memberModel->credit1,
+            'transfer'      => $this->getTransferStatus(),
+            'activity'      => $this->getActivityStatus(),
+            'rate'          => $this->getRateSet(),
+            'lan_plugin'    => $this->lanPlugin(),
+            'lan_name'      => $this->lanName(),
+            'has_password'  => $this->hasPassword(),
+            'need_password' => $this->needPassword()
+        ];
+    }
+
+    private function lanPlugin()
+    {
+        return (int)app('plugins')->isEnabled('point_exchange');
+    }
+
+    private function lanName()
+    {
+        $set = Setting::get('plugin.point-exchange');
+
+        return empty($set['plugin_name']) ? "蓝牛积分" : $set['plugin_name'];
+    }
+
+    private function hasPassword()
+    {
+        return $this->memberModel->yzMember->hasPayPassword();
+    }
+
+    private function needPassword()
+    {
+        return (new PasswordService())->isNeed('point', 'transfer');
     }
 
     private function getTransferStatus()
@@ -54,7 +79,7 @@ class PointPageController extends ApiController
 
     private function getMemberInfo()
     {
-        return $this->memberModel = Member::select('credit1')->where('uid',$this->getMemberId())->first();
+        return $this->memberModel = Member::where('uid', $this->getMemberId())->first();
     }
 
     private function getMemberId()
@@ -64,6 +89,6 @@ class PointPageController extends ApiController
 
     private function getRateSet()
     {
-        return intval(Setting::get('point.set.point_transfer_poundage'))/100 ?: 0;
+        return intval(Setting::get('point.set.point_transfer_poundage')) / 100 ?: 0;
     }
 }

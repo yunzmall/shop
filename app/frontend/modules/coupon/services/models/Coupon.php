@@ -9,6 +9,7 @@
 namespace app\frontend\modules\coupon\services\models;
 
 
+use app\common\helpers\ArrayHelper;
 use app\common\helpers\Serializer;
 use app\common\models\MemberCoupon;
 use app\common\models\Coupon as DbCoupon;
@@ -57,9 +58,9 @@ class Coupon
     {
         $this->memberCoupon = $memberCoupon;
         $this->order = $order;
-        $this->price = $this->getPriceInstance();
-        $this->useScope = $this->getUseScopeInstance();
-        $this->timeLimit = $this->getTimeLimitInstance();
+        $this->price = $this->getPriceInstance(); //价格计算类
+        $this->useScope = $this->getUseScopeInstance(); //订单商品集合类
+        $this->timeLimit = $this->getTimeLimitInstance(); //有效期计算类
     }
 
     public function getPreOrder()
@@ -164,8 +165,6 @@ class Coupon
         $this->getMemberCoupon()->selected = 1;
         $this->getMemberCoupon()->used = 1;
         $this->getMemberCoupon()->use_time = time();
-        //dump($this->getMemberCoupon());coupo
-
         // todo 订单优惠券使用记录暂时加在这里,优惠券部分需要重构
         $preOrderCoupon = new PreOrderCoupon([
             'coupon_id' => $this->memberCoupon->coupon_id,
@@ -176,7 +175,6 @@ class Coupon
         $preOrderCoupon->setRelation('memberCoupon', $this->memberCoupon);
         $preOrderCoupon->coupon = $this;
         $preOrderCoupon->setOrder($this->order);
-
     }
 
     /**
@@ -202,14 +200,12 @@ class Coupon
     public function valid()
     {
         if (!$this->isOptional()) {
-
             return false;
         }
         if (!$this->unique()) {
             return false;
         }
         if (!$this->price->valid()) {
-
             return false;
         }
         return true;
@@ -246,7 +242,6 @@ class Coupon
      */
     public function isChecked()
     {
-
         if ($this->getMemberCoupon()->selected == 1) {
             return true;
         }
@@ -263,8 +258,6 @@ class Coupon
         if($this->memberCoupon->is_member_deleted == 1){
             return false;
         }
-
-//        dd($this->useScope);
         if (!isset($this->useScope)) {
             trace_log()->coupon("优惠券{$this->getMemberCoupon()->id}", '范围设置无效');
             return false;
@@ -275,7 +268,6 @@ class Coupon
         }
         if (!isset($this->timeLimit)) {
             trace_log()->coupon("优惠券{$this->getMemberCoupon()->id}", '时限类型设置无效');
-
             return false;
         }
         //满足范围
@@ -301,5 +293,4 @@ class Coupon
 
         return true;
     }
-
 }

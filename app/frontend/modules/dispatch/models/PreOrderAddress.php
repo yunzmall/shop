@@ -58,14 +58,15 @@ class PreOrderAddress extends OrderAddress
             }
 
             if($this->isRegion()) {
+                $address = $this->getMemberAddress();
                 if (empty($this->province_id)) {
-                    throw new AppException("收货地址有误,省份[{$this->province}]不存在");
+                    throw new AppException("收货地址有误,省份[{$address->province}]不存在");
                 }
                 if (empty($this->city_id)) {
-                    throw new AppException("收货地址有误,城市[{$this->city}]不存在");
+                    throw new AppException("收货地址有误,城市[{$address->city}]不存在");
                 }
-                if (empty($this->city_id)) {
-                    throw new AppException("收货地址有误,区县[{$this->district}]不存在");
+                if (empty($this->district_id)) {
+                    throw new AppException("收货地址有误,区县[{$address->district}]不存在");
                 }
             }
         }
@@ -154,7 +155,8 @@ class PreOrderAddress extends OrderAddress
         $orderAddress->district_id = $member_address->district_id ?: Address::where('areaname', $member_address->district)->where('parentid', $orderAddress->city_id)->value('id');
         $orderAddress->address = implode(' ', [$member_address->province, $member_address->city, $member_address->district, $member_address->address]);
 
-        if (isset($member_address->street) && $member_address->street != '其他') {
+        //todo 修复前端传street等于空字符串时会报错
+        if (!empty($member_address->street) && $member_address->street != '其他') {
             $orderAddress->street_id = Street::where('areaname', $member_address->street)->where('parentid', $orderAddress->district_id)->value('id');
             if (!isset($orderAddress->street_id)) {
                 throw new AppException('收货地址有误请重新保存收货地址');
@@ -162,10 +164,20 @@ class PreOrderAddress extends OrderAddress
             $orderAddress->street = $member_address->street;
             $orderAddress->address = implode(' ', [$member_address->province, $member_address->city, $member_address->district, $orderAddress->street, $member_address->address]);
 
-        } elseif (isset($member_address->street) && $member_address->street != '其他') {
-            $orderAddress->street = $member_address->street;
-            $orderAddress->address = implode(' ', [$member_address->province, $member_address->city, $member_address->district, $orderAddress->street, $member_address->address]);
         }
+
+//        if (isset($member_address->street) && $member_address->street != '其他') {
+//            $orderAddress->street_id = Street::where('areaname', $member_address->street)->where('parentid', $orderAddress->district_id)->value('id');
+//            if (!isset($orderAddress->street_id)) {
+//                throw new AppException('收货地址有误请重新保存收货地址');
+//            }
+//            $orderAddress->street = $member_address->street;
+//            $orderAddress->address = implode(' ', [$member_address->province, $member_address->city, $member_address->district, $orderAddress->street, $member_address->address]);
+//
+//        } elseif (isset($member_address->street) && $member_address->street != '其他') {
+//            $orderAddress->street = $member_address->street;
+//            $orderAddress->address = implode(' ', [$member_address->province, $member_address->city, $member_address->district, $orderAddress->street, $member_address->address]);
+//        }
 
         $orderAddress->realname = $member_address->username;
         $orderAddress->province = $member_address->province;

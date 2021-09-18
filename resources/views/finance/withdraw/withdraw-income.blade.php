@@ -284,9 +284,75 @@
     </div>
 @endif
 
+@if(app('plugins')->isEnabled('yee-pay'))
+    <div class="tab-pane  active">
+        <div class="form-group">
+            <label class="col-xs-12 col-sm-3 col-md-2 control-label">提现到易宝代付</label>
+            <div class="col-sm-9 col-xs-12">
+                <label class='radio-inline'>
+                    <input type='radio' name='withdraw[income][yee_pay]' value='1' @if($set['yee_pay'] == 1) checked @endif />
+                    开启
+                </label>
+                <label class='radio-inline'>
+                    <input type='radio' name='withdraw[income][yee_pay]' value='0' @if($set['yee_pay'] == 0) checked @endif />
+                    关闭
+                </label>
+            </div>
+        </div>
+    </div>
+@endif
+
+@if(app('plugins')->isEnabled('high-light') && \Yunshop\HighLight\services\SetService::getStatus())
+    <div class="tab-pane  active">
+        <div class="form-group">
+            <label class="col-xs-12 col-sm-3 col-md-2 control-label">提现到微信-高灯</label>
+            <div class="col-sm-9 col-xs-12">
+                <label class='radio-inline'>
+                    <input type='radio' name='withdraw[income][high_light_wechat]' value='1' @if($set['high_light_wechat'] == 1) checked @endif />
+                    开启
+                </label>
+                <label class='radio-inline'>
+                    <input type='radio' name='withdraw[income][high_light_wechat]' value='0' @if($set['high_light_wechat'] == 0) checked @endif />
+                    关闭
+                </label>
+            </div>
+        </div>
+    </div>
+    <div class="tab-pane  active">
+        <div class="form-group">
+            <label class="col-xs-12 col-sm-3 col-md-2 control-label">提现到支付宝-高灯</label>
+            <div class="col-sm-9 col-xs-12">
+                <label class='radio-inline'>
+                    <input type='radio' name='withdraw[income][high_light_alipay]' value='1' @if($set['high_light_alipay'] == 1) checked @endif />
+                    开启
+                </label>
+                <label class='radio-inline'>
+                    <input type='radio' name='withdraw[income][high_light_alipay]' value='0' @if($set['high_light_alipay'] == 0) checked @endif />
+                    关闭
+                </label>
+            </div>
+        </div>
+    </div>
+    <div class="tab-pane  active">
+        <div class="form-group">
+            <label class="col-xs-12 col-sm-3 col-md-2 control-label">提现到银行卡-高灯</label>
+            <div class="col-sm-9 col-xs-12">
+                <label class='radio-inline'>
+                    <input type='radio' name='withdraw[income][high_light_bank]' value='1' @if($set['high_light_bank'] == 1) checked @endif />
+                    开启
+                </label>
+                <label class='radio-inline'>
+                    <input type='radio' name='withdraw[income][high_light_bank]' value='0' @if($set['high_light_bank'] == 0) checked @endif />
+                    关闭
+                </label>
+            </div>
+        </div>
+    </div>
+@endif
+
 <div class="tab-pane  active">
     <div class="form-group">
-        <label class="col-xs-12 col-sm-3 col-md-2 control-label">手动提现</label>
+        <label class="col-xs-12 col-sm-3 col-md-2 control-label">{{ \Setting::get('shop.lang.zh_cn.income.manual_withdrawal') ? \Setting::get('shop.lang.zh_cn.income.manual_withdrawal') : "手动提现" }}</label>
         <div class="col-sm-9 col-xs-12">
             <label class='radio-inline'>
                 <input type='radio' name='withdraw[income][manual]' value='1' @if($set['manual'] == 1) checked @endif />

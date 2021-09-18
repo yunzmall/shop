@@ -161,8 +161,8 @@ class Privilege extends BaseModel
      */
     public function validateMinBuyLimit($num)
     {
-        //只做平台商品验证
-        if ($this->min_buy_limit > 0 && $this->goods->plugin_id == 0) {
+        //只做平台商品验证，解除限制所以商品都会验证
+        if (intval($this->min_buy_limit) > 0) {
 
             if ($num < $this->min_buy_limit) {
                 throw new AppException('商品:(' . $this->goods->title . '),未到达最低购买数量' . $this->min_buy_limit . '件');

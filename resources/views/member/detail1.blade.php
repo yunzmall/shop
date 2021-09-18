@@ -108,9 +108,8 @@
                 <div class="block">
                     <div class="title"><span style="width: 4px;height: 18px;background-color: #29ba9c;margin-right:15px;display:inline-block;"></span><b>自定义会员资料信息</b></div>
                     <el-form-item :label="item.name" v-for="(item,index) in myform" >
-                        <div style="margin-left:30px;">
-                            [[item.value]]
-                        </div>
+                            <el-input v-model="item.value" style="margin-left:30px;width:60%;"></el-input>
+                            {{--[[item.value]]--}}
                     </el-form-item>
                 </div>
                 <div class="block">
@@ -461,7 +460,7 @@
                 memberChoose(){
                     this.$http.post("{!! yzWebUrl('member.member.change_relation') !!}",{member:this.info.uid,parent:this.list[0].uid}).then(response => {
                         if (response.data.result) {
-                            this.$message({message: "修改成功",type: 'success'});
+                            this.$message({message: response.data.msg,type: 'success'});
                             this.getInfo()
                             this.member_show=false;
                         }else{
@@ -520,7 +519,7 @@
                         }
                         this.form.validity = day;
                     }
-                    this.$http.post("{!! yzWebUrl('member.member.update') !!}",{id:this.form.id,member:this.form}).then(response => {
+                    this.$http.post("{!! yzWebUrl('member.member.update') !!}",{id:this.form.id,member:this.form,myform:this.myform}).then(response => {
                         if (response.data.result) {
                             this.$message({message: "提交成功",type: 'success'});
                         }else{

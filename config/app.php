@@ -125,9 +125,6 @@ return [
     |
     */
 
-    'log' => env('APP_LOG', 'daily'),
-
-    'log_level' => env('APP_LOG_LEVEL', 'debug'),
 
     /*
     |--------------------------------------------------------------------------
@@ -173,6 +170,7 @@ return [
          * Application Service Providers...
          */
         app\common\providers\AppServiceProvider::class,
+		\app\common\providers\YunShopServiceProvider::class,
 
         app\common\providers\PluginServiceProvider::class,
 //         app\common\providers\BroadcastServiceProvider::class,
@@ -199,7 +197,8 @@ return [
 
         //短信发送
         Toplan\PhpSms\PhpSmsServiceProvider::class,
-        Toplan\Sms\SmsManagerServiceProvider::class,
+        //Toplan\Sms\SmsManagerServiceProvider::class,
+		\app\framework\Toplan\Sms\SmsManagerServiceProvider::class,
         //计划任务
         \app\common\providers\CronServiceProvider::class,
 
@@ -212,7 +211,6 @@ return [
         //Rap2hpoutre\LaravelLogViewer\LaravelLogViewerServiceProvider::class,
 
         //mongoDB
-        Jenssegers\Mongodb\MongodbServiceProvider::class,
     ],
 
     /*

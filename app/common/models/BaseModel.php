@@ -12,6 +12,7 @@ namespace app\common\models;
 use app\backend\modules\goods\observers\SettingObserver;
 use app\common\exceptions\AppException;
 use app\common\exceptions\ShopException;
+use app\common\traits\ReplaceableModelTrait;
 use app\common\traits\ValidatorTrait;
 use app\framework\Database\Eloquent\Builder;
 use Carbon\Carbon;
@@ -59,6 +60,7 @@ class BaseModel extends Model
 {
     use ValidatorTrait;
     use ValidatesRequests;
+    use ReplaceableModelTrait;
 
     protected $search_fields;
     static protected $needLog = false;

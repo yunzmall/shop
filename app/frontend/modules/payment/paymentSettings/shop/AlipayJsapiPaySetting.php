@@ -36,7 +36,7 @@ class AlipayJsapiPaySetting extends BaseSetting
             return false;
         }
         $face_setting = \Setting::get('plugin.face-payment');
-        if (!$face_setting['switch'] || !$face_setting['method']['weixin'] || $face_setting['button']['alipay']) {
+        if (!$face_setting['switch'] || !$face_setting['method']['weixin'] || $face_setting['button']['alipay'] || $face_setting['shop_button']['alipay']) {
             return false;
         }
         return \Setting::get('shop.alipay_set') !== null;

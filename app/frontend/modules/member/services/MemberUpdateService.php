@@ -23,8 +23,10 @@ namespace app\frontend\modules\member\services;
 
 
 use app\common\exceptions\ShopException;
+use app\common\facades\EasyWeChat;
 use app\common\models\AccountWechats;
 use app\common\models\McMappingFans;
+use app\frontend\modules\member\models\McMappingFansModel;
 use app\frontend\modules\member\models\MemberModel;
 
 class MemberUpdateService
@@ -53,9 +55,11 @@ class MemberUpdateService
 
     public function fans()
     {
-        $uniacid = \YunShop::app()->uniacid;
-
-        $McFans = McMappingFans::uniacid()->where('uid', \YunShop::app()->getMemberId())->first()->toArray();
+        $McFans = McMappingFans::uniacid()->where('uid', \YunShop::app()->getMemberId())->first();
+        if (isset($McFans)) {
+            $McFans = $McFans->toArray();
+        }
+        
         if (empty($McFans)) {
             return [
                 'status' => 0,
@@ -63,38 +67,20 @@ class MemberUpdateService
             ];
         }
 
-        if ($McFans['follow'] == 0) {
+        $app = EasyWeChat::officialAccount();
+
+        $user_info = $app->user->get($McFans['openid']);
+
+        if ($user_info['subscribe'] == 0) {
             return [
                 'status' => 0,
                 'message' => '未关注当前公众号，无法获取会员信息',
             ];
         }
 
-        $account = AccountWechats::getAccountByUniacid($uniacid);
-        $appId = $account->key;
-        $appSecret = $account->secret;
-
-        $global_access_token_url = $this->_getAccessToken($appId, $appSecret);
-
-        $global_token = \Curl::to($global_access_token_url)
-            ->asJsonResponse(true)
-            ->get();
-
-        $global_userinfo_url = $this->_getInfo($global_token['access_token'], $McFans['openid']);
-
-        $user_info = \Curl::to($global_userinfo_url)
-            ->asJsonResponse(true)
-            ->get();
-
-        if (isset($user_info['errcode'])) {
-            return [
-                'status' => 0,
-                'message' => $user_info['errmsg']
-            ];
-        }
-
         //todo 更新会员信息
         $this->updateMemberInfo(\YunShop::app()->getMemberId(), $user_info);
+        $this->updateFansInfo(\YunShop::app()->getMemberId(), $user_info);
 
         return [
             'status' => 1,
@@ -115,7 +101,7 @@ class MemberUpdateService
 
         $para = \YunShop::request();
 
-        $paras = json_decode($para['info']['rawData'], true);
+        $paras = $para['info'];
 
         if (!empty($paras)) {
             $json_user['nickname']   = $paras['nickName'];
@@ -159,69 +145,19 @@ class MemberUpdateService
     }
 
     /**
-     * 获取用户信息
+     * 更新关注信息
      *
-     * @param $appId
-     * @param $appSecret
-     * @param $token
-     * @return mixed
+     * @param $member_id
+     * @param $userinfo
      */
-    public function getUserInfo($appId, $appSecret, $token)
+    public function updateFansInfo($member_id, $userinfo)
     {
-        $scope     = \YunShop::request()->scope ?: '';
-        $subscribe = 0;
-        $share = \Setting::get('shop.share');
-        $user_info = [];
+        //更新mc_members
+        $data = array(
+            'follow' => $userinfo['subscribe'],
+            'followtime' => $userinfo['subscribe_time'] ?: ''
+        );
 
-        if (is_null($share) || $share['follow'] == 1 || ($share && is_null($share['follow']))) {
-            $global_access_token_url = $this->_getAccessToken($appId, $appSecret);
-
-            $global_token = \Curl::to($global_access_token_url)
-                ->asJsonResponse(true)
-                ->get();
-
-            $global_userinfo_url = $this->_getInfo($global_token['access_token'], $token['openid']);
-
-            $user_info = \Curl::to($global_userinfo_url)
-                ->asJsonResponse(true)
-                ->get();
-
-            $subscribe = $user_info['subscribe'];
-        }
-
-        if (0 == $subscribe && $scope != 'base') { //未关注拉取不到用户信息
-            $userinfo_url = $this->_getUserInfoUrl($token['access_token'], $token['openid']);
-
-            $user_info = \Curl::to($userinfo_url)
-                ->asJsonResponse(true)
-                ->get();
-
-            $user_info['subscribe'] = $subscribe;
-        }
-
-        return array_merge($user_info, $token);
-    }
-
-    /**
-     * 获取全局ACCESS TOKEN
-     * @return string
-     */
-    private function _getAccessToken($appId, $appSecret)
-    {
-        return 'https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=' . $appId . '&secret=' . $appSecret;
-    }
-
-    /**
-     * 获取用户信息
-     *
-     * 是否关注公众号
-     *
-     * @param $accesstoken
-     * @param $openid
-     * @return string
-     */
-    private function _getInfo($accesstoken, $openid)
-    {
-        return 'https://api.weixin.qq.com/cgi-bin/user/info?access_token=' . $accesstoken . '&openid=' . $openid;
+        McMappingFansModel::updateData($member_id, $data);
     }
 }

@@ -13,6 +13,7 @@ use app\common\models\BaseModel;
 
 use app\common\observers\balance\BalanceChangeObserver;
 use app\common\services\credit\ConstService;
+use function foo\func;
 use Illuminate\Database\Eloquent\Builder;
 
 
@@ -86,6 +87,11 @@ class Balance extends BaseModel
         return static::getBalanceComment($this->attributes['service_type']);
     }
 
+    public function balanceRecharge()
+    {
+        return $this->hasOne(BalanceRecharge::class, 'ordersn', 'serial_number');
+    }
+
     /**
      * 通过字段 type 输出 type_name 名称
      * @return mixed|string
@@ -131,7 +137,18 @@ class Balance extends BaseModel
     public function scopeWithMember($query)
     {
         return $query->with(['member' => function($query) {
-            return $query->select('uid', 'nickname', 'realname', 'avatar', 'mobile', 'credit2');
+            return $query->select('uid', 'nickname', 'realname', 'avatar', 'mobile', 'credit2')
+                ->with(['yzMember' => function($yzMember){
+                    return $yzMember->select(['member_id', 'parent_id', 'is_agent', 'group_id', 'level_id', 'is_black'])
+                        ->uniacid()
+                        ->with(['group' => function ($query1) {
+                            return $query1->select(['id', 'group_name'])->uniacid();
+                        }, 'level' => function ($query2) {
+                            return $query2->select(['id', 'level', 'level_name'])->uniacid();
+                        }, 'agent' => function ($query3) {
+                            return $query3->select(['uid', 'avatar', 'nickname'])->uniacid();
+                        }]);
+                }]);
         }]);
     }
 
@@ -211,7 +228,9 @@ class Balance extends BaseModel
      * @Author yitian */
     public static function getMemberDetailRecord($memberId, $type= '')
     {
-        $query = self::uniacid()->where('member_id',$memberId);
+        $query = self::uniacid()->with(['balanceRecharge' => function($query) {
+            $query->select('ordersn', 'remark');
+        }])->where('member_id',$memberId);
         if ($type == static::TYPE_INCOME || $type == static::TYPE_EXPENDITURE) {
             $query = $query->where('type', $type);
         }
@@ -287,18 +306,18 @@ class Balance extends BaseModel
     const BALANCE_CANCEL_CONSUME    = 10; //消费取消回滚
 
     //删除 2017-12-04
-   /* public static $balanceComment = [
-        self::BALANCE_RECHARGE      => '余额充值',
-        self::BALANCE_CONSUME       => '余额消费',
-        self::BALANCE_TRANSFER      => '余额转让',
-        self::BALANCE_DEDUCTION     => '余额抵扣',
-        self::BALANCE_AWARD         => '余额奖励',
-        self::BALANCE_WITHDRAWAL    => '余额提现',
-        self::BALANCE_INCOME        => '提现至余额',
-        self::BALANCE_CANCEL_DEDUCTION      => '抵扣取消回滚',
-        self::BALANCE_CANCEL_AWARD          => '奖励取消回滚',
-        self::BALANCE_CANCEL_CONSUME        => '消费取消回滚'
-    ];*/
+    /* public static $balanceComment = [
+         self::BALANCE_RECHARGE      => '余额充值',
+         self::BALANCE_CONSUME       => '余额消费',
+         self::BALANCE_TRANSFER      => '余额转让',
+         self::BALANCE_DEDUCTION     => '余额抵扣',
+         self::BALANCE_AWARD         => '余额奖励',
+         self::BALANCE_WITHDRAWAL    => '余额提现',
+         self::BALANCE_INCOME        => '提现至余额',
+         self::BALANCE_CANCEL_DEDUCTION      => '抵扣取消回滚',
+         self::BALANCE_CANCEL_AWARD          => '奖励取消回滚',
+         self::BALANCE_CANCEL_CONSUME        => '消费取消回滚'
+     ];*/
 
     public static $type_name = [
         self::TYPE_INCOME       => '收入',

@@ -4,10 +4,11 @@
 namespace app\frontend\modules\payment\orderPayments;
 
 
-class WechatPayHjment extends WebPayment
+class WechatPayHjment extends BasePayment
 {
     public function canUse()
     {
-        return parent::canUse() && \YunShop::plugin()->get('converge_pay');
+        //app也显示支付
+        return parent::canUse() && \YunShop::request()->type != 5 && \YunShop::plugin()->get('converge_pay');
     }
 }

@@ -30,7 +30,6 @@ class ConvergeWechatPayListener
             && 1 == $set['converge_pay_status']
             && 1 == $set['wechat']['wechat_status']
             && $is_xcx
-            && \YunShop::request()->type != 7
         ) {
             $result = [
                 'name' => '微信支付(HJ)',

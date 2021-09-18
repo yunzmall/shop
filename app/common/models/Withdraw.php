@@ -125,6 +125,25 @@ class Withdraw extends BaseModel
      */
     const WITHDRAW_WITH_CONVERGE_PAY  = 'converge_pay';
 
+    /**
+     * 提现打款方式：打款到易宝代付
+     */
+    const WITHDRAW_WITH_YEE_PAY  = 'yee_pay';
+
+    /**
+     * 提现打款方式：打款到微信-高灯
+     */
+    const WITHDRAW_WITH_HIGH_LIGHT_WECHAT  = 'high_light_wechat';
+
+    /**
+     * 提现打款方式：打款到支付宝-高灯
+     */
+    const WITHDRAW_WITH_HIGH_LIGHT_ALIPAY  = 'high_light_alipay';
+
+    /**
+     * 提现打款方式：打款到银行卡-高灯
+     */
+    const WITHDRAW_WITH_HIGH_LIGHT_BANK  = 'high_light_bank';
 
     /**
      * 手动打款方式：手动至银行卡
@@ -183,6 +202,10 @@ class Withdraw extends BaseModel
         self::WITHDRAW_WITH_YOP                    => '提现易宝',
         self::WITHDRAW_WITH_SEPARATE_UNION_PAY     => '提现银联',
         self::WITHDRAW_WITH_CONVERGE_PAY           => '提现到银行卡-HJ',
+        self::WITHDRAW_WITH_YEE_PAY                => '提现易宝代付',
+        self::WITHDRAW_WITH_HIGH_LIGHT_WECHAT      => '提现到微信-高灯',
+        self::WITHDRAW_WITH_HIGH_LIGHT_ALIPAY      => '提现到支付宝-高灯',
+        self::WITHDRAW_WITH_HIGH_LIGHT_BANK        => '提现到银行卡-高灯',
     ];
 
 
@@ -473,10 +496,14 @@ class Withdraw extends BaseModel
             ->with(['hasOneMember' => function($query) {
                 return $query->select('uid', 'mobile', 'realname', 'nickname', 'avatar')
                     ->with(['yzMember' => function($member) {
-                        return $member->select('member_id', 'group_id','alipay','wechat')
-                            ->with(['group' => function($group) {
-                                return $group->select('id', 'group_name');
-                            }]);
+                        return $member->select('member_id', 'group_id','alipay','wechat','level_id')
+                            ->with([
+                                'group' => function($group) {
+                                    return $group->select('id', 'group_name');
+                                },
+                                'level' =>function($level) {
+                                    return  $level->select('id', 'level', 'level_name');
+                                }]);
                     }]);
             }])
             ->with(['bankCard'=> function($bank){

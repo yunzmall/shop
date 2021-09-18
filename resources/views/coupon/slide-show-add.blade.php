@@ -30,10 +30,10 @@
                             <el-input v-model="form.title" style="width:70%;" placeholder="请输入幻灯片标题"></el-input>
                         </el-form-item>
                         <el-form-item label="幻灯片图片" prop="slide_pic">
-                            <div class="upload-box" @click="openUpload('slide_pic')" v-if="!form.slide_pic_url">
+                            <div class="upload-box" @click="openUpload('slide_pic',1,'one')" v-if="!form.slide_pic_url">
                                 <i class="el-icon-plus" style="font-size:32px"></i>
                             </div>
-                            <div @click="openUpload('slide_pic')" class="upload-boxed" v-if="form.slide_pic_url">
+                            <div @click="openUpload('slide_pic',1,'one')" class="upload-boxed" v-if="form.slide_pic_url">
                                 <img :src="form.slide_pic_url" alt="" style="width:150px;height:150px;border-radius: 5px;cursor: pointer;">
                                 <div class="upload-boxed-text">点击重新上传</div>
                             </div>
@@ -61,14 +61,14 @@
                 </div>
             </div>
             
-            <upload-img :upload-show="uploadShow" :name="chooseImgName" @replace="changeProp" @sure="sureImg"></upload-img>
+            <upload-multimedia-img :upload-show="uploadShow" :type="type" :name="chooseImgName" :sel-Num="selNum" @replace="changeProp" @sure="sureImg"></upload-multimedia-img>
             <pop :show="show" @replace="changeLink" @add="parHref"></pop>
             <program :pro="pro" @replacepro="changeprogram" @addpro="parpro"></program>
 
             <!--end-->
         </div>
     </div>
-    @include('public.admin.uploadImg')
+    @include('public.admin.uploadMultimediaImg')
     @include('public.admin.pop')  
     @include('public.admin.program')
     <script>
@@ -116,6 +116,8 @@
                     rules:{
                         title:{ required: true, message: '请输入标题'}
                     },
+                    type:'',
+                    selNum:'',
                     
                 }
             },
@@ -265,9 +267,11 @@
                 goParent() {
                     window.location.href = `{!! yzWebFullUrl('coupon.slide-show') !!}`;
                 },
-                openUpload(str) {
+                openUpload(str,type,sel) {
                     this.chooseImgName = str;
                     this.uploadShow = true;
+                    this.type = type;
+                    this.selNum = sel;
                 },
                 changeProp(val) {
                     if(val == true) {
@@ -277,12 +281,18 @@
                         this.uploadShow = true;
                     }
                 },
-                sureImg(name,image,image_url) {
+
+                sureImg(name,uploadShow,fileList) {
+                    
+                    if(fileList.length <= 0) {
+                        return 
+                    }
                     console.log(name)
-                    console.log(image)
-                    console.log(image_url)
-                    this.form[name] = image;
-                    this.form[name+'_url'] = image_url;
+                    console.log(fileList)
+                    this.form[name] =fileList[0].attachment;
+                    this.form[name+'_url'] = fileList[0].url;
+                    console.log(this.form[name],'aaaaa')
+                    console.log( this.form[name+'_url'],'bbbbb')
                 },
                 clearImg(str) {
                     this.form[str] = "";

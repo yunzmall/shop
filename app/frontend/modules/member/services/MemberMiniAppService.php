@@ -8,6 +8,7 @@
 
 namespace app\frontend\modules\member\services;
 
+use app\common\exceptions\MemberNotLoginException;
 use app\common\helpers\Client;
 use app\common\services\Session;
 use app\frontend\modules\member\models\MemberMiniAppModel;
@@ -24,76 +25,12 @@ class MemberMiniAppService extends MemberService
 
     public function login()
     {
-        include dirname(__FILE__) . "/../vendors/wechat/wxBizDataCrypt.php";
+        $ver = \YunShop::request()->ver;
 
-        $min_set = \Setting::get('plugin.min_app');
-
-        if (is_null($min_set) || 0 == $min_set['switch']) {
-            return show_json(0, '未开启小程序');
-        }
-
-        $para = \YunShop::request();
-
-        $data = array(
-            'appid' => $min_set['key'],
-            'secret' => $min_set['secret'],
-            'js_code' => $para['code'],
-            'grant_type' => 'authorization_code',
-        );
-
-        $url = 'https://api.weixin.qq.com/sns/jscode2session';
-
-        $user_info = \Curl::to($url)
-            ->withData($data)
-            ->asJsonResponse(true)
-            ->get();
-
-        $data = '';  //json
-
-        if (!empty($para['info'])) {
-            $json_data = json_decode($para['info'], true);
-
-            $pc = new \WXBizDataCrypt($min_set['key'], $user_info['session_key']);
-            $errCode = $pc->decryptData($json_data['encryptedData'], $json_data['iv'], $data);
-        }
-
-        \Log::debug('-------------min errcode-------', [$errCode]);
-        if ($errCode == 0) {
-            $json_user = json_decode($data, true);
+        if ($ver == 2) {
+            return $this->newLogin();
         } else {
-            if (isset($_GET['test'])) {
-                $json_user = json_decode($_GET['user_info'], true);
-                $user_info = [
-                    'openid' => $json_user['openid'],
-                    'session_key' => $json_user['openid']
-                ];
-            } else {
-                return show_json(0, '登录认证失败');
-            }
-        }
-        if (!empty($json_user)) {
-            if (isset($json_user['unionId'])) {
-                $json_user['unionid'] = $json_user['unionId'];
-            }
-            if(isset($json_user['openId'])){
-                $json_user['openid'] = $json_user['openId'];
-                $json_user['nickname'] = $json_user['nickName'];
-                $json_user['headimgurl'] = $json_user['avatarUrl'];
-                $json_user['sex'] = $json_user['gender'];
-            }
-
-            //Login
-            $member_id = $this->memberLogin($json_user);
-
-            Session::set('member_id', $member_id);
-
-            $random = $this->wx_app_session($user_info);
-
-            $result = array('session' => $random, 'wx_token' => session_id(), 'uid' => $member_id);
-
-            return show_json(1, $result, $result);
-        } else {
-            return show_json(0, '获取用户信息失败');
+           return $this->oldLogin();
         }
     }
 
@@ -254,13 +191,151 @@ class MemberMiniAppService extends MemberService
 
     public function updateFansMember($fan, $member_id, $userinfo)
     {
-        $record = array(
+        //小程序不更新用户信息
+        /*$record = array(
             'member_id' => $member_id,
             'nickname' => stripslashes($userinfo['nickname']),
             'avatar' => isset($userinfo['headimgurl']) ? $userinfo['headimgurl'] : '',
             'gender' => isset($userinfo['sex']) ? $userinfo['sex'] : '-1',
         );
 
-        MemberMiniAppModel::where('mini_app_id', $fan->mini_app_id)->update($record);
+        MemberMiniAppModel::where('mini_app_id', $fan->mini_app_id)->update($record);*/
+    }
+
+    public function oldLogin()
+    {
+        include dirname(__FILE__) . "/../vendors/wechat/wxBizDataCrypt.php";
+
+        $min_set = \Setting::get('plugin.min_app');
+
+        if (is_null($min_set) || 0 == $min_set['switch']) {
+            return show_json(0, '未开启小程序');
+        }
+
+        $para = \YunShop::request();
+
+        $data = array(
+            'appid' => $min_set['key'],
+            'secret' => $min_set['secret'],
+            'js_code' => $para['code'],
+            'grant_type' => 'authorization_code',
+        );
+
+        $url = 'https://api.weixin.qq.com/sns/jscode2session';
+
+        $user_info = \Curl::to($url)
+            ->withData($data)
+            ->asJsonResponse(true)
+            ->get();
+
+        $data = '';  //json
+
+        if (!empty($para['info'])) {
+            $json_data = json_decode($para['info'], true);
+
+            $pc = new \WXBizDataCrypt($min_set['key'], $user_info['session_key']);
+            $errCode = $pc->decryptData($json_data['encryptedData'], $json_data['iv'], $data);
+        }
+
+        \Log::debug('-------------min errcode-------', [$errCode]);
+        if ($errCode == 0) {
+            $json_user = json_decode($data, true);
+        } else {
+            if (isset($_GET['test'])) {
+                $json_user = json_decode($_GET['user_info'], true);
+                $user_info = [
+                    'openid' => $json_user['openid'],
+                    'session_key' => $json_user['openid']
+                ];
+            } else {
+                return show_json(0, '登录认证失败');
+            }
+        }
+        if (!empty($json_user)) {
+            if (isset($json_user['unionId'])) {
+                $json_user['unionid'] = $json_user['unionId'];
+            }
+            if(isset($json_user['openId'])){
+                $json_user['openid'] = $json_user['openId'];
+                $json_user['nickname'] = $json_user['nickName'];
+                $json_user['headimgurl'] = $json_user['avatarUrl'];
+                $json_user['sex'] = $json_user['gender'];
+            }
+
+            //Login
+            $member_id = $this->memberLogin($json_user);
+
+            Session::set('member_id', $member_id);
+
+            $random = $this->wx_app_session($user_info);
+
+            $result = array('session' => $random, 'wx_token' => session_id(), 'uid' => $member_id);
+
+            return show_json(1, $result, $result);
+        } else {
+            return show_json(0, '获取用户信息失败');
+        }
+    }
+
+    public function newLogin()
+    {
+        include dirname(__FILE__) . "/../vendors/wechat/wxBizDataCrypt.php";
+
+        $min_set = \Setting::get('plugin.min_app');
+
+        if (is_null($min_set) || 0 == $min_set['switch']) {
+            return show_json(0, '未开启小程序');
+        }
+
+        $para = json_decode(\YunShop::request()->info, 1);
+        $code = \YunShop::request()->code;
+
+        $data = array(
+            'appid' => $min_set['key'],
+            'secret' => $min_set['secret'],
+            'js_code' => $code,
+            'grant_type' => 'authorization_code',
+        );
+
+        $url = 'https://api.weixin.qq.com/sns/jscode2session';
+
+        $user_info = \Curl::to($url)
+            ->withData($data)
+            ->asJsonResponse(true)
+            ->get();
+
+        \Log::debug('-------------min errcode-------', ['code: ' . $user_info['errcode'] . ' errmsg: ' . $user_info['errmsg']]);
+
+        if (!empty($user_info) && 0 == $user_info['errcode']) {
+            if ($code && is_null($para)) {
+                $mini_member = MemberMiniAppModel::uniacid()->where('openid', $user_info['openid'])->count();
+
+                if (!$mini_member) {
+                    throw new MemberNotLoginException('请登录', $_SERVER['QUERY_STRING']);
+                }
+            }
+
+            if (isset($user_info['unionid'])) {
+                $json_user['unionid'] = $user_info['unionid'];
+            }
+
+            $json_user['openid'] = $user_info['openid'];
+            $json_user['nickname'] = $para['nickName'] ?: '';
+            $json_user['headimgurl'] = $para['avatarUrl'] ?: '';
+            $json_user['sex'] = $para['gender'] ?: 0;
+
+            //Login
+            $member_id = $this->memberLogin($json_user);
+
+            Session::set('member_id', $member_id);
+
+            $random = $this->wx_app_session($user_info);
+
+            $result = array('session' => $random, 'wx_token' => session_id(), 'uid' => $member_id);
+
+            return show_json(1, $result, $result);
+        } else {
+            return show_json(0, '获取用户信息失败');
+        }
     }
 }

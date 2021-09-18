@@ -79,6 +79,7 @@ b{
                 <el-form-item label="角色"> 
                 <template>
                   <el-select v-model="widgets.role_id" placeholder="请选择" @change="getcheck">
+                    <el-option label="点击选择角色" value="0"></el-option>
                     <el-option
                       v-for="item in roleList"
                       :key="item.id"
@@ -90,7 +91,7 @@ b{
                 <div>用户可以在此角色权限的基础上附加其他权限</div>
                 </el-form-item> 
                 <el-form-item label="操作员用户名">
-                    <el-input v-model="form.username"  style="width:60%;"></el-input>
+                    <el-input v-model="form.username"  style="width:60%;" disabled="true"></el-input>
                 </el-form-item>
                 <el-form-item label="操作员密码">
                     <el-input v-model="form.password"  style="width:60%;"></el-input>
@@ -173,7 +174,7 @@ b{
                   profile:{
                     realname:user.user_profile&&user.user_profile.realname?user.user_profile.realname:'',
                     mobile:user.user_profile&&user.user_profile.mobile?user.user_profile.mobile:'',
-                  }
+                  },
                 },
                 arr:[],
            }
@@ -305,6 +306,9 @@ b{
                 this.$forceUpdate()
             },
             getcheck(){
+                if(this.widgets.role_id == 0){
+                    return;
+                }
                 this.$http.post('{!! yzWebFullUrl('role.permission.index') !!}',{role_id:this.widgets.role_id}).then(function (response){
                             if (response.data.result) {
                                let arr=response.data.data

@@ -27,7 +27,7 @@ class BalanceRecordsController extends BaseController
         $records = Balance::records()->where('change_money', '!=', 0);
         $search = $this->getPostSearch();
         if ($search) {
-            //dd($search);
+//            dd($search);
             $records = $records->search($search)->searchMember($search);
         }
 
@@ -61,18 +61,17 @@ class BalanceRecordsController extends BaseController
         foreach ($list as $key => $item) {
 
             if ($item->member) {
-
                 $member_id          = $item->member->uid;
                 $member_name        = $item->member->realname ?: $item->member->nickname;
                 $member_mobile      = $item->member->mobile;
                 $member_level       = $shopSet['level_name'];
                 $member_group       = '无分组';
 
-                if ($item->member->yz_member->group) {
-                    $member_group       = $item->member->yz_member->group->group_name ?: '无分组';
+                if ($item->member->yzMember->group) {
+                    $member_group       = $item->member->yzMember->group->group_name ?: '无分组';
                 }
-                if ($item->member->yz_member->level) {
-                    $member_level       = $item->member->yz_member->level->level_name ?: $shopSet['level_name'];
+                if ($item->member->yzMember->level) {
+                    $member_level       = $item->member->yzMember->level->level_name ?: $shopSet['level_name'];
                 }
 
 

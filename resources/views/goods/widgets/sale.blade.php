@@ -84,10 +84,14 @@
         </div>
 
         <span class="help-block">
-            如果设置空，则走积分统一设置<br>
-            如果设置0，则不赠送<br>
-        如: 购买2件，设置10 积分, 不管成交价格是多少， 则购买后获得20积分<br>
-            如: 购买2件，设置10%积分, 成交价格2 * 200= 400， 则购买后获得 40 积分（400*10%）</span>
+            例: 设置空，则走积分统一设置
+            <br>
+            例: 设置0，则不赠送
+            <br>
+            例: 设置10 积分, 购买2件，不管成交价格是多少， 赠送积分 = 20积分
+            <br>
+            例: 设置10%积分, 购买2件，赠送积分 = 实付金额 * 2 * 10% 或 商品利润 * 2 * 10%
+        </span>
 
         <div class="col-sm-9 col-xs-12">
             <label class='radio-inline'>
@@ -97,6 +101,10 @@
             <label class='radio-inline'>
                 <input type='radio' name='widgets[sale][point_type]' value='1' @if( $item->point_type == 1) checked @endif/>
                 每月1号赠送
+            </label>
+            <label class='radio-inline'>
+                <input type='radio' name='widgets[sale][point_type]' value='2' @if( $item->point_type == 2) checked @endif/>
+                订单支付后赠送
             </label>
         </div>
     </div>
@@ -156,6 +164,7 @@
         </label>
     </div>
 </div>
+
 <div class="form-group">
     <label class="col-xs-12 col-sm-3 col-md-2 control-label"></label>
     <div class="col-xs-12 col-sm-9 col-md-10">
@@ -163,6 +172,22 @@
             <input type="text" name="widgets[sale][all_point_deduct]" value="{{ $item->all_point_deduct }}" class="form-control" onkeyup="this.value= this.value.match(/\d+(\.\d{0,2})?/) ? this.value.match(/\d+(\.\d{0,2})?/)[0] : ''"/>
             <span class="input-group-addon">积分</span>
         </div>
+    </div>
+</div>
+
+<div class="form-group">
+    <label class="col-xs-12 col-sm-3 col-md-2 control-label">余额抵扣</label>
+    <div class="col-sm-9 col-xs-12">
+        <label class='radio-inline'>
+            <input type='radio' name='widgets[sale][balance_deduct]' value='1' @if($item->balance_deduct == '1') checked @endif/>
+            开启
+        </label>
+        <label class='radio-inline'>
+            <input type='radio' name='widgets[sale][balance_deduct]' value='0' @if(empty($item->balance_deduct) && $item->balance_deduct == 0) checked @endif/>
+            关闭
+        </label>
+        <span class="help-block"> 开启余额抵扣，订单使用余额抵扣则不能使用余额支付。关闭则不支持余额抵扣</span>
+
     </div>
 </div>
 

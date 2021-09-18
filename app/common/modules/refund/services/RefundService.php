@@ -4,6 +4,7 @@ namespace app\common\modules\refund\services;
 
 use app\backend\modules\refund\models\RefundApply;
 use app\backend\modules\refund\services\RefundOperationService;
+use app\common\events\order\BeforeOrderRefundedPendingEvent;
 use app\common\exceptions\AdminException;
 use app\common\facades\Setting;
 use app\common\models\finance\Balance;
@@ -40,13 +41,19 @@ class RefundService
         }
         //订单锁定时不能退款
         if ($this->refundApply->order->isPending()) {
-            throw new AdminException("订单已锁定,无法继续操作");
+            event(new BeforeOrderRefundedPendingEvent($this->refundApply->order));
+            if ($this->refundApply->order->isPending()){
+                throw new AdminException("订单已锁定,无法继续操作");
+            }
         }
 
 
         switch ($this->refundApply->order->pay_type_id) {
             case PayType::WECHAT_PAY:
             case PayType::WECHAT_MIN_PAY:
+            case PayType::WECHAT_H5:
+            case PayType::WECHAT_NATIVE:
+            case PayType::WECHAT_JSAPI_PAY:
                 $result = $this->wechat();
                 break;
             case PayType::ALIPAY:
@@ -113,9 +120,6 @@ class RefundService
             case PayType::HK_SCAN_ALIPAY:
                 $result = $this->hkAliPay();
                 break;
-            case PayType::WECHAT_H5:
-                $result = $this->wechatH5();
-                break;
             case PayType::CONFIRM_PAY:
                 $result = $this->confirmPay();
                 break;
@@ -125,14 +129,25 @@ class RefundService
             case PayType::STORE_AGGREGATE_ALIPAY:
                 $result = $this->storeAggregatePay();
                 break;
+            case PayType::STORE_AGGREGATE_SCAN:
+                $result = $this->storeAggregatePay();
+                break;
             default:
                 $result = false;
+                break;
+            case PayType::WECHAT_CPS_APP_PAY:
+                $result = $this->wechat();
+                break;
+            case PayType::XFPAY_WECHAT:
+            case PayType::XFPAY_ALIPAY:
+                $result = $this->xfpayPay();
                 break;
         }
 
         return $result;
     }
 
+    //微信JSAPI、H5、NATIVE、小程序、APP支付退款入口
     private function wechat()
     {
         //微信退款 同步改变退款和订单状态
@@ -263,6 +278,10 @@ class RefundService
             'operator_id'  => $refundApply->uid,
             'change_value' => $refundApply->price
         ];
+		if ($refundApply->order->hasOneOrderPay->behalfPay) {
+			$data['member_id'] = $refundApply->order->hasOneOrderPay->behalfPay->behalf_id;
+			$data['remark'] .= "（代付退款）";
+		}
         $result = (new BalanceChange())->cancelConsume($data);
 
 
@@ -443,6 +462,20 @@ class RefundService
     private function hkAliPay()
     {
         //港版微信退款 同步改变退款和订单状态
+        RefundOperationService::refundComplete(['id' => $this->refundApply->id]);
+        $pay = PayFactory::create($this->refundApply->order->pay_type_id);
+
+        $result = $pay->doRefund($this->refundApply->order->hasOneOrderPay->pay_sn, $this->refundApply->order->hasOneOrderPay->amount, $this->refundApply->price);
+
+        if (!$result) {
+            throw new AdminException('退款失败');
+        }
+        return $result;
+    }
+
+    private function xfpayPay()
+    {
+        //商云客微信支付宝退款
         RefundOperationService::refundComplete(['id' => $this->refundApply->id]);
         $pay = PayFactory::create($this->refundApply->order->pay_type_id);
 

@@ -8,6 +8,7 @@
 
 namespace app\payment\controllers;
 
+use app\common\facades\EasyWeChat;
 use app\common\helpers\Url;
 use app\common\models\AccountWechats;
 use app\common\models\Order;
@@ -16,8 +17,6 @@ use app\common\modules\wechat\models\WechatPayOrder;
 use app\common\services\Pay;
 use app\common\services\PayFactory;
 use app\payment\PaymentController;
-use EasyWeChat\Foundation\Application;
-use app\common\models\OrderGoods;
 
 
 class WechatController extends PaymentController
@@ -58,8 +57,11 @@ class WechatController extends PaymentController
             if ($post['trade_type'] == 'JSAPI') {
                 $pay_type_id = (isset($this->attach[1]) && $this->attach[1] == 'wechat') ? PayFactory::WECHAT_MIN_PAY : PayFactory::PAY_WEACHAT;
             } else {
-
-                $pay_type_id = PayFactory::PAY_APP_WEACHAT;
+                if (isset($this->attach[2]) && $this->attach[2] == PayFactory::WECHAT_CPS_APP_PAY){
+                    $pay_type_id = PayFactory::WECHAT_CPS_APP_PAY;
+                }else{
+                    $pay_type_id = PayFactory::PAY_APP_WEACHAT;
+                }
             }
 
 
@@ -128,18 +130,17 @@ class WechatController extends PaymentController
         $pay = \Setting::get('shop.pay');
 
         /** @var $app Application  */
-        $app = $this->getEasyWeChatApp($pay);
+        $payment = $this->getEasyWeChatApp($pay);
 
-        /**
-         * @var $payment \EasyWeChat\Payment\Payment
-         */
-        $payment = $app->payment;
+        try {
+            $message = (new \EasyWeChat\Payment\Notify\Paid($payment))->getMessage();
+            return $message;
+        } catch (\Exception $exception) {
 
-        $notify = $payment->getNotify();
+            \Log::debug('微信签名验证：'.$exception->getMessage());
+            return false;
+        }
 
-        $valid = $notify->isValid($pay['weixin_apisecret']);
-
-        return $valid;
     }
 
 
@@ -170,45 +171,52 @@ class WechatController extends PaymentController
         }
     }
 
+    //微信NATIVE支付
+    public function notifyPc()
+    {
+        $post = $this->getResponseResult();
+        $this->log($post);
+
+        $verify_result = $this->verifyH5Sign($post);
+
+        \Log::debug('微信扫码支付回调验证结果', $verify_result);
+
+        if ($verify_result) {
+            $data = [
+                'total_fee'    => $post['total_fee'] ,
+                'out_trade_no' => $post['out_trade_no'],
+                'trade_no'     => $post['transaction_id'],
+                'unit'         => 'fen',
+                'pay_type'     => '微信扫码支付',
+                'pay_type_id'     => PayFactory::WECHAT_NATIVE,
+            ];
+
+            $this->payResutl($data);
+            echo "success";
+        } else {
+            echo "fail";
+        }
+    }
+
 
     public function returnUrl()
     {
-        //预约商品订单支付成功后跳转预约插件设置的页面
-        if (app('plugins')->isEnabled('appointment')) {
-            \Log::debug('pay appointment order outtradeno：'.\YunShop::request()->outtradeno);
-            if (\YunShop::request()->outtradeno) {
-                $orderPay = OrderPay::where('pay_sn', \YunShop::request()->outtradeno)->first();
-                $orders = Order::whereIn('id', $orderPay->order_ids)->get();
-                // 只有一个订单
-                \Log::debug('pay appointment order $orders：',$orders);
-                if ($orders->count() == 1) {
-                    $order = $orders[0];
-                    // 是预约商品的订单
-                    if ($order->plugin_id == 101) {
-                        \Log::debug('pay appointment order $order->plugin_id：',$order->plugin_id);
-                        $appointment_redirect = \Yunshop\Appointment\common\service\SetService::getPayReturnUrl();
-                        \Log::debug('pay appointment order $appointment_redirect：',$appointment_redirect);
-                        if($appointment_redirect){
-                            redirect($appointment_redirect)->send();
-                        }
-                    }
-
-                }
-            }
-        }
-        $trade = \Setting::get('shop.trade');
-
-        if (!is_null($trade) && isset($trade['redirect_url']) && !empty($trade['redirect_url'])) {
-            return redirect($trade['redirect_url'].'&outtradeno='.\YunShop::request()->outtradeno)->send();
-        }
 
         if (\YunShop::request()->outtradeno) {
             $orderPay = OrderPay::where('pay_sn', \YunShop::request()->outtradeno)->first();
-            $orders = Order::whereIn('id', $orderPay->order_ids)->get();
             if (is_null($orderPay)) {
                 redirect(Url::absoluteApp('home'))->send();
             }
 
+
+            //商品免单抽奖
+            if (app('plugins')->isEnabled('free-lottery')) {
+                $lotteryOrderCount = \Yunshop\FreeLottery\services\LotteryDrawService::isLotteryOrder($orderPay->order_ids);
+                if ($lotteryOrderCount > 0) {
+                    $redirect = yzAppFullUrl('FreeLottery',['i' => \YunShop::app()->uniacid,'order_ids'=>implode(",",$orderPay->order_ids)]);
+                    redirect($redirect)->send();
+                }
+            }
             //优惠卷分享页
             $share_bool = \app\frontend\modules\coupon\services\ShareCouponService::showIndex($orderPay->order_ids, $orderPay->uid);
             if ($share_bool) {
@@ -216,14 +224,41 @@ class WechatController extends PaymentController
                 redirect(Url::absoluteApp('coupon/share/'.$ids, ['i' => \YunShop::app()->uniacid, 'mid'=> $orderPay->uid]))->send();
             }
 
-            if ($orders->count() > 1) {
-                redirect(Url::absoluteApp('member/orderlist/', ['i' => \YunShop::app()->uniacid]))->send();
-            } else {
-                redirect(Url::absoluteApp('member/orderdetail/'.$orders->first()->id, ['i' => \YunShop::app()->uniacid]))->send();
+            //预约商品订单支付成功后跳转预约插件设置的页面
+            if (app('plugins')->isEnabled('appointment')) {
+                \Log::debug('pay appointment order outtradeno：'.\YunShop::request()->outtradeno);
+                $orders = Order::whereIn('id', $orderPay->order_ids)->get();
+                // 只有一个订单
+                \Log::debug('pay appointment order $orders：', $orders);
+                if ($orders->count() == 1) {
+                    $order = $orders[0];
+                    // 是预约商品的订单
+                    if ($order->plugin_id == 101) {
+                        \Log::debug('pay appointment order $order->plugin_id：', $order->plugin_id);
+                        $appointment_redirect = \Yunshop\Appointment\common\service\SetService::getPayReturnUrl();
+                        \Log::debug('pay appointment order $appointment_redirect：', $appointment_redirect);
+                        if ($appointment_redirect) {
+                            redirect($appointment_redirect)->send();
+                        }
+                    }
+                }
             }
-        } else {
-            redirect(Url::absoluteApp('home'))->send();
         }
+
+        $trade = \Setting::get('shop.trade');
+        if (!is_null($trade) && isset($trade['redirect_url']) && !empty($trade['redirect_url'])) {
+	        $redirect = $trade['redirect_url'];
+	        preg_match("/^(http:\/\/)?([^\/]+)/i", $trade['redirect_url'], $matches);
+	        $host = $matches[2];
+	        // 从主机名中取得后面两段
+	        preg_match("/[^\.\/]+\.[^\.\/]+$/", $host, $matches);
+	        if ($matches){//判断域名是否一致
+		        $redirect = $trade['redirect_url'].'&outtradeno='.\YunShop::request()->outtradeno;
+	        }
+	        redirect($redirect)->send();
+        }
+
+        redirect(Url::absoluteApp('home'))->send();
     }
 
     /**
@@ -252,24 +287,27 @@ class WechatController extends PaymentController
 
                 break;
             case 'APP' :
-                $pay = \Setting::get('shop_app.pay');
+
+                if (isset($this->attach[2]) && $this->attach[2] == PayFactory::WECHAT_CPS_APP_PAY){
+                    $pay = \Setting::get('plugin.aggregation-cps.pay_info');
+                }else{
+                    $pay = \Setting::get('shop_app.pay');
+                }
                 break;
         }
 
-        $app = $this->getEasyWeChatApp($pay);
-        $payment = $app->payment;
-        $notify = $payment->getNotify();
 
-        //老版本-无参数 php7不兼容报错，如果是新版的必须传参数
-        /*$valid = $notify->isValid();
+        $payment = $this->getEasyWeChatApp($pay);
 
-        if (!$valid) {
-            //新版本-有参数
-            $valid = $notify->isValid($pay['weixin_apisecret']);
-        }*/
-        $valid = $notify->isValid($pay['weixin_apisecret']);
+        try {
+            $message = (new \EasyWeChat\Payment\Notify\Paid($payment))->getMessage();
+            return $message;
+        } catch (\Exception $exception) {
 
-        return $valid;
+            \Log::debug('微信签名验证：'.$exception->getMessage());
+            return false;
+        }
+
     }
 
     /**
@@ -283,17 +321,13 @@ class WechatController extends PaymentController
         $options = [
             'app_id' => $pay['weixin_appid'],
             'secret' => $pay['weixin_secret'],
-            // payment
-            'payment' => [
-                'merchant_id' => $pay['weixin_mchid'],
-                'key' => $pay['weixin_apisecret'],
-                'cert_path' => $pay['weixin_cert'],
-                'key_path' => $pay['weixin_key']
-            ]
+            'mch_id' => $pay['weixin_mchid'],
+            'key' => $pay['weixin_apisecret'],
+            'cert_path' => $pay['weixin_cert'],
+            'key_path' => $pay['weixin_key']
         ];
 
-        $app = new Application($options);
-
+        $app = EasyWeChat::payment($options);
         return $app;
     }
 

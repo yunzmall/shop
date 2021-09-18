@@ -15,6 +15,7 @@ use app\common\models\Income;
 use app\common\services\finance\IncomeService;
 use app\frontend\modules\finance\models\Withdraw;
 use Yunshop\TeamDividend\services\withdraw\IncomeWithdrawApply;
+use app\common\services\finance\Withdraw as WithdrawService;
 use Yunshop\ShopEsign\common\service\ContractService;
 
 
@@ -71,12 +72,13 @@ class IncomeWithdrawController extends ApiController
         $loveName = '爱心值';
         if (app('plugins')->isEnabled('love')) {
             $loveName = LOVE_NAME;
+
         }
         $deductionLove = [
-            'love_name'        => $loveName,
-            'deduction_type'   => 0,
-            'deduction_radio'  => 0,
-            'deduction_value'  => 0,
+            'love_name' => $loveName,
+            'deduction_type' => 0,
+            'deduction_radio' => 0,
+            'deduction_value' => 0,
             'deduction_status' => 0,
         ];
 
@@ -113,7 +115,6 @@ class IncomeWithdrawController extends ApiController
             //增加经销商提现显示口爱心值
             if ($income['type'] == 'teamDividend') {
                 $teamDividendWithdraw = (new IncomeWithdrawApply());
-
                 $deductionLove['deduction_type'] = $teamDividendWithdraw->deductionType();
                 $deductionLove['deduction_radio'] = $teamDividendWithdraw->deductionRadio();
                 $deductionLove['deduction_status'] = $teamDividendWithdraw->deductionStatus();
@@ -122,13 +123,73 @@ class IncomeWithdrawController extends ApiController
         }
 
         $data = [
-            'data'           => $income_data,
-            'setting'        => ['balance_special' => $this->getBalanceSpecialSet()],
-            'special_type'   => $this->special_poundage_type,
+            'data' => $income_data,
+            'setting' => ['balance_special' => $this->getBalanceSpecialSet()],
+            'special_type' => $this->special_poundage_type,
             'deduction_love' => $deductionLove,
-            'shop_esign'     => $shopEsign
+            'shop_esign' => $shopEsign
         ];
         return $this->successJson('获取数据成功!', $data);
+    }
+
+
+    public function getMergeServicetax()
+    {
+
+        if (!$income_type = request()->income_type) {
+            return $this->errorJson('请选择要提现的收入');
+        }
+        $withdraw_set = \Setting::get('withdraw.income');
+
+        $res = self::getWithdraw();
+        $res = json_decode($res->getContent(), true);
+
+        if (!$res) {
+            return $this->errorJson('获取收入数据失败');
+        }
+        $income_data = $res['data']['data'];
+        $amount = 0; //劳务费计算基础金额
+        $sum_amount = 0; //总提现金额
+        $poundage_amount = 0; // 总手续费
+        $special_poundage_amount = 0; //余额独立手续费
+        $special_tax_amount = 0; //余额独立劳务税
+
+        foreach ($income_data as $k => $v) {
+
+            if (!in_array($v['key_name'], $income_type)) {
+                continue;
+            }
+
+
+            $special_tax_amount = bcadd($special_tax_amount, $v['special_service_tax'], 2);
+            $special_poundage_amount = bcadd($special_poundage_amount, $v['special_poundage'], 2);
+
+            $sum_amount = bcadd($sum_amount, $v['income'], 2);
+            $poundage_amount = bcadd($poundage_amount, $v['poundage'], 2);
+
+            if (in_array($v['key_name'], ['StoreCashier', 'StoreWithdraw', 'StoreBossWithdraw'])) {
+                continue;
+            }
+
+            if (!$withdraw_set['service_tax_calculation']) {
+                $this_amount = bcsub($v['income'], $v['poundage'], 2);
+                if (bccomp($this_amount, 0, 2) != 1) $this_amount = 0;
+            } else {
+                $this_amount = $v['income'];
+            }
+            $amount = bcadd($amount, $this_amount, 2);
+
+        }
+
+        $servicetax_data = WithdrawService::getWithdrawServicetaxPercent($amount);
+        return $this->successJson('成功', [
+            'sum_amount' => $sum_amount,
+            'poundage_amount' => $poundage_amount,
+            'servicetax_amount' => $servicetax_data['servicetax_amount'] ?: 0,
+            'servicetax_percent' => $servicetax_data['servicetax_percent'] ?: 0,
+            'special_tax_amount' => $special_tax_amount,
+            'special_poundage_amount' => $special_poundage_amount
+        ]);
     }
 
 
@@ -372,27 +433,27 @@ class IncomeWithdrawController extends ApiController
         $actualAmount = bcsub(bcsub($this->withdraw_amounts, $poundage, 2), $service_tax, 2);
 
         return [
-            'type'                     => $income['class'],
-            'key_name'                 => $income['type'],
-            'type_name'                => $this->getLangTitle($key) ? $this->getLangTitle($key) : $income['title'],
-            'income'                   => $this->withdraw_amounts,
-            'poundage'                 => $poundage,
-            'poundage_type'            => $this->poundage_type ?: 0,
-            'poundage_rate'            => $this->poundage_rate,
-            'servicetax'               => $service_tax,
-            'servicetax_rate'          => $this->service_tax_rate,
-            'roll_out_limit'           => $this->getIncomeAmountFetter(),
-            'max_roll_out_limit'       => $this->getIncomeAmountMax(),
-            'max_time_out_limit'       => $this->getIncomeTimeMax(),
-            'can'                      => $can,
-            'selected'                 => $this->incomeIsCanWithdraw(),
-            'type_id'                  => $this->getIncomeTypeIds($income['class']),
-            'special_poundage'         => $special_poundage,
-            'special_poundage_rate'    => $this->special_poundage_rate,
-            'special_service_tax'      => $special_service_tax,
+            'type' => $income['class'],
+            'key_name' => $income['type'],
+            'type_name' => $this->getLangTitle($key) ? $this->getLangTitle($key) : $income['title'],
+            'income' => $this->withdraw_amounts,
+            'poundage' => $poundage,
+            'poundage_type' => $this->poundage_type ?: 0,
+            'poundage_rate' => $this->poundage_rate,
+            'servicetax' => $service_tax,
+            'servicetax_rate' => $this->service_tax_rate ?: 0,
+            'roll_out_limit' => $this->getIncomeAmountFetter(),
+            'max_roll_out_limit' => $this->getIncomeAmountMax(),
+            'max_time_out_limit' => $this->getIncomeTimeMax(),
+            'can' => $can,
+            'selected' => $this->incomeIsCanWithdraw(),
+            'type_id' => $this->getIncomeTypeIds($income['class']),
+            'special_poundage' => $special_poundage,
+            'special_poundage_rate' => $this->special_poundage_rate,
+            'special_service_tax' => $special_service_tax,
             'special_service_tax_rate' => $this->special_service_tax_rate,
-            'actual_amount'            => $actualAmount,
-            'income_type'              => $this->incomeType($income['type']),
+            'actual_amount' => $actualAmount,
+            'income_type' => $this->incomeType($income['type']),
         ];
     }
 
@@ -511,20 +572,20 @@ class IncomeWithdrawController extends ApiController
         }
         $config = \app\common\modules\shop\ShopConfig::current()->get('plugin');
         $incomeData['total'] = [
-            'title'     => '推广收入',
-            'type'      => 'total',
+            'title' => '推广收入',
+            'type' => 'total',
             'type_name' => '推广佣金',
-            'income'    => $incomeModel->sum('amount')
+            'income' => $incomeModel->sum('amount')
         ];
         foreach ($config as $key => $item) {
 
             $typeModel = $incomeModel->where('incometable_type', $item['class']);
             $incomeData[$key] = [
-                'title'     => $item['title'],
-                'ico'       => $item['ico'],
-                'type'      => $item['type'],
+                'title' => $item['title'],
+                'ico' => $item['ico'],
+                'type' => $item['type'],
                 'type_name' => $item['title'],
-                'income'    => $typeModel->sum('amount')
+                'income' => $typeModel->sum('amount')
             ];
             if ($item['agent_class']) {
                 $agentModel = $item['agent_class']::{$item['agent_name']}(\YunShop::app()->getMemberId());
@@ -609,7 +670,7 @@ class IncomeWithdrawController extends ApiController
             }
             $searchType[] = [
                 'title' => $config['title'],
-                'type'  => $config['type']
+                'type' => $config['type']
             ];
         }
         if ($searchType) {

@@ -23,6 +23,11 @@ abstract class BaseDiscount
      */
     protected $name;
     /**
+     * 是否不显示优惠多少金额
+     * @var int
+     */
+    protected $no_show = 0;
+    /**
      * 优惠码
      * @var
      */
@@ -36,9 +41,16 @@ abstract class BaseDiscount
     {
         $this->order = $order;
     }
-    public function getCode(){
+    public function getCode()
+    {
         return $this->code;
     }
+
+    public function getName()
+    {
+        return $this->name;
+    }
+
     /**
      * @return bool
      */
@@ -46,6 +58,7 @@ abstract class BaseDiscount
     {
         return isset($this->amount);
     }
+
 
     /**
      * 获取总金额
@@ -64,7 +77,7 @@ abstract class BaseDiscount
                 'discount_code' => $this->code,
                 'amount' => $this->amount,
                 'name' => $this->name,
-
+                'no_show' => $this->no_show
             ]);
             $preOrderDiscount->setOrder($this->order);
         }

@@ -10,6 +10,7 @@
 namespace app\common\services\withdraw;
 
 
+use app\common\events\withdraw\WithdrawFailedEvent;
 use app\common\events\withdraw\WithdrawPayedEvent;
 use app\common\events\withdraw\WithdrawPayEvent;
 use app\common\events\withdraw\WithdrawPayingEvent;
@@ -69,6 +70,7 @@ class PayedService
 
             } catch (\Exception $e) {
                 if ($this->withdraw_set['free_audit'] == 1) {
+                    event(new WithdrawFailedEvent($this->withdrawModel));
                     $this->sendMessage();
                 }
             }
@@ -94,6 +96,7 @@ class PayedService
             
         } catch (\Exception $e) {
             if (\Setting::get('withdraw.income.free_audit') == 1) {
+                event(new WithdrawFailedEvent($this->withdrawModel));
                 $this->sendMessage();
             }
         }
@@ -218,6 +221,18 @@ class PayedService
             case Withdraw::WITHDRAW_WITH_CONVERGE_PAY:
                 $result = $this->convergePayWithdrawPay();
                 break;
+            case Withdraw::WITHDRAW_WITH_YEE_PAY:
+                $result = $this->yeePayWithdrawPay();
+                break;
+            case Withdraw::WITHDRAW_WITH_HIGH_LIGHT_WECHAT:
+                $result = $this->highLightWithdrawPay(Withdraw::WITHDRAW_WITH_HIGH_LIGHT_WECHAT);
+                break;
+            case Withdraw::WITHDRAW_WITH_HIGH_LIGHT_ALIPAY:
+                $result = $this->highLightWithdrawPay(Withdraw::WITHDRAW_WITH_HIGH_LIGHT_ALIPAY);
+                break;
+            case Withdraw::WITHDRAW_WITH_HIGH_LIGHT_BANK:
+                $result = $this->highLightWithdrawPay(Withdraw::WITHDRAW_WITH_HIGH_LIGHT_BANK);
+                break;
             default:
                 $this->msg = "收入提现ID：{$this->withdrawModel->id}，提现失败：未知打款类型";
                 throw new ShopException($this->msg);
@@ -270,7 +285,7 @@ class PayedService
         $remark = '';
 
 
-        $memberModel = Member::uniacid()->where('uid', $memberId)->with(['hasOneFans', 'hasOneMiniApp'])->first();
+        $memberModel = Member::uniacid()->where('uid', $memberId)->with(['hasOneFans', 'hasOneMiniApp', 'hasOneWechat'])->first();
 
         //优先使用微信会员打款
         if ($memberModel->hasOneFans->openid) {
@@ -278,11 +293,15 @@ class PayedService
         //微信会员openid不存在时，假设使用小程序会员openid
         } elseif (app('plugins')->isEnabled('min-app') && $memberModel->hasOneMiniApp->openid) {
             $result = PayFactory::create(PayFactory::PAY_WE_CHAT_APPLET)->doWithdraw($memberId, $sn, $amount, $remark,1);
+        } elseif (app('plugins')->isEnabled('app-set') && $memberModel->hasOneWechat->openid) {
+            $result = PayFactory::create(PayFactory::PAY_WE_CHAT_APP)->doWithdraw($memberId, $sn, $amount, $remark,1);
         } else {
+            event(new WithdrawFailedEvent($this->withdrawModel));
             $this->sendMessage('提现会员openid错误');
             throw new ShopException("收入提现ID：{$this->withdrawModel->id}，提现失败：提现会员openid错误");
         }
         if ($result['errno'] == 1) {
+            event(new WithdrawFailedEvent($this->withdrawModel));
             $this->sendMessage();
             throw new ShopException("收入提现ID：{$this->withdrawModel->id}，提现失败：{$result['message']}");
         }
@@ -361,6 +380,40 @@ class PayedService
 
         $result = PayFactory::create(PayFactory::YOP)->doWithdraw($member_id, $sn, $amount, $remark);
         \Log::debug('app_common_services_withdraw_PayService_in_yop----result+++++', $result);
+
+        if ($result['errno'] == 200) {
+            return false;
+        }
+        $this->msg = "收入提现ID：{$this->withdrawModel->id}，提现失败：{$result['message']}";
+        throw new ShopException($this->msg);
+    }
+
+    private function yeePayWithdrawPay()
+    {
+        $member_id = $this->withdrawModel->member_id;
+        $sn = $this->withdrawModel->withdraw_sn;
+        $amount = $this->withdrawModel->actual_amounts;
+        $remark = 'withdraw';
+
+        $result = PayFactory::create(PayFactory::YEE_PAY)->doWithdraw($member_id, $sn, $amount, $remark);
+        \Log::debug('app_common_services_withdraw_PayService_in_yee_pay----result+++++', $result);
+
+        if ($result['errno'] == 200) {
+            return false;
+        }
+        $this->msg = "收入提现ID：{$this->withdrawModel->id}，提现失败：{$result['message']}";
+        throw new ShopException($this->msg);
+    }
+
+    private function highLightWithdrawPay($type)
+    {
+        $member_id = $this->withdrawModel->member_id;
+        $sn = $this->withdrawModel->withdraw_sn;
+        $amount = $this->withdrawModel->actual_amounts;
+        $remark = 'withdraw';
+
+        $result = PayFactory::create(PayFactory::HIGH_LIGHT)->doWithdraw($member_id, $sn, $amount, $remark,$type);
+        \Log::debug('app_common_services_withdraw_PayService_in_'.$type.'----result+++++', $result);
 
         if ($result['errno'] == 200) {
             return false;

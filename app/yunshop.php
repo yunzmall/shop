@@ -1,6 +1,7 @@
 <?php
 
 use app\frontend\modules\member\services\MemberAnchorAppService;
+use app\frontend\modules\member\services\MemberCpsAppService;
 use Illuminate\Support\Str;
 use app\common\services\PermissionService;
 use app\common\models\Menu;
@@ -24,58 +25,58 @@ class YunShop
 
     }
 
-    public static function run($namespace, $modules, $controllerName, $action, $currentRoutes)
-    {
-        //检测命名空间
-        if (!class_exists($namespace)) {
-            throw new NotFoundException(" 路由错误:不存在类: " . $namespace);
-        }
-        //检测controller继承
-        $controller = new $namespace;
-        if (!$controller instanceof \app\common\components\BaseController) {
-            if (config('app.debug')) {
-                throw new NotFoundException($controller . ' 没有继承\app\common\components\BaseController: ' . $namespace);
-            }
-            throw new NotFoundException(" 路由错误:不存在控制器: " . $namespace);
-
-        }
-
-        //设置默认方法
-        if (empty($action)) {
-            $action = 'index';
-            self::app()->action = $action;
-            $currentRoutes[] = $action;
-        }
-
-        //检测方法是否存在并可执行
-        if (!method_exists($namespace, $action) || !is_callable([$namespace, $action])) {
-            throw new NotFoundException('路由错误:操作方法不存在: ' . $action);
-        }
-        $controller->modules = $modules;
-        $controller->controller = $controllerName;
-        $controller->action = $action;
-        $controller->route = implode('.', $currentRoutes);
-
-        request()->setRoute($controller->route);
-
-        //执行方法
-        $controller->preAction();
-
-        if (method_exists($controller, 'needTransaction') && $controller->needTransaction($action)) {
-            // action设置了需要回滚
-            $content = \Illuminate\Support\Facades\DB::transaction(function () use ($action, $controller) {
-               return self::getContent($controller,$action);
-            });
-        } else {
-            $content = self::getContent($controller,$action);
-        }
-
-        $time = app()->getTime();
-        if($time > 1){
-            //(new \app\framework\Log\SlowApiLog())->add($time,request()->input());
-        }
-        return $content;
-    }
+//    public static function run($namespace, $modules, $controllerName, $action, $currentRoutes)
+//    {
+//        //检测命名空间
+//        if (!class_exists($namespace)) {
+//            throw new NotFoundException(" 路由错误:不存在类: " . $namespace);
+//        }
+//        //检测controller继承
+//        $controller = new $namespace;
+//        if (!$controller instanceof \app\common\components\BaseController) {
+//            if (config('app.debug')) {
+//                throw new NotFoundException($controller . ' 没有继承\app\common\components\BaseController: ' . $namespace);
+//            }
+//            throw new NotFoundException(" 路由错误:不存在控制器: " . $namespace);
+//
+//        }
+//
+//        //设置默认方法
+//        if (empty($action)) {
+//            $action = 'index';
+//            self::app()->action = $action;
+//            $currentRoutes[] = $action;
+//        }
+//
+//        //检测方法是否存在并可执行
+//        if (!method_exists($namespace, $action) || !is_callable([$namespace, $action])) {
+//            throw new NotFoundException('路由错误:操作方法不存在: ' . $action);
+//        }
+//        $controller->modules = $modules;
+//        $controller->controller = $controllerName;
+//        $controller->action = $action;
+//        $controller->route = implode('.', $currentRoutes);
+//
+//        request()->setRoute($controller->route);
+//
+//        //执行方法
+//        $controller->preAction();
+//
+//        if (method_exists($controller, 'needTransaction') && $controller->needTransaction($action)) {
+//            // action设置了需要回滚
+//            $content = \Illuminate\Support\Facades\DB::transaction(function () use ($action, $controller) {
+//                return self::getContent($controller, $action);
+//            });
+//        } else {
+//            $content = self::getContent($controller, $action);
+//        }
+//
+//        $time = app()->getTime();
+//        if ($time > 1) {
+//            //(new \app\framework\Log\SlowApiLog())->add($time,request()->input());
+//        }
+//        return $content;
+//    }
 
     /**
      * Configures an object with the initial property values.
@@ -124,7 +125,7 @@ class YunShop
 
     public static function isWeb()
     {
-       return request()->isBackend();
+        return request()->isBackend();
     }
 
     public static function isApp()
@@ -173,8 +174,8 @@ class YunShop
 
     /**
      * @name 验证是否商城操作员
-     * @author
      * @return array|bool|null|stdClass
+     * @author
      */
     public static function isRole()
     {
@@ -190,11 +191,54 @@ class YunShop
         return false;
     }
 
+    /**
+     * @name 验证是否文章营销管理员
+     * @author
+     * @return array|bool|null|stdClass
+     */
+    public static function isArticle()
+    {
+        global $_W;
+
+        if (app('plugins')->isEnabled('article')) {
+            if (!\Illuminate\Support\Facades\Schema::hasTable('yz_plugin_article_manager')) {
+                return false;
+            }
+
+
+            $res = \Illuminate\Support\Facades\DB::table('yz_plugin_article_manager')->where('uid', $_W['uid'])->first();
+            if (!$res) {
+                return false;
+            }
+            return $res;
+        }
+        return false;
+    }
+
+	/**
+	 * @name 验证是否商城操作员
+	 * @author
+	 * @return array|bool|null|stdClass
+	 */
+	public static function isAgencyCompany()
+	{
+		global $_W;
+
+		if (app('plugins')->isEnabled('agency-statistics')) {
+			$res = \Illuminate\Support\Facades\DB::table('yz_agency_company')->where('uid', $_W['uid'])->first();
+			if (!$res) {
+				return false;
+			}
+			return $res;
+		}
+		return false;
+	}
+
 
     /**
      * @name 验证是否门店店长
-     * @author
      * @return array|bool|null|stdClass
+     * @author
      */
     public static function isStore()
     {
@@ -250,76 +294,74 @@ class YunShop
      * 路由写法为   test-cache.test-clean
      *
      */
-    public static function parseRoute($requestRoute)
-    {
-        try {
-            $vers = [];
-            $routes_params = explode('.', $requestRoute);
-
-
-            if (preg_match('/(v\d+)\./', $requestRoute, $vers)) {
-                foreach ($routes_params as $key => $item) {
-                    if ($item != $vers[1]) {
-                        $routes[] = $item;
-                    }
-                }
-            } else {
-                $routes = $routes_params;
-            }
-
-
-            $path = self::getAppPath();
-
-            $namespace = self::getAppNamespace();
-            $action = '';
-            $controllerName = '';
-            $currentRoutes = [];
-            $modules = [];
-            if ($routes) {
-                $length = count($routes);
-                $routeFirst = array_first($routes);
-                $countRoute = count($routes);
-                if ($routeFirst === 'plugin' || self::isPlugin()) {
-                    if (self::isPlugin()) {
-                        $currentRoutes[] = 'plugin';
-                        $countRoute += 1;
-                    } else {
-                        $currentRoutes[] = $routeFirst;
-                        array_shift($routes);
-                    }
-                    $namespace = 'Yunshop';
-                    $pluginName = array_shift($routes);
-                    if ($pluginName || plugin($pluginName)) {
-                        $currentRoutes[] = $pluginName;
-                        $namespace .= '\\' . ucfirst(Str::camel($pluginName));
-                        $path = base_path() . '/plugins/' . $pluginName . '/src';
-                        $length = $countRoute;
-
-                        self::findRouteFile($controllerName, $action, $routes, $namespace, $path, $length, $currentRoutes, $requestRoute, true, $vers);
-
-                        if (!app('plugins')->isEnabled($pluginName)) {
-                            throw new NotFoundException("{$pluginName}插件已禁用");
-
-                        }
-                    } else {
-                        throw new NotFoundException('无此插件');
-
-                    }
-                } else {
-
-                    self::findRouteFile($controllerName, $action, $routes, $namespace, $path, $length, $currentRoutes, $requestRoute, false, $vers);
-
-                }
-            }
-        } catch (Exception $exception) {
-//            dd($exception);
-//            exit;
-
-        }
-        //执行run
-        return static::run($namespace, $modules, $controllerName, $action, $currentRoutes);
-
-    }
+//    public static function parseRoute($requestRoute)
+//    {
+//        try {
+//            $vers = [];
+//            $routes_params = explode('.', $requestRoute);
+//
+//            if (preg_match('/(v\d+)\./', $requestRoute, $vers)) {
+//                foreach ($routes_params as $key => $item) {
+//                    if ($item != $vers[1]) {
+//                        $routes[] = $item;
+//                    }
+//                }
+//            } else {
+//                $routes = $routes_params;
+//            }
+//
+//            $path = self::getAppPath();
+//            $namespace = self::getAppNamespace();
+//            $action = '';
+//            $controllerName = '';
+//            $currentRoutes = [];
+//            $modules = [];
+//
+//            if ($routes) {
+//                $length = count($routes);
+//                $routeFirst = array_first($routes);
+//                $countRoute = count($routes);
+//                if ($routeFirst === 'plugin' || self::isPlugin()) {
+//                    if (self::isPlugin()) {
+//                        $currentRoutes[] = 'plugin';
+//                        $countRoute += 1;
+//                    } else {
+//                        $currentRoutes[] = $routeFirst;
+//                        array_shift($routes);
+//                    }
+//                    $namespace = 'Yunshop';
+//                    $pluginName = array_shift($routes);
+//                    if ($pluginName || plugin($pluginName)) {
+//                        $currentRoutes[] = $pluginName;
+//                        $namespace .= '\\' . ucfirst(Str::camel($pluginName));
+//                        $path = base_path() . '/plugins/' . $pluginName . '/src';
+//                        $length = $countRoute;
+//
+//                        self::findRouteFile($controllerName, $action, $routes, $namespace, $path, $length, $currentRoutes, $requestRoute, true, $vers);
+//
+//                        if (!app('plugins')->isEnabled($pluginName)) {
+//                            throw new NotFoundException("{$pluginName}插件已禁用");
+//
+//                        }
+//                    } else {
+//                        throw new NotFoundException('无此插件');
+//
+//                    }
+//                } else {
+//
+//                    self::findRouteFile($controllerName, $action, $routes, $namespace, $path, $length, $currentRoutes, $requestRoute, false, $vers);
+//
+//                }
+//            }
+//        } catch (Exception $exception) {
+////            dd($exception);
+////            exit;
+//
+//        }
+//        //执行run
+//        return static::run($namespace, $modules, $controllerName, $action, $currentRoutes);
+//
+//    }
 
     /**
      * 定位路由相关文件
@@ -395,12 +437,13 @@ class YunShop
         return self::$_notice;
     }
 
-    private static function getContent($controller,$action){
+    private static function getContent($controller, $action)
+    {
 
         return (new \Illuminate\Pipeline\Pipeline(new \Illuminate\Container\Container()))
             ->send(Illuminate\Http\Request::capture())
             ->through(collect($controller->getMiddleware())->pluck('middleware')->all())
-            ->then(function ($request) use ($controller,$action) {
+            ->then(function ($request) use ($controller, $action) {
                 return $controller->$action($request);
             });
     }
@@ -423,7 +466,8 @@ class YunComponent implements ArrayAccess
         return $this->values[$name];
     }
 
-    function __isset($name) {
+    function __isset($name)
+    {
         return array_key_exists($name, $this->values);
     }
 
@@ -477,12 +521,8 @@ class YunRequest extends YunComponent
 
     public function __construct()
     {
-        global $_GPC;
-
-        $this->values = !YunShop::isWeb() && !YunShop::isWechatApi() ? request()->input() : $_GPC;
+        $this->values = request()->input();
     }
-
-
 }
 
 /**
@@ -509,45 +549,43 @@ class YunApp extends YunComponent
         $account = \app\common\models\AccountWechats::getAccountByUniacid(request()->get('i'));
         return [
             'uniacid' => trim(request()->get('i')),
-            'weid' => trim(request()->get('i')),
-            'acid' => trim(request()->get('i')),
+            'weid'    => trim(request()->get('i')),
+            'acid'    => trim(request()->get('i')),
             'account' => $account ? $account->toArray() : '',
         ];
     }
 
 
-
     /**
-     * @todo set member id from session
      * @return int
+     * @todo set member id from session
      */
     public function getMemberId()
     {
-        if(isset($_GET['test_uid'])){
-            return $_GET['test_uid'];
-        }
         $member_id = 0;
         $type = \Yunshop::request()->type ?: '';
         $token = \Yunshop::request()->yz_token ?: '';
+        switch ($type) {
+            case 9:
+                $native_app = new \app\frontend\modules\member\services\MemberNativeAppService();
 
-         switch ($type) {
-             case 9:
-                 $native_app = new \app\frontend\modules\member\services\MemberNativeAppService();
+                $member_id = $native_app->getMemberId($token);
 
-                 $member_id = $native_app->getMemberId($token);
-
-                 break;
-             case 14:
-                 $anchor_app = new MemberAnchorAppService();
-                 $member_id = $anchor_app->getMemberId($token);
-                 break;
-             default:
-                 if (Session::get('member_id')) {
-                     $member_id = Session::get('member_id');
-                 }
-         }
-
-         return $member_id;
+                break;
+            case 14:
+                $anchor_app = new MemberAnchorAppService();
+                $member_id = $anchor_app->getMemberId($token);
+                break;
+            case 15:
+                $cps_app = new MemberCpsAppService();
+                $member_id = $cps_app->getMemberId($token);
+                break;
+            default:
+                if (Session::get('member_id')) {
+                    $member_id = Session::get('member_id');
+                }
+        }
+        return $member_id;
     }
 
 }

@@ -257,4 +257,9 @@ class ChildrenOfMember extends BaseModel
         $this->CreateData($attr);
     }
 
+    public function hasOneChildYzMember()
+    {
+        return self::hasOne(MemberShopInfo::class, 'member_id', 'child_id');
+    }
+
 }

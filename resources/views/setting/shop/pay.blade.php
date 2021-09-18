@@ -116,6 +116,17 @@
                             </template>
                             <div style="font-size: 12px;">提示：只支持手机浏览器，pc不支持</div>
                         </el-form-item>
+                        <el-form-item label="微信扫码支付">
+                            <template>
+                                <el-switch
+                                        v-model="form.wechat_native"
+                                        active-value="1"
+                                        inactive-value="0"
+                                >
+                                </el-switch>
+                            </template>
+                            <div style="font-size: 12px;"></div>
+                        </el-form-item>
                         <el-form-item label="身份标识(appId)"  >
                             <el-input v-model="form.weixin_appid" style="width:70%;"></el-input>
                         </el-form-item>
@@ -241,8 +252,74 @@
                                 >
                                 </el-switch>
                             </template>
-                            <div>开启后，需在支付宝支付接口--新接口处设置应用ID、开发者私钥、支付宝公钥</div>
+                            {{--<div>开启后，需在支付宝支付接口--新接口处设置应用ID、开发者私钥、支付宝公钥</div>--}}
                         </el-form-item>
+                        <div v-if="form.alipay_withdrawals=='1'">
+                            <el-form-item label="转账接口版本">
+                                <template>
+                                    <el-radio-group v-model="form.alipay_transfer">
+                                        <el-radio label="0">公钥模式</el-radio>
+                                        <el-radio label="1">公钥证书模式</el-radio>
+                                    </el-radio-group>
+                                </template>
+                                <div  v-if="form.alipay_transfer=='0'" style="font-size: 12px;">
+                                    需在支付宝支付接口--新接口处设置应用ID、开发者私钥、支付宝公钥
+                                </div>
+                                <div v-if="form.alipay_transfer=='1'">需上传：应用公钥证书、支付宝公钥证书、支付宝根证书</div>
+                            </el-form-item>
+
+                            <el-form-item label="应用ID"  v-if="form.alipay_transfer =='1'">
+                                <el-input v-model="form.alipay_transfer_app_id" style="width:60%;"></el-input>
+                            </el-form-item>
+
+                            <el-form-item label="应用私钥" v-if="form.alipay_transfer=='1'">
+                                <el-input v-model="form.alipay_transfer_private" type="textarea" style="width:70%;" v-if="alipay_transfer_private_show"></el-input>
+                                <span style="color:#29BA9C;font-size:12px;" v-if="form.alipay_transfer_private && !alipay_transfer_private_show ">已填写</span>
+                                <el-button type="primary" @click="ResetValue('alipay_transfer_private')" v-if="form.alipay_transfer_private && !alipay_transfer_private_show">重置</el-button>
+                            </el-form-item>
+                            <el-form-item label="应用公钥证书"  v-if="form.alipay_transfer==1">
+                                <el-upload
+                                        class="upload-demo"
+                                        action="{!! yzWebFullUrl('setting.shop.newUpload') !!}"
+                                        name="alipay_app_public_cert"
+                                        :show-file-list="false"
+                                        :on-success="uploadSuccess"
+                                        :on-error="uploadfail"
+                                >
+                                    <el-button type="primary">文件上传</el-button>
+                                </el-upload>
+                                <span style="color:#5adda2;font-size:12px;"  v-if="form.alipay_app_public_cert">已上传</span>
+                                {{--<div style="font-size:12px;">提示：下载应用公钥证书</div>--}}
+                            </el-form-item>
+                            <el-form-item label="支付宝公钥证书"  v-if="form.alipay_transfer==1">
+                                <el-upload
+                                        class="upload-demo"
+                                        action="{!! yzWebFullUrl('setting.shop.newUpload') !!}"
+                                        name="alipay_public_cert"
+                                        :show-file-list="false"
+                                        :on-success="uploadSuccess"
+                                        :on-error="uploadfail"
+                                >
+                                    <el-button type="primary">文件上传</el-button>
+                                </el-upload>
+                                <span style="color:#5adda2;font-size:12px;"  v-if="form.alipay_public_cert">已上传</span>
+                                {{--<div style="font-size:12px;">提示：下载支付宝公钥证书</div>--}}
+                            </el-form-item>
+                            <el-form-item label="支付宝根证书"  v-if="form.alipay_transfer==1">
+                                <el-upload
+                                        class="upload-demo"
+                                        action="{!! yzWebFullUrl('setting.shop.newUpload') !!}"
+                                        name="alipay_root_cert"
+                                        :show-file-list="false"
+                                        :on-success="uploadSuccess"
+                                        :on-error="uploadfail"
+                                >
+                                    <el-button type="primary">文件上传</el-button>
+                                </el-upload>
+                                <span style="color:#5adda2;font-size:12px;"  v-if="form.alipay_root_cert">已上传</span>
+                                {{--<div style="font-size:12px;">提示：下载支付宝根证书</div>--}}
+                            </el-form-item>
+                        </div>
                     </div>
                     <div style="background: #eff3f6;width:100%;height:15px;"></div>
                     <div class="block">
@@ -258,18 +335,6 @@
                                 </el-switch>
                             </template>
                         </el-form-item>
-                        <el-form-item label="支付密码验证">
-                            <template>
-                                <el-switch
-                                        v-model="form.balance_pay_proving"
-                                        active-value="1"
-                                        inactive-value="0"
-                                >
-                                </el-switch>
-                            </template>
-                            <div style="font-size: 12px;">提示：开启余额支付密码验证必须配置短信通道，否则不能开启</div>
-                        </el-form-item>
-
                     </div>
                     <div style="background: #eff3f6;width:100%;height:15px;"></div>
                     <div class="block">
@@ -350,15 +415,17 @@
             el: "#re_content",
             delimiters: ['[[', ']]'],
             data() {
-                let set = {!! $set ?: '{}'  !!}
-                    let data = {!! $data ?: '{}' !!}
 
+                    let set = {!! $set ?: '{}'  !!}
+                    let data = {!! $data ?: '{}' !!}
+                    console.log(set);
                     return {
                         activeName: 'first',
                         show:true,
                         Certshow:true,
                         weixin_secret_show:true,
                         weixin_apisecret_show:true,
+                        alipay_transfer_private_show:true,
                         set:set,
                         form:{
                             ios_virtual_pay: set.ios_virtual_pay,
@@ -379,13 +446,22 @@
                             rsa_public_key: set.rsa_public_key,
                             alipay: set.alipay,
                             wechat_h5 : set.wechat_h5,
+                            wechat_native : set.wechat_native,
                             alipay_pay_api: set.alipay_pay_api?set.alipay_pay_api:'0',
                             alipay_name: set.alipay_name,
                             alipay_account: set.alipay_account?set.alipay_account:'',
                             alipay_partner: set.alipay_partner?set.alipay_partner:'',
                             alipay_secret: set.alipay_secret?set.alipay_secret:'',
                             api_version: set.api_version?set.api_version:'2',
-                            balance_pay_proving: set.balance_pay_proving,
+                            //支付宝提现
+                            alipay_transfer:set.alipay_transfer,
+                            alipay_transfer_app_id:set.alipay_transfer_app_id,
+                            alipay_transfer_private:set.alipay_transfer_private,
+                            //支付宝证书签名方式
+                            alipay_app_public_cert: set.alipay_app_public_cert?set.alipay_app_public_cert:'',
+                            alipay_public_cert: set.alipay_public_cert?set.alipay_public_cert:'',
+                            alipay_root_cert: set.alipay_root_cert?set.alipay_root_cert:'',
+
                             credit: set.credit,
                             another: set.another,
                             another_share_title:set.another_share_title,
@@ -420,14 +496,11 @@
                 uploadSuccess(res){
                     if(res.result){
                         this.$message({message:res.msg,type: 'success'});
-                        this.form.weixin_cert=res.data.data.data.weixin_cert;
+                        this.form[res.data.data.data.key] = res.data.data.data.value;
 
                     }else{
                         this.$message({message:res.msg,type: 'error'});
                     }
-                },
-                uploadfail(res){
-                    this.$message({'上传失败': 'error'});
                 },
                 getCert(){
                     if(this.set.new_weixin_cert||this.set.new_weixin_key){
@@ -443,6 +516,9 @@
                     }
                     if(this.set.weixin_apisecret){
                         this.weixin_apisecret_show=false
+                    }
+                    if(this.set.alipay_transfer_private){
+                        this.alipay_transfer_private_show=false
                     }
                 },
                 certReset(){
@@ -465,10 +541,15 @@
                             this.form.weixin_apisecret = ''
                             this.weixin_apisecret_show = true
                             break;
+                        case 'alipay_transfer_private' :
+                            this.form.alipay_transfer_private = ''
+                            this.alipay_transfer_private_show = true
+                            break;
 
                     }
                 },
                 submit() {
+                    console.log(this.form);
                     let loading = this.$loading({target:document.querySelector(".content"),background: 'rgba(0, 0, 0, 0)'});
                     this.$http.post('{!! yzWebFullUrl('setting.shop.pay') !!}',{'pay':this.form}).then(function (response){
                         if (response.data.result) {

@@ -27,6 +27,17 @@ class GoodsLimitBuy extends BaseModel
 
     protected $guarded = [''];
 
+    protected $appends= [];
+
+    public function getDisplayNameAttribute($value)
+    {
+        if (empty($value)) {
+            return '限时购';
+        }
+
+        return $value;
+    }
+
     static function getDataByGoodsId($goods_id)
     {
         return self::uniacid()

@@ -63,7 +63,7 @@
                     <el-table-column label="商品信息">
                         <template slot-scope="scope">
                             <div v-if="scope.row.goods" style="display:flex;align-items: center">
-                                <img v-if="scope.row.goods.thumb" :src="scope.row.goods.thumb" onerror="this.src='/addons/yun_shop/static/resource/images/nopic.jpg'; this.title='图片未找到.'" style="width:50px;height:50px"></img>
+                                <img v-if="scope.row.goods.thumb" :src="scope.row.goods.thumb" onerror="this.src='{{static_url("resource/images/nopic.jpg")}}'; this.title='图片未找到.'" style="width:50px;height:50px"></img>
                                 <div style="margin-left:10px">[[scope.row.goods.title]]</div>
                             </div>
                         </template>
@@ -71,7 +71,7 @@
                     <el-table-column label="评价者">
                         <template slot-scope="scope">
                             <div style="display:flex;align-items: center">
-                                <img v-if="scope.row.head_img_url" :src="scope.row.head_img_url" onerror="this.src='/addons/yun_shop/static/resource/images/nopic.jpg'; this.title='图片未找到.'" style="width:50px;height:50px"></img>
+                                <img v-if="scope.row.head_img_url" :src="scope.row.head_img_url" onerror="this.src='{{static_url("resource/images/nopic.jpg")}}'; this.title='图片未找到.'" style="width:50px;height:50px"></img>
                                 <div style="margin-left:10px">[[scope.row.nick_name]]</div>
                             </div>
                         </template>

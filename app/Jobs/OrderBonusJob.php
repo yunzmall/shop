@@ -34,6 +34,11 @@ class OrderBonusJob implements  ShouldQueue
 
     public function __construct($tableName, $code, $foreignKey, $localKey, $amountColumn, $orderModel, $totalDividend = 0, $condition = null)
     {
+        //跟订单使用同个队列运行，防止产生相同的orderIncome
+        $queueCount = Order::queueCount();
+        if ($queueCount) {
+            $this->queue = 'order:' . ($orderModel->id % Order::queueCount());
+        }
         $this->tableName = $tableName;
         $this->code = $code;
         $this->foreignKey = $foreignKey;

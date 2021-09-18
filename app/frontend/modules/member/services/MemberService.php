@@ -21,6 +21,7 @@ use app\common\models\Member;
 use app\common\models\member\MemberChangeLog;
 use app\common\models\member\MemberDel;
 use app\common\models\member\MemberMarkLog;
+use app\common\models\MemberAlipay;
 use app\common\models\MemberGroup;
 use app\common\models\MemberShopInfo;
 use app\common\services\Session;
@@ -363,8 +364,7 @@ class MemberService
     {
         Session::set('member_id', $member_info['uid']);
 
-        setcookie('Yz-Token', time());
-        setcookie('Yz-Uid', $member_info['uid']);
+        setcookie('Yz-appToken', encrypt($member_info['mobile'] . '\t' . $member_info['uid']), time() + self::TOKEN_EXPIRE);
     }
 
     /**
@@ -389,6 +389,20 @@ class MemberService
             return show_json('0', '验证码错误,请重新获取');
         }
         return show_json('1');
+    }
+    /**
+     * 检查验证码
+     *
+     * @return array
+     */
+    public static function checkAppCode()
+    {
+        $code = \YunShop::request()->code;
+        $mobile = \YunShop::request()->mobile;
+
+        $res = app('sms')->checkAppCode($mobile, $code);
+
+        return $res;
     }
 
     /**
@@ -442,7 +456,13 @@ class MemberService
         $member_id = 0;
         $userinfo['nickname'] = $this->filteNickname($userinfo);
         $UnionidInfo = MemberUniqueModel::getUnionidInfo($uniacid, $userinfo['unionid'])->first();
+        \Log::debug('----unique uid----', $UnionidInfo->member_id);
         $mc_mapping_fans_model = $this->getFansModel($userinfo['openid']);
+        if (request()->type == 1) {
+            \Log::debug('----fans uid----', $mc_mapping_fans_model->uid);
+        } else {
+            \Log::debug('----fans uid----', $mc_mapping_fans_model->member_id);
+        }
         if (!is_null($UnionidInfo)) {
             $member_id = $UnionidInfo->member_id;
         }
@@ -489,6 +509,7 @@ class MemberService
             $this->updateSubMemberInfoV2($member_id, $userinfo);
         } else {
             \Log::debug('添加新会员');
+            \Log::debug('----添加会员前 uid----', $member_id);
             //DB::transaction(function () use (&$member_id, $member_model, $mc_mapping_fans_model, $member_shop_info_model, $uniacid, $userinfo, $UnionidInfo, $upperMemberId) {
             if (empty($member_model) && empty($mc_mapping_fans_model)) {
                 $member_id = $this->addMemberInfo($uniacid, $userinfo);
@@ -506,6 +527,7 @@ class MemberService
             } elseif (empty($mc_mapping_fans_model)) {
                 //开放平台 先小程序后微信 更新微信粉丝
                 $this->addFansMember($member_id, $uniacid, $userinfo);
+                $this->updateHeadPic($member_id, $userinfo);
             }
 
             if (empty($member_shop_info_model)) {
@@ -530,7 +552,15 @@ class MemberService
                     \Log::debug(sprintf('----生成分销关系链----%d-%d', $upperMemberId, $member_id));
                     Member::createRealtion($member_id);
                 }
+            if (app('plugins')->isEnabled('share-reward')) {
+                \Log::debug(sprintf('----RegisterMember----%d-%d', $upperMemberId, $member_id));
+                $mid = $upperMemberId?$upperMemberId:0;
+                $mid = request()->mid && empty($mid)?request()->mid:$mid;
+//                event(new RegisterMember($mid, $member_id));
+            }
 
+            $mid = $mid ? : 0;
+            event(new RegisterMember($mid, $member_id));
 
             //});
         }
@@ -601,6 +631,11 @@ class MemberService
                 \Log::debug(sprintf('----生成分销关系链----%d-%d', $upperMemberId, $member_id));
                 Member::createRealtion($member_id);
             }
+            $upperMemberId = $upperMemberId ? : 0;
+            event(new RegisterMember($upperMemberId, $member_id));
+//            if (app('plugins')->isEnabled('share-reward')) {
+//                event(new RegisterMember($upperMemberId, $member_id));
+//            }
             //});
         }
 
@@ -712,7 +747,7 @@ class MemberService
             $default_subgroup_id = 0;
         }
 
-        $invite_code = MemberModel::getInviteCode();
+        $invite_code = MemberModel::getInviteCode($member_id);
 
         SubMemberModel::replace(array(
             'member_id' => $member_id,
@@ -782,10 +817,11 @@ class MemberService
 
     /**
      * 登陆处理
-     *
      * @param $userinfo
-     *
-     * @return integer
+     * @param null $upperMemberId
+     * @return int
+     * @throws AppException
+     * @throws MemberErrorMsgException
      */
     public function memberLogin($userinfo, $upperMemberId = NULL)
     {
@@ -873,115 +909,40 @@ class MemberService
         return $member_form;
     }
 
+    /**
+     * 检查同步登录凭证和统一表
+     * @param $UnionidInfo 统一表会员信息
+     * @param $fansInfo 当前登录凭证会员信息
+     * @param $userInfo 当前授权会员信息
+     * @return mixed
+     * @throws MemberErrorMsgException
+     */
     public function checkMember($UnionidInfo, $fansInfo, $userInfo)
     {
         $relation_set = Setting::get('relation_base');
         \Log::debug('----unionid---', $UnionidInfo->member_id);
         \Log::debug('----fans----', $fansInfo->uid);
-
         if ($UnionidInfo->member_id != $fansInfo->uid) {
-            $merge_choice = $relation_set['is_merge_save_level'];
-            switch ($merge_choice) {
-                case 1 : //手机号
-                    $member_uni = Member::getMemberById($UnionidInfo->member_id);
-                    $member_fans = Member::getMemberById($fansInfo->uid);
-                    if ((empty($member_uni->mobile) && empty($member_fans->mobile)) || ($member_uni->mobile && $member_fans->mobile)) {
-                        if ($UnionidInfo->member_id < $fansInfo->uid) {
-                            $main_member_id    = $member_uni->uid;
-                            $abandon_member_id = $member_fans->uid;
-                        } else {
-                            $main_member_id    = $member_fans->uid;
-                            $abandon_member_id = $member_uni->uid;
-                        }
-                    } elseif (empty($member_uni->mobile) && !empty($member_fans->mobile)) {
-                        $main_member_id = $member_fans->uid;
-                        $abandon_member_id = $member_uni->uid;
-                    } else {
-                        $main_member_id = $member_uni->uid;
-                        $abandon_member_id = $member_fans->uid;
-                    }
-                    break;
-                case 2 : //公众号
-                    $member_uni = McMappingFans::getFansById($UnionidInfo->member_id);
-                    $member_fans = McMappingFans::getFansById($fansInfo->uid);
-                    if (($member_uni && $member_fans) || (empty($member_uni) && empty($member_fans))) {
-                        if ($UnionidInfo->member_id < $fansInfo->uid) {
-                            $main_member_id    = $member_uni->uid;
-                            $abandon_member_id = $member_fans->uid;
-                        } else {
-                            $main_member_id    = $member_fans->uid;
-                            $abandon_member_id = $member_uni->uid;
-                        }
-                    } elseif (empty($member_uni) && !empty($member_fans)) {
-                        $main_member_id = $member_fans->uid;
-                        $abandon_member_id = $member_uni->uid;
-                    } else {
-                        $main_member_id = $member_uni->uid;
-                        $abandon_member_id = $member_fans->uid;
-                    }
-                    break;
-                case 3 : //小程序
-                    $member_uni = MemberMiniAppModel::getFansById($UnionidInfo->member_id);
-                    $member_fans = MemberMiniAppModel::getFansById($fansInfo->uid);
-                    if (($member_uni && $member_fans) || (empty($member_uni) && empty($member_fans))) {
-                        if ($UnionidInfo->member_id < $fansInfo->uid) {
-                            $main_member_id    = $member_uni->uid;
-                            $abandon_member_id = $member_fans->uid;
-                        } else {
-                            $main_member_id    = $member_fans->uid;
-                            $abandon_member_id = $member_uni->uid;
-                        }
-                    } elseif (empty($member_uni) && !empty($member_fans)) {
-                        $main_member_id = $member_fans->uid;
-                        $abandon_member_id = $member_uni->uid;
-                    } else {
-                        $main_member_id = $member_uni->uid;
-                        $abandon_member_id = $member_fans->uid;
-                    }
-                    break;
-                case 4 : //app
-                    $member_uni = MemberWechatModel::getFansById($UnionidInfo->member_id);
-                    $member_fans = MemberWechatModel::getFansById($fansInfo->uid);
-                    if (($member_uni && $member_fans) || (empty($member_uni) && empty($member_fans))) {
-                        if ($UnionidInfo->member_id < $fansInfo->uid) {
-                            $main_member_id    = $member_uni->uid;
-                            $abandon_member_id = $member_fans->uid;
-                        } else {
-                            $main_member_id    = $member_fans->uid;
-                            $abandon_member_id = $member_uni->uid;
-                        }
-                    } elseif (empty($member_uni) && !empty($member_fans)) {
-                        $main_member_id = $member_fans->uid;
-                        $abandon_member_id = $member_uni->uid;
-                    } else {
-                        $main_member_id = $member_uni->uid;
-                        $abandon_member_id = $member_fans->uid;
-                    }
-                    break;
-                default : //注册时间
-                    if ($UnionidInfo->member_id < $fansInfo->uid) {
-                        $main_member_id    = $UnionidInfo->member_id;
-                        $abandon_member_id = $fansInfo->uid;
-                    } else {
-                        $main_member_id    = $fansInfo->uid;
-                        $abandon_member_id = $UnionidInfo->member_id;
-                    }
-                    break;
+            if ($UnionidInfo->member_id == 0) {
+                return $fansInfo->uid;
             }
-
+            if ($fansInfo->uid == 0) {
+                return $UnionidInfo->member_id;
+            }
+            $merge_choice = $relation_set['is_merge_save_level'];
+            $merge_choice_uids = $this->memberChoice($merge_choice, $UnionidInfo, $fansInfo);
+            list($main_member_id, $abandon_member_id) = $merge_choice_uids;
             $abandon_member = Member::getMemberById($abandon_member_id);
             if ($abandon_member&&isset($relation_set['is_member_merge'])&&$relation_set['is_member_merge']!=1&&time()>($abandon_member->createtime+5*60)) {
                 //新会员合并按钮
                 $yz_main_member = MemberShopInfo::getMemberShopInfo($main_member_id);
                 $yz_abandon_member = MemberShopInfo::getMemberShopInfo($abandon_member_id);
-
                 if (!empty($yz_main_member)) {
                     MemberShopInfo::uniacid()->where('member_id', $main_member_id)->update(['is_old' => 1, 'mark_member_id' => $abandon_member_id]);
                 }
                 if (!empty($yz_abandon_member)) {
                     MemberShopInfo::uniacid()->where('member_id', $abandon_member_id)->update(['is_old' => 1, 'mark_member_id' => $main_member_id]);
                 }
-
                 throw new MemberErrorMsgException('会员数据异常，请联系客服');
             } else {
                 //全自动合并按钮
@@ -1006,7 +967,6 @@ class MemberService
                     if (!is_null($uninque)) {
                         MemberUniqueModel::where('unique_id', $UnionidInfo->unique_id)->update(['member_id'=>$main_member_id]);
                     }
-
                     //删除重复微擎会员
                     $mc_member = Member::getMemberById($main_member_id);
                     if (!is_null($mc_member)) {
@@ -1028,8 +988,8 @@ class MemberService
                     $this->updateFansMember($fansInfo, $main_member_id, $userInfo);
                     $log_data = [
                         'uniacid' => \YunShop::app()->uniacid,
-                        'member_id' => $abandon_member_id,
-                        'member_id_after' => $main_member_id,
+                        'member_id' => $abandon_member_id ?: 0,
+                        'member_id_after' => $main_member_id ?: 0,
                         'created_at' => time(),
                     ];
                     MemberChangeLog::insert($log_data);
@@ -1037,12 +997,95 @@ class MemberService
                 if (!is_null($exception)) {
                     throw new MemberErrorMsgException('sql执行错误，需回滚');
                 }
-
                 return $main_member_id;
             }
         }
-
         return $UnionidInfo->member_id;
+    }
+
+    private function memberChoice($merge_choice, $UnionidInfo, $fansInfo)
+    {
+        $unique_uid = $UnionidInfo->member_id;
+        $fans_uid = $fansInfo->uid;
+        switch ($merge_choice) {
+            case 1 : //手机号
+                $member_uni = Member::getMemberById($unique_uid);
+                $member_fans = Member::getMemberById($fans_uid);
+                if ((empty($member_uni->mobile) && empty($member_fans->mobile)) || ($member_uni->mobile && $member_fans->mobile)) {
+                    if ($unique_uid < $fans_uid) {
+                        $main_member_id    = $unique_uid;
+                        $abandon_member_id = $fans_uid;
+                    } else {
+                        $main_member_id    = $fans_uid;
+                        $abandon_member_id = $unique_uid;
+                    }
+                } elseif (empty($member_uni->mobile) && !empty($member_fans->mobile)) {
+                    $main_member_id        = $fans_uid;
+                    $abandon_member_id     = $unique_uid;
+                } else {
+                    $main_member_id        = $unique_uid;
+                    $abandon_member_id     = $fans_uid;
+                }
+                break;
+            case 2 : //公众号
+                $member_uni = McMappingFans::getFansById($unique_uid);
+                $member_fans = McMappingFans::getFansById($fans_uid);
+                list($main_member_id, $abandon_member_id) = $this->handleMemberChoice($member_uni, $member_fans, $unique_uid, $fans_uid);
+                break;
+            case 3 : //小程序
+                $member_uni = MemberMiniAppModel::getFansById($unique_uid);
+                $member_fans = MemberMiniAppModel::getFansById($fans_uid);
+                list($main_member_id, $abandon_member_id) = $this->handleMemberChoice($member_uni, $member_fans, $unique_uid, $fans_uid);
+                break;
+            case 4 : //app
+                $member_uni = MemberWechatModel::getFansById($unique_uid);
+                $member_fans = MemberWechatModel::getFansById($fans_uid);
+                list($main_member_id, $abandon_member_id) = $this->handleMemberChoice($member_uni, $member_fans, $unique_uid, $fans_uid);
+                break;
+            case 5 : //alipay
+                $member_uni = MemberAlipay::getFansById($unique_uid);
+                $member_fans = MemberAlipay::getFansById($fans_uid);
+                list($main_member_id, $abandon_member_id) = $this->handleMemberChoice($member_uni, $member_fans, $unique_uid, $fans_uid);
+                break;
+            default : //注册时间
+                if ($unique_uid < $fans_uid) {
+                    $main_member_id    = $unique_uid;
+                    $abandon_member_id = $fans_uid;
+                } else {
+                    $main_member_id    = $fans_uid;
+                    $abandon_member_id = $unique_uid;
+                }
+                break;
+        }
+        return [$main_member_id, $abandon_member_id];
+    }
+
+    private function handleMemberChoice($member_uni, $member_fans, $unique_uid, $fans_uid)
+    {
+        if (($member_uni && $member_fans) || (empty($member_uni) && empty($member_fans))) {
+            if ($unique_uid < $fans_uid) {
+                $main_member_id    = $unique_uid;
+                $abandon_member_id = $fans_uid;
+            } else {
+                $main_member_id    = $fans_uid;
+                $abandon_member_id = $unique_uid;
+            }
+        } elseif (empty($member_uni) && !empty($member_fans)) {
+            $main_member_id        = $fans_uid;
+            $abandon_member_id     = $unique_uid;
+        } else {
+            $main_member_id        = $unique_uid;
+            $abandon_member_id     = $fans_uid;
+        }
+        return [$main_member_id, $abandon_member_id];
+    }
+
+    private function updateHeadPic($member_id, $userInfo)
+    {
+        Member::getMemberByUid($member_id)->update([
+            'nickname' => $this->filteNickname($userInfo),
+            'avatar' => $userInfo['headimgurl'],
+        ]);
     }
 
     public function updateFansMember($fan, $member_id, $userinfo)

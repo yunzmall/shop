@@ -8,9 +8,7 @@
  * User:    芸众商城 www.yunzshop.com
  ****************************************************************/
 
-
 namespace app\common\events\balance;
-
 
 use app\common\events\Event;
 use app\common\models\finance\BalanceRecharge;

@@ -12,7 +12,7 @@ namespace app\backend\modules\finance\models;
 use app\common\models\finance\BalanceRecharge;
 use app\common\services\PayFactory;
 
-class BalanceRechargeRecords extends BalanceRecharge
+class   BalanceRechargeRecords extends BalanceRecharge
 {
     protected $appends = ['type_name'];
 
@@ -65,35 +65,30 @@ class BalanceRechargeRecords extends BalanceRecharge
             $query->where('ordersn', 'like', $search['ordersn'] . '%');
         }
 
-        //todo 下面条件需要找到对应类魔术方法
         if ($search['realname'] || $search['level_id'] || $search['group_id']) {
-            $query = $query->whereHas('member', function($member)use($search) {
+            $query->whereHas('member', function($member)use($search) {
                 if ($search['realname']) {
-                    $member = $member->select('uid', 'nickname','realname','mobile','avatar')
+                    $member->select('uid', 'nickname','realname','mobile','avatar')
                         ->where('realname', 'like', '%' . $search['realname'] . '%')
                         ->orWhere('mobile', 'like', '%' . $search['realname'] . '%')
                         ->orWhere('nickname', 'like', '%' . $search['realname'] . '%')
                         ->orWhere('uid', $search['realname']);
                 }
                 if ($search['level_id']) {
-                    $member = $member->whereHas('yzMember', function ($level)use($search) {
+                    $member->whereHas('yzMember', function ($level)use($search) {
                         $level->where('level_id', $search['level_id']);
                     });
                 }
                 if ($search['group_id']) {
-                    $member = $member->whereHas('yzMember', function ($group)use($search) {
+                    $member->whereHas('yzMember', function ($group)use($search) {
                         $group->where('group_id', $search['group_id']);
                     });
                 }
-
             });
         }
 
-        if ($search['searchtime']) {
-            $query = $query->whereBetween('updated_at', [strtotime($search['time_range']['start']),strtotime($search['time_range']['end'])]);
+        if ($search['search_time']) {
+            $query->whereBetween('created_at', [strtotime($search['time']['start']), strtotime($search['time']['end'])]);
         }
-        return $query;
     }
-
-
 }

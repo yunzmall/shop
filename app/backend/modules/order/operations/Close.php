@@ -8,7 +8,7 @@
 
 namespace app\backend\modules\order\operations;
 
-class Close extends OrderOperation
+class Close extends BackendOrderBase
 {
     public function getApi()
     {

@@ -5,8 +5,10 @@
 namespace app\common\services;
 
 use app\backend\modules\coupon\models\Coupon;
+use app\common\facades\SiteSetting;
 use app\common\models\systemMsg\SysMsgLog;
 use app\backend\modules\order\models\Order;
+use app\common\models\UniAccount;
 use app\common\models\Withdraw;
 use app\framework\Support\Facades\Log;
 
@@ -21,20 +23,30 @@ class SystemMsgService
         'lease_order' => 'plugin.lease-toy.admin.order.index',//商城租凭订单
         'supplier_order' => 'plugin.supplier.admin.controllers.order.supplier-order.index',//商城供应商订单
         'jd_order' => 'plugin.jd-supply.admin.order-list.index',//商城聚合供应链订单
+        'yz_order' => 'plugin.yz-supply.admin.order-list.index',//商城芸众供应链订单
         'appointment_order' => 'plugin.appointment.admin.order.index',//商城预约订单
         'withdraw' => 'withdraw.records', //提现记录页面
         'coupon' => 'coupon.coupon.index', //优惠券列表页面
         'goods' => 'goods.goods.index', //商品列表页面
         'goods_edit' => 'goods.goods.edit', //商品编辑页面
+        'store_goods_edit'=>'plugin.store-cashier.admin.goods.edit',//门店商品编辑页面
+        'cashier_goods_edit'=>'plugin.store-cashier.admin.goods.edit',//门店收银台商品编辑页面
+        'hotel_goods_edit'=>'plugin.hotel.admin.goods.edit',//酒店商品编辑页面
+        'lease_toy_goods_edit'=>'plugin.lease-toy.admin.goods.edit',//租聘商品编辑页面
+        'net_car_goods_edit'=>'plugin.net-car.admin.net-car-goods.edit',//网约车商品编辑页面
+        'jd_supply_goods_edit'=>'plugin.jd-supply.admin.shop-goods.edit',//京东-聚合供应链商品编辑页面
+        'yz_supply_goods_edit'=>'plugin.yz-supply.admin.shop-goods.edit',//芸众供应链商品编辑页面
+        'supplier_goods_edit'=>'plugin.supplier.admin.controllers.goods.goods-operation.edit',//供应商商品编辑页面
         'supplier_apply' => 'plugin.supplier.admin.controllers.apply.supplier-apply.index', //供应商申请页面
         'area-dividend_apply' => 'plugin.area-dividend.admin.agent.agent-apply', //区域分红代理申请页面
         'merchant_apply' => 'plugin.merchant.backend.merchant-apply.index', //招商中心/招商员申请页面
-        'store-cashier_apply' => 'plugin.store-cashier.admin.apply.index', //门店申请页面
+        'store-cashier_apply' => 'plugin.store-cashier.admin.store-apply.apply-list', //门店申请页面
         'hotel_apply' => 'plugin.hotel.admin.apply.index', //酒店申请页面
         'package-deliver_apply' => 'plugin.package-deliver.admin.apply.manage', //自提点申请页面
         'provider-platform_apply' => 'plugin.provider-platform.admin.tripartiteProvider.list.subplatform-audit', //第三方子平台入驻申请页面
         'advert-market_apply' => 'plugin.advert-market.admin.apply.manage.index', //广告主申请页面
         'room_apply' => 'plugin.room.admin.anchor-manage.apply', //主播申请页面
+        'circle_apply' => 'plugin.circle.admin.circle.index', //圈子审核页面
     ];
     public function __construct($uniacid = '')
     {
@@ -95,6 +107,37 @@ class SystemMsgService
         return false;
     }
 
+    public static function addWorkMessage($params,$uniacid='')
+	{
+		$queueSetting = SiteSetting::get('queue');
+		if ($queueSetting['receive_message'] == 1) {
+			return;
+		}
+		$data = [];
+		$uniacid = $uniacid ?:\YunShop::app()->uniacid;
+		if ($uniacid) {
+			$uniAccount[] = ['uniacid'=>$uniacid];
+		} else {
+			$uniAccount = UniAccount::getEnable();
+		}
+		foreach ($uniAccount as $u) {
+			$data[] = [
+				'uniacid' => $u['uniacid'],
+				'type_id' => 1,
+				'title' => $params['title'],
+				'content' => mb_substr($params['content'],0,800,'utf-8'),
+				'redirect_url' => '',
+				'redirect_param' => '',
+				'msg_data' => serialize($params),
+				'created_at' => time(),
+				'updated_at' => time(),
+			];
+		}
+		if ($data) {
+			SysMsgLog::insert($data);
+		}
+	}
+
     private function getPlugins($order_sn,$order_id = 0)
     {
         return  $plugin = [
@@ -147,6 +190,14 @@ class SystemMsgService
             44=>[
                 'name'=>'聚合供应链',
                 'redirect_url'=>'jd_order',
+                'redirect_param' => [
+                    'search[ambiguous][string]'=>$order_sn,
+                    'search[ambiguous][field]'=>'order'
+                ]
+            ],
+            120=>[
+                'name'=>'聚合供应链',
+                'redirect_url'=>'yz_order',
                 'redirect_param' => [
                     'search[ambiguous][string]'=>$order_sn,
                     'search[ambiguous][field]'=>'order'
@@ -342,6 +393,17 @@ class SystemMsgService
     //商品库存不足
     public function stockNotEnough($goods,$specs = null)
     {
+        $redirect_url = [
+            '0'=> 'goods_edit',
+            '31'=>'store_goods_edit',
+            '32'=>'cashier_goods_edit',
+            '33'=>'hotel_goods_edit',
+            '40'=>'lease_toy_goods_edit',
+            '41'=>'net_car_goods_edit',
+            '44'=>'jd_supply_goods_edit',
+            '120'=>'yz_supply_goods_edit',
+            '92'=>'supplier_goods_edit',
+        ];
         $msg_type = 5;
         if(!empty($specs)){
             $content = '时间:'.date('Y-m-d H:i:s').' || '
@@ -356,7 +418,7 @@ class SystemMsgService
         $param = [
             'title'=>'您有商品售罄，请及时处理！',
             'content' => $content,
-            'redirect_url' => 'goods_edit',
+            'redirect_url' => $redirect_url[$goods->plugin_id]?:'goods_edit',
             'redirect_param' => [
                 'id'=>$goods->id
             ]
@@ -455,6 +517,16 @@ class SystemMsgService
                     'title'=>'您有会员发起主播申请，请及时处理！',
                     'content' => '时间:'.$model->created_at.' || 会员:'.$nickname.' || 状态:'.$model->status_name,
                     'redirect_url' => 'room_apply',
+                    'redirect_param' => [
+                        'search[member_id]'=>$model->member_id
+                    ]
+                ];
+            case 'circle':
+                $nickname = $this->getMemberNickname($model->member_id);
+                return [
+                    'title'=>'您有会员发起创建圈子申请，请及时处理！',
+                    'content' => '时间:'.$model->created_at.' || 会员:'.$nickname.' || 状态:'.($model->is_review==1?'审核通过':'待审核'),
+                    'redirect_url' => 'circle_apply',
                     'redirect_param' => [
                         'search[member_id]'=>$model->member_id
                     ]

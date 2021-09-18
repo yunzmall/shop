@@ -31,7 +31,7 @@ class ListController extends OrderListController
             $model->refunded();
         }
 
-        $this->orderModel = $model;
+       return $model;
     }
 
     protected function mergeExtraData()

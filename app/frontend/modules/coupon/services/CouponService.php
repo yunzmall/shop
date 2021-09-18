@@ -57,8 +57,7 @@ class CouponService
         $coupons = $this->getMemberCoupon()->map(function ($memberCoupon) {
             return new Coupon($memberCoupon, $this->order);
         });
-
-        //其他优惠组合后可选的优惠券
+        //其他优惠组合后可选的优惠券（未选中）
         $coupons = $coupons->filter(function ($coupon) {
             /**
              * @var $coupon Coupon
@@ -69,25 +68,43 @@ class CouponService
                 return false;
             }
             //商城开启了多张优惠券 并且当前优惠券组合可以继续添加这张
-            $coupon->getMemberCoupon()->valid = (!\Setting::get('coupon.is_singleton') || $this->order->orderCoupons->isEmpty()) && $coupon->valid();//界面标蓝
+            $coupon->getMemberCoupon()->valid = (!\Setting::get('coupon.is_singleton') || $this->order->orderCoupons->isEmpty()) && $coupon->valid();//界面标蓝（是否可选）
             $coupon->getMemberCoupon()->checked = false;//界面选中
-
             return true;
         })->values();
-
         //已选的优惠券
         $coupons = collect($this->order->orderCoupons)->map(function ($orderCoupon) {
             // 已参与订单价格计算的优惠券
             $orderCoupon->coupon->getMemberCoupon()->valid = true;
             $orderCoupon->coupon->getMemberCoupon()->checked = true;
             return $orderCoupon->coupon;
-        })->merge($coupons);
-
+        })->merge($coupons); //合并已选中和可用未选中优惠券
+        if ($this->order->orderCoupons->isNotEmpty() && !\Setting::get('shop.order.order_apart')) {
+            //商品里设置的可使用优惠券数量
+            $sum_goods = $this->order->orderGoods->sum(function ($orderGoods) {
+                if ($orderGoods->goods->hasOneGoodsCoupon->is_use_num == 0) {
+                    return 0;
+                }
+                return $orderGoods->goods->hasOneGoodsCoupon->use_num * $orderGoods->total;
+            });
+            if (count($this->order->orderCoupons) > 0 && $sum_goods > 0 && count($this->order->orderCoupons) >= $sum_goods) {
+                //如果选中优惠券大于商品里设置的优惠券总和
+                $coupons = $coupons->map(function ($coupon, $key) use ($sum_goods) {
+                    if ($sum_goods == 0) {
+                        return $coupon;
+                    }
+                    if ($key >= $sum_goods) {
+                        $coupon->getMemberCoupon()->valid = false;
+                        $coupon->getMemberCoupon()->checked = false;
+                    }
+                    return $coupon;
+                });
+            }
+        }
         //按member_coupon的id倒序
         $coupons = $coupons->sortByDesc(function ($coupon) {
             return $coupon->getMemberCoupon()->id;
         })->values();
-
         return $coupons;
     }
 
@@ -97,7 +114,6 @@ class CouponService
      */
     public function getAllValidCoupons()
     {
-
         $coupon = $this->getSelectedMemberCoupon()->map(function ($memberCoupon) {
             return new Coupon($memberCoupon, $this->order);
         });
@@ -107,7 +123,6 @@ class CouponService
              */
             return $coupon->valid();
         });
-
         return $result;
     }
 
@@ -118,18 +133,12 @@ class CouponService
     private function getMemberCoupon()
     {
         $coupon_method = $this->coupon_method;
-
         $result = MemberCouponService::getCurrentMemberCouponCache($this->order->belongsToMember);
-
-
-
         if (isset($coupon_method)) {// 折扣/立减
             $result = $result->filter(function ($memberCoupon) use ($coupon_method) {
                 return $memberCoupon->belongsToCoupon->coupon_method == $coupon_method;
             });
         }
-
-
         return $result;
 
     }
@@ -142,36 +151,18 @@ class CouponService
     {
         if (!isset($this->selectedMemberCoupon)) {
             $member_coupon_ids = ArrayHelper::unreliableDataToArray(\Request::input('member_coupon_ids'));
-
-            //$member_coupon_ids = [50608,50607,50609];
-
-
-
             if (\Setting::get('coupon.is_singleton')) {
-
                 $member_coupon_ids = array_slice($member_coupon_ids, 0, 1);
-
             }
-
-            $coupon_list=[];
-
-            foreach ($member_coupon_ids as $k=>$v){
-                $coupon=$this->getMemberCoupon()->where("id",$v);
+            $coupon_list = [];
+            //不实用集合方法是因为集合会把选中的顺序重新排序
+            foreach ($member_coupon_ids as $k => $v) {
+                $coupon = $this->getMemberCoupon()->where('id', $v);
                 $this->getMemberCoupon()->push($coupon);
-                $coupon_list[$k]=$coupon;
-
+                $coupon_list[$k] = $coupon;
             }
-            $collapsed = collect($coupon_list)->collapse();
-
-//            $this->selectedMemberCoupon = $this->getMemberCoupon()->filter(function ($memberCoupon) use ($member_coupon_ids) {
-//                dump($memberCoupon->id);
-//                return in_array($memberCoupon->id, $member_coupon_ids);
-//            });
-
-            $this->selectedMemberCoupon =$collapsed;
-
+            $this->selectedMemberCoupon = collect($coupon_list)->collapse();
         }
-
         return $this->selectedMemberCoupon;
     }
 
@@ -180,20 +171,15 @@ class CouponService
         $orderGoods = $this->orderGoods;
         foreach ($orderGoods as $goods) {
             $goodsCoupon = GoodsCoupon::ofGoodsId($goods->goods_id)->first();
-
-            //dump($goodsCoupon);
             //未开启 或 已关闭 或 未设置优惠券
             if (!$goodsCoupon || !$goodsCoupon->is_give || !$goodsCoupon->coupon) {
                 continue;
             }
-
             //每月发送时，发送月数 为空 或为 0
             if ($goodsCoupon->send_type == '0' && empty($goodsCoupon->send_num)) {
                 continue;
             }
-
             for ($i = 1; $i <= $goods->total; $i++) {
-
                 switch ($goodsCoupon->send_type) {
                     //订单完成立即发送
                     case '1':
@@ -216,19 +202,14 @@ class CouponService
         $orderGoods = $this->orderGoods;
         foreach ($orderGoods as $goods) {
             $goodsCoupon = GoodsCoupon::ofGoodsId($goods->goods_id)->first();
-
-            //dump($goodsCoupon);
             //未开启 或 已关闭 或 未设置优惠券
             if (!$goodsCoupon || !$goodsCoupon->is_give || !$goodsCoupon->coupon) {
                 continue;
             }
-
             //每月发送时，发送月数 为空 或为 0
             if ($goodsCoupon->send_type == '0' && empty($goodsCoupon->send_num)) {
                 continue;
             }
-
-
             $this->doCouponLog($goodsCoupon,$goods->id,$goods->total);
         }
     }

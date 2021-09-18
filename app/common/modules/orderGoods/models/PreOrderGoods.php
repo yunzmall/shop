@@ -156,6 +156,11 @@ class PreOrderGoods extends OrderGoods
 
     public function getDiscounts()
     {
+        //blank not discount
+        if ($this->order->isDiscountDisable()) {
+            return collect();
+        }
+
         $discounts = collect();
         foreach (\app\common\modules\shop\ShopConfig::current()->get('shop-foundation.goods-discount') as $configItem) {
             $discount = call_user_func($configItem['class'], $this);
@@ -306,13 +311,22 @@ class PreOrderGoods extends OrderGoods
     /**
      * @return mixed
      */
-    protected function getVipDiscountAmount()
+    public function getVipDiscountAmount()
     {
 
-        $result = $this->getPriceCalculator()->getVipDiscountAmount();
+        $result = $this->getPriceCalculator()->getMemberLevelDiscountAmount();
 
         return $result;
 
+    }
+
+    public function getVipDiscountLog($key = null)
+    {
+        if ($key) {
+            return $this->getPriceCalculator()->getVipDiscountLog()?$this->getPriceCalculator()->getVipDiscountLog()->$key : null;
+        }
+
+        return $this->getPriceCalculator()->getVipDiscountLog();
     }
 
     /**

@@ -29,9 +29,12 @@ use app\common\models\OrderGoods;
 use app\common\services\goods\LeaseToyGoods;
 use app\common\services\goods\SaleGoods;
 use app\common\services\goods\VideoDemandCourseGoods;
+use app\framework\Http\Request;
 use app\frontend\modules\goods\models\Comment;
 use app\frontend\modules\goods\models\Goods;
 use Yunshop\Love\Common\Models\GoodsLove;
+use Yunshop\MarketSub\models\MarketSubGoods;
+use Yunshop\ProductMarket\models\ProductMarketGoodsModel;
 use Yunshop\StoreCashier\common\models\StoreSetting;
 use Yunshop\StoreCashier\store\models\StoreGoods;
 use Yunshop\Supplier\common\models\SupplierGoods;
@@ -49,49 +52,48 @@ class NewGoodsController extends BaseController
     public function getGoodsPage()
     {
         $request = request();
-        $this->dataIntegrated($this->getGoods($request, true),'get_goods');
-        $this->dataIntegrated($this->getGoodsType($request, true),'goods_type');
+        $this->dataIntegrated($this->getGoods($request, true), 'get_goods');
+        $this->dataIntegrated($this->getGoodsType($request, true), 'goods_type');
 
         $storeId = $this->apiData['get_goods']->store_goods->store_id;
 
-        if($storeId){
-            if(class_exists('\Yunshop\StoreCashier\frontend\store\NewGoodsController')){
-                if($this->apiData['goods_type']['store_id'])
-                {
-                    $this->dataIntegrated(\Yunshop\StoreCashier\frontend\store\NewGoodsController::getStoreService($request, true,$this->apiData['goods_type']['store_id']),'store_service');
+        if ($storeId) {
+            if (class_exists('\Yunshop\StoreCashier\frontend\store\NewGoodsController')) {
+                if ($this->apiData['goods_type']['store_id']) {
+                    $this->dataIntegrated(\Yunshop\StoreCashier\frontend\store\NewGoodsController::getStoreService($request, true, $this->apiData['goods_type']['store_id']), 'store_service');
                 }
-                $this->dataIntegrated(\Yunshop\StoreCashier\frontend\store\NewGoodsController::getInfobyStoreId($request, true,$storeId),'get_store_Info');
-            }else{
+                $this->dataIntegrated(\Yunshop\StoreCashier\frontend\store\NewGoodsController::getInfobyStoreId($request, true, $storeId), 'get_store_Info');
+            } else {
                 return $this->errorJson('门店插件未开启');
             }
         }
 
-        if($this->apiData['get_goods']->is_hotel){
-            if(class_exists('\Yunshop\Hotel\frontend\hotel\NewGoodsController')){
-                $this->dataIntegrated(\Yunshop\Hotel\frontend\hotel\NewGoodsController::getGoodsDetailByGoodsId($request,true),'get_hotel_info');
-            }else{
+        if ($this->apiData['get_goods']->is_hotel) {
+            if (class_exists('\Yunshop\Hotel\frontend\hotel\NewGoodsController')) {
+                $this->dataIntegrated(\Yunshop\Hotel\frontend\hotel\NewGoodsController::getGoodsDetailByGoodsId($request, true), 'get_hotel_info');
+            } else {
                 return $this->errorJson('酒店插件未开启');
             }
         }
 
-        if(Setting::get('shop.member')['display_page'] == 1 && Setting::get('shop.member')['level_type'] == 2){
+        if (Setting::get('shop.member')['display_page'] == 1 && Setting::get('shop.member')['level_type'] == 2) {
             $this->apiData['display_page'] = 1;
-        }else{
+        } else {
             $this->apiData['display_page'] = 0;
         }
 
-        $this->dataIntegrated($this->pluginEnabled(),'pluginEnabled');
+        $this->dataIntegrated($this->pluginEnabled(), 'pluginEnabled');
         return $this->successJson('', $this->apiData);
     }
 
-    public function getGoods($request, $integrated = null)
+    public function getGoods(Request $request, $integrated = null)
     {
         $id = intval(\YunShop::request()->id);
         if (!$id) {
-            if(is_null($integrated)){
+            if (is_null($integrated)) {
                 return $this->errorJson('请传入正确参数.');
-            }else{
-                return show_json(0,'请传入正确参数.');
+            } else {
+                return show_json(0, '请传入正确参数.');
             }
 
         }
@@ -101,6 +103,9 @@ class NewGoodsController extends BaseController
 
         //设置商品相关插件信息
         $this->setGoodsPluginsRelations($goodsModel);
+
+
+        $this->goodsProductMarket($goodsModel);
 
         //供应商logo转格式
         if (!empty($goodsModel->supplier)) {
@@ -123,12 +128,12 @@ class NewGoodsController extends BaseController
 
         //判断是否酒店商品
         $goodsModel->is_hotel = $goodsModel->plugin_id == 33 ? 1 : 0;
-        $goodsModel->is_store = $goodsModel->plugin_id == 32 ? 1 :0;
+        $goodsModel->is_store = $goodsModel->plugin_id == 32 ? 1 : 0;
 
-        if (app('plugins')->isEnabled('label')){
+        if (app('plugins')->isEnabled('label')) {
             $goodsModel->label = '';
             $pic = Setting::get('plugin.label');
-            if ($pic['is_label']){
+            if ($pic['is_label']) {
                 $goodsModel->label = $pic;
             }
         }
@@ -136,9 +141,9 @@ class NewGoodsController extends BaseController
         //商品服务费
         $this->goodsServiceFree($goodsModel);
 
-        if(is_null($integrated)){
+        if (is_null($integrated)) {
             return $this->successJson('成功', $goodsModel);
-        }else{
+        } else {
             return show_json(1, $goodsModel);
         }
     }
@@ -150,16 +155,16 @@ class NewGoodsController extends BaseController
 
         $goodsModel = $goods_model->uniacid()
             ->with([
-                'hasManyParams' => function ($query) {
-                    return $query->select('goods_id', 'title', 'value')->orderby('displayorder','asc');
+                'hasManyParams'  => function ($query) {
+                    return $query->select('goods_id', 'title', 'value')->orderby('displayorder', 'asc');
                 },
-                'hasManySpecs' => function ($query) {
+                'hasManySpecs'   => function ($query) {
                     return $query->select('id', 'goods_id', 'title', 'description');
                 },
                 'hasManyOptions' => function ($query) {
                     return $query->select('id', 'goods_id', 'title', 'thumb', 'product_price', 'market_price', 'stock', 'specs', 'weight');
                 },
-                'hasOneBrand' => function ($query) {
+                'hasOneBrand'    => function ($query) {
                     return $query->select('id', 'logo', 'name', 'desc');
                 },
                 'hasOneShare',
@@ -174,10 +179,10 @@ class NewGoodsController extends BaseController
 //        $goodsModel->vip_level_status;
 
         if (!$goodsModel) {
-            if(is_null($integrated)){
+            if (is_null($integrated)) {
                 return $this->errorJson('商品不存在.');
-            }else{
-                return show_json(0,'商品不存在.');
+            } else {
+                return show_json(0, '商品不存在.');
             }
         }
 
@@ -192,10 +197,10 @@ class NewGoodsController extends BaseController
 
         //商品上下架验证
         if (!$goodsModel->status) {
-            if(is_null($integrated)){
+            if (is_null($integrated)) {
                 return $this->errorJson('商品已下架.');
-            }else{
-                return show_json(0,'商品已下架.');
+            } else {
+                return show_json(0, '商品已下架.');
             }
         }
 
@@ -222,7 +227,7 @@ class NewGoodsController extends BaseController
         }
 
         foreach ($goodsModel->hasManySpecs as &$spec) {
-            $spec['specitem'] = GoodsSpecItem::select('id', 'title', 'specid', 'thumb')->where('specid', $spec['id'])->orderBy('display_order', 'asc')->get();
+            $spec['specitem'] = GoodsSpecItem::select('id', 'title', 'specid', 'thumb')->where('show', 1)->where('show', 1)->where('specid', $spec['id'])->orderBy('display_order', 'asc')->get();
             foreach ($spec['specitem'] as &$specitem) {
                 $specitem['thumb'] = yz_tomedia($specitem['thumb']);
             }
@@ -299,18 +304,17 @@ class NewGoodsController extends BaseController
         return $goodsModel;
     }
 
-    public function getGoodsType($request, $integrated = null)
+    public function getGoodsType(Request $request, $integrated = null)
     {
         app('db')->cacheSelect = true;
         $goods_type = 'goods';//通用
         $id = request()->id;
         if (!$id) {
-            if(is_null($integrated)){
+            if (is_null($integrated)) {
                 return $this->errorJson('请传入正确参数.');
-            }else{
-                return show_json(0,'请传入正确参数.');
+            } else {
+                return show_json(0, '请传入正确参数.');
             }
-
         }
 
         $goodsModel = Goods::uniacid()->find($id);
@@ -331,29 +335,33 @@ class NewGoodsController extends BaseController
         if ($isCourse) {
             $goods_type = 'course';
         }
-
         //判断是否酒店商品
         if ($goodsModel->plugin_id == 33) {
             $goods_type = 'hotelGoods';
         }
 
-        if ($goodsModel->plugin_id == 66)
-        {
+        if ($goodsModel->plugin_id == 66) {
             $goods_type = 'voiceGoods';
         }
-
         //门店商品
         if ($goodsModel->plugin_id == 32 && $goodsModel->store_goods) {
             $goods_type = 'store_goods';
             $store_id = $goodsModel->store_goods->store_id;
             $data['store_id'] = $store_id;
+            if (!is_null(\app\common\modules\shop\ShopConfig::current()->get('customer_development_judge'))) {
+                $class    = array_get(\app\common\modules\shop\ShopConfig::current()->get('customer_development_judge'), 'class');
+                $function = array_get(\app\common\modules\shop\ShopConfig::current()->get('customer_development_judge'), 'function');
+                $judge_res = $class::$function($goodsModel->id);
+                if($judge_res == 1)
+                {
+                    $data['customer_development'] = 1;
+                }
+            }
         }
-
         //供应商商品
         if ($goodsModel->plugin_id == 92 && $goodsModel->supplier) {
             $goods_type = 'supplierGoods';
         }
-
         //分期购车插件
         if ($goodsModel->plugin_id == 47) {
             $goods_type = 'staging_buy_car_goods';
@@ -362,12 +370,16 @@ class NewGoodsController extends BaseController
         if ($goodsModel->plugin_id == 101) {
             $goods_type = 'appointment_goods';
         }
+        //芸签电子合同插件
+        if ($goodsModel->plugin_id == 103) {
+            $goods_type = 'yun_sign_goods';
+        }
         $data['goods_type'] = $goods_type;
 
-        if(is_null($integrated)){
+        if (is_null($integrated)) {
             return $this->successJson('成功', $data);
-        }else{
-            return show_json(1,$data);
+        } else {
+            return show_json(1, $data);
         }
     }
 
@@ -378,7 +390,7 @@ class NewGoodsController extends BaseController
             $love_goods = $this->getLoveSet($goodsModel, $goodsModel->id);
 
             if ($love_goods['award'] && \Setting::get('love.goods_detail_show_love') == 2) {
-                return  '购买赠送' . $love_goods['award_proportion'] . $love_goods['name'];
+                return '购买赠送' . $love_goods['award_proportion'] . $love_goods['name'];
             }
         }
 
@@ -388,19 +400,19 @@ class NewGoodsController extends BaseController
     public function getLoveSet($goods, $goods_id)
     {
         $data = [
-            'name' => \Setting::get('love.name') ?: '爱心值',
-            'deduction' => 0, //是否开启爱心值抵扣 0否，1是
+            'name'                 => \Setting::get('love.name') ?: '爱心值',
+            'deduction'            => 0, //是否开启爱心值抵扣 0否，1是
             'deduction_proportion' => 0, //爱心值最高抵扣
-            'award' => 0, //是否开启爱心值奖励 0否，1是
-            'award_proportion' => 0, //奖励爱心值
+            'award'                => 0, //是否开启爱心值奖励 0否，1是
+            'award_proportion'     => 0, //奖励爱心值
         ];
 
         $love_set = \Setting::get('love');
 
         $res = app('plugins')->isEnabled('store-cashier');
-        if ($res){//门店抵扣设置
-            $store_goods = StoreGoods::where('goods_id',$goods_id)->first();
-            $love = StoreSetting::getStoreSettingByStoreId($store_goods->store_id)->where('key','love')->first();
+        if ($res) {//门店抵扣设置
+            $store_goods = StoreGoods::where('goods_id', $goods_id)->first();
+            $love = StoreSetting::getStoreSettingByStoreId($store_goods->store_id)->where('key', 'love')->first();
         }
 
         $item = GoodsLove::ofGoodsId($goods->id)->first();
@@ -409,17 +421,17 @@ class NewGoodsController extends BaseController
 
 
         if ($item->deduction) {//商品独立设置
-            if ($love_set['deduction']){
+            if ($love_set['deduction']) {
                 $deduction_proportion = $love_set['deduction_proportion'];
                 $deduction = $love_set['deduction'];
             }
 
-            if (!empty($love) && $love->value['deduction_proportion'] && $love->value['deduction_proportion'] != 0){//门店设置
+            if (!empty($love) && $love->value['deduction_proportion'] && $love->value['deduction_proportion'] != 0) {//门店设置
                 $deduction_proportion = $love->value['deduction_proportion'];
                 $deduction = $love->value['deduction'];
             }
 
-            if ($item->deduction_proportion && $item->deduction_proportion != 0){
+            if ($item->deduction_proportion && $item->deduction_proportion != 0) {
                 $deduction_proportion = $item->deduction_proportion;
                 $deduction = $item->deduction;
             }
@@ -434,13 +446,13 @@ class NewGoodsController extends BaseController
             $award_proportion = \Setting::get('love.award_proportion');
 
             //门店设置
-            if (!empty($love) && $love->value['award_proportion'] && $love->value['award_proportion'] != 0){
+            if (!empty($love) && $love->value['award_proportion'] && $love->value['award_proportion'] != 0) {
                 $award_proportion = $love->value['award_proportion'];
                 $award = $love->value['award'];
             }
 
             //商品独立设置
-            if ($item->award_proportion && $item->award_proportion != 0){
+            if ($item->award_proportion && $item->award_proportion != 0) {
                 $award_proportion = $item->award_proportion;
                 $award = $item->award;
             }
@@ -470,30 +482,25 @@ class NewGoodsController extends BaseController
                 self::unSerializeImage($item);
             }
 
-            return  $list;
+            return $list;
         }
 
-        return  $list;
+        return $list;
     }
 
     public function favorableRate($id)
     {
-        $total = OrderGoods::with(['hasOneOrder',function($q){
-            $q->where('status',3);
-        }])->where('goods_id',$id)->count('id');//总条数
+        //不跟订单关联的新好评率计算公式
+        $total = \app\common\models\Comment::where(['goods_id' => $id, 'type' => 1])->count('id');//总评论数
+        if ($total <= 0) return '100%';
 
-        if ($total <= 0){
-            return '100%';
-        }
+        $level_comment = \app\common\models\Comment::where(['goods_id' => $id, 'type' => 1])->sum('level');//已评论的分数
+        $mark = bcmul($total, 5, 2);//最高总评分  = 总条数 * 5
 
-        $level_comment = \app\common\models\Comment::where(['goods_id' => $id])->sum('level');//已评论的分数
-        $comment = \app\common\models\Comment::where(['goods_id' => $id])->count('id');//总评论数
-        $mark = bcmul($total,5,2);//总评分  = 总条数 * 5
-        $no_comment = bcmul(bcsub($total,$comment,2) ,5,2);//未评分 = 总条数 - 已评论条数
-        $have_comment = bcmul(bcdiv(bcadd($level_comment,$no_comment,2),$mark,2),100,2);//最终好评率
+        //最终好评率 = （已评论分数/最高总评分）/100
+        $have_comment = bcmul(bcdiv($level_comment, $mark, 2), 100, 2);
 
-        //最终好评率 = （（已评论分数 + 未评分） / 总评分）/100
-        return $have_comment.'%';
+        return $have_comment . '%';
     }
 
     public static function unSerializeImage(&$arrComment)
@@ -550,14 +557,14 @@ class NewGoodsController extends BaseController
             if (is_array($goodsModel)) {
 
                 $goodsModel['lease_toy'] = [
-                    'is_lease' => $lease_switch,
-                    'is_rights' => 0,
+                    'is_lease'       => $lease_switch,
+                    'is_rights'      => 0,
                     'immed_goods_id' => 0,
                 ];
             } else {
                 $goodsModel->lease_toy = [
-                    'is_lease' => $lease_switch,
-                    'is_rights' => 0,
+                    'is_lease'       => $lease_switch,
+                    'is_rights'      => 0,
                     'immed_goods_id' => 0,
                 ];
             }
@@ -573,7 +580,7 @@ class NewGoodsController extends BaseController
     {
         Privilege::validatePrivilegeLevel($goodsModel, $member);
         Privilege::validatePrivilegeGroup($goodsModel, $member);
-        
+
     }
 
     public function setGoodsPluginsRelations($goods)
@@ -586,10 +593,10 @@ class NewGoodsController extends BaseController
 
     public function pluginEnabled()
     {
-        $data['package_deliver_enabled'] = app('plugins')->isEnabled('package-deliver')?1:0;
-        $data['help_center_enabled'] = app('plugins')->isEnabled('help-center')?1:0;
+        $data['package_deliver_enabled'] = app('plugins')->isEnabled('package-deliver') ? 1 : 0;
+        $data['help_center_enabled'] = app('plugins')->isEnabled('help-center') ? 1 : 0;
 
-        return show_json(1,$data);
+        return show_json(1, $data);
     }
 
     public function getGoodsSaleV2($goodsModel, $member)
@@ -618,11 +625,11 @@ class NewGoodsController extends BaseController
             $data = [];
         }
 
-        if($goodsModel->hasOneSale->all_point_deduct && $goodsModel->hasOneSale->has_all_point_deduct){//商品设置
-            $data['name'] = $shopSet['credit1'] ? $shopSet['credit1'].'全额抵扣':'积分全额抵扣';
+        if ($goodsModel->hasOneSale->all_point_deduct && $goodsModel->hasOneSale->has_all_point_deduct) {//商品设置
+            $data['name'] = $shopSet['credit1'] ? $shopSet['credit1'] . '全额抵扣' : '积分全额抵扣';
             $data['key'] = 'all_point_deduct';
             $data['type'] = 'string';
-            $data['value'] = '可使用' . $goodsModel->hasOneSale->all_point_deduct .'个'.($shopSet['credit1'] ? $shopSet['credit1'] .'全额抵扣购买' : '积分全额抵扣购买');
+            $data['value'] = '可使用' . $goodsModel->hasOneSale->all_point_deduct . '个' . ($shopSet['credit1'] ? $shopSet['credit1'] . '全额抵扣购买' : '积分全额抵扣购买');
             array_push($sale, $data);
             $data = [];
         }
@@ -646,40 +653,23 @@ class NewGoodsController extends BaseController
             $data = [];
         }
 
-//        $data['name'] = $shopSet['credit1'] ?: '积分';
-//        $data['key'] = 'point';
-//        $data['type'] = 'array';
-//        if ($goodsModel->hasOneSale->point !== '0') {
-//            $point = $set['give_point'] ? $set['give_point'] : 0;
-//            if ($goodsModel->hasOneSale->point) {
-//                $point = $goodsModel->hasOneSale->point;
-//            }
-//            if (!empty($point)) {
-//                $data['value'][] = '购买赠送' . $point . $data['name'];
-//            }
-//
-//        }
-//        dd($goodsModel->hasOneSale);
         $res = app('plugins')->isEnabled('store-cashier');
-        if ($res){//门店抵扣设置
-            $store_goods = StoreGoods::where('goods_id',$goodsModel->id)->first();
-            $point = StoreSetting::getStoreSettingByStoreId($store_goods->store_id)->where('key','point')->first();
-//            $discount = StoreSetting::getStoreSettingByStoreId($store_goods->store_id)->where('key','discount')->first();
-//            dd($point['value']['set']['money_max']);
+        if ($res) {//门店抵扣设置
+            $store_goods = StoreGoods::where('goods_id', $goodsModel->id)->first();
+            $point = StoreSetting::getStoreSettingByStoreId($store_goods->store_id)->where('key', 'point')->first();
         }
 
         $data['name'] = $shopSet['credit1'] ?: '积分';
         $data['key'] = 'point';
         $data['type'] = 'array';
 
-        if ($set['give_point']){
+        if ($set['give_point']) {
             $points = $set['give_point'] ? $set['give_point'] : 0;
         }
         if (!empty($point['value']['set']['give_point']) && $point['value']['set']['give_point'] != 0) {//门店抵扣设置
             $points = $point['value']['set']['give_point'];
         }
         if ($goodsModel->hasOneSale->point !== '0') {
-//            $points = $set['give_point'] ? $set['give_point'] : 0;
             if ($goodsModel->hasOneSale->point) {
                 $points = $goodsModel->hasOneSale->point;
             }
@@ -688,54 +678,11 @@ class NewGoodsController extends BaseController
             }
         }
 
-
-//        if ($set['point_deduct'] ) {//&& $goodsModel->hasOneSale->max_point_deduct !== '0'
-//
-//            $max_point_deduct = $set['money_max'] ? $set['money_max'] . '%' : 0;
-//
-//            if (!empty($point['value']['set']['money_max']) && $point['value']['set']['money_max'] != 0){//门店抵扣设置
-//                $max_point_deduct = $point['value']['set']['money_max'];
-////                $store_goods = StoreGoods::where('goods_id',$goodsModel->id)->first();
-////                $store_setting = StoreSetting::getStoreSettingByStoreId($store_goods->store_id)->where('key','point')->first();
-////                dd($store_setting['value']['set']['money_max']);
-//            }
-//
-//            if ($goodsModel->hasOneSale->max_point_deduct && $goodsModel->hasOneSale->max_point_deduct != 0) {
-//                $max_point_deduct = $goodsModel->hasOneSale->max_point_deduct;
-//            }
-//            if (!empty($max_point_deduct)) {
-//                $data['value'][] = '最高抵扣' . $max_point_deduct . '元';
-//            }
-//        }
-//
-//
-//        if ($set['point_deduct']){
-//            $min_point_deduct = $set['money_min'] ? $set['money_min'] . '%' : 0;
-//
-////            if (!empty($discount['value']['discount_method']) && $discount['value']['discount_method'] != 0){//门店抵扣设置
-////                $min_point_deduct = $discount['value']['discount_method'];
-////            }
-//
-//            if ($goodsModel->hasOneSale->min_point_deduct && $goodsModel->hasOneSale->min_point_deduct != 0) {
-//                $min_point_deduct = $goodsModel->hasOneSale->min_point_deduct;
-//            }
-//
-//            if (!empty($min_point_deduct)) {
-//                $data['value'][] = '最少抵扣' . $min_point_deduct . '元';
-//            }
-//        }
-
-
-        //积分抵扣
-
-//        if ($set['point_deduct'] && $goodsModel->hasOneSale->max_point_deduct != 0) {//&& $goodsModel->hasOneSale->max_point_deduct !== '0'
-//            $max_point_deduct = $set['money_max'] ? $set['money_max'] . '%' : 0;
-//        }
         if ($set['point_deduct'] && $set['money_max']) {//&& $goodsModel->hasOneSale->max_point_deduct !== '0'
             $max_point_deduct = $set['money_max'] ? $set['money_max'] : 0;
         }
 
-        if (!empty($point['value']['set']['money_max']) && $point['value']['set']['money_max'] != 0){//门店抵扣设置
+        if (!empty($point['value']['set']['money_max']) && $point['value']['set']['money_max'] != 0) {//门店抵扣设置
             $max_point_deduct = $point['value']['set']['money_max'];
         }
 
@@ -747,7 +694,7 @@ class NewGoodsController extends BaseController
         }
 
 
-        if ($set['point_deduct'] && $goodsModel->hasOneSale->min_point_deduct != 0){
+        if ($set['point_deduct'] && $goodsModel->hasOneSale->min_point_deduct != 0) {
             $min_point_deduct = $set['money_min'] ? $set['money_min'] . '%' : 0;
 
             if ($goodsModel->hasOneSale->min_point_deduct) {
@@ -779,7 +726,7 @@ class NewGoodsController extends BaseController
         $exist_love = app('plugins')->isEnabled('love');
         if ($exist_love) {
 
-            $love_goods = $this->getLoveSet($goodsModel,$goodsModel->id);
+            $love_goods = $this->getLoveSet($goodsModel, $goodsModel->id);
 
             $data['name'] = $love_goods['name'];
             $data['key'] = 'love';
@@ -826,7 +773,7 @@ class NewGoodsController extends BaseController
 
         //经销商提成
         $exist_team_dividend = app('plugins')->isEnabled('team-dividend');
-        if($exist_team_dividend){
+        if ($exist_team_dividend) {
             //验证是否是经销商及等级
             $is_agent = $this->isValidateTeamDividend($member);
             if ($is_agent) {
@@ -846,7 +793,7 @@ class NewGoodsController extends BaseController
 
         $exist_pending_order = app('plugins')->isEnabled('pending-order');
         if ($exist_pending_order) {
-            $pending_order_goods =  \Yunshop\PendingOrder\services\PendingOrderGoodsService::getGoodsWholesaleSend($goodsModel->id);
+            $pending_order_goods = \Yunshop\PendingOrder\services\PendingOrderGoodsService::getGoodsWholesaleSend($goodsModel->id);
             $pending_order['name'] = '批发劵';
             $pending_order['key'] = 'pending-order';
             $pending_order['type'] = 'array';
@@ -858,10 +805,10 @@ class NewGoodsController extends BaseController
 
 
         return [
-            'sale_count' => count($sale),
+            'sale_count'      => count($sale),
 //            'first_strip_key' => $sale ? $sale[rand(0, (count($sale) - 1))] : [],
             'first_strip_key' => $sale[0] ? $sale[0] : [],
-            'sale' => $sale,
+            'sale'            => $sale,
         ];
     }
 
@@ -874,5 +821,23 @@ class NewGoodsController extends BaseController
     public function isValidateTeamDividend($member)
     {
         return TeamDividendAgencyModel::getAgencyByMemberId($member->member_id)->first();
+    }
+
+
+    private function goodsProductMarket(&$goodsModel)
+    {
+        if (app('plugins')->isEnabled('product-market')) {
+            $productMarket = ProductMarketGoodsModel::where('goods_id', $goodsModel->id)->first();
+            if ($productMarket['product']) {
+                $goodsModel->prdocut_market = $productMarket['product'];
+            }
+        }
+        if (app('plugins')->isEnabled('market-sub')) {
+            $productMarket = MarketSubGoods::where('goods_id', $goodsModel->id)->first();
+            if ($productMarket['product']) {
+                $goodsModel->prdocut_market = $productMarket['product'];
+            }
+        }
+        return;
     }
 }

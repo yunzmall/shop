@@ -10,13 +10,14 @@ namespace app\frontend\modules\order\controllers;
 
 use app\common\components\ApiController;
 use app\common\models\DispatchType;
+use app\framework\Http\Request;
 use app\frontend\models\AnotherPayOrder;
 use app\frontend\models\OrderAddress;
 use app\frontend\modules\order\services\VideoDemandOrderGoodsService;
 
 class AnotherPayDetailController extends ApiController
 {
-    public function index($request)
+    public function index(Request $request)
     {
         $this->validate([
             'order_id' => 'required'

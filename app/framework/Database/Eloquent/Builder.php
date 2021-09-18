@@ -72,7 +72,8 @@ class Builder extends \Illuminate\Database\Eloquent\Builder
             }
         });
 
-        $nested = $this->nestedRelations($name);
+       // $nested = $this->nestedRelations($name);
+        $nested = $this->relationsNestedUnder($name);
 
         // If there are nested relationships set on the query, we will put those onto
         // the query instances so that they can be handled after this relationship

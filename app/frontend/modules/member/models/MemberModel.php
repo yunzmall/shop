@@ -21,7 +21,9 @@ use app\common\models\Setting;
 use Illuminate\Support\Facades\DB;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
 use app\common\models\Order;
+use Yunshop\AgentListSet\admin\SetController;
 use Yunshop\Commission\models\AgentLevel;
+use Yunshop\ConsumerReward\common\models\ConsumerRewardRecordModel;
 use Yunshop\Integral\Common\Models\IntegralMemberModel;
 use Yunshop\Integral\Common\Services\SetService;
 use Yunshop\Love\Common\Models\MemberLove;
@@ -29,7 +31,7 @@ use Yunshop\Merchant\common\models\MerchantLevel;
 use Yunshop\Micro\common\models\MicroShopLevel;
 use Yunshop\TeamDividend\models\TeamDividendLevelModel;
 use app\common\helpers\ImageHelper;
-use Setting as min_app_setting;
+use Yunshop\UniversalCard\models\ConsumeCoupon;
 
 class MemberModel extends Member
 {
@@ -200,26 +202,16 @@ class MemberModel extends Member
 
     public static function getMyAllAgentsInfo($uid, $level)
     {
-        $child_member1 = DB::table('yz_member_children')->select('child_id')->where('member_id', $uid)->where('uniacid', \YunShop::app()->uniacid)->where('level', 1)->get();
-        foreach ($child_member1 as $child_id) {
-            $child_id1[] = $child_id['child_id'];
+        $child_member = DB::table('yz_member_children')
+            ->select('child_id')
+            ->where('member_id', $uid)
+            ->where('uniacid', \YunShop::app()->uniacid)
+            ->where('level', $level)
+            ->get();
+        foreach ($child_member as $child_id) {
+            $child_id[] = $child_id['child_id'];
         }
-        $child_member2 = DB::table('yz_member_children')->select('child_id')->where('member_id', $uid)->where('uniacid', \YunShop::app()->uniacid)->where('level', 2)->get();
-        foreach ($child_member2 as $child_id) {
-            $child_id2[] = $child_id['child_id'];
-        }
-        $child_member3 = DB::table('yz_member_children')->select('child_id')->where('member_id', $uid)->where('uniacid', \YunShop::app()->uniacid)->where('level', 3)->get();
-        foreach ($child_member3 as $child_id) {
-            $child_id3[] = $child_id['child_id'];
-        }
-
-        if ($level == 1) {
-            return self::uniacid()->whereIn('uid', $child_id1);
-        } elseif ($level == 2) {
-            return self::uniacid()->whereIn('uid', $child_id2);
-        } else {
-            return self::uniacid()->whereIn('uid', $child_id3);
-        }
+        return self::uniacid()->whereIn('uid', $child_id);
     }
 
     /**
@@ -499,6 +491,7 @@ class MemberModel extends Member
             }
 
             $member_info = $member_info->toArray();
+            $member_info['avatar'] = yz_tomedia($member_info['avatar']);
             $builder = self::getUserInfos($member_info['yz_member']['parent_id']);
             $referrer_info = self::getMemberRole($builder)->first();
 
@@ -557,50 +550,70 @@ class MemberModel extends Member
             //---------------------new-----------------------
             //团队1级会员
             $data['child_total'] = DB::table('yz_member_children')
-                ->where('uniacid',$unicid)
-                ->where('member_id',$member_id)
+                ->join('yz_member', function ($join) {
+                    $join->on('yz_member.member_id', '=', 'yz_member_children.child_id')
+                        ->whereNull('deleted_at');
+                })
+                ->where('yz_member_children.uniacid',$unicid)
+                ->where('yz_member_children.member_id',$member_id)
                 ->where('level',1)
                 ->count();
 
-            $data['child_order_money'] = round(DB::table('yz_member_children')
-                ->leftJoin('yz_order',function ($query) use($unicid){
-                    $query->on('yz_member_children.child_id','=','yz_order.uid')
-                        ->where('yz_order.uniacid',$unicid)
-                        ->where('yz_order.status',3);
-                })
-                ->where('yz_member_children.member_id',$member_id)
-                ->where('yz_member_children.uniacid',$unicid)
-                ->where('yz_member_children.level',1)
-                ->groupBy('member_id')
-                ->sum('yz_order.price'),2);
+            $childs = MemberChildren::uniacid()->where("member_id",$member_id)->pluck("child_id");
+
+            $level_childs = MemberChildren::uniacid()->where("member_id",$member_id)->where("level",1)->pluck("child_id");
+
+            if(app('plugins')->isEnabled('agent-list-set') && \Setting::get('plugin.agent-liset-set.pay_order')){
+                $team_order_money = SetController::getChildOrderMoney($member_id, $unicid);  //统计已完成+已支付订单+自己的订单
+            }else{
+
+                if (empty($level_childs)) {
+                    $team_order_money = 0 ;
+                } else {
+                    $team_order_money = Order::uniacid()
+                        ->whereIn("uid",$level_childs)
+                        ->where('yz_order.status',3)
+                        ->sum('yz_order.price');
+                }
+            }
+
+            $data['child_order_money'] = round($team_order_money,2);
             
             //团队会员
             $data['team_total'] = DB::table('yz_member_children')
-                ->where('uniacid',$unicid)
-                ->where('member_id',$member_id)
+                ->join('yz_member', function ($join) {
+                    $join->on('yz_member.member_id', '=', 'yz_member_children.child_id')
+                        ->whereNull('deleted_at');
+                })
+                ->where('yz_member_children.uniacid',$unicid)
+                ->where('yz_member_children.member_id',$member_id)
                 ->count();
 
-            $data['team_order_money'] = round(DB::table('yz_member_children')
-                ->leftJoin('yz_order',function ($query) use($unicid){
-                    $query->on('yz_member_children.child_id','=','yz_order.uid')
-                        ->where('yz_order.uniacid',$unicid)
-                        ->where('yz_order.status',3);
-                })
-                ->where('yz_member_children.member_id',$member_id)
-                ->where('yz_member_children.uniacid',$unicid)
-                ->groupBy('member_id')
-                ->sum('yz_order.price'),2);
 
-            $data['team_goods_total'] = intval(DB::table('yz_member_children')
-                ->leftJoin('yz_order',function ($query) use($unicid){
-                    $query->on('yz_member_children.child_id','=','yz_order.uid')
-                        ->where('yz_order.uniacid',$unicid)
-                        ->where('yz_order.status','>=',1);
-                })
-                ->where('yz_member_children.member_id',$member_id)
-                ->where('yz_member_children.uniacid',$unicid)
-                ->groupBy('member_id')
-                ->sum('yz_order.goods_total'));
+            if(app('plugins')->isEnabled('agent-list-set') && \Setting::get('plugin.agent-liset-set.pay_order')){
+                $team_all = SetController::getAllOrderMoney($member_id, $unicid);  //统计已完成+已支付订单+自己的订单
+            }else {
+                if (empty($childs)) {
+                    $team_all = 0;
+                } else {
+                    $team_all = Order::uniacid()
+                        ->whereIn("uid", $childs)
+                        ->where('yz_order.status', 3)
+                        ->sum('yz_order.price');
+                }
+            }
+            $data['team_order_money'] = round($team_all,2);
+
+            if (empty($childs)) {
+                $team_goods_total = 0;
+            } else {
+                $team_goods_total = Order::uniacid()
+                    ->whereIn("uid",$childs)
+                    ->where('yz_order.status','>=',1)
+                    ->sum('yz_order.goods_total');
+            }
+
+            $data['team_goods_total'] = intval($team_goods_total);
             //---------------------new-----------------------
         }
 
@@ -677,7 +690,7 @@ class MemberModel extends Member
     //获取token的url参数拼接
     public function getTokenUrlStr()
     {
-        $set = min_app_setting::get('plugin.min_app');
+        $set = \Setting::get('plugin.min_app');
         $getTokenUrl = "https://api.weixin.qq.com/cgi-bin/token?"; //获取token的url
         $WXappid = $set['key']; //APPID
         $WXsecret = $set['secret']; //secret
@@ -860,6 +873,7 @@ class MemberModel extends Member
             return [];
         }
 
+        //获取一级下级会员ID
         $teamMembersIds = $member->memberChildren()->where('level', $relationLevel)->pluck('child_id')->toArray();
 
         if (!empty($keyword)) {
@@ -874,21 +888,26 @@ class MemberModel extends Member
 
         // 总订单数,总订单金额
         // todo yz_member 中的wechat 拿到外层    uid as id    withSum
-        $teamMembers = MemberModel::select(['mobile', 'createtime', 'avatar', 'nickname', 'uid','realname'])
-            ->whereIn('uid', $teamMembersIds)
-            ->with(['yzMember'  => function ($builder) {
-                $builder->select(['member_id', 'is_agent', 'status', 'wechat', 'deleted_at', 'inviter']);
-            }, 'orders'         => function ($order) {
-                $order->select(['id', 'uid', 'price', 'status'])->where('status', 3);
-            }, 'memberChildren' => function ($member) {
-                $member->select(['id', 'child_id', 'level', 'member_id'])->where('level', 1)
-                    ->with(['orders' => function ($order) {
-                        $order->select(['id', 'uid', 'price', 'status'])->where('status', 3);
-                    }]);
-            }])
-            ->orderBy('uid', 'desc')
-            ->paginate($pageSize)
-            ->toArray();
+        if(app('plugins')->isEnabled('agent-list-set') && \Setting::get('plugin.agent-liset-set.pay_order')){
+            $teamMembers = SetController::getTeamMember($pageSize, $teamMembersIds);  //统计已完成+已支付订单
+        }else{
+            $teamMembers = MemberModel::select(['mobile', 'createtime', 'avatar', 'nickname', 'uid','realname'])
+                ->whereIn('uid', $teamMembersIds)
+                ->with(['yzMember'  => function ($builder) {
+                    $builder->select(['member_id', 'is_agent', 'status', 'wechat', 'deleted_at', 'inviter']);
+                }, 'orders'         => function ($order) {
+                    $order->select(['id', 'uid', 'price', 'status'])->where('status', 3);
+                }, 'memberChildren' => function ($member) {
+                    $member->select(['id', 'child_id', 'level', 'member_id'])->where('level', 1)
+                        ->with(['orders' => function ($order) {
+                            $order->select(['id', 'uid', 'price', 'status'])->where('status', 3);
+                        }]);
+                }])
+                ->orderBy('uid', 'desc')
+                ->paginate($pageSize)
+                ->toArray();
+        }
+
 
         foreach ($teamMembers['data'] as &$v) {
             $v['team_order_money'] = round(collect($v['member_children'])->sum(function ($member_children) {
@@ -1146,6 +1165,17 @@ class MemberModel extends Member
             'data'    => $member_info['credit1']
         ];
 
+        //显示优惠券
+        $member_info['coupon'] = [
+            'is_show' => 1,
+            'text'    => '优惠券',
+            'data'    => \app\frontend\modules\coupon\models\MemberCoupon::getCouponsOfMember($yz_member['member_id'])
+                ->where('used', '=', 0)
+                ->where('is_member_deleted', 0)
+                ->where('is_expired', 0)
+                ->count()
+        ];
+
         //增加是否显示爱心值值
         $member_info['love_show'] = [
             'usable_love_show' => \Setting::get('love.member_center_show') ? 1 : 0,
@@ -1177,6 +1207,31 @@ class MemberModel extends Member
             $member_info['integral_show']['text'] = INTEGRAL_NAME;
             $member_info['integral_show']['data'] = $memberIntegral->integral ?: '0.00';
         }
+        if (app('plugins')->isEnabled('consume-coupon-switch') && \Setting::get('plugin.consume_coupon_switch.status') == 1) {
+            if (app('plugins')->isEnabled('universal-card')) {
+                $consume_coupon = ConsumeCoupon::uniacid()->where('member_id', \YunShop::app()->getMemberId())->first();
+                $member_info['consume_coupon_show']['is_show'] = \Setting::get('plugin.universal_card.member_center_show');
+                $member_info['consume_coupon_show']['text'] = \Setting::get('plugin.universal_card.consume_coupon_text')?:'消费券余额';
+                $member_info['consume_coupon_show']['amount'] = $consume_coupon->amount ?: 0.00;
+            }
+        }
+        if (app('plugins')->isEnabled('consumer-reward') && \Setting::get('plugin.consumer_reward.is_open') == 1) {
+            $consume_amount = ConsumerRewardRecordModel::getRecord(\YunShop::app()->getMemberId())->sum('reward_amount');
+            $member_info['consumer_reward_show']['is_show'] = \Setting::get('plugin.consumer_reward.is_display');
+            $member_info['consumer_reward_show']['text'] = \Setting::get('plugin.consumer_reward.name')?:'消费奖励';
+            $member_info['consumer_reward_show']['amount'] = $consume_amount ?: 0.00;
+        }
+
+        //会员等级日期
+        if (!is_null($member_info['yz_member']['validity'])) {
+            if ($member_info['yz_member']['level_id'] == 0) {
+                $member_info['yz_member']['validity'] = '';
+            } else {
+                $day = $member_info['yz_member']['validity'] - 1;
+                $member_info['yz_member']['validity'] = date('Y-m-d',strtotime($day.' days'));
+            }
+        }
+
 
         return $member_info;
     }
@@ -1467,17 +1522,18 @@ class MemberModel extends Member
      * @param $member_id
      * @return string
      */
-    public static function getInviteCode()
+    public static function getInviteCode($member_id = null)
     {
+        $member_id = $member_id ?: \YunShop::app()->getMemberId();
         $invite_code = self::generateInviteCode();
 
         if (self::chkInviteCode($invite_code)) {
-            MemberShopInfo::updateInviteCode(\YunShop::app()->getMemberId(), $invite_code);
+            MemberShopInfo::updateInviteCode($member_id, $invite_code);
 
             return $invite_code;
         } else {
             while (true) {
-                self::getInviteCode();
+                self::getInviteCode($member_id);
             }
         }
     }

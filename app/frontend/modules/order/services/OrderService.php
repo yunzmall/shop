@@ -20,6 +20,7 @@ use app\common\modules\orderGoods\OrderGoodsCollection;
 
 use \app\common\models\MemberCart;
 use app\common\repositories\ExpressCompany;
+use app\common\services\CreateRandomNumber;
 use app\frontend\models\OrderGoods;
 use app\frontend\modules\order\services\behavior\OrderCancelPay;
 use app\frontend\modules\order\services\behavior\OrderCancelSend;
@@ -83,27 +84,36 @@ class OrderService
      */
     public static function createOrderSN()
     {
-        //集合总数
-        $count =  Redis::sCard('order_sn');
+//        //集合总数
+//        $count =  Redis::sCard('order_sn');
+//
+//        if ($count) {
+//            //随机返回集合中的一个元素
+//            $orderSN = Redis::sPop('order_sn');
+//            if ($orderSN) {
+//                return $orderSN;
+//            }
+//        }
 
-        if ($count) {
-            //随机返回集合中的一个元素
-            $orderSN = Redis::sPop('order_sn');
-            if ($orderSN) {
-                return $orderSN;
-            }
-        }
 
-
-
-        $orderSN = createNo('SN', true);
+        $orderSN = CreateRandomNumber::sn('SN');
         while (1) {
             if (!Order::where('order_sn', $orderSN)->first()) {
                 break;
             }
-            $orderSN = createNo('SN', true);
+            $orderSN = CreateRandomNumber::sn('SN');
         }
         return $orderSN;
+
+
+//        $orderSN = createNo('SN', true);
+//        while (1) {
+//            if (!Order::where('order_sn', $orderSN)->first()) {
+//                break;
+//            }
+//            $orderSN = createNo('SN', true);
+//        }
+//        return $orderSN;
     }
 
     /**
@@ -112,14 +122,24 @@ class OrderService
      */
     public static function createPaySN()
     {
-        $paySN = createNo('PN', true);
+
+        $paySN = CreateRandomNumber::sn('PN');
         while (1) {
             if (!\app\common\models\OrderPay::where('pay_sn', $paySN)->first()) {
                 break;
             }
-            $paySN = createNo('PN', true);
+            $paySN = CreateRandomNumber::sn('PN');
         }
         return $paySN;
+
+//        $paySN = createNo('PN', true);
+//        while (1) {
+//            if (!\app\common\models\OrderPay::where('pay_sn', $paySN)->first()) {
+//                break;
+//            }
+//            $paySN = createNo('PN', true);
+//        }
+//        return $paySN;
     }
 
     /**
@@ -164,10 +184,10 @@ class OrderService
         $orderOperation = OrderCancelSend::find($param['order_id']);
 
         //取消订单逻辑 因为多包裹发货需要清楚快递信息
-        $where[] = ['order_id','=',$param['order_id']];
+        $where[] = ['order_id', '=', $param['order_id']];
         //清楚商品标记包裹
-        OrderGoods::where($where)->update(['order_express_id'=>null]);
-        $where[] = ['deleted_at','=',0];
+        OrderGoods::where($where)->update(['order_express_id' => null]);
+        $where[] = ['deleted_at', '=', 0];
         //清除快递信息
         $data = Express::where($where)->delete();
         //修改订单部分发货状态
@@ -271,7 +291,7 @@ class OrderService
             $orderOperation->save();
             self::orderSend(['order_id' => $orderOperation->id]);
             $result = self::orderReceive(['order_id' => $orderOperation->id]);
-        }  elseif (isset($orderOperation->hasOneDispatchType) && in_array($orderOperation->dispatch_type_id, $orderOperation->hasOneDispatchType->paidCompleted())) {
+        } elseif (isset($orderOperation->hasOneDispatchType) && in_array($orderOperation->dispatch_type_id, $orderOperation->hasOneDispatchType->paidCompleted())) {
             //兼容配送方式支付成功就直接完成的订单
             self::orderSend(['order_id' => $orderOperation->id]);
             $result = self::orderReceive(['order_id' => $orderOperation->id]);
@@ -293,7 +313,7 @@ class OrderService
     {
         $orderOperation = OrderReceive::find($param['order_id']);
         //新增逻辑部分发货 没有全发货无法确认收货
-        if($orderOperation['is_all_send_goods'] == 1){
+        if ($orderOperation['is_all_send_goods'] == 1) {
             throw new AppException('订单部分发货无法确认收货');
         }
 
@@ -314,39 +334,44 @@ class OrderService
          * 未发货继续执行下面的订单发货
          */
         //部分发货 快递单号必填
-        if(empty($param['express_sn'])){
+        if (empty($param['express_sn'])) {
             throw new AppException('请输入快递单号');
         }
         //存快递信息
         $db_express_model = new Express();
         $db_express_model->order_id = $param['order_id'];
-        $db_express_model->express_code = $param['express_code']?:'';
-        $db_express_model->express_company_name = array_get(ExpressCompany::create()->where('value', $param['express_code'])->first(),'name','');
-        $db_express_model->express_sn = $param['express_sn']?:'';
+        $db_express_model->express_code = $param['express_code'] ?: '';
+        //当code获取不到物流，并且 有传过来物流名称则使用传过来的（主要针对供应链）
+        $express_company_name = array_get(ExpressCompany::create()->where('value', $param['express_code'])->first(), 'name', '其他快递');
+        if (empty($express_company_name) && !empty($param['express_company_name'])) $express_company_name = $param['express_company_name'];
+
+        $db_express_model->express_company_name = $express_company_name;
+        $db_express_model->express_sn = $param['express_sn'] ?: '';
         $db_express_model->save();
-        if(empty($param['order_goods_ids'])){
+        if (empty($param['order_goods_ids'])) {
             //修改订单商品状态
-            $where[] = ['order_id','=',$param['order_id']];
-            $where[] = ['order_express_id','=',null];
-            $param['order_goods_ids'] = OrderGoods::where($where)->update(['order_express_id'=>$db_express_model->id]);
+            $where[] = ['order_id', '=', $param['order_id']];
+            $where[] = ['order_express_id', '=', null];
+            $param['order_goods_ids'] = OrderGoods::where($where)->update(['order_express_id' => $db_express_model->id]);
             //修改订单表是否全部发货 为全部发货
-            Order::where('id',$param['order_id'])->update(['is_all_send_goods'=>2]);
-        }else{
+            Order::where('id', $param['order_id'])->update(['is_all_send_goods' => 2]);
+        } else {
             //修改订单商品状态
-            $where[] = ['order_id','=',$param['order_id']];
-            $where[] = ['order_express_id','=',null];
-            $param['order_goods_ids'] = OrderGoods::where($where)->whereIn('id',$param['order_goods_ids'])->update(['order_express_id'=>$db_express_model->id]);
+            $where[] = ['order_id', '=', $param['order_id']];
+            $where[] = ['order_express_id', '=', null];
+            $param['order_goods_ids'] = OrderGoods::where($where)->whereIn('id', $param['order_goods_ids'])->update(['order_express_id' => $db_express_model->id]);
             $is_all_send = OrderGoods::where($where)->first();
             //判断是否有还未发货的，如果没有状态变更为已全部发货
-            if(empty($is_all_send)){
+            if (empty($is_all_send)) {
                 //修改订单表是否全部发货 为全部发货
-                Order::where('id',$param['order_id'])->update(['is_all_send_goods'=>2]);
+                Order::where('id', $param['order_id'])->update(['is_all_send_goods' => 2]);
             }
         }
         return true;
 //
 //        return self::orderSend($param);
     }
+
     /**
      * 发货
      * @param $param
@@ -423,13 +448,13 @@ class OrderService
             return;
         }
 
-        \app\backend\modules\order\models\Order::waitReceive()->where('auto_receipt', 0)->whereNotIn('dispatch_type_id',[DispatchType::SELF_DELIVERY,DispatchType::HOTEL_CHECK_IN,DispatchType::DELIVERY_STATION_SEND,DispatchType::DRIVER_DELIVERY,DispatchType::PACKAGE_DELIVER])->where('send_time', '<', (int)Carbon::now()->addDays(-$days)->timestamp)->normal()->chunk(1000, function ($orders) {
+        \app\backend\modules\order\models\Order::waitReceive()->where('auto_receipt', 0)->whereNotIn('dispatch_type_id', [DispatchType::SELF_DELIVERY, DispatchType::HOTEL_CHECK_IN, DispatchType::DELIVERY_STATION_SEND, DispatchType::DRIVER_DELIVERY, DispatchType::PACKAGE_DELIVER])->where('send_time', '<', (int)Carbon::now()->addDays(-$days)->timestamp)->normal()->chunk(1000, function ($orders) {
             if (!$orders->isEmpty()) {
                 $orders->each(function ($order) {
                     try {
                         OrderService::orderReceive(['order_id' => $order->id]);
                     } catch (\Exception $e) {
-                        \Log::error("订单:{$order->id}自动收货失败",$e->getMessage());
+                        \Log::error("订单:{$order->id}自动收货失败", $e->getMessage());
 
                     }
                 });
@@ -451,14 +476,13 @@ class OrderService
         if (!$days) {
             return;
         }
-        $orders = \app\backend\modules\order\models\Order::waitPay()->where('create_time', '<', (int)Carbon::now()->addDays(-\Setting::get('shop.trade.close_order_days'))->timestamp)->normal()->get();
+        $orders = \app\backend\modules\order\models\Order::waitPay()->where('plugin_id', '<>', 70)->where('create_time', '<', (int)Carbon::now()->addDays(-\Setting::get('shop.trade.close_order_days'))->timestamp)->normal()->get();
         if (!$orders->isEmpty()) {
             $orders->each(function ($order) {
-                //dd($order->send_time);
-                try{
+                try {
                     OrderService::orderClose(['order_id' => $order->id]);
-                }catch (\Exception $e){
-                    \Log::error("订单:{$order->id}自动关闭失败",$e->getMessage());
+                } catch (\Exception $e) {
+                    \Log::error("订单:{$order->id}自动关闭失败", $e->getMessage());
                 }
             });
         }

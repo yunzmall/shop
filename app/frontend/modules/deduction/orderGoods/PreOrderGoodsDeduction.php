@@ -218,8 +218,10 @@ class PreOrderGoodsDeduction extends OrderGoodsDeduction
     protected function _hasMinLimitBuyCoin()
     {
         if (!$this->getGoodsDeduction() || !$this->getGoodsDeduction()->deductible($this->orderGoods->goods)) {
+            //todo 如果抵扣未开启，获取抵扣为空，返回了抵扣类，判断为true了，所以为必选中
+            return false;
             // 购买商品不存在抵扣记录
-            return $this->newCoin();
+//            return $this->newCoin();
         }
 
         return $this->getOrderGoodsMinDeductionAmount()->hasMinAmount();

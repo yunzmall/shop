@@ -8,12 +8,43 @@
 
 namespace app\common\services\finance;
 
+use app\common\events\withdraw\BalanceWithdrawSuccessEvent;
 use app\common\events\withdraw\WithdrawPayedEvent;
 use app\common\models\Income;
 use app\common\models\Withdraw as WithdrawModel;
 
 class Withdraw
 {
+
+    public static function getWithdrawServicetaxPercent($amount)
+    {
+
+        $withdraw_set = \Setting::get('withdraw.income');
+        $percent = 0;
+
+        if (bccomp($withdraw_set['servicetax_rate'], 0, 2) == 1) {
+            $percent = $withdraw_set['servicetax_rate'];
+        }
+
+        if ($servicetax = $withdraw_set['servicetax']) {
+
+            $max_money = array_column($servicetax, 'servicetax_money');
+            array_multisort($max_money, SORT_DESC, $servicetax);
+
+            foreach ($servicetax as $value) {
+                if ($amount >= $value['servicetax_money'] && !empty($value['servicetax_money'])) {
+                    $percent = $value['servicetax_rate'];
+                    break;
+                }
+            }
+        }
+
+        $servicetax_amount = bcmul($amount, bcdiv($percent, 100, 4), 2);
+        if (bccomp($servicetax_amount, 0, 2) != 1) $servicetax_amount = 0;
+
+        return ['servicetax_amount' => $servicetax_amount, 'servicetax_percent' => $percent];
+
+    }
 
     public static function paySuccess($withdrawSN)
     {
@@ -24,6 +55,7 @@ class Withdraw
                 $withdrawModel->arrival_at = time();
                 $result = $withdrawModel->save();
                 if ($result) {
+                    event(new BalanceWithdrawSuccessEvent($withdrawModel));
                     BalanceNoticeService::withdrawSuccessNotice($withdrawModel);
                 }
             }
@@ -49,7 +81,7 @@ class Withdraw
         }
         //修改提现记录状态
         $updatedData = [
-            'status'     => 2,
+            'status' => 2,
             'arrival_at' => time(),
         ];
         \Log::info('修改提现记录状态', print_r($updatedData, true));
@@ -75,7 +107,7 @@ class Withdraw
         $withdraw = WithdrawModel::getWithdrawById($withdrawId)->first();
         if ($withdraw->status != '1' && $withdraw->status == '4') {
             $updatedData = [
-                'status'     => 1,
+                'status' => 1,
                 'arrival_at' => time(),
             ];
             \Log::info('修改提现记录状态', print_r($updatedData, true));

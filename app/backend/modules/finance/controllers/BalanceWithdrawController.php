@@ -9,12 +9,15 @@
 namespace app\backend\modules\finance\controllers;
 
 
+use app\common\events\withdraw\BalanceWithdrawSuccessEvent;
 use app\common\exceptions\AppException;
+use app\common\facades\Setting;
 use app\common\helpers\Url;
 use app\common\models\Withdraw;
 use app\backend\modules\finance\services\WithdrawService;
 use app\common\components\BaseController;
 use app\common\services\finance\BalanceNoticeService;
+use app\common\services\Session;
 use Illuminate\Support\Facades\Log;
 use app\backend\modules\withdraw\controllers\AuditRejectedController;
 
@@ -26,7 +29,14 @@ class BalanceWithdrawController extends BaseController
     public function detail()
     {
         $this->withdrawModel = $this->attachedMode();
-        return view('finance.balance.withdraw', ['item' => $this->withdrawModel->toArray(),])->render();
+        $set = Setting::getByGroup('pay_password') ?: [];
+        return view('finance.balance.withdraw', [
+            'item' => $this->withdrawModel->toArray(),
+            'is_verify' => !empty($set['withdraw_verify']['is_phone_verify'])?true:false,
+            'expire_time' => Session::get('withdraw_verify')?:null,
+            'verify_phone' => $set['withdraw_verify']['phone']?:"",
+            'verify_expire' => $set['withdraw_verify']['verify_expire']?intval($set['withdraw_verify']['verify_expire']):10
+        ])->render();
     }
 
 
@@ -60,6 +70,7 @@ class BalanceWithdrawController extends BaseController
             $this->withdrawModel->pay_way = 'manual';
             $this->withdrawUpdate();
 
+            event(new BalanceWithdrawSuccessEvent($this->withdrawModel));
             BalanceNoticeService::withdrawSuccessNotice($this->withdrawModel);
 
             return $this->message('打款成功', yzWebUrl('finance.balance-withdraw.detail', ['id' => \YunShop::request()->id]));
@@ -72,11 +83,17 @@ class BalanceWithdrawController extends BaseController
      */
     private function submitPayNew()
     {
+        $check = $this->checkVerify();//打款验证
+        if (!$check) {
+            $this->message('提现验证失败或验证已过期', yzWebUrl('finance.balance-withdraw.detail', ['id' => \YunShop::request()->id]), 'error');
+        }
+
         $result = $this->submitPay();
 
         if (!empty($result) && 0 == $result['errno']) {
             //todo 临时增加手动打款成功通知，重构时候注意优化
             if ($this->withdrawModel->pay_way == 'manual') {
+                event(new BalanceWithdrawSuccessEvent($this->withdrawModel));
                 BalanceNoticeService::withdrawSuccessNotice($this->withdrawModel);
             }
             return $this->message('提现申请成功', yzWebUrl('finance.balance-withdraw.detail', ['id' => \YunShop::request()->id]));
@@ -86,6 +103,22 @@ class BalanceWithdrawController extends BaseController
         return $this->message('提现申请失败', yzWebUrl('finance.balance-withdraw.detail', ['id' => \YunShop::request()->id]), 'error');
     }
 
+    /**
+     * 打款验证
+     * @return bool
+     */
+    private function checkVerify()
+    {
+        $set = Setting::getByGroup('pay_password')['withdraw_verify'] ?: [];
+        if (empty($set) || empty($set['is_phone_verify'])) {
+            return true;
+        }
+        $verify = Session::get('withdraw_verify');  //没获取到
+        if ($verify && $verify >= time()) {
+            return true;
+        }
+        return false;
+    }
 
     /**
      * 提现审核

@@ -11,10 +11,12 @@ namespace app\backend\modules\setting\controllers;
 use app\backend\modules\goods\models\Goods;
 use app\backend\modules\uploadVerificate\UploadVerificationBaseController;
 use app\common\components\BaseController;
+use app\common\facades\RichText;
 use app\common\helpers\Cache;
 use app\common\helpers\Url;
 use app\common\facades\Setting;
 use app\common\models\AccountWechats;
+use app\common\models\LogisticsSet;
 use app\common\models\MemberLevel;
 use app\common\models\notice\MessageTemp;
 use app\common\models\Protocol;
@@ -29,6 +31,7 @@ use Gregwar\Captcha\PhraseBuilder;
 use app\common\models\PayType;
 use app\common\models\notice\MinAppTemplateMessage;
 use app\backend\modules\member\models\MemberShopInfo;
+use app\common\services\YunqianRequest;
 
 class ShopController extends UploadVerificationBaseController
 {
@@ -38,32 +41,39 @@ class ShopController extends UploadVerificationBaseController
      */
     public function index()
     {
-        if(request()->ajax()){
+        return view('setting.shop.shop');
+    }
+
+    public function shopSetInfo()
+    {
+        if (request()->ajax()) {
             $shop = Setting::get('shop.shop');
-            //dd(yz_tomedia($shop['logo_url']));
             $shop['logo_url'] = !empty($shop['logo_url']) ? $shop['logo_url'] : yz_tomedia($shop['logo']);
             $shop['signimg_url'] = !empty($shop['signimg_url']) ? $shop['signimg_url'] : yz_tomedia($shop['signimg']);
             $shop['copyrightImg_url'] = !empty($shop['copyrightImg_url']) ? $shop['copyrightImg_url'] : yz_tomedia($shop['copyrightImg']);
             $level = MemberLevel::get(['id','level_name']);
             $requestModel = request()->shop;
             if ($requestModel) {
-                if(Cache::has('shop_setting')){
+                if ($requestModel['agreement']) {
+                    RichText::set('shop.agreement', $requestModel['agreement']);
+                    unset($requestModel['agreement']);
+                }
+                if (Cache::has('shop_setting')) {
                     Cache::forget('shop_setting');
                 }
-                $requestModel['credit']=empty($requestModel['credit'])?"余额":$requestModel['credit'];
+                $requestModel['credit'] = empty($requestModel['credit'])?"余额":$requestModel['credit'];
                 if (Setting::set('shop.shop', $requestModel)) {
                     return $this->successJson('商城设置成功');
                 } else {
                     return $this->errorJson('商城设置失败');
                 }
             }
-
+            $shop['agreement'] = RichText::get('shop.agreement');
             return $this->successJson('请求接口成功',[
                 'shop' => $shop,
-                'level' => $level
+                'level' => $level,
             ]);
         }
-        return view('setting.shop.shop');
     }
 
     /**
@@ -72,20 +82,18 @@ class ShopController extends UploadVerificationBaseController
      */
     public function member()
     {
-        if(request()->ajax()){
+        if (request()->ajax()) {
             $member = Setting::get('shop.member');
             $shop = Setting::get('shop.shop');
             $requestModel = request()->member;
-
             $member['headimg_url'] = !empty($member['headimg_url']) ? $member['headimg_url'] : yz_tomedia($member['headimg']);
             if ($requestModel) {
                 if($requestModel['is_bind_mobile'] !== '0' && $requestModel['invite_page'] == '1'){
                     return $this->errorJson('强制绑定手机号跟邀请页面不能同时开启');
                 }
-                if(Cache::has('shop_member')){
+                if (Cache::has('shop_member')) {
                     Cache::forget('shop_member');
                 }
-
                 if (Setting::set('shop.member', $requestModel)) {
                     return $this->successJson('会员设置成功');
                 } else {
@@ -93,9 +101,8 @@ class ShopController extends UploadVerificationBaseController
                 }
             }
             $is_diyform = \YunShop::plugin()->get('diyform');
-
             $diyForm = [];
-            if($is_diyform){
+            if ($is_diyform) {
                 $diyForm = DiyformTypeModel::getDiyformList()->get();
 
             }
@@ -116,39 +123,31 @@ class ShopController extends UploadVerificationBaseController
     public function register()
     {
         $register = Setting::get('shop.register');
-        $shop = Setting::get('shop.shop');
         $requestModel = request()->register;
         if ($requestModel) {
-            if(Cache::has('shop_register')){
+            if (Cache::has('shop_register')) {
                 Cache::forget('shop_register');
             }
-
             if (!empty($requestModel['protocol'])) {
                 $shop = Protocol::uniacid()->first();
                 if(empty($shop)){
                     $shop = new Protocol();
                     $shop->uniacid = \YunShop::app()->uniacid;
                 }
-
                 $shop->status = $requestModel['protocol']['status'];
                 $shop->title = $requestModel['protocol']['title'];
                 $shop->content = $requestModel['protocol']['content'];
                 $shop->save();
                 $requestModel['protocol']['content'] = '';
             }
-
             unset($requestModel['protocol']['content']);
-
-
             if (Setting::set('shop.register', $requestModel)) {
                 return $this->successJson('设置成功', Url::absoluteWeb('setting.shop.register'));
             } else {
                 $this->errorJson('设置失败');
             }
         }
-
         $protocol = Protocol::uniacid()->first();
-
         return view('setting.shop.register',[
             'register' => $register,
             'protocol' => $protocol,
@@ -496,9 +495,9 @@ class ShopController extends UploadVerificationBaseController
             'weixin_jie_key' => '',
             'weixin_jie_root' => ''
         ];//借用微信支付证书,在哪里取得数据待定?
-        $requestModel = request()->pay;
 
-        if ($requestModel) {
+        if (request()->ajax()) {
+            $requestModel = request()->pay;
             if (isset($requestModel['weixin_version']) && $requestModel['weixin_version'] == 1) {
                 if (!empty($requestModel['new_weixin_cert']) && !empty($requestModel['new_weixin_key'])) {
                     $updatefile_v2 = $this->updateFileV2(['weixin_cert' => $requestModel['new_weixin_cert'], 'weixin_key' => $requestModel['new_weixin_key']]);
@@ -557,7 +556,7 @@ class ShopController extends UploadVerificationBaseController
 
     private function  upload($fileinput)
     {
-        $valid_ext = ['pem'];
+        $valid_ext = ['pem','crt'];
 
             $file = \Request::file($fileinput);
             if ($file->isValid()) {
@@ -604,7 +603,10 @@ class ShopController extends UploadVerificationBaseController
 
         if ($update['status'] == 1) {
             $uniacid = \YunShop::app()->uniacid;
-            $data[$file] = storage_path('cert/' . $uniacid . "_" . $update['file']);
+            $path_name = storage_path('cert/' . $uniacid . "_" . $update['file']);
+            $data['key'] = $file;
+            $data['value'] = $path_name;
+            $data[$file] = $path_name;
         }
         if (!empty($data)) {
             return ['status' => 1, 'data' => $data];
@@ -660,22 +662,94 @@ class ShopController extends UploadVerificationBaseController
     public function expressInfo()
     {
         if(request()->ajax()){
-            $set = Setting::get('shop.express_info');//快递鸟1002状态为免费，8001状态为收费
-
+            $set = LogisticsSet::uniacid()->first();//快递鸟1002状态为免费，8001状态为收费
+            $statistics = [];
+            if ($set->type == 2){
+                $data = unserialize($set->data);
+                $data = $this->getApiFrequency($data);
+                $statistics = [
+                    'apiTotalCount'     => $data['data']['statistics']['apiTotalCount'],
+                    'statistics'        => $data['data']['statistics']['apiTotalUsed'],
+                    'apiTotalPrice'     => $data['data']['statistics']['apiTotalPrice'],
+                ];
+            }
             $requestModel = request()->express_info;
+            $type = request()->type;
             if ($requestModel) {
-                if (Setting::set('shop.express_info', $requestModel)) {
-                    return $this->successJson(' 物流查询信息设置成功');
+                if (!$set){
+                    $set = new LogisticsSet();
+                }
+
+                $data = [
+                    'uniacid'       => \Yunshop::app()->uniacid,
+                    'type'          => $type,
+                    'data'          => serialize($requestModel),
+                ];
+
+                $set->setRawAttributes($data);
+                $validator = $set->validator($set->getAttributes());
+
+                if ($validator->fails()) {
+                    $this->error($validator->messages());
                 } else {
-                    return $this->errorJson('物流查询信息设置失败');
+                    if ($set->save()) {
+                        //显示信息并跳转
+                        return $this->successJson(' 物流查询信息设置成功');
+                    } else {
+                        return $this->errorJson('物流查询信息设置失败');
+                    }
                 }
             }
             return $this->successJson('请求接口成功',  [
-                'set' => $set,
+                'set' => unserialize($set->data),
+                'type' => $set->type,
+                'statistics'     => $statistics
             ]);
         }
         return view('setting.shop.express_info');
     }
+
+    public function getApiFrequency($data)
+    {
+        $reqURL = 'https://www.yunqiankeji.com/addons/yun_shop/api.php?i=1&uuid=0&type=5&shop_id=null&validate_page=1&scope=home&route=plugin.yunqian-api.api.recharge.query-list';
+
+        $server_name = $_SERVER['SERVER_NAME'];
+        if (strexists($server_name, 'dev')) {
+            //dev环境用本地
+            $reqURL = 'https://dev1.yunzmall.com/addons/yun_shop/api.php?i=2&uuid=0&type=5&shop_id=null&validate_page=1&scope=home&route=plugin.yunqian-api.api.recharge.query-list';
+        }
+
+        $pa = json_encode([
+            'apiItemId'=> 3,
+        ]);
+        $app_id = trim($data['YQ']['appId']);
+        $app_secret = trim($data['YQ']['appSecret']);
+
+        $yq = new YunqianRequest($pa,$reqURL,$app_id,$app_secret);
+        $result = $yq->getResult();
+        return $result ?: [];
+    }
+
+//    public function expressInfo()
+//    {
+//        if(request()->ajax()){
+//            $set = Setting::get('shop.express_info');//快递鸟1002状态为免费，8001状态为收费
+//            $requestModel = request()->express_info;
+//            $type = request()->type;
+//            dd($requestModel,$type);
+//            if ($requestModel) {
+//                if (Setting::set('shop.express_info', $requestModel)) {
+//                    return $this->successJson(' 物流查询信息设置成功');
+//                } else {
+//                    return $this->errorJson('物流查询信息设置失败');
+//                }
+//            }
+//            return $this->successJson('请求接口成功',  [
+//                'set' => $set,
+//            ]);
+//        }
+//        return view('setting.shop.express_info');
+//    }
 
     /**
      * 检查是否存在邀请码

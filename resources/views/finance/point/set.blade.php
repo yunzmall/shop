@@ -12,6 +12,7 @@
                     积分抵扣设置
                 </div>
                 <div class='panel-body'>
+
                     <div class="form-group">
                         <label class="col-xs-12 col-sm-3 col-md-2 control-label">积分转让</label>
                         <div class="col-sm-9 col-xs-12">
@@ -76,6 +77,23 @@
                             <span class='help-block'>开启积分抵扣, 商品最多抵扣的数目需要在商品【营销设置】中单独设置, 否则统一设置</span>
                         </div>
                     </div>
+
+                    <div class="form-group">
+                        <label class="col-xs-12 col-sm-3 col-md-2 control-label">开启默认积分抵扣</label>
+                        <div class="col-sm-9 col-xs-12">
+                            <label class="radio-inline">
+                                <input type="radio" name="set[default_deduction]" value='1'
+                                       @if ($set['default_deduction'] == 1) checked @endif /> 是
+                            </label>
+                            <label class="radio-inline">
+                                <input type="radio" name="set[default_deduction]" value='0'
+                                       @if (empty($set['default_deduction'])) checked @endif /> 否
+                            </label>
+                            <span class='help-block'>开启默认积分抵扣提交订单页面会默认开启积分抵扣按钮</span>
+                            <span class='help-block'>注:仅支持平台自营和供应商订单</span>
+                        </div>
+                    </div>
+
                     <div class="form-group">
                         <label class="col-xs-12 col-sm-3 col-md-2 control-label">积分返还</label>
                         <div class="col-sm-9 col-xs-12">
@@ -146,7 +164,7 @@
                             </label>
                             <label class="radio-inline">
                                 <input type="radio" name="set[deduction_amount_type]" value='1'
-                                       @if ($set['deduction_amount_type'] == 1) checked @endif /> 利润:(订单商品最终价格-商品成本,负数取0。不支持门店、酒店订单)
+                                       @if ($set['deduction_amount_type'] == 1) checked @endif /> 利润:(订单商品最终价格-商品成本,负数取0。不支持门店、收银台、酒店订单)
                             </label>
                         </div>
                     </div>
@@ -318,17 +336,35 @@
                 </div>
                 <div class='panel-body'>
                     <div class="form-group">
+                        <label class="col-xs-12 col-sm-3 col-md-2 control-label">购买商品赠送规则</label>
+                        <div class="col-sm-9 col-xs-12">
+                            <label class="radio-inline">
+                                <input type="radio" name="set[give_type]" value='0' @if (empty($set['give_type'])) checked @endif />
+                                <span>实付金额</span>
+                            </label>
+                            <label class="radio-inline">
+                                <input type="radio" name="set[give_type]" value='1' @if ($set['give_type'] == 1) checked @endif />
+                                <span>商品利润</span>
+                            </label>
+                            <span class='help-block'>
+                                实付金额:订单商品实际支付金额
+                                <br>
+                                商品利润:订单商品实际支付金额-商品成本,负数取0。门店和收银台利润按平台提成计算
+                            </span>
+                        </div>
+                    </div>
+                    <div class="form-group">
                         <label class="col-xs-12 col-sm-3 col-md-2 control-label">购买商品赠送积分</label>
                         <div class="col-sm-5">
                             <div class='input-group'>
                                 <span class='input-group-addon'>购买商品赠送</span>
-                                <input type="text" name="set[give_point]" value="{{$set['give_point']}}"
-                                       class="form-control"/>
+                                <input type="text" name="set[give_point]" value="{{$set['give_point']}}" class="form-control"/>
                                 <span class='input-group-addon'>积分</span>
                             </div>
                             <span class='help-block'>
-                                如: 购买2件，设置10 积分, 不管成交价格是多少， 则购买后获得20积分
-                                如: 购买2件，设置10%积分, 成交价格2 * 200= 400， 则购买后获得 40 积分（400*10%）
+                                例: 购买2件，设置10 积分, 不管成交价格是多少， 赠送积分 = 20积分
+                                <br>
+                                例: 购买2件，设置10%积分, 赠送积分 = 实付金额 * 2 * 10% 或 商品利润 * 2 * 10%
                             </span>
                         </div>
                     </div>

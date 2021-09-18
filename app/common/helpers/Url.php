@@ -42,13 +42,14 @@ class Url
         if(self::isHttp($route)){
             return $route;
         }
-        $defaultParams = ['c'=>'site','a'=>'entry','m'=>'yun_shop','do'=>rand(1000,9999),'route'=>$route];
-        $params = array_merge($defaultParams, $params);
-
         if (config('app.framework') == 'platform') {
-            return  config('app.isWeb'). '?'. http_build_query($params);
+			$defaultParams = ['route'=>$route];
+			$params = array_merge($defaultParams, $params);
+			return  config('app.isWeb'). '?'. http_build_query($params);
         } else {
-            return  '/web/index.php?'. http_build_query($params);
+			$defaultParams = ['c'=>'site','a'=>'entry','m'=>'yun_shop','do'=>rand(1000,9999),'route'=>$route];
+			$params = array_merge($defaultParams, $params);
+        	return  '/web/index.php?'. http_build_query($params);
         }
 
     }

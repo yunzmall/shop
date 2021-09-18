@@ -177,8 +177,8 @@ class SiteRegisterController extends BaseController
             ->asJsonResponse(true)
             ->get();
 
-        if (!is_null($register) && 1 == $register['result']) {
-            if ($register['data']) {
+        if (!is_null($register)) {
+            if (1 == $register['result']) {
                 //检测数据是否存在
                 $res = $this ->isExist($register['data']['shop']);
                 //var_dump($res);exit();
@@ -192,13 +192,15 @@ class SiteRegisterController extends BaseController
                         if ($register['data']['plugins']) {
                             Setting::set('free.plugin', $register['data']['plugins']);
                         }
-                        return $this->successJson("站点添加成功", ['url' => $auth_url]);
+                        return $this->successJson("商城注册成功", ['url' => $auth_url]);
                     }
                 }
+            } else {
+                return $this->errorJson($register['msg']);
             }
         }
 
-        return $this->errorJson("站点添加失败");
+        return $this->errorJson("商城注册失败");
     }
 
     /**

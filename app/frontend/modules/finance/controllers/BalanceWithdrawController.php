@@ -15,6 +15,7 @@ use app\common\facades\Setting;
 use app\common\services\credit\ConstService;
 use app\common\services\finance\BalanceChange;
 use app\common\services\finance\BalanceNoticeService;
+use app\common\services\password\PasswordService;
 use app\frontend\models\Member;
 use app\frontend\models\MemberShopInfo;
 use app\frontend\modules\finance\models\Withdraw;
@@ -31,6 +32,9 @@ class BalanceWithdrawController extends BalanceController
 
     public $withdrawModel;
 
+    /**
+     * @var Member
+     */
     public $memberModel;
 
 
@@ -57,14 +61,27 @@ class BalanceWithdrawController extends BalanceController
             'converge_pay'      => $this->balanceSet->withdrawConverge(),
             'withdraw_multiple' => $this->balanceSet->withdrawMultiple(),
             'poundage'          => $this->getPagePoundage(),
+            'has_password'      => $this->hasPassword(),
+            'need_password'     => $this->needWithdrawPassword()
         ];
 
         return $this->successJson('获取数据成功', $data);
     }
 
+    private function hasPassword()
+    {
+        return $this->memberModel->yzMember->hasPayPassword();
+    }
+
+    private function needWithdrawPassword()
+    {
+        return (new PasswordService())->isNeed('balance', 'withdraw');
+    }
 
     public function withdraw()
     {
+        if ($this->needWithdrawPassword()) (new PasswordService())->checkPayPassword($this->memberId(), $this->password());
+
         if (!$this->balanceSet->withdrawSet()) {
             return $this->errorJson('未开启余额提现');
         }

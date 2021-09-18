@@ -20,7 +20,6 @@ use app\common\services\wechat\lib\WxPayConfig;
 use app\common\services\wechat\lib\WxPayException;
 use app\common\services\wechat\lib\WxPayJsApiPay;
 use app\common\services\wechat\lib\WxPayUnifiedOrder;
-use EasyWeChat\Foundation\Application;
 
 class WechatJsapiPayService extends Pay
 {

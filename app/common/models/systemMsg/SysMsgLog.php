@@ -8,6 +8,7 @@
 
 namespace app\common\models\systemMsg;
 
+use app\common\helpers\Cache;
 use app\common\models\BaseModel;
 use app\common\services\SystemMsgService;
 
@@ -63,8 +64,13 @@ class SysMsgLog extends BaseModel
     //获取总共未读的数量
     public static function getLogCount()
     {
-        $model = self::uniacid();
-        return $model->where('is_read',0)->count();
+        if(Cache::has('sys_msg_count')){
+            $count = Cache::get('sys_msg_count');
+        }else{
+            $count = self::uniacid()->where('is_read',0)->count();
+            Cache::put('sys_msg_count',$count,0.2);
+        }
+        return $count;
     }
 
 

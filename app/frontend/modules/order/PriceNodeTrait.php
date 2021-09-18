@@ -91,12 +91,17 @@ trait PriceNodeTrait
 
     public function getPriceBeforeWeight($key)
     {
+
         $weight = 0;
         foreach ($this->getPriceNodes() as $priceNode) {
+
+            //todo 主要是第一个抵扣会忽悠当前节点前一个节点的金额，所以这里返回当前节点排序
+            //todo 使用大于判断会忽略与当前节点同一种排序数值的金额
+            $weight = $priceNode->getWeight();
             if ($priceNode->getKey() == $key) {
                 break;
             }
-            $weight = $priceNode->getWeight();
+//            $weight = $priceNode->getWeight();
         }
 
         $nodeKey = $this->getPriceNodes()->filter(function ($priceNode) use ($weight) {

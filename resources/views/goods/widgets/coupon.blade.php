@@ -24,7 +24,7 @@
             </label>
             <label class='radio-inline'>
                 <input type='radio' name='widgets[coupon][send_type]' value='1' @if($coupon->send_type == 1) checked @endif/>
-                订单完成后的10分钟后发放
+                订单完成后的1分钟后发放
             </label>
         </div>
     </div>
@@ -160,7 +160,46 @@
 </div>
 
 
+<div class="form-group">
+    <label class="col-xs-12 col-sm-3 col-md-2 control-label">禁止使用优惠券</label>
+    <div class="col-sm-9 col-xs-12">
+        <label class='radio-inline'>
+            <input type='radio' name='widgets[coupon][no_use]' value='1' @if($coupon->no_use == '1')  checked @endif/>
+            开启
+        </label>
+        <label class='radio-inline'>
+            <input type='radio' name='widgets[coupon][no_use]' value='0' @if(empty($coupon->no_use))checked @endif/>
+            关闭
+        </label>
+        <span class='help-block'>开启后购买该商品不能使用优惠券</span>
+    </div>
+</div>
 
+<div class="form-group">
+    <label class="col-xs-12 col-sm-3 col-md-2 control-label">可使用优惠券数量限制</label>
+    <div class="col-sm-9 col-xs-12">
+        <label class='radio-inline'>
+            <input type='radio' name='widgets[coupon][is_use_num]' value='1' @if($coupon->is_use_num == '1')  checked @endif/>
+            开启
+        </label>
+        <label class='radio-inline'>
+            <input type='radio' name='widgets[coupon][is_use_num]' value='0' @if(empty($coupon->is_use_num))checked @endif/>
+            关闭
+        </label>
+        <span class='help-block'>开启后此商品订单可限制使用优惠券数量，注：开启拆单此设置不生效</span>
+        <span class='help-block'></span>
+    </div>
+</div>
+
+<div class="form-group">
+    <label class="col-xs-12 col-sm-3 col-md-2 control-label">可使用数量</label>
+    <div class="col-sm-6 col-xs-6">
+        <div class='input-group col-md-6' >
+            <input type='text' name='widgets[coupon][use_num]' class="form-control" value="{{ $coupon->use_num }}"/>
+            <span class='help-block'>商品订单可使用优惠券数量，为0不限制，只能设置0或正整数，注：开启拆单此设置不生效</span>
+        </div>
+    </div>
+</div>
 
 <script language='javascript'>
     $(function () {

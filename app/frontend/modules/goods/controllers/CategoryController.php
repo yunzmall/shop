@@ -276,7 +276,7 @@ class CategoryController extends BaseController
             $goodsModel->orderBy("comment_num",$sort_status);
         }
 
-        $list = $goodsModel->paginate(10);
+        $list = $goodsModel->paginate(25);
 
         $lease_switch = LeaseToyGoods::whetherEnabled();
 
@@ -423,7 +423,7 @@ class CategoryController extends BaseController
             ->with(['hasManySpecs' => function ($query) {
                 return $query->select('id', 'goods_id', 'title', 'description')->with(['hasManySpecsItem'=>function($query){
                     return $query->select('id', 'title', 'specid', 'thumb');
-                }]);
+                }])->orderBy('display_order','asc');
             }, 'hasManyOptions' => function ($query) {
                 return $query->select('id', 'goods_id', 'title', 'thumb', 'product_price', 'market_price', 'stock', 'specs', 'weight');
             }])
@@ -465,8 +465,21 @@ class CategoryController extends BaseController
             $goodsModel->price_level = $goodsModel->price_level;
             $goodsModel->is_open_micro = $goodsModel->is_open_micro;
 
+            //特殊商品
+            if (app('plugins')->isEnabled('special-goods')) {
+                $goodsModel->is_special = \Yunshop\SpecialGoods\services\SpecialGoodsShop::isSpecial($goodsModel->id, $goodsModel->plugin_id);
+            }
+
+
         }
-        return  $list->toArray();
+        $list = $list->toArray();
+
+        //积分商城
+        if (app('plugins')->isEnabled('point-mall')) {
+            $list['data'] = \Yunshop\PointMall\api\models\PointMallGoodsModel::setPointGoods($list['data']);
+        }
+
+        return  $list;
     }
 
     /**
@@ -549,9 +562,15 @@ class CategoryController extends BaseController
 
         if ($superior['parent_id'] == 0) {
             $list['top_img'] = yz_tomedia($superior['adv_img']);
+            $list['adv_url'] = $superior['adv_url'];
+            $list['small_adv_url'] = $superior['small_adv_url'];
         } else {
-            $top_img = Category::uniacid()->where("id",$superior['parent_id'])->value("adv_img");
-            $list['top_img'] = empty($top_img) ? "" : yz_tomedia($top_img);
+            // $top_img = Category::uniacid()->where("id",$superior['parent_id'])->value("adv_img");
+            $superior = Category::uniacid()->where("id",$superior['parent_id'])->first();
+            $list['top_img'] = yz_tomedia($superior['adv_img']);
+            $list['adv_url'] = $superior['adv_url'];
+            $list['small_adv_url'] = $superior['small_adv_url'];
+            // $list['top_img'] = empty($top_img) ? "" : yz_tomedia($top_img);
         }
 
         if($list){

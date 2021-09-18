@@ -16,6 +16,7 @@ use app\backend\modules\member\models\MemberBankCard;
 use app\backend\modules\member\models\MemberShopInfo;
 use app\common\components\BaseController;
 use app\common\helpers\PaginationHelper;
+use app\common\models\WithdrawMergeServicetaxRate;
 use app\common\services\ExportService;
 
 class RecordsController extends BaseController
@@ -185,6 +186,7 @@ class RecordsController extends BaseController
             '审核时间',
             '打款时间',
             '到账时间',
+            '自定义信息',
 
 
             '打款至',
@@ -199,25 +201,29 @@ class RecordsController extends BaseController
             '开户行城市',
             '开户行支行',
             '银行卡信息',
-            '开户人姓名'
+            '开户人姓名',
         ];
         foreach ($export_model->builder_model as $key => $item)
         {
+            $nickname = $item->hasOneMember->nickname;
+            $realname = $item->hasOneMember->realname.'/'.$item->hasOneMember->mobile;
             $export_data[$key + 1] = [
                 $item->withdraw_sn,
                 $item->member_id,
-                $item->hasOneMember->nickname,
-                $item->hasOneMember->realname.'/'.$item->hasOneMember->mobile,
+                strpos($nickname,'=') === 0 ? ' ' . $nickname : $nickname,
+                strpos($realname,'=') === 0 ? ' ' . $realname : $realname,
                 $item->type_name,
                 $item->pay_way_name,
                 $item->amounts,
                 $this->getEstimatePoundage($item),//$item->actual_poundage,
-                $this->getEstimateServiceTax($item),//$item->actual_servicetax,
-                $item->actual_amounts,
+                ($item->type == 'balance'?0:$this->getEstimateServiceTax($item)),//$item->actual_servicetax,
+//                $item->actual_amounts,
+                $this->getActualAmount($item),
                 $item->created_at->toDateTimeString(),
                 $item->audit_at ? date("Y-m-d H:i:s", $item->audit_at) : '',
                 $item->pay_at ? date("Y-m-d H:i:s", $item->pay_at) : '',
                 $item->arrival_at ? date("Y-m-d H:i:s", $item->arrival_at) : '',
+                $this->getCustomValue($item->member_id),
             ];
             if ($item->pay_way == 'manual') {
                 switch ($item->manual_type) {
@@ -239,7 +245,7 @@ class RecordsController extends BaseController
             $zit = strpos($export_data[$key + 1][21],'𠂆');
             if ($zit) {
                 $export_data[$key + 1][21] = '*';
-            }             
+            }
         }
         $export_model->export($file_name, $export_data, \Request::query('route'));
     }
@@ -281,14 +287,59 @@ class RecordsController extends BaseController
         return $item->actual_poundage;
     }
 
-    private function getEstimateServiceTax($item)
+    private function getEstimateServiceTax($withdraw)
     {
-        if (!(float)$item->actual_servicetax > 0 || is_null($item->actual_servicetax)) {
-            $poundage = $this->getEstimatePoundage($item);
-            $amount = bcsub($item->amounts, $poundage, 2);
-            return bcdiv(bcmul($amount, $item->servicetax_rate, 4), 100, 2);
+//        if (!(float)$item->actual_servicetax > 0 || is_null($item->actual_servicetax)) {
+//            $poundage = $this->getEstimatePoundage($item);
+//            $amount = bcsub($item->amounts, $poundage, 2);
+//            return bcdiv(bcmul($amount, $item->servicetax_rate, 4), 100, 2);
+//        }
+        $withdraw->servicetax = $this->setWithdraw($withdraw)->servicetax;
+
+        return $withdraw->servicetax;
+    }
+
+    private function getCustomValue($member_id)
+    {
+        $yzMember = MemberShopInfo::select('member_form')->where('member_id',$member_id)->first();
+
+        $str = '';
+        if($yzMember->member_form){
+            foreach(json_decode($yzMember->member_form) as $value){
+               $str .= '<'.$value->name.':'.$value->value.'>     ';
+            }
         }
-        return $item->actual_servicetax;
+        return $str;
+    }
+
+    public function getActualAmount($withdraw)
+    {
+        $withdraw_data = $this->setWithdraw($withdraw);
+        $withdraw_data->actual_amounts = bcsub(bcsub($withdraw_data->amounts, $withdraw_data->poundage, 2), $withdraw_data->servicetax, 2);
+        return $withdraw_data->actual_amounts;
+    }
+
+    private function setWithdraw($withdraw)
+    {
+        if ($withdraw->status == 0) {
+            $withdraw_set = \Setting::get('withdraw.income');
+            if ($withdraw->pay_way == 'balance' && $withdraw_set['balance_special']) {
+                $merge_percent = null;
+            } else {
+                $merge_percent = WithdrawMergeServicetaxRate::uniacid()->where('withdraw_id', $withdraw->id)->where('is_disabled', 0)->first();
+            }
+            if ($merge_percent) {
+                $withdraw->servicetax_rate = $merge_percent->servicetax_rate;
+                $base_amount = !$withdraw_set['service_tax_calculation'] ? bcsub($withdraw->amounts, $withdraw->poundage, 2) : $withdraw->amounts;
+                $withdraw->servicetax = bcmul($base_amount, bcdiv($withdraw->servicetax_rate, 100, 4), 2);
+            } elseif ($withdraw->pay_way != 'balance' || !$withdraw_set['balance_special']) {
+                $base_amount = !$withdraw_set['service_tax_calculation'] ? bcsub($withdraw->amounts, $withdraw->poundage, 2) : $withdraw->amounts;
+                $res = \app\common\services\finance\Withdraw::getWithdrawServicetaxPercent($base_amount);
+                $withdraw->servicetax_rate = $res['servicetax_percent'];
+                $withdraw->servicetax = $res['servicetax_amount'];
+            }
+        }
+        return $withdraw;
     }
 
 }

@@ -248,7 +248,7 @@ class MemberAddressController extends ApiController
             $addressModel->uniacid = \YunShop::app()->uniacid;
             $validator = $addressModel->validator($addressModel->getAttributes());
             if ($validator->fails()) {
-                return $this->errorJson($validator->messages());
+                return $this->errorJson($this->returnMsg($validator->messages()->toArray()));
             }
             if ($addressModel->save()) {
                 return $this->successJson('新增地址成功', $addressModel->toArray());
@@ -257,6 +257,18 @@ class MemberAddressController extends ApiController
             }
         }
         return $this->errorJson("未获取到数据，请重试！");
+    }
+
+    //处理返回表单验证信息
+    public function returnMsg($msgArr)
+    {
+        foreach ($msgArr as $item){
+            foreach($item as $em){
+                if($em){
+                    return $em;
+                }
+            }
+        }
     }
 
     /*
@@ -269,18 +281,13 @@ class MemberAddressController extends ApiController
         if (!$addressModel) {
             return $this->errorJson("未找到数据或已删除");
         }
-
         if (!\YunShop::request()->username) {
             return $this->errorJson('收件人不能为空');
         }
-
         $mobile = \YunShop::request()->mobile;
         if (!$mobile) {
             return $this->errorJson('手机号不能为空');
         }
-        // if (!preg_match("/^1\d{10}$/",$mobile)) {
-        //     return $this->errorJson('手机号格式不正确');
-        // }
         if (!preg_match("/^[0-9]*$/", $mobile)) {
 
             return $this->errorJson('请输入数字');
@@ -289,7 +296,6 @@ class MemberAddressController extends ApiController
         if (!\YunShop::request()->province) {
             return $this->errorJson('请选择省份');
         }
-
 
         if ($this->needRegion()) {
 
@@ -306,31 +312,15 @@ class MemberAddressController extends ApiController
             }
         }
 
-        
-//        if (!\YunShop::request()->province) {
-//            return $this->errorJson('请选择省份');
-//        }
-//
-//        if (!\YunShop::request()->city) {
-//            return $this->errorJson('请选择城市');
-//        }
-//
-//        if (!\YunShop::request()->district) {
-//            return $this->errorJson('请选择区域');
-//        }
-
         if (!\YunShop::request()->address) {
             return $this->errorJson('请输入详细地址');
         }
 
 
         $requestAddress = array(
-            //'uid' => $requestAddress->uid,
-            //'uniacid' => \YunShop::app()->uniacid,
             'username'  => \YunShop::request()->username,
             'mobile'    => \YunShop::request()->mobile,
             'zipcode'   => '',
-//            'isdefault'     =>  \YunShop::request()->isdefault?1:0,
             'province'  => \YunShop::request()->province,
             'city'      => \YunShop::request()->city,
             'district'  => \YunShop::request()->district,
@@ -346,7 +336,8 @@ class MemberAddressController extends ApiController
 
         $validator = $addressModel->validator($addressModel->getAttributes());
         if ($validator->fails()) {
-            return $this->errorJson($validator->messages());
+            return $this->errorJson($this->returnMsg($validator->messages()->toArray()));
+//            return $this->errorJson($validator->messages());
         }
         if (empty($addressModel->isdefault) && \YunShop::request()->isdefault) {
             $addressModel->isdefault = 1;
@@ -370,7 +361,7 @@ class MemberAddressController extends ApiController
     {
         $addressId = \YunShop::request()->address_id;
         $addressModel = $this->memberAddressRepository->getAddressById($addressId);
-        if (!$addressModel) {
+        if (!$addressModel || $addressModel->uid != \YunShop::app()->getMemberId()) {
             return $this->errorJson("未找到数据或已删除");
         }
         //todo 需要考虑删除默认地址选择其他地址改为默认

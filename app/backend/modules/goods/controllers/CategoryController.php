@@ -12,6 +12,7 @@ use app\common\models\GoodsCategory;
 use app\common\models\Member;
 use app\common\models\Order;
 use app\common\helpers\Url;
+use phpDocumentor\Reflection\DocBlock\Description;
 use Setting;
 use app\backend\modules\filtering\models\Filtering;
 
@@ -40,6 +41,88 @@ class CategoryController extends UploadVerificationBaseController
             return $this->successJson('', array('data' => $category_data ,'thirdShow' => $thirdShow));
         }
         return view('goods.category.list');
+    }
+
+    /**
+     * 获取所有商城商品分类（批量修改用）
+     */
+    public function getAllShopCategory(){
+
+        $setlevel = \Setting::get('shop.category.cat_level') ? : 2;  //根据后台设置显示两级还是三级分类
+
+        $category_data = Categorys::uniacid()
+            ->select('id', 'name', 'parent_id')->with(['hasManyChildren' => function ($query) use ($setlevel){
+                $query->select('id', 'name', 'parent_id')
+                    ->with(['hasManyChildren' => function ($query) use ($setlevel) {
+                        $query->select('id', 'name', 'parent_id')->where('level', $setlevel);
+                    }]);
+            }])->where('level', 1)->where('plugin_id',0)
+            ->orderBy('display_order' ,'asc')->orderBy('id' ,'asc')->get();
+
+        return $this->successJson('获取成功',['list'=>$category_data,'setlevel'=>$setlevel]);
+
+    }
+
+    /**
+     * 批量修改商城商品分类
+     */
+    public function changeManyGoodsCategory(){
+
+        $request = request();
+
+        if (!$request->goods_id_arr || !is_array($request->goods_id_arr)){
+            return $this->errorJson('请选择要修改分类的商品');
+        }
+
+        $setlevel = \Setting::get('shop.category.cat_level') ? : 2;
+        $category_id = 0;
+        $category_ids = '';
+        for ($i=1;$i<=$setlevel;$i++){
+            $key = 'level_'.$i;
+            if (empty($request->$key)){
+                return $this->errorJson('请选择'.$i.'级分类');
+            }
+            $category_id = $request->$key;
+            $category_ids .= empty($category_ids) ? $request->$key : ','.$request->$key;
+        }
+
+        //校验分类关系链是否正确
+        if (!$check_res = \app\common\models\Category::checkCategory(explode(',',$category_ids))){
+            return $this->errorJson('分类异常');
+        }
+
+        if(!$goods_ids = \app\common\models\Goods::uniacid()->where('plugin_id',0)->whereIn('id',$request->goods_id_arr)->pluck('id')){
+            return $this->errorJson('选择商品不存在或非商城商品');
+        }
+        $category_goods_ids = GoodsCategory::whereIn('goods_id',$goods_ids)->pluck('goods_id');
+
+        $insert_ids = $goods_ids->diff($category_goods_ids);
+        $update_ids = $goods_ids->intersect($category_goods_ids);
+
+//        dd($goods_ids->toArray(),$update_ids->toArray(),$insert_ids,$update_ids);
+
+        if ($insert_ids){
+            $time = time();
+            $insert_data = $insert_ids->map(function ($v) use ($category_id,$category_ids,$time){
+                return [
+                    'goods_id'=>$v,
+                    'category_id'=>$category_id,
+                    'category_ids'=>$category_ids,
+                    'created_at'=>$time,
+                    'updated_at'=>$time
+                ];
+            })->all();
+            GoodsCategory::insert($insert_data);
+        }
+
+        if ($update_ids){
+            GoodsCategory::whereIn('goods_id',$update_ids)->update([
+                'category_id'=>$category_id,
+                'category_ids'=>$category_ids
+            ]);
+        }
+
+        return $this->successJson('修改成功');
     }
 
     public function categoryInfo()
@@ -187,22 +270,23 @@ class CategoryController extends UploadVerificationBaseController
      */
     public function deletedCategory()
     {
-        $category = Category::getCategory(request()->id);
+        $category = Category::find(request()->id);
+
         if (!$category) {
             return $this->errorJson('无此分类或已经删除');
         }
         //查询是否有商品分类关联表 find_in_set
-        $GoodsCategory = GoodsCategory::whereRaw('FIND_IN_SET(?,category_ids)', request()->id)->get();
-        $goodsId = [];
-        foreach ($GoodsCategory as $row) {
-            $goodsId[] = $row['attributes']['goods_id'];
-        }
+        $good_ids = GoodsCategory::whereRaw('FIND_IN_SET(?,category_ids)', $category->id)
+            ->pluck('goods_id')
+            ->toArray();
+
         //查询是否有商品
-        $goods = Goods::wherein('id', $goodsId)->first();
+        $goods = Goods::whereIn('id', $good_ids)->first();
         if (!empty($goods)) {
             return $this->errorJson('分类下存在商品,不允许删除');
         }
-        $result = Category::deletedAllCategory(request()->id);
+
+        $result = Category::deletedAllCategory($category->id);
         if ($result) {
             return $this->successJson('删除分类成功');
         } else {
@@ -272,4 +356,29 @@ class CategoryController extends UploadVerificationBaseController
         return $this->successJson('ok',$categorys);
     }
 
+    /**
+     * 批量更新商品分类显示
+     */
+
+    public function batchDisplay()
+    {
+        return $this->batchOption(request()->ids, 'enabled', request()->enabled);
+    }
+
+    /**
+     * 批量更新商品分类推荐
+     */
+    public function batchRecommend()
+    {
+        return $this->batchOption(request()->ids, 'is_home', request()->is_home);
+    }
+
+    protected function batchOption($ids, $field, $value)
+    {
+        if (is_array($ids) && isset($value)){
+            Category::uniacid()->whereIn('id', $ids)->update([$field=> $value]);
+            return $this->successJson("批量更新成功");
+        }
+        return $this->errorJson('修改失败, 请检查参数');
+    }
 }

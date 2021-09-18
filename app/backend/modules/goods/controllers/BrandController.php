@@ -22,14 +22,29 @@ class BrandController extends UploadVerificationBaseController
      */
     public function index()
     {
-//        $pageSize = 20;
-//        $list = Brand::getBrands()->paginate($pageSize)->toArray();
-//        $pager = PaginationHelper::show($list['total'], $list['current_page'], $list['per_page']);
-//        return view('goods.brand.list', [
-//            'list' => $list,
-//            'pager' => $pager,
-//        ])->render();
         return view('goods.brand.list')->render();
+    }
+
+
+    public function getBrandData(){
+        $where = [];
+
+        if (request()->search_brand_keyword){
+            $where[] = ['name','like','%'.trim(request()->search_brand_keyword).'%'];
+        }
+
+        $data = \app\common\models\Brand::getBrands()->where($where)->select('id', 'name')->get();
+
+        if ($data->isNotEmpty()){
+            $data->each(function (&$v){
+                if (mb_strlen($v->name,'utf-8') > 40){
+                    $v->name = mb_substr($v->name,0,40,'utf-8').'...';
+                }
+            });
+        }
+
+        return $this->successJson('获取成功',$data);
+
     }
 
     public function brandData()
@@ -82,10 +97,6 @@ class BrandController extends UploadVerificationBaseController
         ];
 
         return $this->successJson('ok',$brandModel);
-//        yz_tpl_ueditor();
-//        return view('goods.brand.info', [
-//            'brandModel' => $brandModel
-//        ])->render();
     }
 
     public function editViwe()
@@ -126,14 +137,7 @@ class BrandController extends UploadVerificationBaseController
         $brandModel->logo_url = yz_tomedia($brandModel->logo);
         $brandModel->desc =  html_entity_decode($brandModel->desc);
         return $this->successJson('ok',$brandModel);
-//        return view('goods.brand.info', [
-//            'brandModel' => $brandModel
-//        ])->render();
     }
-
-
-
-
 
     /**
      * 删除商品品牌
@@ -168,5 +172,16 @@ class BrandController extends UploadVerificationBaseController
         return $this->successJson('ok',$brand);
     }
 
+    /**
+     * 批量更新品牌推荐状态
+     */
+    public function batchRecommend()
+    {
+        if (is_array(request()->ids) && isset(request()->is_recommend)){
+            Brand::uniacid()->whereIn('id', request()->ids)->update(['is_recommend'=> request()->is_recommend]);
+            return $this->successJson("批量更新成功");
+        }
+        return $this->errorJson('修改失败, 请检查参数');
+    }
 
 }

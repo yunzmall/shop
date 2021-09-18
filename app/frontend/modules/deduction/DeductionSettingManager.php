@@ -8,6 +8,7 @@
 
 namespace app\frontend\modules\deduction;
 
+use app\frontend\modules\finance\deduction\BalanceDeductionSettingManager;
 use app\frontend\modules\finance\deduction\PointDeductionSettingManager;
 use Illuminate\Container\Container;
 
@@ -25,6 +26,13 @@ class DeductionSettingManager extends Container
          */
         $this->singleton('point', function ($deductionSettingManager) {
             return new PointDeductionSettingManager();
+        });
+
+        /**
+         * 余额抵扣设置模型
+         */
+        $this->singleton('balance', function ($deductionSettingManager) {
+            return new BalanceDeductionSettingManager();
         });
     }
 }

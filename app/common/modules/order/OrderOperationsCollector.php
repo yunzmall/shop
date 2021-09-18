@@ -9,37 +9,62 @@
 namespace app\common\modules\order;
 
 use app\common\models\Order;
+use app\common\modules\shop\ShopConfig;
 use app\frontend\modules\order\operations\OrderOperation;
 use app\frontend\modules\order\operations\OrderOperationInterface;
+use app\frontend\modules\order\services\OrderFrontendButtonBase;
 
 class OrderOperationsCollector
 {
     /**
      * @param Order $order
      * @return array
-     * @throws \app\common\exceptions\AppException
      */
     public function getOperations(Order $order)
     {
-        $operationsSettings = $order->getOperationsSetting();
-        $operations = array_map(function ($operationName) use ($order) {
-            /**
-             * @var OrderOperationInterface $operation
-             */
-            $operation = new $operationName($order);
-            if (!$operation->enable()) {
-                return null;
+        $operations = $order->getOperationsSetting();
+
+        if (empty($operations)) {
+            return [];
+        }
+        $button = [];
+        foreach ($operations as $item) {
+            if (empty($item['class']) || !class_exists($item['class'])) {
+                continue;
             }
-            $result['name'] = $operation->getName();
-            $result['value'] = $operation->getValue();
-            $result['api'] = $operation->getApi();
-            $result['type'] = $operation->getType();
+            $class = new $item['class']();
+            if (!($class instanceof OrderFrontendButtonBase)) {
+                continue;
+            }
+            $class->init($order);
+            if ($class->enable()) {
+                //取第一个通过验证的
+                $button = $class->getButton();
+                break;
+            }
+        }
+        $button = array_filter($button);
+        return array_values($button) ? : [];
 
-            return $result;
-        }, $operationsSettings);
-
-        $operations = array_filter($operations);
-        return array_values($operations) ?: [];
+//        $operationsSettings = $order->getOperationsSetting();
+//        $operations = array_map(function ($operationName) use ($order) {
+//            /**
+//             * @var OrderOperationInterface $operation
+//             */
+//            $operation = new $operationName($order);
+//            if (!$operation->enable()) {
+//                return null;
+//            }
+//            $result['name'] = $operation->getName();
+//            $result['value'] = $operation->getValue();
+//            $result['api'] = $operation->getApi();
+//            $result['type'] = $operation->getType();
+//
+//            return $result;
+//        }, $operationsSettings);
+//
+//        $operations = array_filter($operations);
+//        return array_values($operations) ?: [];
     }
 
     /**

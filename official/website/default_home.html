@@ -3,12 +3,119 @@
   <head lang="en">
     <meta http-equiv="content-Type" content="text/html;charset=UTF-8" />
     <meta http-equiv="Access-Control-Allow-Origin" content="*" />
-    <meta name="keywords" content="<?php echo $keywords ?>">
-    <meta name="description" content="<?php echo $describe ?>">
+    <meta name="keywords" content="<?php echo $keywords ?>" />
+    <meta name="description" content="<?php echo $describe ?>" />
     <title><?php echo $title ?></title>
+    <link rel="stylesheet" href="//at.alicdn.com/t/font_432132_0n3q5gx5aiio.css" />
     <link rel="stylesheet" href="official/website/css/main.css" />
   </head>
+  <style>
+    .home_page img{
+  width: 100%;
+}
+.top_detail{
+  display: flex;
+  justify-content: space-evenly;
+  padding: 150px 0;
+}
+.contain{
+  align-items: normal !important;
+  display: flex;
+  justify-content: center;
+  flex-direction: column;
 
+}
+.top_introduce{
+display: flex;
+flex-direction: column;
+}
+.top_introduce .title{
+  font-size: 16px;
+  letter-spacing: 3.2px;
+  color: #0071dc;
+  font-weight: bold;
+}
+.top_introduce .describe{
+  font-size: 35px;
+  letter-spacing: 7.2px;
+  color: #252525;
+  font-weight: bold;
+  margin: 10px 0;
+  max-width: 564px;
+}
+.top_introduce .objective{
+  font-size: 16px;
+  letter-spacing: 3.2px;
+  color: #444444;
+  text-align: left;
+  max-width: 527px;
+  margin-bottom: 20px;
+  font-weight: bold;
+}
+.buttom_introduce{
+  display: flex;
+  justify-content:space-between;
+}
+.buttom_introduce .left_func{
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.buttom_introduce .right_func{
+  display: flex;
+  flex-direction: column;
+}
+.buttom_introduce .title{
+  letter-spacing: 4.4px;
+  color: #252525; 
+  font-size: 18px;
+  font-weight: bold;
+  margin: 10px 0;
+  display: block;
+}
+.buttom_introduce .describe{
+  max-width: 253px;
+  font-size: 16px;
+  letter-spacing: 3.2px;
+  color: #444444;
+  font-weight: bold;
+}
+.image_contain{
+  position: relative;
+}
+.image_contain .screen{
+  position: absolute;
+}
+.image_contain .shap{
+  position: absolute;
+  left: 41px;
+  top: 20px;
+}
+.image_contain .img_detail{
+  width: 194px;
+  height: 416px;
+  position: relative;
+  top: 21px;
+  left: 42px;
+  border-radius: 15px;
+  z-index: 2;
+}
+.image_line{
+  position: absolute;
+  top: 3%;
+  left: 40%;
+  width: 124px;
+  height: 22px;
+  background: black;
+  display: block;
+  z-index: 4;
+  border-radius: 41%;
+}
+.top_detail i {
+  color: #007aff;
+  font-size: 40px;
+}
+  </style>
   <body>
     <div id="app">
       <div class="nav">
@@ -34,105 +141,144 @@
       </div>
       <div style="height: 74px"></div>
 
-      <?php echo $content;?>
 
-      <div class="news">
-        <div class="news-left">
-          <div class="news-left-title">
-            <div class="news-left-look">看一看</div>
-            <div class="news-left-title-change"><a onclick="changeList()">⟳换一批</a><input type="hidden" id="pager" value="<?php echo $pager;?>"></div>
-          </div>
-          <div id="news-content">
-            <?php foreach($web_rel as $kk=>$vv) {?>
-            <?php if ($kk <3) {?>
-            <a href="<?php echo $vv['web_url']?>" class="news-link">
-              <div class="news-li">
-                <div class="news-li-img">
-                  <img src="<?php echo $vv['thumb']?>" alt="" />
+      <!-- <div class="swiper-container" style="display: block; height: calc(100vh - 74px)">
+        <div class="swiper-wrapper middle_detail"> -->
+          <?php echo $app_top;?>
+          <?php echo $content;?>
+          
+          <div class="swiper-slide home_detail" style="justify-content: flex-end">
+            <div class="news">
+              <div class="news-left">
+                <div class="news-left-title">
+                  <div class="news-left-look">看一看</div>
+                  <div class="news-left-title-change"><a onclick="changeList()">⟳换一批</a><input type="hidden" id="pager" value="<?php echo $pager;?>" /></div>
                 </div>
-                <div class="news-li-right">
-                  <div class="news-li-right-one">
-                    <?php echo $vv['title']?>
-                  </div>
-                  <div class="news-li-right-two">
-                    <?php echo $vv['desc']?>
-                  </div>
+                <div id="news-content">
+                  <?php foreach($web_rel as $kk=>$vv) {?>
+                  <?php if ($kk <3) {?>
+                  <a href="<?php echo $vv['web_url']?>" class="news-link">
+                    <div class="news-li">
+                      <div class="news-li-img">
+                        <img src="<?php echo $vv['thumb']?>" alt="" />
+                      </div>
+                      <div class="news-li-right">
+                        <div class="news-li-right-one">
+                          <?php echo $vv['title']?>
+                        </div>
+                        <div class="news-li-right-two">
+                          <?php echo $vv['desc']?>
+                        </div>
+                      </div>
+                    </div>
+                  </a>
+                  <?php }?>
+                  <?php }?>
                 </div>
               </div>
-            </a>
-            <?php }?>
-            <?php }?>
-          </div>
-        </div>
-        <div class="news-right">
-          <div class="news-right-title">今日热点</div>
-          <?php foreach($home_data as $kk=>$vv) {?>
-          <div class="news-right-con">
-            <div class="news-right-num <?php if($kk == 0) {?> news-right-one <?php } elseif($kk == 1) {?> news-right-two <?php  } elseif($kk == 2) {?> news-right-three <?php }?>"><?php echo intval($kk+1);?></div>
-            <div class="news-right-content">
-              <a href="<?php echo $vv['web_url']?>"><?php echo $vv['title'];?></a>
-            </div>
-          </div>
-          <?php }?>
-        </div>
-      </div>
-
-      <?php echo $tail;?>
-
-      <div class="all-relation">
-        <div class="relation-btn" id="relation-btn">
-          <div class="relation-btn-one" id="callus">
-            <img src="official/website/images/lianxikefu.png" alt="" />
-            <div>联系客服</div>
-          </div>
-          <div class="relation-btn-one" id="back-top">
-            <img src="official/website/images/huidaodingbu.png" alt="" />
-            <div>回到顶部</div>
-          </div>
-        </div>
-        <div class="relation">
-          <div class="relation-title">在线咨询</div>
-          <a href="<?php echo $basic['cus_link']?>" title="点击咨询">
-            <div class="relation-tel">
-              <div class="relation-tel-img">
-                <img src="official/website/images/suspension_qq.png" alt="" />
+              <div class="news-right">
+                <div class="news-right-title">今日热点</div>
+                <?php foreach($home_data as $kk=>$vv) {?>
+                <div class="news-right-con">
+                  <div class="news-right-num <?php if($kk == 0) {?> news-right-one <?php } elseif($kk == 1) {?> news-right-two <?php } elseif($kk == 2) {?> news-right-three <?php }?>">
+                    <?php echo intval($kk+1);?>
+                  </div>
+                  <div class="news-right-content">
+                    <a href="<?php echo $vv['web_url']?>"><?php echo $vv['title'];?></a>
+                  </div>
+                </div>
+                <?php }?>
               </div>
-              <div class="relation-tel-word">在线客服</div>
             </div>
-          </a>
-          <div class="relation-tel">
-            <div class="relation-tel-img">
-              <img src="official/website/images/suspension_tel.png" alt="" />
+      
+            <?php echo $tail;?>
+      
+            <div class="all-relation">
+              <div class="relation-btn" id="relation-btn">
+                <div class="relation-btn-one" id="callus">
+                  <img src="official/website/images/lianxikefu.png" alt="" />
+                  <div>联系客服</div>
+                </div>
+                <div class="relation-btn-one" id="back-top">
+                  <img src="official/website/images/huidaodingbu.png" alt="" />
+                  <div>回到顶部</div>
+                </div>
+              </div>
+              <div class="relation">
+                <div class="relation-title">在线咨询</div>
+                <a href="<?php echo $basic['cus_link']?>" title="点击咨询">
+                  <div class="relation-tel">
+                    <div class="relation-tel-img">
+                      <img src="official/website/images/suspension_qq.png" alt="" />
+                    </div>
+                    <div class="relation-tel-word">在线客服</div>
+                  </div>
+                </a>
+                <div class="relation-tel">
+                  <div class="relation-tel-img">
+                    <img src="official/website/images/suspension_tel.png" alt="" />
+                  </div>
+                  <div class="relation-tel-word"><?php echo $basic['cus_mobile']?></div>
+                </div>
+                <div class="relation-tel relation-tel1">
+                  <div class="relation-tel-img">
+                    <img src="official/website/images/suspension_wechat.png" alt="" />
+                  </div>
+                  <div class="relation-tel-word">微信二维码</div>
+                </div>
+                <div class="qr-img">
+                  <img src="<?php echo $basic['cus_url']?>" alt="" />
+                </div>
+                <img id="close-btn" style="position: absolute; top: -15px; right: -25px" src="official/website/images/adsystem_icon_cancle.png" alt="" />
+              </div>
             </div>
-            <div class="relation-tel-word"><?php echo $basic['cus_mobile']?></div>
           </div>
-          <div class="relation-tel relation-tel1">
-            <div class="relation-tel-img">
-              <img src="official/website/images/suspension_wechat.png" alt="" />
-            </div>
-            <div class="relation-tel-word">微信二维码</div>
-          </div>
-          <div class="qr-img">
-            <img src="<?php echo $basic['cus_url']?>" alt="" />
-          </div>
-          <img
-            id="close-btn"
-            style="position: absolute; top: -15px; right: -25px"
-            src="official/website/images/adsystem_icon_cancle.png"
-            alt=""
-          />
-        </div>
-      </div>
+        <!-- </div> -->
+        <!-- Add Pagination -->
+        <!-- <div class="swiper-pagination"></div>
+           </div> -->
+      <?php echo $app_bottom;?>
     </div>
+    <link rel="stylesheet" href="https://unpkg.com/swiper/swiper-bundle.min.css" />
+    <script src="https://unpkg.com/swiper/swiper-bundle.min.js"></script>
+    <script>
+      function add() {
+        document.getElementsByClassName("swiper-container")[0].classList.add("mask");
+      }
+      function remove() {
+        document.getElementsByClassName("swiper-container")[0].classList.remove("mask");
+      }
+    </script>
+    <script>
+      var swiper = new Swiper(".swiper-container", {
+        direction: "vertical",
+        pagination: {
+          el: ".swiper-pagination",
+          clickable: true,
+        },
+        scrollbar: {
+          el: ".swiper-scrollbar",
+        },
+        keyboard: true,
+        mousewheel: true,
+        on: {
+          touchMove: function (swiper, event) {
+            add();
+          },
+          touchEnd: function (swiper, event) {
+            remove();
+          },
+        },
+      });
+    </script>
     <script type="text/javascript">
       var url = "";
       var is_runed = false;
       window.onload = function () {
-
-          url = window.location.protocol+"//"+window.location.host+"/admin.html";
-          if(document.getElementById("jump-url")) {
-              document.getElementById("jump-url").setAttribute("href", url);
-          }
+        url = window.location.protocol + "//" + window.location.host + "/admin.html";
+        if (document.getElementById("jump-url")) {
+          document.getElementById("jump-url").setAttribute("href", url);
+        }
 
         let dom1 = document.querySelectorAll(".news-li");
         if (dom1 && dom1.length > 0) {
@@ -163,20 +309,14 @@
 
         document.getElementById("callus").onclick = function (e) {
           document.getElementById("relation-btn").style.display = "none";
-          document
-            .getElementsByClassName("all-relation")[0]
-            .classList.add("all-relation-hover");
+          document.getElementsByClassName("all-relation")[0].classList.add("all-relation-hover");
         };
         document.getElementById("close-btn").onclick = function (e) {
-          document.getElementById("relation-btn").style.display =
-            "inline-block";
-          document
-            .getElementsByClassName("all-relation")[0]
-            .classList.remove("all-relation-hover");
+          document.getElementById("relation-btn").style.display = "inline-block";
+          document.getElementsByClassName("all-relation")[0].classList.remove("all-relation-hover");
         };
 
-        var scrollTop =
-          document.documentElement.scrollTop || document.body.scrollTop;
+        var scrollTop = document.documentElement.scrollTop || document.body.scrollTop;
         if (scrollTop > 0) {
           document.getElementById("back-top").style.display = "block";
         } else {
@@ -199,8 +339,7 @@
         };
 
         window.onscroll = function () {
-          var scrollTop =
-            document.documentElement.scrollTop || document.body.scrollTop;
+          var scrollTop = document.documentElement.scrollTop || document.body.scrollTop;
           if (scrollTop > 0) {
             document.getElementById("back-top").style.display = "block";
           } else {
@@ -310,9 +449,7 @@
             throw new Error("请传入配置参数");
           }
           _own = Object.assign(_own, defaultsOption, options);
-          _own.container =
-            doc.querySelector(_own.container) ||
-            doc.querySelectorAll(self.container);
+          _own.container = doc.querySelector(_own.container) || doc.querySelectorAll(self.container);
           _own.NumberControl();
         }
 
@@ -370,26 +507,26 @@
       }
       // 请求接口
       function submit() {
-        let name = document.getElementById('name').value;
-        let tel = document.getElementById('tel').value;
+        let name = document.getElementById("name").value;
+        let tel = document.getElementById("tel").value;
         let contact_url = "<?php echo $contact_url;?>";
         //console.log(contact_url);
         ajax({
-          url: contact_url,              //请求地址
-          type: "POST",                       //请求方式
-          data: { name: name, mobile: tel },        //请求参数
+          url: contact_url, //请求地址
+          type: "POST", //请求方式
+          data: { name: name, mobile: tel }, //请求参数
           dataType: "json",
           success: function (response, xml) {
-              // 此处放成功后执行的代码
-              alert('提交成功！');
+            // 此处放成功后执行的代码
+            alert("提交成功！");
           },
           fail: function (status) {
-              // 此处放失败后执行的代码
-              alert('提交失败！');
-          }
+            // 此处放失败后执行的代码
+            alert("提交失败！");
+          },
         });
       }
-      
+
       // ajax
       function ajax(options) {
         options = options || {};
@@ -410,8 +547,7 @@
           if (xhr.readyState == 4) {
             var status = xhr.status;
             if (status >= 200 && status < 300) {
-              options.success &&
-                options.success(xhr.responseText, xhr.responseXML);
+              options.success && options.success(xhr.responseText, xhr.responseXML);
             } else {
               options.fail && options.fail(status);
             }
@@ -425,10 +561,7 @@
         } else if (options.type == "POST") {
           xhr.open("POST", options.url, true);
           //设置表单提交时的内容类型
-          xhr.setRequestHeader(
-            "Content-Type",
-            "application/x-www-form-urlencoded"
-          );
+          xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
           xhr.send(params);
         }
       }
@@ -436,9 +569,7 @@
       function formatParams(data) {
         var arr = [];
         for (var name in data) {
-          arr.push(
-            encodeURIComponent(name) + "=" + encodeURIComponent(data[name])
-          );
+          arr.push(encodeURIComponent(name) + "=" + encodeURIComponent(data[name]));
         }
         arr.push(("v=" + Math.random()).replace(".", ""));
         return arr.join("&");
@@ -446,59 +577,68 @@
 
       // 换一批
       function changeList() {
-          var url = "<?php echo $follow_url;?>";
-          var pager = document.getElementById("pager").value;
-          ajax({
-              url: url,              //请求地址
-              type: "POST",                       //请求方式
-              data: {page:pager},        //请求参数
-              dataType: "json",
-              success: function (response, xml) {
-                  // 此处放成功后执行的代码
-                  // alert('提交成功！');
-                  // let list = [{},{},{},{},{}];//数据格式
-                  let list = JSON.parse(response);
-                  let list_data = list.data.read;
-                  setList(list_data);
-                  document.getElementById("pager").value = parseInt(pager)+1;
-              },
-              fail: function (status) {
-                  // 此处放失败后执行的代码
-                  // alert('提交失败！');
-              }
-          });
+        var url = "<?php echo $follow_url;?>";
+        var pager = document.getElementById("pager").value;
+        ajax({
+          url: url, //请求地址
+          type: "POST", //请求方式
+          data: { page: pager }, //请求参数
+          dataType: "json",
+          success: function (response, xml) {
+            // 此处放成功后执行的代码
+            // alert('提交成功！');
+            // let list = [{},{},{},{},{}];//数据格式
+            let list = JSON.parse(response);
+            let list_data = list.data.read;
+            setList(list_data);
+            document.getElementById("pager").value = parseInt(pager) + 1;
+          },
+          fail: function (status) {
+            // 此处放失败后执行的代码
+            // alert('提交失败！');
+          },
+        });
       }
       function setList(list) {
-          if(list.length && list!=null && list.length>0) {
-              let html = ""
-              list.forEach((item,index) => {
-                  html += `
-              <a href="`+item.detail_url+`" class="news-link">
+        if (list.length && list != null && list.length > 0) {
+          let html = "";
+          list.forEach((item, index) => {
+            html +=
+              `
+              <a href="` +
+              item.detail_url +
+              `" class="news-link">
                 <div class="news-li">
                   <div class="news-li-img">
-                    <img src="`+item.thumb+`" alt="" />
+                    <img src="` +
+              item.thumb +
+              `" alt="" />
                   </div>
                   <div class="news-li-right">
                     <div class="news-li-right-one">
-                      `+item.title+`
+                      ` +
+              item.title +
+              `
                     </div>
                     <div class="news-li-right-two">
-                      `+item.desc+`
+                      ` +
+              item.desc +
+              `
                     </div>
                   </div>
                 </div>
               </a>
-            `
-              })
-              // 清空原来子节点
-              var div = document.getElementById("news-content");
-              while(div.hasChildNodes()) //当div下还存在子节点时 循环继续
-              {
-                  div.removeChild(div.firstChild);
-              }
-              //console.log(html)
-              div.innerHTML = html;
+            `;
+          });
+          // 清空原来子节点
+          var div = document.getElementById("news-content");
+          while (div.hasChildNodes()) {
+            //当div下还存在子节点时 循环继续
+            div.removeChild(div.firstChild);
           }
+          //console.log(html)
+          div.innerHTML = html;
+        }
       }
     </script>
   </body>

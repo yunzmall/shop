@@ -10,8 +10,10 @@ namespace app\frontend\controllers;
 
 
 use app\common\components\BaseController;
+use app\common\facades\Setting;
 use app\common\services\ImageZip;
 use app\common\services\MiniFileLimitService;
+use app\common\services\upload\UploadService;
 use app\platform\modules\system\models\SystemSetting;
 
 class UploadController extends BaseController
@@ -21,195 +23,47 @@ class UploadController extends BaseController
         $attach = request()->attach;
         $ingress = request()->ingress;
         $file = request()->file('file');
-
+        $local_upload = request()->local_upload == 1 ? true : false;
+        $upload_type = request()->upload_type;
         if (!$file) {
             return $this->errorJson('请传入正确参数.');
         }
-
         if (!$file->isValid()) {
             return $this->errorJson('上传失败.');
         }
-
-        if ($ingress) {
+        if ($ingress && $upload_type == 'image' && $this->isMiniCheckImage()) {
             if ($file->getClientSize() > 1024*1024) {
                 return $this->errorJson('小程序图片安全验证图片不能大于1M');
             }
-
             $check_result = (new MiniFileLimitService())->checkImg($file);
             if ($check_result['errcode'] == 87014) {
                 return $this->errorJson('内容含有违法违规信息');
             }
         }
-
-        if ($file->getClientSize() > 30*1024*1024) {
-            return $this->errorJson('图片过大.');
-        }
-
-        if ($file->getClientSize() > 30*1024*1024) {
-            return $this->errorJson('图片过大.');
-        }
-
-        $defaultImgType = [
-            'jpg', 'bmp', 'eps', 'gif', 'mif', 'miff', 'png', 'tif',
-            'tiff', 'svg', 'wmf', 'jpe', 'jpeg', 'dib', 'ico', 'tga', 'cut', 'pic'
-        ];
-
-        $harmtype = array('asp', 'php', 'jsp', 'js', 'css', 'php3', 'php4', 'php5', 'ashx', 'aspx', 'exe', 'cgi');
-
-        // 获取文件相关信息
-        $originalName = $file->getClientOriginalName(); // 文件原名
-        $realPath = $file->getRealPath();   //临时文件的绝对路径
-        $ext = $file->getClientOriginalExtension(); //文件后缀
-
-        if (!$ext) {
-            $ext = 'jpg';
-        }
-        $newOriginalName = md5($originalName . str_random(6)) . '.' . $ext;
-
-        if (in_array($ext, $harmtype)) {
-            return $this->errorJson('非规定类型的文件格式');
-        }
-
-        if (config('app.framework') == 'platform') {
-            $setting = SystemSetting::settingLoad('global', 'system_global');
-
-            $remote = SystemSetting::settingLoad('remote', 'system_remote');
-
-            if (in_array($ext, $defaultImgType)) {
-                if ($setting['image_extentions'] && !in_array($ext, array_filter($setting['image_extentions'])) ) {
-                    return $this->errorJson('非规定类型的文件格式');
-                }
-                $defaultImgSize = $setting['img_size'] ? $setting['img_size'] * 1024 : 1024*1024*5; //默认大小为5M
-                if ($file->getClientSize() > $defaultImgSize) {
-                    return $this->errorJson('文件大小超出规定值');
-                }
-            } else {
-                return $this->errorJson('非规定类型的文件格式');
-            }
-
-            if ($setting['image']['zip_percentage']) {
-                //执行图片压缩
-                $imagezip = new ImageZip();
-                $imagezip->makeThumb(
-                    yz_tomedia($newOriginalName),
-                    yz_tomedia($newOriginalName),
-                    $setting['image']['zip_percentage']
-                );
-            }
-
-            if ($setting['thumb_width'] == 1 && $setting['thumb_width']) {
-                $imagezip = new ImageZip();
-                $imagezip->makeThumb(
-                    yz_tomedia($newOriginalName),
-                    yz_tomedia($newOriginalName),
-                    $setting['thumb_width']
-                );
-            }
+        if ($local_upload) {
+            $url_arr = (new UploadService())->upload($file, $upload_type, '', '',false);
         } else {
-            //全局配置
-            global $_W;
-
-            //公众号独立配置信息 优先使用公众号独立配置
-            $uni_setting = app('WqUniSetting')->get()->toArray();
-            if (!empty($uni_setting['remote']) && iunserializer($uni_setting['remote'])['type'] != 0) {
-                $setting['remote'] = iunserializer($uni_setting['remote']);
-                $remote = $setting['remote'];
-                $upload = $_W['setting']['upload'];
-            } else {
-                $remote = $_W['setting']['remote'];
-                $upload = $_W['setting']['upload'];
-            }
-
-            if (in_array($ext, $defaultImgType)) {
-                if ($upload['image']['extentions'] && !in_array($ext, $upload['image']['extentions'])) {
-                    return $this->errorJson('非规定类型的文件格式');
-                }
-                $defaultImgSize = $upload['image']['limit'] ? $upload['image']['limit'] * 1024 : 5 * 1024 * 1024;
-                if ($file->getClientSize() > $defaultImgSize) {
-                    return $this->errorJson('文件大小超出规定值');
-                }
-            } else {
-                return $this->errorJson('非规定类型的文件格式');
-            }
-
-            if ($upload['image']['zip_percentage']) {
-                //执行图片压缩
-                $imagezip = new ImageZip();
-                $imagezip->makeThumb(
-                    yz_tomedia($newOriginalName),
-                    yz_tomedia($newOriginalName),
-                    $upload['image']['zip_percentage']
-                );
-            }
-
-            if ($upload['image']['thumb'] == 1 && $upload['image']['width']) {
-                $imagezip = new ImageZip();
-                $imagezip->makeThumb(
-                    yz_tomedia($newOriginalName),
-                    yz_tomedia($newOriginalName),
-                    $upload['image']['width']
-                );
-            }
+            $url_arr = (new UploadService())->upload($file, $upload_type);
         }
+        return $this->successJson('上传成功', [
+            'img' => $url_arr['relative_path'],
+            'img_url' => $url_arr['absolute_path'],
+            'attach' => $attach,
+        ]);
+    }
 
-        if (config('app.framework') == 'platform') {
-            //本地上传
-            $result = \Storage::disk('newimages')->put($newOriginalName, file_get_contents($realPath));
-            if (!$result){
-                return $this->successJson('上传失败');
-            }
-
-            $url = \Storage::disk('newimages')->url($newOriginalName);
-
-            //图片审核
-            if(app('plugins')->isEnabled('upload-verification')){
-                if(in_array($ext,['png','jpg','jpeg','bmp','gif','webp','tiff'])){
-                    $uploadReuslt = do_upload_verificaton(yz_tomedia($url), 'img');
-                    if(0 === $uploadReuslt[0]['status']){
-                        return $this->errorJson($uploadReuslt[0]['msg']);
-                    }
-                }
-            }
-
-            //远程上传
-            if ($remote['type'] != 0) {
-                file_remote_upload_new($url, true, $remote);
-            }
-
-            return $this->successJson('上传成功', [
-                'img' => $url,
-                'img_url' => yz_tomedia($url),
-                'attach' => $attach,
-            ]);
-        } else {
-            //本地上传
-            $result = \Storage::disk('image')->put($newOriginalName, file_get_contents($realPath));
-            if (!$result){
-                return $this->successJson('上传失败');
-            }
-
-            $url = \Storage::disk('image')->url($newOriginalName);
-
-            //图片审核
-            if(app('plugins')->isEnabled('upload-verification')){
-                if(in_array($ext,['png','jpg','jpeg','bmp','gif','webp','tiff'])){
-                    $uploadReuslt = do_upload_verificaton(yz_tomedia($url), 'img');
-                    if(0 === $uploadReuslt[0]['status']){
-                        return $this->errorJson($uploadReuslt[0]['msg']);
-                    }
-                }
-            }
-
-            //远程上传
-            if ($remote['type'] != 0) {
-                file_remote_upload_wq($url, true, $remote, true);
-            }
-
-            return $this->successJson('上传成功', [
-                'img' => $url,
-                'img_url' => yz_tomedia($url),
-                'attach' => $attach,
-            ]);
+    protected function isMiniCheckImage()
+    {
+        if (!app('plugins')->isEnabled('min-app')) {
+            return false;
         }
+        $set = Setting::get('plugin.min_app');
+        if ($set['switch'] != 1) {
+            return false;
+        }
+        if ($set['image_check'] != 1) {
+            return false;
+        }
+        return true;
     }
 }

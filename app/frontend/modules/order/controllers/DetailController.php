@@ -11,33 +11,32 @@ namespace app\frontend\modules\order\controllers;
 use app\common\components\ApiController;
 use app\common\exceptions\AppException;
 use app\common\models\DispatchType;
+use app\common\models\Member;
 use app\common\models\Order;
-use app\common\models\OrderGoods;
+use app\framework\Http\Request;
 use app\frontend\models\OrderAddress;
-use app\common\services\plugin\leasetoy\LeaseToySet;
 use app\common\services\goods\VideoDemandCourseGoods;
-use Yunshop\Diyform\models\DiyformDataModel;
-use Yunshop\Diyform\models\DiyformOrderContentModel;
+use app\frontend\modules\member\models\MemberModel;
+use app\frontend\modules\member\services\MemberService;
 use Yunshop\Diyform\models\OrderGoodsDiyForm;
 use Yunshop\PhotoOrder\models\OrderModel;
+use Yunshop\StoreReserve\models\ReserveOrder;
 
 class DetailController extends ApiController
 {
-    /**
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
-     * @throws AppException
-     * @throws \app\common\exceptions\ShopException
-     */
-    public function index($request)
+	/**
+	 * @param Request $request
+	 * @return \Illuminate\Http\JsonResponse
+	 * @throws AppException
+	 */
+    public function index(Request $request)
     {
+
         $this->validate([
             'order_id' => 'required|integer'
         ]);
         $orderId = request()->query('order_id');
         $order = $this->getOrder()->with(['hasManyOrderGoods', 'orderDeduction', 'orderDiscount', 'orderFees', 'orderServiceFees', 'orderCoupon', 'orderInvoice', 'orderAddress'])->find($orderId);
-
-
 
         if ($order->orderInvoice) {
             $invoice = $order->orderInvoice;
@@ -46,7 +45,6 @@ class DetailController extends ApiController
             $invoice = Order::getInvoice($orderId);
 
         }
-
 
         if (is_null($order)) {
             return $this->errorJson('未找到数据', []);
@@ -74,10 +72,10 @@ class DetailController extends ApiController
                         $formData = unserialize($formData['diyform_data']['data']);
                         $formContent = [];
                         foreach ($formData as $formKey => $formItem) {
-                            if($formType[$formKey]['data_type'] == 5){
-                                $formItem = array_map(function ($image){
+                            if ($formType[$formKey]['data_type'] == 5) {
+                                $formItem = array_map(function ($image) {
                                     return yz_tomedia($image);
-                                },$formItem);
+                                }, $formItem);
                             }
                             $formContent[] = [
                                 'title' => $formType[$formKey]['tp_name'],
@@ -94,10 +92,10 @@ class DetailController extends ApiController
 
         }
         if (app('plugins')->isEnabled('photo-order')) {
-            $photo = OrderModel::where('order_id',$order['id'])->first();
-            if($photo){
+            $photo = OrderModel::where('order_id', $order['id'])->first();
+            if ($photo) {
                 $data['photo_order_thumbs'] = unserialize($photo['thumbs']);
-            }else{
+            } else {
                 $data['photo_order_thumbs'] = '';
             }
         }
@@ -121,6 +119,12 @@ class DetailController extends ApiController
                 // $data['address_info'] = \Yunshop\StoreCashier\common\models\StoreDelivery::where('order_id', $order['id'])->first();
             }
 
+            if (app('plugins')->isEnabled('store-reserve')) {
+                $reserveOrder = ReserveOrder::where('order_id', $orderId)->first();
+                if ($reserveOrder && $reserveOrder->date) {
+                    $data['reserve_date'] = date('Y-m-d', $reserveOrder->date);
+                }
+            }
         }
 
 
@@ -145,8 +149,38 @@ class DetailController extends ApiController
                 }
             }
         }
+        if ($order['dispatch_type_id'] == 2) {
+            $data['custom'] = $this->custom();
+        }
+
 
         return $this->successJson($msg = 'ok', $data);
+    }
+
+    private function custom()
+    {
+        $custom = '';
+        if ($this->aSwitch()) {
+            $lis = Order::find(request()->query('order_id'));
+            $member_info = MemberModel::getUserInfos_v2($lis->uid)->first();
+            if (empty($member_info)) {
+                $this->jump = true;
+                $this->jumpUrl(\YunShop::request()->type, Member::getMid());
+            }
+            //自定义表单
+            $custom = (new MemberService())->memberInfoAttrStatus($member_info->yzMember);
+        }
+        return $custom;
+    }
+
+    private function memberId()
+    {
+        return \YunShop::app()->getMemberId();
+    }
+
+    private function aSwitch()
+    {
+        return \app\common\facades\Setting::get('plugin.store.membership_open') == 1;
     }
 
     protected function getOrder()

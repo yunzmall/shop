@@ -23,13 +23,15 @@ class DetailController extends ApiController
             throw new AppException('未找到该退款申请');
         }
 
+        $refundApply->remark = $refundApply->remark ?: '';
+
         //判断是门店还是供应商
         $plugin = RefundApply::getIsPlugin($refundApply->order_id);
         if($plugin->is_plugin) {
             $refundApply->is_plugin = $plugin->is_plugin;
             $refundApply->supplier_id = RefundApply::getSupplierId($refundApply->order_id);
         }
-        if ($plugin->plugin_id) {
+        if ($plugin->plugin_id == 32) {
             $refundApply->plugin_id = $plugin->plugin_id;
             $refundApply->store_id = RefundApply::getStoreId($refundApply->order_id);
         }

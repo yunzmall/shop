@@ -18,14 +18,27 @@ class Comment extends \app\common\models\Comment
 
     public static function getCommentsByGoods($goods_id)
     {
+        $with = ['hasManyReply'=>function ($query) {
+            return $query->where('type', 2)
+                ->orderBy('created_at', 'asc');
+        }];
+
+        if (!is_null($event_arr = \app\common\modules\shop\ShopConfig::current()->get('frontend_comment_with'))) {
+            foreach ($event_arr as $v) {
+                $class = array_get($v, 'class');
+                $function = array_get($v, 'function');
+                $res = $class::$function();
+                foreach ($res as $vv) {
+                    $with[$vv['key']] = $vv['value'];
+                }
+            }
+        }
+
         return self::select(
             'id', 'order_id', 'goods_id', 'uid', 'nick_name', 'head_img_url', 'content', 'level',
             'images', 'created_at', 'type')
             ->uniacid()
-            ->with(['hasManyReply'=>function ($query) {
-                return $query->where('type', 2)
-                    ->orderBy('created_at', 'asc');
-            }])
+            ->with($with)
             ->where('goods_id', $goods_id)
             ->where('comment_id', 0)
             ->orderBy('created_at', 'acs');
@@ -66,6 +79,10 @@ class Comment extends \app\common\models\Comment
     }
     public function hasOneGoods(){
         return $this->hasOne('app\common\models\Goods','id','goods_id');
+    }
+
+    public function hasOneLiveInstallComment(){
+        return $this->hasOne(\Yunshop\LiveInstall\models\Comment::class,'comment_id','id');
     }
 
 }

@@ -103,11 +103,15 @@ class AdminUser extends Authenticatable
         unset($verify_res['re_password']);
         \Log::info("----------管理员用户----------", "管理员:(uid:{$verify_res['uid']})-----用户信息-----".$verify_res.'-----参数-----'.json_encode($data));
         if ($verify_res->save()) {
-            if (request()->path() != "admin/user/modify_user" && request()->path() != "admin/user/change") {
+        	if (request()->path() != "admin/user/modify_user" && request()->path() != "admin/user/change") {
                 if (self::saveProfile($data, $verify_res)) {
                     return self::returnData(0, self::STORAGE);
                 }
             }
+        	//如果修改了密码，清除其他登录态
+			if (isset($data['password']) && \Auth::guard()->id() == $verify_res->getAuthIdentifier()) {
+				\Auth::guard('admin')->logoutOtherDevices($data['password']);
+			}
             return self::returnData(1);
         } else {
             return self::returnData(0, self::FAIL);

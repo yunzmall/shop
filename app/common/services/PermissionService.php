@@ -53,6 +53,15 @@ class PermissionService
         } elseif (in_array($item, static::founderPermission())) {
             return false;
         }
+        // 允许公众号管理员通过的路由
+        $arr = [
+            'survey.survey.index',
+            'survey.survey.survey'
+        ];
+        // 临时解决公众号管理员能url访问超级管理员独有页面的问题
+        if(!$item and !in_array(request()->getRoute(),$arr)){
+            return false;
+        }
         if (self::isOwner()) {
             return true;
         }
@@ -105,10 +114,45 @@ class PermissionService
             'site_setting',
             'site_setting.index',
             'site_setting.store',
+            'site_setting.queue',
+            'site_setting.physics_path',
+            'site_setting.redis_config',
+            'site_setting.mongoDB_config',
+            'cache_setting',
+            'setting_shop_log',
+            'trojan',
             //工单管理
             'work_order',
             'work_order_store_page',
-            'work_order_details'
+            'work_order_details',
+
+            //系统工具
+            'site_setting',
+            'supervisord_supervisord_index',
+            'supervisord_supervisord_store',
+            'site_setting.index',
+            'site_setting.queue',
+            'site_setting.physics_path',
+            'site_setting.redis_config',
+            'site_setting.mongoDB_config',
+            'site_setting.store',
+            'cache_setting',
+            'setting_shop_log',
+            'trojan',
+
+            //系统更新
+            'setting_shop_update',
+
+            //插件管理
+            'plugins.get-plugin-data',
+            'plugins_enable',
+            'plugins_disable',
+            'plugins_manage',
+            'plugins_delete',
+            'plugins_update',
+
+            //安装应用
+            'install_plugins',
         ];
     }
 

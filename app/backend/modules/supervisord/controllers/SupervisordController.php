@@ -23,7 +23,7 @@ class SupervisordController extends BaseController
 
     public function preAction()
     {
-
+        parent::preAction();
         $this->supervisor = app('supervisor');
         $this->supervisor->setTimeout(5000);  // microseconds
     }

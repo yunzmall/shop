@@ -72,18 +72,19 @@
     <div id='re_content' >
         @include('layouts.newTabs')
         <div class="con">
+            <el-form ref="form" :model="form" label-width="15%">
             <div class="setting">
-                <el-form ref="form" :model="form" label-width="15%">
+
                     <div class="block">
                         <div class="title">
                             <span style="width: 4px;height: 18px;background-color: #29ba9c;margin-right:15px;display:inline-block;"></span>
                             <b>基础设置
                             </b></div>
                         <el-form-item label="会员默认头像">
-                            <div class="upload-box" @click="openUpload('headimg')" v-if="!form.headimg_url">
+                            <div class="upload-box" @click="openUpload('headimg',1,'one')" v-if="!form.headimg_url">
                                 <i class="el-icon-plus" style="font-size:32px"></i>
                             </div>
-                            <div @click="openUpload('headimg')" class="upload-boxed" v-if="form.headimg_url" style="height:150px;">
+                            <div @click="openUpload('headimg',1,'one')" class="upload-boxed" v-if="form.headimg_url" style="height:150px;">
                                 <img :src="form.headimg_url" alt="" style="width:150px;height:150px;border-radius: 5px;cursor: pointer;">
                                 <div class="upload-boxed-text">点击重新上传</div>
                                 <i class="el-icon-close" @click.stop="clearImg('headimg')" title="点击清除图片"></i>
@@ -91,7 +92,8 @@
                             <div class="tip">会员默认头像（会员自定义头像>微信头像>商城默认头像）</div>
 
                         </el-form-item>
-                        <upload-img :upload-show="uploadShow" :name="chooseImgName" @replace="changeProp" @sure="sureImg"></upload-img>
+                        <!-- <upload-img :upload-show="uploadShow" :name="chooseImgName" @replace="changeProp" @sure="sureImg"></upload-img> -->
+                        <upload-multimedia-img :upload-show="uploadShow" :type="type" :name="chooseImgName" :sel-Num="selNum"  @replace="changeProp" @sure="sureImg"></upload-multimedia-img>
                         <el-form-item label="注册状态">
                             <template>
                                 <el-switch
@@ -272,17 +274,17 @@
                                 </el-switch>
                             </template>
                         </el-form-item>
-                        <el-form-item label="商品详情已添加数量" >
-                            <template>
-                                <el-switch
-                                        v-model="form.added"
-                                        active-value="1"
-                                        inactive-value="2"
-                                >
-                                </el-switch>
-                            </template>
+                        {{--<el-form-item label="商品详情已添加数量" >--}}
+                            {{--<template>--}}
+                                {{--<el-switch--}}
+                                        {{--v-model="form.added"--}}
+                                        {{--active-value="1"--}}
+                                        {{--inactive-value="2"--}}
+                                {{-->--}}
+                                {{--</el-switch>--}}
+                            {{--</template>--}}
 
-                        </el-form-item>
+                        {{--</el-form-item>--}}
                     </div>
                     <div style="background: #eff3f6;width:100%;height:15px;"></div>
                     <div class="block">
@@ -335,18 +337,19 @@
                                 >
                                 </el-switch>
                             </template>
-                            <div style="font-size:12px;">提示： 默认关闭</div>
+                            <div style="font-size:12px;">提示： 默认关闭，使用该功能必须开启邀请页面</div>
                         </el-form-item>
                     </div>
             </div>
             <div class="confirm-btn">
                 <el-button type="primary" @click="submit">提交</el-button>
             </div>
+            </el-form>
         </div>
-        </el-form>
+
     </div>
     </div>
-    @include('public.admin.uploadImg')
+    @include('public.admin.uploadMultimediaImg')
     <script>
         var vm = new Vue({
             el: "#re_content",
@@ -364,7 +367,7 @@
                     form:{
                         headimg:'',
                         mobile_login_code:'0',
-                        wechat_login_mode:'1',
+                        wechat_login_mode:'0',
                         is_bind_mobile:'0',
                         is_custom:'0',
                         custom_title:'',
@@ -378,7 +381,7 @@
                         is_bind_invite:'0',
                         term:'0',
                         discount:'1',
-                        added:'1',
+                        // added:'1',
                         display_page:'0',
                         level_type:'0',
                         level_after:'0',
@@ -387,16 +390,19 @@
                         level_name:'普通会员',
                         level_discount_calculation:'0'
                     },
+                    type:'',
+                    selNum:'',
                 }
             },
             mounted () {
                 this.getData();
             },
             methods: {
-                openUpload(str) {
-
+                openUpload(str,type,sel) {
                     this.chooseImgName = str;
                     this.uploadShow = true;
+                    this.type = type
+                    this.selNum = sel
                 },
                 changeProp(val) {
                     if(val == true) {
@@ -406,10 +412,17 @@
                         this.uploadShow = true;
                     }
                 },
-                sureImg(name,image,image_url) {
-                    this.form[name] = image;
-                    this.form[name+'_url'] = image_url;
-
+                sureImg(name,uploadShow,fileList) {
+                    
+                    if(fileList.length <= 0) {
+                        return 
+                    }
+                    console.log(name)
+                    console.log(fileList)
+                    this.form[name] =fileList[0].attachment;
+                    this.form[name+'_url'] = fileList[0].url;
+                    console.log(this.form[name],'aaaaa')
+                    console.log( this.form[name+'_url'],'bbbbb')
                 },
                 getData(){
                     this.$http.post('{!! yzWebFullUrl('setting.shop.member') !!}').then(function (response){

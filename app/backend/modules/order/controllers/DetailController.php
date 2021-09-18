@@ -199,9 +199,10 @@ class DetailController extends BaseController
         }
 
         $memberInfo = Member::select('realname', 'idcard')->where('uid', $order['uid'])->first();
+
         $result['status'] = DivFromService::isDisplay($goods_ids);
-        $result['member_name'] = $memberInfo->realname;
-        $result['member_card'] = $memberInfo->idcard;
+        $result['member_name'] = $order['has_many_member_certified']['realname'] ?: $memberInfo->realname;
+        $result['member_card'] = $order['has_many_member_certified']['idcard'] ?: $memberInfo->idcard;
 
         return $result;
     }

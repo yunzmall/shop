@@ -79,6 +79,7 @@
                         <el-form-item label="角色">
                             <template>
                                 <el-select v-model="widgets.role_id" placeholder="请选择" @change="getcheck">
+                                    <el-option label="点击选择角色" value="0"></el-option>
                                     <el-option
                                             v-for="item in roleList"
                                             :key="item.id"
@@ -249,6 +250,10 @@
                     this.$forceUpdate()
                 },
                 getcheck(){
+                    if(this.widgets.role_id == 0){
+                        // console.log('跳过验证');
+                        return;
+                    }
                     this.$http.post('{!! yzWebFullUrl('role.permission.index') !!}',{role_id:this.widgets.role_id}).then(function (response){
                         if (response.data.result) {
                             let arr=response.data.data

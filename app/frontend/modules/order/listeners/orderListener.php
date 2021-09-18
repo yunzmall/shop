@@ -36,6 +36,9 @@ class orderListener
     public function onCreated(AfterOrderCreatedEvent $event)
     {
         $order = Order::find($event->getOrderModel()->id);
+        if($order->notSendMessage()) {
+            return;
+        }
         (new MessageService($order))->created();
 
         (new OtherMessageService($order))->created();
@@ -44,6 +47,9 @@ class orderListener
     public function onPaid(AfterOrderPaidEvent $event)
     {
         $order = Order::find($event->getOrderModel()->id);
+        if($order->notSendMessage()) {
+            return;
+        }
         (new MiniMessageService($order))->received();
         if (!$order->isVirtual()) {
             (new MessageService($order))->paid();
@@ -56,12 +62,18 @@ class orderListener
     public function onCanceled(AfterOrderCanceledEvent $event)
     {
         $order = Order::find($event->getOrderModel()->id);
+        if($order->notSendMessage()) {
+            return;
+        }
         (new MessageService($order))->canceled();
     }
 
     public function onSent(AfterOrderSentEvent $event)
     {
         $order = Order::find($event->getOrderModel()->id);
+        if($order->notSendMessage()) {
+            return;
+        }
         if (!$order->isVirtual()) {
             (new MessageService($order))->sent();
             (new OtherMessageService($order))->sent();
@@ -82,6 +94,9 @@ class orderListener
     public function onReceived(AfterOrderReceivedEvent $event)
     {
         $order = Order::find($event->getOrderModel()->id);
+        if($order->notSendMessage()) {
+            return;
+        }
         (new MessageService($order))->received();
         (new OtherMessageService($order))->received();
         (new SystemMsgService($order->uniacid))->received($order);
@@ -114,10 +129,11 @@ class orderListener
         // 订单自动任务
         $events->listen('cron.collectJobs', function () {
 
-            \Cron::add('GenerateOrderSn', '0 */1 * * *', function () {
-                (new \app\frontend\modules\order\listeners\GenerateOrderSn())->handle();
-                return;
-            });
+            //todo 不用了,因为存redis 订单号日期不对应
+//            \Cron::add('GenerateOrderSn', '0 */1 * * *', function () {
+//                (new \app\frontend\modules\order\listeners\GenerateOrderSn())->handle();
+//                return;
+//            });
 
 
             \Cron::add("DaemonQueue", '*/1 * * * *', function () {

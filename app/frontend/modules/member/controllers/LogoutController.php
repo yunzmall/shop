@@ -28,12 +28,11 @@ class LogoutController extends BaseController
 
             $member->save();
         } else {
-            $uuid       = trim($_REQUEST['uuid']);
-
             setcookie('Yz-Token', '', time() - 3600);
             setcookie('Yz-appToken', '', time() - 3600);
-            setcookie('Yz-Uid', '',time() - 3600);
-            setcookie('app_openid_' . $uuid, '',time() - 3600);
+
+            setcookie(session_name(), '',time() - 3600, '/');
+            setcookie(session_name(), '',time() - 3600, '/addons/yun_shop');
 
             session_destroy();
         }

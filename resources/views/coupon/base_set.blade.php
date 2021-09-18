@@ -97,10 +97,10 @@
                             <div class="tip">分享者是否可以领取</div>
                         </el-form-item>
                         <el-form-item label="分享Banner图" prop="banner">
-                            <div class="upload-box" @click="openUpload('banner')" v-if="!form.banner_url">
+                            <div class="upload-box" @click="openUpload('banner',1,'one')" v-if="!form.banner_url">
                                 <i class="el-icon-plus" style="font-size:32px"></i>
                             </div>
-                            <div @click="openUpload('banner')" class="upload-boxed" v-if="form.banner_url">
+                            <div @click="openUpload('banner',1,'one')" class="upload-boxed" v-if="form.banner_url">
                                 <img :src="form.banner_url" alt="" style="width:150px;height:150px;border-radius: 5px;cursor: pointer;">
                                 <div class="upload-boxed-text">点击重新上传</div>
                             </div>
@@ -124,14 +124,17 @@
                     <el-button @click="goBack">返回</el-button>
                 </div>
             </div>
-            <upload-img :upload-show="uploadShow" :name="chooseImgName" @replace="changeProp" @sure="sureImg"></upload-img>
+            <!-- <upload-img :upload-show="uploadShow" :name="chooseImgName" @replace="changeProp" @sure="sureImg"></upload-img> -->
+            <upload-multimedia-img :upload-show="uploadShow" :type="type" :name="chooseImgName" :sel-Num="selNum"  @replace="changeProp" @sure="sureImg"></upload-multimedia-img>
 
             <!--end-->
         </div>
     </div>
     <script src="{{resource_get('static/yunshop/tinymce4.7.5/tinymce.min.js')}}"></script> 
     @include('public.admin.tinymceee')  
-    @include('public.admin.uploadImg')  
+    <!-- @include('public.admin.uploadImg')   -->
+    @include('public.admin.uploadMultimediaImg')
+
     <script>
         var app = new Vue({
             el:"#app",
@@ -176,6 +179,8 @@
                     rules:{
                         name:{ required: true, message: '请输入品牌名称'}
                     },
+                    type:'',
+                    selNum:'',
 
 
                 }
@@ -331,9 +336,11 @@
                 goBack() {
                     history.go(-1)
                 },
-                openUpload(str) {
+                openUpload(str,type,sel) {
                     this.chooseImgName = str;
                     this.uploadShow = true;
+                    this.type = type
+                    this.selNum = sel
                 },
                 changeProp(val) {
                     if(val == true) {
@@ -343,12 +350,17 @@
                         this.uploadShow = true;
                     }
                 },
-                sureImg(name,image,image_url) {
+                sureImg(name,uploadShow,fileList) {
+                    
+                    if(fileList.length <= 0) {
+                        return 
+                    }
                     console.log(name)
-                    console.log(image)
-                    console.log(image_url)
-                    this.form[name] = image;
-                    this.form[name+'_url'] = image_url;
+                    console.log(fileList)
+                    this.form[name] =fileList[0].attachment;
+                    this.form[name+'_url'] = fileList[0].url;
+                    console.log(this.form[name],'aaaaa')
+                    console.log( this.form[name+'_url'],'bbbbb')
                 },
                 clearImg(str) {
                     this.form[str] = "";

@@ -112,7 +112,6 @@ Vue.component('uploadImg', {
           });
       },
       uploadSuccess(res, file) {
-          console.log(res)
           if (res.result == 1) {
               if (res.data.state == 'SUCCESS') {
                   this.uploadImg = res.data.attachment;//传相对地址
@@ -253,6 +252,5 @@ Vue.component('uploadImg', {
         </span>
     </el-dialog>
   `
-    
 });
 </script>

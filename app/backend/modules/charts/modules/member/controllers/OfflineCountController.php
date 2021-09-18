@@ -30,4 +30,10 @@ class OfflineCountController extends BaseController
             'list' => $list,
         ])->render();
     }
+
+    public function update()
+    {
+        (new \app\backend\modules\charts\modules\member\services\TimedTaskService())->handle();
+        return $this->successJson('成功');
+    }
 }

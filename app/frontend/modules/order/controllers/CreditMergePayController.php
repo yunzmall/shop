@@ -9,6 +9,7 @@
 
 namespace app\frontend\modules\order\controllers;
 
+use app\common\events\order\AfterOrderPaidRedirectEvent;
 use app\common\events\payment\ChargeComplatedEvent;
 use app\common\exceptions\AppException;
 use app\common\services\password\PasswordService;
@@ -17,6 +18,7 @@ use app\frontend\models\OrderPay;
 use app\frontend\modules\coupon\services\ShareCouponService;
 use app\common\helpers\Url;
 use app\common\models\Order;
+
 
 class CreditMergePayController extends MergePayController
 {
@@ -57,10 +59,18 @@ class CreditMergePayController extends MergePayController
         $trade = \Setting::get('shop.trade');
         // \Log::info('---trade-----', $trade);
 
-        $redirect = '';
+        $redirect = $admin_set_redirect = '';
 
         if (!is_null($trade) && isset($trade['redirect_url']) && !empty($trade['redirect_url'])) {
-            $redirect = $trade['redirect_url'].'&outtradeno='.request()->input('order_pay_id');
+	        $redirect = $trade['redirect_url'];
+	        preg_match("/^(http:\/\/)?([^\/]+)/i", $trade['redirect_url'], $matches);
+	        $host = $matches[2];
+	        // 从主机名中取得后面两段
+	        preg_match("/[^\.\/]+\.[^\.\/]+$/", $host, $matches);
+	        if ($matches){//判断域名是否一致
+		        $redirect = $trade['redirect_url'].'&outtradeno='.request()->input('order_pay_id');
+	        }
+            $admin_set_redirect = $trade['redirect_url'].'&outtradeno='.request()->input('order_pay_id');//后台设置跳转链接
         }
 
          $share_bool = ShareCouponService::showIndex($orderPay->order_ids, \YunShop::app()->getMemberId());
@@ -69,57 +79,30 @@ class CreditMergePayController extends MergePayController
              $ids = rtrim(implode('_', $orderPay->order_ids), '_');
              $redirect = Url::absoluteApp('coupon/share/'.$ids, ['i' => \YunShop::app()->uniacid, 'mid'=> \YunShop::app()->getMemberId()]);
          }
-
-        // 拼团订单支付成功后跳转该团页面
-        // 插件开启
-        if (app('plugins')->isEnabled('fight-groups')) {
-            $orders = Order::whereIn('id', $orderPay->order_ids)->get();
-            // 只有一个订单
-            if ($orders->count() == 1) {
-                $order = $orders[0];
-                // 是拼团的订单
-                if ($order->plugin_id == 54) {
-                    $fightGroupsTeamMember = \Yunshop\FightGroups\common\models\FightGroupsTeamMember::uniacid()->with(['hasOneTeam'])->where('order_id', $order->id)->first();
-                    // 有团员并且有团队，跳到拼团详情页
-                    if (!empty($fightGroupsTeamMember) && !empty($fightGroupsTeamMember->hasOneTeam)) {
-                        $redirect = Url::absoluteApp('group_detail/' . $fightGroupsTeamMember->hasOneTeam->id, ['i' => \YunShop::app()->uniacid]);
-                    } else {
-                        $redirect = Url::absoluteApp('home');
-                    }
-                }
-            }
-        }
-        //\Log::debug('pay appointment order plugin.appointment.exits：',\app\common\modules\shop\ShopConfig::current()->get('plugin.appointment.exits'));
-        if (\app\common\modules\shop\ShopConfig::current()->get('plugin.appointment.exits')) {
-            $orders = Order::whereIn('id', $orderPay->order_ids)->get();
-            // 只有一个订单
-            if ($orders->count() == 1) {
-                $order = $orders[0];
-                // 是预约商品的订单
-                if ($order->plugin_id == 101) {
-                    $redirect = \Yunshop\Appointment\common\service\SetService::getPayReturnUrl();
-                }
-            }
-        }
-        return $this->successJson('成功', ['redirect' => $redirect]);
+		$orders = Order::whereIn('id', $orderPay->order_ids)->get();
+         event($event = new AfterOrderPaidRedirectEvent($orders,$orderPay->id));
+		$redirect = $event->getData()['redirect']?:$redirect;
+		return $this->successJson('成功', ['redirect' => $redirect]);
     }
 
     /**
-     * 校验支付密码
-     * @param $uid
-     * @return bool
+     * @param int $uid
+     * @return bool|void
+     * @throws AppException
      * @throws \app\common\exceptions\PaymentException
-     * @throws \app\common\exceptions\ShopException
      */
     private function checkPassword($uid)
     {
-        if (!\Setting::get('shop.pay.balance_pay_proving')) {
-            // 未开启
-            return true;
-        }
+        if (!$this->needPassword()) return true;
+
         $this->validate([
             'payment_password' => 'required'
         ]);
-        return (new PasswordService())->checkMemberPassword($uid, request()->input('payment_password'));
+        return (new PasswordService())->checkPayPassword($uid, request()->input('payment_password'));
+    }
+
+    private function needPassword()
+    {
+        return (new PasswordService())->isNeed('balance', 'pay');
     }
 }

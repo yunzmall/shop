@@ -3,12 +3,12 @@
 <style>
     .content{padding:0 !important;}
     .vue-content{display:flex;margin: 0;width: 100%;font-weight: 500;}
-    .vue-nav{flex: 0 0 170px;overflow-y: auto;overflow-x: hidden;z-index:2;box-shadow: 0 10px 10px -12px rgba(0, 0, 0, 0.42), 0 4px 10px 0px rgba(0, 0, 0, 0.12), 0 8px 10px -5px rgba(0, 0, 0, 0.2);height: calc(100vh - 50px);}
+    .vue-nav{position:fixed;width:170px;flex: 0 0 170px;overflow-y: auto;overflow-x: hidden;z-index:2;box-shadow: 0 10px 10px -12px rgba(0, 0, 0, 0.42), 0 4px 10px 0px rgba(0, 0, 0, 0.12), 0 8px 10px -5px rgba(0, 0, 0, 0.2);height: calc(100vh - 50px);}
     .nav-li{padding-left:15px;line-height: 35px;margin:5px 0;cursor: pointer;color:#333;color:#000;margin:5px 0;font-weight:300;font-family: arial, 'Hiragino Sans GB', 'Microsoft Yahei', '微软雅黑', '宋体', \5b8b\4f53, Tahoma, Arial, Helvetica, STHeiti;}
     .nav-li i{margin:0 5px;font-weight:600}
     .nav-li-tips{display:inline-block;background:#ff485d;color:#fff;border-radius: 8px 8px 8px 1px;position: relative;top:-10px;height: 15px;line-height: 15px;padding:0 5px;font-size: 12px;font-weight: 500;}
     .nav-li-selected{font-weight: 600;background: #f5f5f5;}
-    .message{flex:1;background: #f5f5f5;}
+    .message{flex:1;background: #f5f5f5;margin-left: 170px;}
     .message-top{margin:15px;background:#fff;border-radius: 8px;padding:15px;}
     .message-top-title{line-height: 18px;border-left: 5px solid #29ba9c;padding-left:20px;flex:1;font-size:14px;font-weight: 600;}
     .message-top-read{text-align: right;flex:0 0 150px;cursor: pointer;font-size:14px;font-weight: 600;margin-right:20px}

@@ -20,18 +20,26 @@ class IncomeService
         'huanxun',
         'eup_pay',
         'yop_pay',
-        'converge_pay'
+        'yee_pay',
+        'converge_pay',
+        'high_light_wechat',
+        'high_light_alipay',
+        'high_light_bank'
     ];
 
     private static $payWayName = [
-        'balance'      => "提现到余额",
-        'wechat'       => "提现到微信",
-        'alipay'       => "提现到支付宝",
-        'manual'       => "提现到手动打款",
-        'huanxun'      => "提现到银行卡",
-        'eup_pay'      => "提现到EUP",
-        'yop_pay'      => "提现到易宝",
-        'converge_pay' => "提现到银行卡-HJ",
+        'balance'           => "提现到余额",
+        'wechat'            => "提现到微信",
+        'alipay'            => "提现到支付宝",
+        'manual'            => "提现到手动打款",
+        'huanxun'           => "提现到银行卡",
+        'eup_pay'           => "提现到EUP",
+        'yop_pay'           => "提现到易宝",
+        'converge_pay'      => "提现到银行卡-HJ",
+        'yee_pay'           => "提现到易宝代付",
+        'high_light_wechat' => "提现到微信-高灯",
+        'high_light_alipay' => "提现到支付宝-高灯",
+        'high_light_bank'   => "提现到银行卡-高灯",
     ];
 
     public function withdrawButton($incomeType = 'default')
@@ -124,7 +132,7 @@ class IncomeService
         $defaultButton = ['service_switch' => $this->serviceSwitch()];
 
         foreach ($this->withdrawSet() as $key => $item) {
-            if (in_array($key, static::$payWay) && $item) {
+            if (in_array($key, static::$payWay) && $item && $this->buttonEnabled($key)) {
                 $defaultButton[$key] = [
                     'name'  => $this->buttonName($key),
                     'value' => $key
@@ -148,7 +156,7 @@ class IncomeService
         }
         switch ($key) {
             case 'balance':
-                return $name . '到' . $balance['credit'] ?: '余额';
+                return $name . '到' . ($balance['credit'] ?: '余额');
             case 'wechat':
                 return $name . '到微信';
             case 'alipay':
@@ -163,8 +171,58 @@ class IncomeService
                 return $name . '到易宝';
             case 'converge_pay':
                 return $name . '到银行卡-HJ';
+            case 'yee_pay':
+                return $name . '到易宝代付';
+            case 'high_light_wechat':
+                return $name . '到微信-高灯';
+            case 'high_light_alipay':
+                return $name . '到支付宝-高灯';
+            case 'high_light_bank':
+                return $name . '到银行卡-高灯';
             default:
                 return '';
+        }
+    }
+
+    private function buttonEnabled($key)
+    {
+        switch ($key) {
+            case 'balance':
+            case 'wechat':
+            case 'alipay':
+            case 'manual':
+                return true;
+            case 'huanxun':
+                if (!app('plugins')->isEnabled('huanxun')) {
+                    return false;
+                }
+                return true;
+            case 'eup_pay':
+                if (!app('plugins')->isEnabled('eup-pay')) {
+                    return false;
+                }
+                return true;
+            case 'yop_pay':
+                return true;
+            case 'converge_pay':
+                if (!app('plugins')->isEnabled('converge_pay')) {
+                    return false;
+                }
+                return true;
+            case 'yee_pay':
+                if (!app('plugins')->isEnabled('yee-pay') || !\Yunshop\YeePay\services\SetService::getStatus()) {
+                    return false;
+                }
+                return true;
+            case 'high_light_wechat':
+            case 'high_light_alipay':
+            case 'high_light_bank':
+                if (!app('plugins')->isEnabled('high-light') || !\Yunshop\HighLight\services\SetService::getStatus()) {
+                    return false;
+                }
+                return true;
+            default:
+                return false;
         }
     }
 

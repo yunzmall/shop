@@ -39,7 +39,7 @@ Vue.component('pop', {
             {"name":"收货地址","href":"{{ yzAppFullUrl('member/address') }}"},
             {"name":"添加收货地址","href":"{{ yzAppFullUrl('member/appendAddress') }}"},
             {"name":"未体现分销佣金","href":"{{ yzAppFullUrl('extension/notPresent') }}"},
-            {"name":"我的足记","href":"{{ yzAppFullUrl('member/footprint') }}"},
+            {"name":"我的足迹","href":"{{ yzAppFullUrl('member/footprint') }}"},
             {"name":"我的收藏","href":"{{ yzAppFullUrl('member/collection') }}"},
             {"name":"我的关系","href":"{{ yzAppFullUrl('member/myrelationship') }}"},
             {"name":"我的评价","href":"{{ yzAppFullUrl('member/myEvaluation') }}"},

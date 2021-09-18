@@ -15,14 +15,17 @@ use app\common\exceptions\AppException;
 use app\common\helpers\ImageHelper;
 use app\common\models\Income;
 use app\common\services\popularize\PortType;
+use app\framework\Http\Request;
 use app\frontend\models\Member;
 use app\frontend\models\MemberRelation;
 use app\frontend\models\MemberShopInfo;
 use app\frontend\modules\finance\factories\IncomePageFactory;
+use app\frontend\modules\finance\services\ExtensionCenterService;
 use app\frontend\modules\finance\services\PluginSettleService;
 use app\frontend\modules\member\models\MemberModel;
 use app\frontend\modules\member\services\MemberService;
 use Yunshop\Designer\home\IndexController;
+use Yunshop\HighLight\services\SetService;
 use Yunshop\WithdrawalLimit\Common\models\MemberWithdrawalLimit;
 
 class IncomePageController extends ApiController
@@ -45,15 +48,100 @@ class IncomePageController extends ApiController
      * @return \Illuminate\Http\JsonResponse
      * @throws \app\common\exceptions\AppException
      */
-    public function index($request)
+    public function index(Request $request)
     {
+        if (miniVersionCompare('1.1.115') && versionCompare('1.1.115')) {
+            //版本符合
+            if (app('plugins')->isEnabled('decorate') && \Setting::get('plugin.decorate.is_open') == "1") {
+                //推广中心模版
+                $view_set = \Yunshop\Decorate\models\DecorateTempletModel::getList(['is_default'=>1,'type'=>2],'*',false);
+                if (empty($view_set) || $view_set->code == 'extension01') {
+                    return $this->newIndex();
+                }
+            } else {
+                return $this->newIndex();
+            }
+        }
+
         $this->dataIntegrated(['status' => 1, 'json' => ''],'template_set');
         $this->dataIntegrated($this->getIncomePage($request, true),'income_page');
         if(app('plugins')->isEnabled('designer'))
         {
             $this->dataIntegrated((new IndexController())->templateSet($request, true),'template_set');
         }
+        if (app('plugins')->isEnabled('high-light') && SetService::getStatus()) {
+            $this->dataIntegrated(\Yunshop\HighLight\services\WithdrawService::getHighLightUrl(),'high_light');
+        }
         return $this->successJson('', $this->apiData);
+    }
+
+    /**
+     * @param $request
+     * @return \Illuminate\Http\JsonResponse
+     * @throws AppException
+     */
+    public function newIndex()
+    {
+        $this->dataIntegrated(['status' => 1, 'json' => ''],'template_set');
+        ExtensionCenterService::init(request());
+        $this->apiData['income_page'] = ExtensionCenterService::getIncomePage();
+        return $this->successJson('', $this->apiData);
+    }
+
+    /**
+     * 收入统计
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function incomeStatistic()
+    {
+        ExtensionCenterService::init(request());
+        $data = ExtensionCenterService::incomeStatistic();
+        return $this->successJson('ok', $data);
+    }
+
+    /**
+     * 收入统计图（动态、占比）
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function incomeCharts()
+    {
+        ExtensionCenterService::init(request());
+        if (!empty(request()->charts_type) && request()->charts_type == 1) {
+            $data = ExtensionCenterService::incomeProportion();
+        } else {
+            $data = ExtensionCenterService::incomeDynamic();
+        }
+        return $this->successJson('ok', $data);
+    }
+
+    /**
+     * 粉丝数据统计图（裂变、转化）
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function fansCharts()
+    {
+        ExtensionCenterService::init(request());
+        if (!empty(request()->charts_type) && request()->charts_type == 1) {
+            $data = ExtensionCenterService::fansConversion();
+        } else {
+            $data = ExtensionCenterService::fansFission();
+        }
+        return $this->successJson('ok', $data);
+    }
+
+    /**
+     * 推广订单
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function extension()
+    {
+        ExtensionCenterService::init(request());
+        if (!empty(request()->extension_type) && request()->extension_type == 1) {
+            $data = ExtensionCenterService::extensionFans();
+        } else {
+            $data = ExtensionCenterService::extensionOrder();
+        }
+        return $this->successJson('ok',$data);
     }
 
     /**
@@ -62,7 +150,7 @@ class IncomePageController extends ApiController
      * @return array|\Illuminate\Http\JsonResponse
      * @throws \app\common\exceptions\AppException
      */
-    public function getIncomePage($request, $integrated = null)
+    public function getIncomePage(Request $request, $integrated = null)
     {
         //检测是否推广员
         $this->is_agent = $this->isAgent();
@@ -204,7 +292,7 @@ class IncomePageController extends ApiController
         $unavailable = [];
         foreach ($config as $key => $item) {
 
-            $incomeFactory = new IncomePageFactory(new $item['class'], $lang_set, $is_relation, $this->is_agent, $total_income);
+            $incomeFactory = new IncomePageFactory(new $item['class'], $lang_set, $is_relation, $this->is_agent, $total_income,$key);
 
             if (!$incomeFactory->isShow()) {
                 continue;

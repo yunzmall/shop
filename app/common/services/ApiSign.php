@@ -296,7 +296,7 @@ class ApiSign
      * 获取返回时的签名验证结果
      * @param $para_temp 通知返回来的参数数组
      * @param $sign 返回的签名结果
-     * @return 签名验证结果
+     * @return bool 签名验证结果
      */
     public function getSignVeryfy($sign)
     {

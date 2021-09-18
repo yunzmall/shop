@@ -14,23 +14,44 @@ namespace app\backend\modules\map\controllers;
 
 use app\common\components\BaseController;
 use app\common\facades\Setting;
-use app\common\helpers\Url;
 
 class SettingController extends BaseController
 {
     public function index()
     {
-        if (request()->input('a_map')) {
-            return $this->store();
-        }
-        return view('map.setting', ['map' => Setting::get('map.a_map')]);
+        if ($this->postData()) return $this->store();
+
+        return view('map.setting', $this->viewData());
     }
 
+    /**
+     * 数据存储
+     */
     private function store()
     {
-        Setting::set("map.a_map", request()->input('a_map') ?: []);
+        Setting::set("map.a_map", $this->postData());
 
         return $this->successJson('地图设置成功');
+    }
+
+    /**
+     * 提交数据
+     *
+     * @return array
+     */
+    private function postData()
+    {
+        return request()->input('a_map', []);
+    }
+
+    /**
+     * view 数据
+     *
+     * @return array
+     */
+    private function viewData()
+    {
+        return ['map' => Setting::get('map.a_map')];
     }
 
 }

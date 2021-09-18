@@ -103,6 +103,15 @@ class GoodsDispatch extends BaseModel
         return explode(',', $this->dispatch_type_ids) ?: [];
     }
 
+    /**
+     * 返回勾选并开启的配送方式ID
+     * @return array|static
+     */
+    public function getEnableDispatchTypeIds()
+    {
+        return DispatchType::goodsEnableDispatchTypeIds($this->getDispatchTypeIds());
+    }
+
     public function dispatchTypesSettingV2()
     {
         //$dispatchTypes = DispatchType::where('plugin', 0)->where('enable', 1)->get();

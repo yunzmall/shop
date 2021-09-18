@@ -9,8 +9,10 @@
 namespace app\frontend\modules\member\services;
 
 use app\common\models\MemberShopInfo;
+use app\common\services\Session;
 use app\frontend\models\Member;
 use app\frontend\modules\member\models\MemberModel;
+use Illuminate\Contracts\Encryption\DecryptException;
 
 class MemberMobileService extends MemberService
 {
@@ -69,8 +71,37 @@ class MemberMobileService extends MemberService
      *
      * @return bool
      */
-    public function checkLogged($login = null)
+    public function checkLogged()
     {
-        return MemberService::isLogged();
+        $member = null;
+        $member_id = \YunShop::app()->getMemberId();
+
+        if ($member_id) {
+            $member = Member::getMemberByUid($member_id)->first();
+
+            if ($member) {
+                return true;
+            }
+        }
+
+        if (isset($_COOKIE['Yz-appToken'])) {
+            try {
+                $yz_token = decrypt($_COOKIE['Yz-appToken']);
+
+                list($mobile, $uid) = explode('\t', $yz_token);
+            } catch (DecryptException $e) {
+                return false;
+            }
+
+            $member = Member::getMemberByUid($uid)->first();
+
+            if ($member) {
+                Session::set('member_id', $member->uid);
+
+                return true;
+            }
+        }
+
+        return false;
     }
 }

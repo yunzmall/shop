@@ -75,6 +75,15 @@ if ($result) {
         $top = $result['top'];
     }
 
+    $app_top = '';
+    $app_bottom='';
+
+//    if ($result['theme_id'] == 21){
+//        $app_top = '<div class="swiper-container" style="display: block; height: calc(100vh - 74px)"><div class="swiper-wrapper middle_detail">';
+//        $app_bottom = '</div><div class="swiper-pagination"></div></div>';
+//    }
+
+
     if ($result['basic']) {
         $result['basic'] = json_decode($result['basic'],true);
         if (isset($result['basic']['cus_url'])) {

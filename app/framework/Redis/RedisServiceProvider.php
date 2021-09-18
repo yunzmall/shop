@@ -22,7 +22,7 @@ class RedisServiceProvider extends \Illuminate\Redis\RedisServiceProvider
                     }
                 }
             }
-            return new Database($redisConfig);
+            return new Database($redisConfig['client'],$redisConfig);
         });
     }
 }

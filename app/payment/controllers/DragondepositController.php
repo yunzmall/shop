@@ -10,6 +10,7 @@ namespace app\payment\controllers;
 
 use app\backend\modules\refund\services\RefundOperationService;
 use app\backend\modules\refund\services\RefundMessageService;
+use app\common\events\order\AfterOrderRefundSuccessEvent;
 use app\common\helpers\Url;
 use app\common\models\AccountWechats;
 
@@ -152,6 +153,7 @@ class DragondepositController  extends PaymentController
             RefundOperationService::refundComplete(['id' => $refundApply->id]);
             RefundMessageService::passMessage($refundApply);//通知买家
 
+            event(new AfterOrderRefundSuccessEvent($refundApply));
             if (app('plugins')->isEnabled('instation-message')) {
                 event(new \Yunshop\InstationMessage\event\OrderRefundSuccessEvent($refundApply));
             }

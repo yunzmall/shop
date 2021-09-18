@@ -269,13 +269,13 @@ class Order extends \app\common\models\Order
                     $order_builder->whereIn('yz_order.pay_type_id', $pay_type_ids);
                 }
             } else {
-                $order_builder->where('pay_type_id', $params['pay_type']);
+                $order_builder->where('yz_order.pay_type_id', $params['pay_type']);
             }
         }
         //操作时间范围
         if (array_get($params, 'time_range.field', '') && array_get($params, 'time_range.start', 0) && array_get($params, 'time_range.end', 0)) {
             $range = [strtotime($params['time_range']['start']), strtotime($params['time_range']['end'])];
-            $order_builder->whereBetween($params['time_range']['field'], $range);
+            $order_builder->whereBetween('yz_order'.'.'.$params['time_range']['field'], $range);
         }
         return $order_builder;
     }

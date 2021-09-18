@@ -10,6 +10,7 @@ namespace app\backend\modules\order\models;
 
 use app\backend\modules\member\models\MemberParent;
 use app\backend\modules\order\services\OrderService;
+use app\backend\modules\order\services\OrderViewService;
 use app\common\models\ExpeditingDelivery;
 use app\common\models\order\FirstOrder;
 use app\common\models\order\OrderDeliver;
@@ -26,6 +27,69 @@ class VueOrder extends \app\common\models\Order
 {
 
     protected $appends = ['backend_button_models', 'status_name', 'pay_type_name'];
+
+
+    protected $orderType;
+
+    public function getOrderType()
+    {
+        if (!isset($this->orderType)) {
+            $this->orderType = $this->_getOrderType();
+        }
+        return $this->orderType;
+
+    }
+    protected function _getOrderType()
+    {
+        $configs = \app\common\modules\shop\ShopConfig::current()->get('shop-foundation.order-list.type');
+
+        // 从配置文件中载入,按优先级排序
+        $orderTypeConfigs = collect($configs)->sortBy('priority');
+
+
+        //遍历取到第一个通过验证的订单类型返回
+        foreach ($orderTypeConfigs as $configItem) {
+            /**
+             * @var \app\backend\modules\order\services\type\OrderTypeFactory $orderType
+             */
+            $orderType = call_user_func($configItem['class'], $this);
+            //通过验证返回
+            if (isset($orderType) && $orderType->isBelongTo()) {
+                return $orderType;
+            }
+
+        }
+        //没有对应订单类型，返回默认订单类型
+        return new \app\backend\modules\order\services\type\NoneOrder($this);
+
+    }
+
+    /**
+     * 订单后端操作按钮
+     * @return array
+     */
+    public function getBackendButtonModelsAttribute()
+    {
+        return  $this->getOrderType()->buttonModels();
+    }
+
+    /**
+     * 订单列表行顶部显示
+     * @return array
+     */
+    public function getTopRowAttribute()
+    {
+        return  $this->getOrderType()->rowHeadShow();
+    }
+
+    /**
+     * 订单列表固定按钮
+     * @return array
+     */
+    public function getFixedButtonAttribute()
+    {
+        return  $this->getOrderType()->fixedButton();
+    }
 
 
     public function scopeStatusCode($query, $code = null)
@@ -68,8 +132,22 @@ class VueOrder extends \app\common\models\Order
                 $query->whereIn('id', $orderIds); //支付回调异常订单
                 break;
             case 'all':
+                break;
             default:
         }
+
+        if ($code == 'all') {
+            //todo 暂时的，只显示有设置config配置的订单
+            foreach ((new OrderViewService())->getOrderType() as $orderType) {
+                $pluginIds[] = $orderType['plugin_id'];
+            }
+            if ($pluginIds) {
+                $query->whereIn('plugin_id', $pluginIds);
+            }
+        } else {
+            $query->pluginId();
+        }
+
 
         return $query;
     }
@@ -81,9 +159,19 @@ class VueOrder extends \app\common\models\Order
 
         //订单首单搜索
         if ($search['first_order']) {
-//            $order_builder->whereHas('hasManyFirstOrder');
-            $order_builder->join('yz_first_order', 'yz_first_order.order_id', '=', 'yz_order.id');
+            $order_builder->whereHas('hasManyFirstOrder');
+            //$order_builder->join('yz_first_order', 'yz_first_order.order_id', '=', 'yz_order.id');
         }
+
+        if (isset($search['plugin_id']) && $search['plugin_id'] != '') {
+            $order_builder->where('yz_order.plugin_id', $search['plugin_id']);
+        }
+
+
+        if (isset($search['order_type']) && $search['order_type'] != '') {
+            $order_builder->where('yz_order.plugin_id', $search['order_type']);
+        }
+
 
 
         if ($search['order_id']) {
@@ -97,12 +185,12 @@ class VueOrder extends \app\common\models\Order
         }
 
         if ($search['order_sn']) {
-            $order_builder->where('yz_order.order_sn', 'like', "%{$search['order_sn']}%");
+            $order_builder->where('yz_order.order_sn', 'like', "%".trim($search['order_sn'])."%");
         }
 
         if ($search['pay_sn']) {
             $order_builder->join('yz_order_pay', 'yz_order_pay.id', '=', 'yz_order.order_pay_id')
-                ->where('yz_order_pay.pay_sn', 'like', "%{$search['pay_sn']}%");
+                ->where('yz_order_pay.pay_sn', 'like', "%".trim($search['pay_sn'])."%");
         }
 
 
@@ -124,43 +212,59 @@ class VueOrder extends \app\common\models\Order
 
 
         //增加地址,姓名，手机号搜索
-        if ($search['address_mobile']) {
+        if ($search['address_mobile'] || $search['address'] || $search['address_name']) {
             $order_builder->join('yz_order_address', 'yz_order_address.order_id', '=', 'yz_order.id')->where(function ($query) use ($search) {
-                $query->where('yz_order_address.mobile', 'like', "%{$search['address_mobile']}%");
+                if ($search['address_mobile']) {
+                    $query->where('yz_order_address.mobile', 'like', "%{$search['address_mobile']}%");
+                }
+                if ($search['address_name']) {
+                    $query->where('yz_order_address.realname', 'like', "%{$search['address_name']}%");
+                }
+                if ($search['address']) {
+                    $query->where('yz_order_address.address', 'like', "%{$search['address']}%");
+                }
             });
+             // $order_builder->whereHas('address', function ($query) use ($search) {
+             //     return $query->where('mobile', 'like', '%' . $search['address_mobile'] . '%')
+             //       ->where('realname', 'like', '%' . $search['address_name'] . '%');
+             // });
         }
-        if ($search['address_name']) {
-            $order_builder->join('yz_order_address', 'yz_order_address.order_id', '=', 'yz_order.id')->where(function ($query) use ($search) {
-                $query->where('yz_order_address.realname', 'like', "%{$search['address_name']}%");
-            });
 
-//            $order_builder->whereHas('address', function ($query) use ($search) {
-//                return $query->where('mobile', 'like', '%' . $search['address_mobile'] . '%')
-//                    ->where('realname', 'like', '%' . $search['address_name'] . '%');
-//            });
-        }
+        //商品id  商品名称
+        if ($search['goods_id'] || $search['goods_title']) {
+            $orderGoodsModel = OrderGoods::uniacid();
+            if ($search['goods_id']) {
+                $orderGoodsModel->where('goods_id', $search['goods_id']);
+            }
+            if ($search['goods_title']) {
+                $orderGoodsModel->where('title', 'like', "%".trim($search['goods_title'])."%");
+            }
+            $goods_order_ids = $orderGoodsModel->pluck('order_id')->unique()->toArray();
 
-
-        //商品id
-        if ($search['goods_id']) {
-            $order_builder->join('yz_order_goods', 'yz_order_goods.order_id', '=', 'yz_order.id')->where(function ($query) use ($search) {
-                $query->where('yz_order_goods.goods_id', $search['goods_id']);
-            });
-
-//            $order_builder->whereHas('hasManyOrderGoods', function ($query) use ($search) {
-//                $query->where('goods_id',$search['goods_id']);
-//            });
-        }
-        //商品名称
-        if ($search['goods_title']) {
-
-            $order_builder->join('yz_order_goods', 'yz_order_goods.order_id', '=', 'yz_order.id')->where(function ($query) use ($search) {
-                $query->where('yz_order_goods.title', 'like', "%{$search['goods_title']}%");
-            });
-
-//            $order_builder->whereHas('hasManyOrderGoods', function ($query) use ($search) {
-//                $query->where('title','like',"%{$search['goods_title']}%");
-//            });
+            if ($goods_order_ids) {
+                $order_builder->whereIn('yz_order.id', $goods_order_ids);
+            }
+            //todo 同一笔订单商品相同规格不同会查询出两条数据
+            // if ($search['goods_id']) {
+            //     $order_builder->join('yz_order_goods', 'yz_order_goods.order_id', '=', 'yz_order.id')->where(function ($query) use ($search) {
+            //         $query->where('yz_order_goods.goods_id', $search['goods_id']);
+            //     });
+            //
+            //     $order_builder->whereHas('hasManyOrderGoods', function ($query) use ($search) {
+            //         $query->where('goods_id', $search['goods_id']);
+            //     });
+            // }
+            //
+            // if ($search['goods_title']) {
+            //
+            //     $order_builder->join('yz_order_goods', 'yz_order_goods.order_id', '=', 'yz_order.id')->where(function ($query) use ($search) {
+            //         $query->where('yz_order_goods.title', 'like', "%{$search['goods_title']}%");
+            //     });
+            //
+            //     $order_builder->whereHas('hasManyOrderGoods', function ($query) use ($search) {
+            //         $query->where('title', 'like', "%{$search['goods_title']}%");
+            //     });
+            // }
         }
 
         //快递单号
@@ -294,8 +398,18 @@ class VueOrder extends \app\common\models\Order
             },
             'hasManyFirstOrder',
             'hasManyMemberCertified',
+            'hasOneBehalfPay',
+            'memberCancel' => self::memberCancel_v(),
+
         ]);
         return $orders;
+    }
+
+    private static function memberCancel_v()
+    {
+        return function ($query) {
+            return $query->select(['member_id','status']);
+        };
     }
 
     public function scopeDetailOrders(Builder $order_builder)

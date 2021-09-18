@@ -10,28 +10,43 @@ namespace app\common\exceptions;
 
 class PaymentException extends ShopException
 {
-    const PAY_PASSWORD_SETTING_CLOSED = 2001; // 商城支付密码设置未开启
-    const MEMBER_NOT_SET_PAY_PASSWORD = 2002; // 用户未设置支付密码
-    const PAY_PASSWORD_ERROR = 2003; // 支付密码错误
+    /**
+     * 商城支付密码设置未开启错误码
+     */
+    const PAY_PASSWORD_SETTING_CLOSED = 2001;
+
+    /**
+     * 用户未设置支付密码错误码
+     */
+    const MEMBER_NOT_SET_PAY_PASSWORD = 2002;
+
+    /**
+     * 支付密码错误错误码
+     */
+    const PAY_PASSWORD_ERROR = 2003;
 
 
     public function settingClose()
     {
         $this->code = self::PAY_PASSWORD_SETTING_CLOSED;
         $this->message = '商城支付密码设置未开启';
-        $this->data['code'] =  $this->code ;
+        $this->data['code'] = $this->code;
         return $this;
     }
-    public function notSet(){
+
+    public function notSet()
+    {
         $this->code = self::MEMBER_NOT_SET_PAY_PASSWORD;
         $this->message = '用户未设置支付密码';
-        $this->data['code'] =  $this->code ;
+        $this->data['code'] = $this->code;
         return $this;
     }
-    public function passwordError(){
+
+    public function passwordError()
+    {
         $this->code = self::PAY_PASSWORD_ERROR;
         $this->message = '支付密码错误';
-        $this->data['code'] =  $this->code ;
+        $this->data['code'] = $this->code;
         return $this;
     }
 }

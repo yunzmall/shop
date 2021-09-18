@@ -16,7 +16,7 @@ class ImportGoodsController extends BaseController
         $goodsData['complete_thumb'] = yz_tomedia($goodsData['thumb']);
 
         if($goodsData){
-            return $this->successJson('ok', $goodsData->toArray());
+            return $this->successJson('ok', $goodsData);
         }
 
     }

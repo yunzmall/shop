@@ -21,7 +21,27 @@
                         <li class="{{in_array($key,\app\backend\modules\menu\Menu::current()->getCurrentItems()) ? 'active' : ''}}">
                             <a href="{{isset($value['url']) ? yzWebFullUrl($value['url']):''}}{{$value['url_params'] or ''}}">
                                 <i class="fa {{array_get($value,'icon','fa-circle-o') ?: 'fa-circle-o'}}"></i>
-                                <p>{{$value['name'] or ''}}</p>
+                                <p>{{$value['name'] or ''}}
+                                    @if(isset($value['bubble']) && $value['bubble'] >= 1)
+                                    <span style="
+                                      display: inline-block;
+                                      background: #ff485d;
+                                      color: #fff;
+                                      border-radius: 8px 8px 8px 1px;
+                                      position: relative;
+                                      top: -10px;
+                                      height: 15px;
+                                      line-height: 15px;
+                                      padding: 0 5px;
+                                      font-size: 12px;
+                                      font-weight: 500;
+                                      text-overflow: ellipsis;
+                                      overflow: hidden;
+                                      white-space: nowrap;
+                                      width: 47px;
+                                    ">{{$value['bubble']}}</span>
+                                    @endif
+                                </p>
                             </a>
                         </li>
                     @endif

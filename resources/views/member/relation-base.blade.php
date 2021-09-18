@@ -161,7 +161,7 @@
                         <label class="col-xs-12 col-sm-3 col-md-2 control-label">显示关系等级</label>
                         <div class="col-sm-9 col-xs-12">
                             <label class="checkbox-inline">
-                                <input type="checkbox"  name="base[relation_level][]" value="1" @if (array_search(1, $relation_level) === 0)
+                                <input type="checkbox"  name="base[relation_level][0]" value="1" @if (array_search(1, $relation_level) === 0)
                                 checked @endif />1级
                                 <input type="text"  name="base[relation_level][name1]" value="{{ $relation_level['name1'] }}" placeholder="自定义名称"/>
                             </label>
@@ -169,7 +169,7 @@
                         <label class="col-xs-12 col-sm-3 col-md-2 control-label"></label>
                         <div class="col-sm-9 col-xs-12">
                             <label class="checkbox-inline">
-                                <input type="checkbox"  name="base[relation_level][]" value="2" @if (in_array(2, $relation_level))
+                                <input type="checkbox"  name="base[relation_level][1]" value="2" @if (in_array(2, $relation_level))
                                 checked @endif />2级
                                 <input type="text"  name="base[relation_level][name2]" value="{{ $relation_level['name2'] }}" placeholder="自定义名称"/>
                             </label>
@@ -273,6 +273,11 @@
                         <label class="radio radio-inline">
                             <input type="radio" name="base[is_merge_save_level]" value="4" @if ($base['is_merge_save_level'] == 4) checked @endif/> APP微信登录
                         </label>
+                        @if(app('plugins')->isEnabled('alipay-onekey-login'))
+                        <label class="radio radio-inline">
+                            <input type="radio" name="base[is_merge_save_level]" value="4" @if ($base['is_merge_save_level'] == 5) checked @endif/> 支付宝登录
+                        </label>
+                        @endif
                         <span class='help-block'>
                             会员合并时，保留所选优先级对应的会员ID，其他的会员登录平台将合并到该会员ID上；<br>
                             如果不存在优先级设置的会员，则按注册时间优先合并。

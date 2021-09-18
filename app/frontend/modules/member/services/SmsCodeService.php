@@ -14,6 +14,7 @@ use app\common\models\MemberGroup;
 use app\common\services\Session;
 use app\frontend\modules\member\models\MemberWechatModel;
 use app\frontend\modules\member\models\SubMemberModel;
+use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Str;
 
@@ -29,7 +30,6 @@ class SmsCodeService extends MemberService
         $this->uniacid  = \YunShop::app()->uniacid;
         $data = request()->input();
         $redirect_url = request()->yz_redirect;
-
         if (\Request::isMethod('post')) {
             $this->validate($data);
             //检测验证码
@@ -41,11 +41,8 @@ class SmsCodeService extends MemberService
             if (empty($memberInfo)) {
                 $memberInfo = $this->register($data);
             }
-
-            if(!empty($memberInfo)){
+            if (!empty($memberInfo)) {
                 $memberInfo = $memberInfo->toArray();
-                //生成分销关系链
-                Member::createRealtion($memberInfo['uid']);
                 $this->save($memberInfo, $this->uniacid);
                 $yz_member = MemberShopInfo::getMemberShopInfo($memberInfo['uid']);
                 if (!empty($yz_member)) {
@@ -54,9 +51,7 @@ class SmsCodeService extends MemberService
                 } else {
                     $data = $memberInfo;
                 }
-
                 $data['redirect_url'] = base64_decode($redirect_url);
-
                 return show_json(1, $data);
             } else {
                 return show_json(6, "手机号或验证码错误");
@@ -100,78 +95,56 @@ class SmsCodeService extends MemberService
     //注册
     public function register($data)
     {
-        $array = array();
         //获取分组
-        $array['default_groupid']= MemberGroup::getDefaultGroupId($this->uniacid)->first();
-        \Log::info('default_groupid', $array['default_groupid']);
-        $array['member_set'] = \Setting::get('shop.member');
-        \Log::info('member_set', $array['member_set']);
-        if (isset($array['member_set']) && $array['member_set']['headimg']) {
-            $array['avatar'] = replace_yunshop(tomedia($array['member_set']['headimg']));
+        $default_group = MemberGroup::getDefaultGroupId()->first();
+        $member_set = \Setting::get('shop.member');
+        if (isset($member_set) && $member_set['headimg']) {
+            $head_img = replace_yunshop(tomedia($member_set['headimg']));
         } else {
-            $array['avatar'] = Url::shopUrl('static/images/photo-mr.jpg');
+            $head_img = Url::shopUrl('static/images/photo-mr.jpg');
         }
-        \Log::info('avatar', $array['avatar']);
-        $array['data'] = array(
+        $salt = Str::random(8);
+        $password = md5(str_random(8) . $salt);
+        $mc_member_data = [
             'uniacid' => $this->uniacid,
             'mobile' => $data['mobile'],
-            'groupid' => $array['default_groupid']->id ? $array['default_groupid']->id : 0,
+            'groupid' => $default_group->id ?: 0,
             'createtime' => $_SERVER['REQUEST_TIME'],
             'nickname' => $data['mobile'],
-            'avatar' => $array['avatar'],
+            'avatar' => $head_img,
             'gender' => 0,
             'residecity' => '',
-        );
-        $array['data']['salt'] = Str::random(8);
-        \Log::info('salt', $array['data']['salt']);
-
-        $array['data']['password'] = md5(str_random(8) . $data['salt']);
-        $array['memberModel'] = MemberModel::create($array['data']);
-        $array['member_id'] =  $array['memberModel']->uid;
-        //手机归属地查询插入
-        $array['phoneData'] = file_get_contents((new PhoneAttributionService())->getPhoneApi($data['mobile']));
-        $array['phoneArray'] = json_decode($array['phoneData']);
-        $array['phone']['uid'] = $array['member_id'];
-        $array['phone']['uniacid'] = $this->uniacid;
-        $array['phone']['province'] = $array['phoneArray']->data->province;
-        $array['phone']['city'] = $array['phoneArray']->data->city;
-        $array['phone']['sp'] = $array['phoneArray']->data->sp;
-        $phoneModel = new PhoneAttribution();
-        $phoneModel->updateOrCreate(['uid' => $data['mobile']], $array['phone']);
-        //添加yz_member表
-        $array['default_sub_group_id'] = MemberGroup::getDefaultGroupId()->first();
-
-        if (!empty($array['default_sub_group_id'])) {
-            $array['default_subgroup_id'] = $array['default_sub_group_id']->id;
-        } else {
-            $array['default_subgroup_id'] = 0;
-        }
-        $array['sub_data'] = array(
-            'member_id' => $array['member_id'],
+            'salt' => $salt,
+            'password' => $password,
+        ];
+        $mc_res = MemberModel::create($mc_member_data);
+        $member_id = $mc_res->uid;
+        $yz_member_data = [
+            'member_id' => $member_id,
             'uniacid' => $this->uniacid,
-            'group_id' => $array['default_subgroup_id'],
+            'group_id' => $default_group->id ?: 0,
             'level_id' => 0,
             'invite_code' => \app\frontend\modules\member\models\MemberModel::getUniqueInviteCode(),
-        );
-        SubMemberModel::insertData($array['sub_data']);
+        ];
+        SubMemberModel::insertData($yz_member_data);
         //生成分销关系链
-        Member::createRealtion($array['member_id']);
+        Member::createRealtion($member_id);
         $member = MemberModel::checkMobile($this->uniacid, $data['mobile']);
         if ($data['type'] == 7) {
-            MemberWechatModel::insertData(array(
+            $data = [
                 'uniacid' => $this->uniacid,
-                'member_id' => $array['member_info']['uid'],
-                'openid' => $array['member_info']['mobile'],
-                'nickname' => $array['member_info']['nickname'],
-                'gender' => $array['member_info']['gender'],
-                'avatar' => $array['member_info']['avatar'],
-                'province' => $array['member_info']['resideprovince'],
-                'city' => $array['member_info']['residecity'],
-                'country' => $array['member_info']['nationality'],
+                'member_id' => $member_id,
+                'openid' => $data['mobile'],
+                'nickname' => $data['mobile'],
+                'gender' => 0,
+                'avatar' => $head_img,
+                'province' => '',
+                'city' => '',
+                'country' => '',
                 'uuid' => $data['uuid']
-            ));
+            ];
+            MemberWechatModel::insertData($data);
         }
-        //dd($array);
         return $member;
     }
 

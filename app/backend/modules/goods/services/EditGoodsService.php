@@ -14,6 +14,7 @@ use app\backend\modules\goods\models\GoodsParam;
 use app\backend\modules\goods\models\GoodsSpec;
 use app\backend\modules\goods\models\GoodsOption;
 use app\backend\modules\goods\models\Brand;
+use app\common\events\goods\GoodsChangeEvent;
 use app\common\models\GoodsCategory;
 use Setting;
 
@@ -110,13 +111,15 @@ class EditGoodsService
                 $category_model->delete();
             }
             GoodsService::saveGoodsMultiCategory($this->goods_model, \YunShop::request()->category, Setting::get('shop.category'));
-/*
+
             if (!empty($this->request->widgets['sale']['max_point_deduct'])
                 && !empty($goods_data['price'])
                 && $this->request->widgets['sale']['max_point_deduct'] > $goods_data['price']) {
                 return ['status' => -1, 'msg' => '积分抵扣金额大于商品现价'];
             }
-*/
+            if (mb_strlen($this->request['widgets']['advertising']['copywriting']) > 100) {
+                return ['status' => -1, 'msg' => '广告宣传语文案输入超过100，请重新输入'];
+            }
             $goods_data['price'] = $goods_data['price'] ?: 0;
             $goods_data['market_price'] = $goods_data['market_price'] ?: 0;
             $goods_data['cost_price'] = $goods_data['cost_price'] ?: 0;
@@ -136,6 +139,8 @@ class EditGoodsService
                     GoodsParam::saveParam($this->request, $this->goods_model->id, \YunShop::app()->uniacid);
                     GoodsSpec::saveSpec($this->request, $this->goods_model->id, \YunShop::app()->uniacid);
                     GoodsOption::saveOption($this->request, $this->goods_model->id, GoodsSpec::$spec_items, \YunShop::app()->uniacid);
+
+                    event(new GoodsChangeEvent($this->goods_model));//todo 有时需要监听商品更改过后规格的变化，挂件更改在规格保存之前，无法使用
                     //显示信息并跳转
                     return ['status' => 1];
                 } else {
@@ -144,9 +149,8 @@ class EditGoodsService
             }
 
         }
-
-        $this->brands = Brand::getBrands()->get();
-
+		
+        $this->brands = Brand::getBrand($this->goods_model->brand_id);
         if (isset($this->goods_model->hasManyGoodsCategory[0])){
             foreach($goods_categorys = $this->goods_model->hasManyGoodsCategory->toArray() as $goods_category){
                 $this->catetory_menus[] = CategoryService::getCategoryMultiMenu(['catlevel' => Setting::get('shop.category')['cat_level'], 'ids' => explode(",", $goods_category['category_ids'])]);

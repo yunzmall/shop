@@ -1,7 +1,10 @@
 <?php
+
 namespace app\frontend\modules\payment\listeners;
 
 use app\common\events\payment\GetOrderPaymentTypeEvent;
+use app\common\services\password\PasswordService;
+
 /**
  * Created by PhpStorm.
  * Author: 芸众商城 www.yunzshop.com
@@ -14,17 +17,12 @@ class Credit
     {
         if (\Setting::get('shop.pay.credit')) {
             $result = [
-                'name' => '余额',
-                'value' => '3',
-                'need_password' => '0'
+                'name'          => '余额',
+                'value'         => '3',
+                'need_password' => $this->needPassword()
             ];
-            if(\Setting::get('shop.pay.balance_pay_proving')){
-                $result['need_password'] = 1;
-            }
             $event->addData($result);
-
         }
-
         return null;
     }
 
@@ -34,5 +32,10 @@ class Credit
             GetOrderPaymentTypeEvent::class,
             self::class . '@onGetPaymentTypes'
         );
+    }
+
+    private function needPassword()
+    {
+        return (new PasswordService())->isNeed('balance', 'pay');
     }
 }

@@ -35,6 +35,6 @@ class UserActionListener  implements ShouldQueue
     {
         $str = '管理员:' . $event->adminName . '(id:' . $event->uid . ')' . $event->content;
 
-        \Log::info($str);
-    }
+            \Log::info($str);
+        }
 }

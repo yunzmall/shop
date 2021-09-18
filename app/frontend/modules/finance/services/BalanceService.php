@@ -9,6 +9,8 @@
 namespace app\frontend\modules\finance\services;
 
 use app\common\exceptions\AppException;
+use app\common\models\member\ChildrenOfMember;
+use app\common\models\member\ParentOfMember;
 use app\common\services\credit\ConstService;
 use app\common\services\finance\BalanceChange;
 use app\common\facades\Setting;
@@ -64,6 +66,11 @@ class BalanceService
     public function transferSet()
     {
         return $this->_recharge_set['transfer'] ? true : false;
+    }
+    //余额转让设置
+    public function teamTransferSet()
+    {
+        return $this->_recharge_set['team_transfer'] ? true : false;
     }
 
     //余额转化爱心值
@@ -220,4 +227,26 @@ class BalanceService
         return $this->_recharge_set['recharge_activity_fetter'];
     }
 
+    public function teamTransfer($recipient)
+    {
+        $parent_ids = [];
+        $child_ids = [];
+        $parent = ParentOfMember::uniacid()->where('member_id', \Yunshop::app()->getMemberId())->get();
+
+        if (!$parent->isEmpty()) {
+            $parent_ids = $parent->pluck('parent_id')->toArray();
+        }
+
+        $children = ChildrenOfMember::uniacid()->where('member_id', \Yunshop::app()->getMemberId())->get();
+        if (!$children->isEmpty()) {
+            $child_ids = $children->pluck('child_id')->toArray();
+        }
+        $ids = array_merge($parent_ids, $child_ids);
+        if (in_array($recipient, $ids)) {
+            return true;
+        }
+
+        return false;
+
+    }
 }

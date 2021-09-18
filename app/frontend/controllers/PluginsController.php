@@ -28,4 +28,13 @@ class PluginsController extends BaseController
         return $this->errorJson('未检测到数据!');
     }
 
+    public function getEnabledPlugins()
+    {
+        $data = [];
+        $data['is_supplier'] = app('plugins')->isEnabled('supplier') ? 1 : 0;
+        $data['is_store'] = app('plugins')->isEnabled('store-cashier') ? 1 : 0;
+        $data['is_hotel'] = app('plugins')->isEnabled('hotel') ? 1 : 0;
+        return $this->successJson('获取数据成功!', $data);
+    }
+
 }

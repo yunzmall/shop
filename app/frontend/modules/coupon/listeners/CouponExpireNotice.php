@@ -2,6 +2,7 @@
 
 namespace app\frontend\modules\coupon\listeners;
 
+use app\common\events\order\CouponExpireEvent;
 use app\common\facades\Setting;
 use app\common\models\Coupon;
 use app\common\models\Member;
@@ -65,6 +66,7 @@ class CouponExpireNotice
                 'time_end' => $memberCoupon->time_end
             ];
             $this->sendNotice($couponData, $member);
+            event(new CouponExpireEvent($memberCoupon->coupon_id,$member->uid,$memberCoupon->time_end));
         }
     }
 
@@ -96,7 +98,8 @@ class CouponExpireNotice
             if (!$msg) {
                 return;
             }
-            \app\common\services\MessageService::notice(MessageTemp::$template_id, $msg, $member->uid, $this->uniacid);
+            $tempData = MessageTemp::getTempById($temp_id)->first();
+            \app\common\services\MessageService::notice(MessageTemp::$template_id, $msg, $member->uid, $this->uniacid,($tempData?$tempData->news_link:''));
         }
         return;
     }

@@ -28,10 +28,10 @@ class ExpressInfo extends OrderOperation
     public function enable()
     {
         // 虚拟
-        if ($this->order->isVirtual()) {
+        if ($this->order->isVirtual() || $this->order->isBlindBox()) {
             return false;
         }
-        
+
         // todo 这里要修改，不然每次有新的都得往这加
         // 门店自提、配送站自提、配送站送货
         $dispatchType = [

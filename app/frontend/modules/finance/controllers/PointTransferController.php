@@ -15,6 +15,7 @@ use app\common\facades\Setting;
 use app\common\models\finance\PointTransfer;
 use app\common\services\credit\ConstService;
 use app\common\services\finance\PointService;
+use app\common\services\password\PasswordService;
 use app\frontend\models\Member;
 use Illuminate\Support\Facades\DB;
 
@@ -49,12 +50,28 @@ class PointTransferController extends ApiController
         return $recipient ? $this->successJson('ok', $recipient) : $this->errorJson('未获取到被转让者或被转让者不存在');
     }
 
+    private function needPassword()
+    {
+        return (new PasswordService())->isNeed('point', 'transfer');
+    }
+
+    protected function memberId()
+    {
+        return \YunShop::app()->getMemberId();
+    }
+
+    protected function password()
+    {
+        return request()->input('password');
+    }
+
     /**
      * 转让开始
      * @return bool|string
      */
     private function transferStart()
     {
+        if ($this->needPassword()) (new PasswordService())->checkPayPassword($this->memberId(), $this->password());
 
         if (!$this->getTransferInfo()) {
             return '未获取到会员信息';
@@ -165,7 +182,7 @@ class PointTransferController extends ApiController
 
     private function getMemberInfo($memberId)
     {
-        return Member::select('uid', 'avatar', 'nickname', 'realname', 'credit1')->where('uid', $memberId)->first();
+        return Member::uniacid()->select('uid', 'avatar', 'nickname', 'realname', 'credit1')->where('uid', $memberId)->first();
     }
 
     private function getPostTransferPoint()

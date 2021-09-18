@@ -51,7 +51,7 @@ class Resend  extends BaseStepFactory
 
     public function isShow()
     {
-        return $this->model->status < RefundApply::WAIT_RECEIVE_RESEND_GOODS || !is_null($this->model->send_time);
+        return (RefundApply::WAIT_CHECK < $this->model->status && $this->model->status < RefundApply::WAIT_RECEIVE_RESEND_GOODS) || !is_null($this->model->send_time);
     }
 
     public function waitStatus()

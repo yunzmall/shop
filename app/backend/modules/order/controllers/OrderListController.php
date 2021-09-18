@@ -12,6 +12,7 @@ use app\backend\modules\goods\models\GoodsOption;
 use app\backend\modules\member\models\MemberParent;
 use app\backend\modules\order\models\VueOrder;
 use app\backend\modules\order\models\OrderGoods;
+use app\backend\modules\order\services\OrderViewService;
 use app\common\components\BaseController;
 
 use app\common\helpers\PaginationHelper;
@@ -23,6 +24,10 @@ use Yunshop\Diyform\models\DiyformDataModel;
 use Yunshop\Diyform\models\DiyformTypeModel;
 use Yunshop\Diyform\models\OrderGoodsDiyForm;
 use Yunshop\TeamDividend\models\TeamDividendLevelModel;
+use Yunshop\Exhelper\common\models\ExhelperPanel;
+use Yunshop\Exhelper\common\models\ExhelperSys;
+use Yunshop\Exhelper\common\models\SendUser;
+
 
 class OrderListController  extends BaseController
 {
@@ -43,20 +48,42 @@ class OrderListController  extends BaseController
     {
         parent::preAction();
 
-        $this->setOrderModel();
     }
 
     protected function getOrder()
     {
-        return VueOrder::isPlugin()->pluginId();
+
+        $model = VueOrder::uniacid();
+
+
+//        //todo 暂时的，只显示有设置config配置的订单
+//        foreach ((new OrderViewService())->getOrderType() as $orderType) {
+//            $pluginIds[] = $orderType['plugin_id'];
+//        }
+//        if ($pluginIds) {
+//            $model->whereIn('plugin_id', $pluginIds);
+//        }
+
+        return $model;
+            //->where('plugin_id', 40);
     }
 
     protected function setOrderModel()
     {
         $search = request()->input('search');
         $code = request()->input('code');
-        $this->orderModel = $this->getOrder()->statusCode($code)->orders($search);
+        return $this->getOrder()->statusCode($code)->orders($search);
     }
+
+    protected function orderModel()
+    {
+        if(isset($this->orderModel)) {
+            return $this->orderModel;
+        }
+
+        return  $this->orderModel = $this->setOrderModel();
+    }
+
 
     protected function getData($code = '')
     {
@@ -118,12 +145,12 @@ class OrderListController  extends BaseController
 
 
         if ($sort == 1) {
-            $condition['order_by'][] = [$this->orderModel->getModel()->getTable() . '.uid', 'desc'];
-            $condition['order_by'][] = [$this->orderModel->getModel()->getTable() . '.id', 'desc'];
+            $condition['order_by'][] = [$this->orderModel()->getModel()->getTable() . '.uid', 'desc'];
+            $condition['order_by'][] = [$this->orderModel()->getModel()->getTable() . '.id', 'desc'];
         }
 
 
-        $orderModel = $this->orderModel;
+        $orderModel = $this->orderModel();
 
         $count['total_price'] = $orderModel->sum('yz_order.price');
         $count['dispatch_price'] = $orderModel->sum('yz_order.dispatch_price');
@@ -134,20 +161,17 @@ class OrderListController  extends BaseController
                 $build->orderBy(...$item);
             }
         } else {
-            $build->orderBy($this->orderModel->getModel()->getTable() . '.id', 'desc');
+            $build->orderBy($this->orderModel()->getModel()->getTable() . '.id', 'desc');
         }
 
         $page = $build->paginate(self::PAGE_SIZE);
 
+        /**
+         * todo 为了不在模型的 $appends 属性加动态显示
+         */
         foreach ($page as $item){
-            $item->canRefund = $item->canRefund();
-
-
-            //todo 这里应该写成插件配置的，如后面有其他插件需要加直接在插件里配置就行了
-            $deliveryDriver = $this->deliveryDriver($item);
-            if ($deliveryDriver) {
-                $item->package_deliver = $deliveryDriver;
-            }
+            $item->fixed_button = $item->fixed_button;
+            $item->top_row = $item->top_row;
         }
 
 
@@ -156,44 +180,58 @@ class OrderListController  extends BaseController
 
         $list = $page->toArray();
 
-//        dd($list);
+
+        foreach ($list['data'] as &$value) {
+            $total = 0;
+            foreach ($value['has_many_order_goods'] as $v) {
+                $total += $v['total'];
+            }
+            
+            $value['order_goods_total'] = $total;
+        }
 
         $data = [
             'list' => $list,
             'count' => $count,
         ];
 
+
         return $this->successJson('list', $data);
     }
-
-    protected function deliveryDriver($order)
+    
+    public function getSynchro()
     {
-        $deliveryDriver = [];
-        if ($order->dispatch_type_id == 8 && app('plugins')->isEnabled('package-deliver')) {
-
-            $deliverOrder = \Yunshop\PackageDeliver\model\PackageDeliverOrder::where('order_id', $order->id)
-                ->with(['hasOneDeliver', 'hasOneDeliverClerk'])
-                ->first();
-
-            if ($deliverOrder->hasOneDeliver) {
-                $deliveryDriver['package_deliver_name'] = $deliverOrder->hasOneDeliver->deliver_name;
-                if ($order->status == 3) {
-                    $deliveryDriver['deliver_clerk_name'] = $deliverOrder->hasOneDeliverClerk ? '核销员:'.$deliverOrder->hasOneDeliverClerk->realname : '核销员:后台确认';
-                }
-            }
-        }
-
-        return $deliveryDriver;
+	    //判断是否开启了同步运单号
+	    $synchro = 0;
+	    if (app('plugins')->isEnabled('exhelper')){
+		    $set = ExhelperSys::uniacid()->first();
+		    if ($set){//判断是否填了快递助手信息
+			    $send = SendUser::uniacid()->where('isdefault', 1)->first();
+			    $panel = ExhelperPanel::uniacid()->where('isdefault', 1)->first();
+			
+			    if ($send && $panel){//判断是否有默认发货人和默认模板
+				    $synchro = 1;//开启同步运单号
+			    }else{
+				    $synchro = 0;
+			    }
+		    }else{
+			    $synchro = 0;
+		    }
+	    }
+	    return $this->successJson('ok', $synchro);
     }
-
-
-
+    
+    
     /**
      * @return string
      * @throws \Throwable
      */
     public function index()
     {
+        //$a = (new \app\backend\modules\order\services\OrderViewService())->importVue();
+
+        //(new \app\backend\modules\order\services\OrderViewService())->topRowShow();
+
         return view('order.vue-list', $this->getData())->render();
     }
 
@@ -256,17 +294,18 @@ class OrderListController  extends BaseController
     public function export()
     {
         $export_type = request()->input('export_type');
+        $template = request()->input('template');
 
         if ($export_type == 1) {
-            $this->baseExport();
+            $this->baseExport($template);
         } elseif ($export_type == 2) {
-            $this->directExport();
+            $this->directExport($template);
         }
 
     }
 
 
-    public function baseExport()
+    public function baseExport($template)
     {
 
         set_time_limit(30);
@@ -280,12 +319,12 @@ class OrderListController  extends BaseController
                 }
             }
         }
-        $orders = $this->orderModel->with(['discounts', 'deductions'])->orderBy($this->orderModel->getModel()->getTable() . '.id', 'desc');
+        $orders = $this->orderModel()->with(['discounts', 'deductions'])->orderBy($this->orderModel()->getModel()->getTable() . '.id', 'desc');
         $export_model = new OrderExportService($orders, $export_page);
 
         if (!$export_model->builder_model->isEmpty()) {
             $file_name = date('Ymdhis', time()). '订单导出' .$export_page;//返现记录导出
-            $export_data[0] = $this->getColumns();
+            $export_data[0] = $template == 2 ? $this->getColumns() : $this->getColumnsV1();
             foreach ($export_model->builder_model->toArray() as $key => $item) {
                 $address = explode(' ', $item['address']['address']);
                 $fistOrder = $item['has_many_first_order'] ? '首单' : '';
@@ -296,6 +335,8 @@ class OrderListController  extends BaseController
                         ->with(['hasOneDeliver', 'hasOneDeliverClerk'])
                         ->first();
 
+                    $deliver_name = $deliverOrder->deliver_id.'-'.$deliverOrder->hasOneDeliver->deliver_name;
+
                     if ($deliverOrder->hasOneDeliverClerk) {
                         $package_deliver_name = '[UID:'.$deliverOrder->hasOneDeliverClerk->uid.']'.$deliverOrder->hasOneDeliverClerk->realname;
 
@@ -305,19 +346,29 @@ class OrderListController  extends BaseController
                         $package_deliver_name = '';
                     }
                 } else {
+                    $deliver_name = '';
                     $package_deliver_name = '';
                 }
 
-                $form = $this->getFormDataByOderId($item['id']);
 
                 $goods = [];
-                foreach ($item['has_many_order_goods'] as $v) {
+                if ($template == 2){
+                    $form = $this->getFormDataByOderId($item['id']);
+
+                    foreach ($item['has_many_order_goods'] as $v) {
+                        $goods[] = [
+                            $v['title'],
+                            $v['goods_option_title'],
+                            $v['goods_sn'],
+                            $v['total'],
+                            isset($form[$v['goods_id']]) ? $form[$v['goods_id']] : '',
+                        ];
+                    }
+                }else{
                     $goods[] = [
-                        $v['title'],
-                        $v['goods_option_title'],
-                        $v['goods_sn'],
-                        $v['total'],
-                        isset($form[$v['goods_id']]) ? $form[$v['goods_id']] : '',
+                        $this->getGoods($item, 'goods_title'),
+                        $this->getGoods($item, 'goods_sn'),
+                        $this->getGoods($item, 'total'),
                     ];
                 }
 
@@ -356,41 +407,54 @@ class OrderListController  extends BaseController
                     $item['belongs_to_member']['realname'],
                     ' '.$item['belongs_to_member']['idcard'],
                     $package_deliver_name,
+                    $deliver_name,
+                    isset($item['has_one_refund_apply']) ? $item['has_one_refund_apply']['refund_type_name'] . ':' . $item['has_one_refund_apply']['status_name'] : ''
                 ];
             }
             $export_model->export($file_name, $export_data, $this->exportRoute);
         }
     }
 
-    public function directExport()
+    public function directExport($template)
     {
         $export_page = request()->export_page ? request()->export_page : 1;
-        $orders = $this->orderModel->with([
+        $orders = $this->orderModel()->with([
             'discounts',
             'deductions',
             'hasManyParentTeam' => function($q) {
-                $q->whereHas('hasOneTeamDividend')
-                    ->with(['hasOneTeamDividend' => function($q) {
-                        $q->with(['hasOneLevel']);
-                    }])
-                    ->with('hasOneMember')
+                if (app('plugins')->isEnabled('team-dividend')) {
+                    $q->whereHas('hasOneTeamDividend')
+                        ->with(['hasOneTeamDividend' => function($q) {
+                            $q->with(['hasOneLevel']);
+                        }])
+                        ->with('hasOneMember')
 //                        ->orderBy('id', 'desc')
-                    ->orderBy('level', 'asc');
+                        ->orderBy('level', 'asc');
+                } else {
+                    $q->with('hasOneMember')
+                        ->orderBy('level', 'asc');
+                }
             },
         ]);
         $export_model = new OrderExportService($orders, $export_page);
-        $team_list = TeamDividendLevelModel::getList()->get();
 
         $levelId = [];
         $level_name = [];
-        foreach ($team_list as $level) {
-            $level_name[] = $level->level_name;
-            $levelId[] = $level->id;
+        if (app('plugins')->isEnabled('team-dividend')) {
+            $team_list = TeamDividendLevelModel::getList()->get();
+            foreach ($team_list as $level) {
+                $level_name[] = $level->level_name;
+                $levelId[] = $level->id;
+            }
         }
 
         if (!$export_model->builder_model->isEmpty()) {
             $file_name = date('Ymdhis', time()) . '订单导出' .$export_page;//返现记录导出
-            $export_data[0] = array_merge($level_name,$this->getColumns());
+//            $export_data[0] = $template == 2 ? $this->getColumns() : $this->getColumnsV1();
+            //处理表头
+            $head = $template == 2 ? $this->getColumns() : $this->getColumnsV1();
+            $export_data[0] = array_merge($level_name, $head);
+
             foreach ($export_model->builder_model->toArray() as $key => $item) {
 
                 $level = $this->getLevel($item, $levelId);
@@ -399,16 +463,26 @@ class OrderListController  extends BaseController
 
                 $address = explode(' ', $item['address']['address']);
 
-                $form = $this->getFormDataByOderId($item['id']);
+
 
                 $goods = [];
-                foreach ($item['has_many_order_goods'] as $v) {
+                if ($template == 2){
+                    $form = $this->getFormDataByOderId($item['id']);
+
+                    foreach ($item['has_many_order_goods'] as $v) {
+                        $goods[] = [
+                            $v['title'],
+                            $v['goods_option_title'],
+                            $v['goods_sn'],
+                            $v['total'],
+                            isset($form[$v['goods_id']]) ? $form[$v['goods_id']] : '',
+                        ];
+                    }
+                }else{
                     $goods[] = [
-                        $v['title'],
-                        $v['goods_option_title'],
-                        $v['goods_sn'],
-                        $v['total'],
-                        isset($form[$v['goods_id']]) ? $form[$v['goods_id']] : '',
+                        $this->getGoods($item, 'goods_title'),
+                        $this->getGoods($item, 'goods_sn'),
+                        $this->getGoods($item, 'total'),
                     ];
                 }
 
@@ -442,7 +516,8 @@ class OrderListController  extends BaseController
                     $item['express']['express_company_name'],
                     '[' . $item['express']['express_sn'] . ']',
                     $item['has_one_order_remark']['remark'],
-                    $item['note']
+                    $item['note'],
+                    isset($item['has_one_refund_apply']) ? $item['has_one_refund_apply']['refund_type_name'] . ':' . $item['has_one_refund_apply']['status_name'] : ''
                 );
             }
             $export_model->export($file_name, $export_data, $this->exportRoute, 'direct_export');
@@ -506,9 +581,18 @@ class OrderListController  extends BaseController
         return ["订单id", "订单编号", "支付单号", "会员ID", "粉丝昵称", "会员姓名", "联系电话", '省', '市', '区', "收货地址",
             "商品名称", "商品规格", "商品编码", "商品数量", "自定义表单", "支付方式", '抵扣金额', '优惠券优惠', '全场满减优惠',
             '单品满减优惠', "商品小计", "运费", "应收款", "成本价", "状态", "下单时间", "付款时间", "发货时间", "完成时间",
-            "快递公司", "快递单号", "订单备注", "用户备注", "首单", "真实姓名", "身份证", "核销员",
+            "快递公司", "快递单号", "订单备注", "用户备注", "首单", "真实姓名", "身份证", "核销员", "附加", "订单提示状态"
         ];
     }
+
+    protected function getColumnsV1()
+    {
+        return ["订单id","订单编号", "支付单号", "会员ID", "粉丝昵称", "收货人姓名", "联系电话", '省', '市', '区', "收货地址",
+            "商品名称", "商品编码", "商品数量", "支付方式", '抵扣金额', '优惠券优惠', '全场满减优惠', '单品满减优惠', "商品小计",
+            "运费", "应收款", "成本价", "状态", "下单时间", "付款时间", "发货时间", "完成时间", "快递公司", "快递单号", "订单备注",
+            "用户备注", "首单" , "真实姓名" , "身份证", '核销员', '附加', '订单提示状态'];
+    }
+
 
     protected function getExportDiscount($order, $key)
     {

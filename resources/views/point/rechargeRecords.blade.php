@@ -41,7 +41,7 @@
                                 ], true) !!}
                             </div>
                             <div class="form-group  col-xs-12 col-sm-7 col-lg-4">
-                                <div class="">
+                                <div style="width: 200px">
                                     <input type="hidden" name="token" value="{{$var['token']}}" />
                                     <button class="btn btn-success ">
                                         <i class="fa fa-search"></i>
@@ -59,7 +59,7 @@
         </div>
         <div class="clearfix">
             <div class="panel panel-default">
-                <div class="panel-heading">总数：{{ $memberList }}</div>
+                <div class="panel-heading">总数：{{ $pageList->total() }}</div>
                 <div class="panel-body">
                     <table class="table table-hover" style="overflow:visible;">
                         <thead class="navbar-inner">

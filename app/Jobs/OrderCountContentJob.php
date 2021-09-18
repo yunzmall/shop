@@ -41,7 +41,8 @@ class OrderCountContentJob implements  ShouldQueue
             'dispatch_price' => $this->orderModel->dispatch_price,
             'shop_name' => $this->orderModel->shop_name,
             'cost_price' => $this->costPrice(),
-            'day_time' => Carbon::today()->getTimestamp(),
+            //'day_time' => Carbon::today()->getTimestamp(),/
+            'day_time' => strtotime(date('Ymd',$this->orderModel->created_at)),//应该以订单创建时间为准，而不是以队列执行的时间
         ];
         $data['address'] = $this->address();
         $data['buy_name'] = $this->buyName();

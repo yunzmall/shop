@@ -166,6 +166,7 @@ class WorkOrderController extends BaseController
             foreach ($data['data']['has_many_comment'] as $key => $value) {
                 $data['data']['has_many_comment'][$key]['thumb_url'] = json_decode($value['thumb_url']);
             }
+            $data['data']['thumb_url'] = json_decode($data['data']['thumb_url']);
             return view('setting.work-order.details', ['data' => json_encode($data['data'])])->render();
         } else {
             return $this->message('ID不存在', Url::absoluteWeb('setting.work-order.index'));

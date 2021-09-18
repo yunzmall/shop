@@ -1032,6 +1032,7 @@
                                 this.yz_notice[val]=Number(response.data.id)
                                 this.$forceUpdate()
                             }
+                            location.reload();
                             this.$message({message: '操作成功',type: 'success'});
                         }else {
                             this.default_temp[val]=0
@@ -1094,7 +1095,7 @@
                             this.temp.customer_upgrade=response.data.data.temp_list.slice(0)
                             this.default_temp.customer_upgrade==1?this.temp.customer_upgrade.unshift({id:this.yz_notice.customer_upgrade,title:'默认消息模板'}):this.temp.customer_upgrade.unshift({id:0,title:'默认消息模板'})
                             this.temp.other_toggle_temp=response.data.data.temp_list.slice(0)
-                            this.default_temp.other_toggle==1?this.temp.other_toggle_temp.unshift({id:this.yz_notice.other_toggle_temp,title:'默认消息模板'}):this.temp.other_toggle_temp.unshift({id:0,title:'默认消息模板'})
+                            this.default_temp.other_toggle_temp==1?this.temp.other_toggle_temp.unshift({id:this.yz_notice.other_toggle_temp,title:'默认消息模板'}):this.temp.other_toggle_temp.unshift({id:0,title:'默认消息模板'})
                             this.temp.order_submit_success=response.data.data.temp_list.slice(0)
                             this.default_temp.order_submit_success==1?this.temp.order_submit_success.unshift({id:this.yz_notice.order_submit_success,title:'默认消息模板'}):this.temp.order_submit_success.unshift({id:0,title:'默认消息模板'})
                             this.temp.order_cancel=response.data.data.temp_list.slice(0)

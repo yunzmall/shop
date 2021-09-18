@@ -35,7 +35,10 @@
 
 
             <div class="vue-main-form">
-                <el-table :data="list" style="width: 100%">
+                <el-button size="mini" @click="patchRecommendBranch">批量开启</el-button>
+                <el-button size="mini" @click="patchCancelRecommendBranch">批量关闭</el-button>
+                <el-table :data="list" style="width: 100%"  @selection-change="selectedBranch">
+                    <el-table-column type="selection" width="55"></el-table-column>
                     <el-table-column prop="id" label="ID" align="center" width="120"></el-table-column>
                     <el-table-column label="品牌">
                         <template slot-scope="scope">
@@ -45,7 +48,13 @@
                             </div>
                         </template>
                     </el-table-column>
-                    
+
+                    <el-table-column label="推荐">
+                        <template slot-scope="scope">
+                            <el-switch @change="recommendBranch(scope.row)" v-model="scope.row.is_recommend"></el-switch>
+                        </template>
+                    </el-table-column>
+
                     <el-table-column prop="refund_time" label="操作" align="center" width="320">
                         <template slot-scope="scope">
 
@@ -93,7 +102,8 @@
                 per_page:1,
                 id:'',
                 name:'',
-                search_form:{}
+                search_form:{},
+                selectedBranchs:[]
             }
         },
         created() {
@@ -103,11 +113,64 @@
             this.getData(1);
         },
         methods: {
-            
+            selectedBranch(branchs){
+                this.selectedBranchs=branchs;
+            },
+            patchRecommendBranch(){
+                let ids=[];
+                for (const item of this.selectedBranchs) {
+                    ids.push(item.id);
+                }
+                this.$http.post("{!! yzWebFullUrl('goods.brand.batch-recommend') !!}",{
+                    ids,
+                    is_recommend:1
+                }).then(res=>{
+                    if(res.result==0){
+                        this.$toast(res.msg);
+                        return;
+                    }
+                    this.selectedBranchs.forEach(item=>{
+                        item['is_recommend']=true;
+                    })
+                });
+            },
+            recommendBranch(branchItem){
+                this.$http.post("{!! yzWebFullUrl('goods.brand.batch-recommend') !!}",{
+                    ids:[branchItem.id],
+                    is_recommend:branchItem.is_recommend?1:0
+                }).then(res=>{
+                    if(res.result==0){
+                        branchItem.is_recommend=branchItem.is_recommend==1?0:1;
+                        this.$message(res.msg);
+                        return;
+                    }
+                });
+            },
+            patchCancelRecommendBranch(){
+                let ids=[];
+                for (const item of this.selectedBranchs) {
+                    ids.push(item.id);
+                }
+                this.$http.post("{!! yzWebFullUrl('goods.brand.batch-recommend') !!}",{
+                    ids,
+                    is_recommend:0
+                }).then(res=>{
+                    if(res.result==0){
+                        this.$toast(res.msg);
+                        return;
+                    }
+                    this.selectedBranchs.forEach(item=>{
+                        item['is_recommend']=false;
+                    })
+                });
+            },
             getData(page,json) {
                 let loading = this.$loading({target:document.querySelector(".content"),background: 'rgba(0, 0, 0, 0)'});
                 this.$http.post('{!! yzWebFullUrl('goods.brand.brand-data') !!}',{page:page,search:json}).then(function(response) {
                     if (response.data.result) {
+                        for (const item of response.data.data.data) {
+                            item['is_recommend']=Boolean(item['is_recommend']);
+                        }
                         this.list = response.data.data.data;
                         this.current_page=response.data.data.current_page;
                         this.total=response.data.data.total;
@@ -169,7 +232,7 @@
                     this.$message({type: 'info',message: '已取消删除'});
                 });
             },
-            
+
         },
     })
 </script>

@@ -25,7 +25,7 @@ class AlterYzMemberIncomeTable extends Migration
                     $table->string('incometable_type')->nullable()->default('')->change();
                 }
             });
-            foreach (\app\common\services\income\IncomeService::INCOME_CONFIG_CLASS as $code =>$class) {
+            foreach (\app\common\services\income\IncomeService::getClass() as $code =>$class) {
                 \Illuminate\Support\Facades\DB::table('yz_member_income')->where('incometable_type',$class)->update(['dividend_code'=>$code]);
             }
         }

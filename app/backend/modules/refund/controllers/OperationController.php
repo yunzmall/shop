@@ -5,6 +5,8 @@ namespace app\backend\modules\refund\controllers;
 use app\backend\modules\refund\models\RefundApply;
 use app\common\components\BaseController;
 use app\common\events\order\AfterOrderRefundedEvent;
+use app\common\events\order\AfterOrderRefundRejectEvent;
+use app\common\events\order\AfterOrderRefundSuccessEvent;
 use app\common\exceptions\AdminException;
 use app\common\models\refund\ResendExpress;
 use Illuminate\Support\Facades\DB;
@@ -52,6 +54,8 @@ class OperationController extends BaseController
             $refundApply->order->save();
             RefundMessageService::rejectMessage($refundApply);//通知买家
         });
+
+        event(new AfterOrderRefundRejectEvent($refundApply));
 
         if (app('plugins')->isEnabled('instation-message')) {
             //开启了站内消息插件
@@ -101,6 +105,7 @@ class OperationController extends BaseController
             $refundApply->close();
             RefundMessageService::passMessage($refundApply);//通知买家
 
+            event(new AfterOrderRefundSuccessEvent($refundApply));
             if (app('plugins')->isEnabled('instation-message')) {
                 event(new \Yunshop\InstationMessage\event\OrderRefundSuccessEvent($refundApply));
             }
@@ -122,6 +127,7 @@ class OperationController extends BaseController
             $refundApply->order->close();
             RefundMessageService::passMessage($refundApply);//通知买家
 
+            event(new AfterOrderRefundSuccessEvent($refundApply));
             if (app('plugins')->isEnabled('instation-message')) {
                 event(new \Yunshop\InstationMessage\event\OrderRefundSuccessEvent($refundApply));
             }

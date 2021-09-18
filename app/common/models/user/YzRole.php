@@ -10,6 +10,7 @@ namespace app\common\models\user;
 
 
 use app\common\models\BaseModel;
+use app\platform\modules\application\models\AppUser;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class YzRole extends BaseModel
@@ -70,7 +71,12 @@ class YzRole extends BaseModel
         if ($search['status']) {
             $query = $query->where('status', $search['status']);
         }
-        return $query->with(['roleUser'])->paginate($pageSize);
+        
+        $uids = AppUser::where('role','manager')->pluck('uid')->toArray();
+	       
+        return $query->with(['roleUser'=>function($q) use ($uids){
+	        $q->whereNotIn('user_id',$uids);
+        }])->paginate($pageSize);
     }
 
     public static function getRolelistToUser()

@@ -9,6 +9,7 @@
 namespace app\frontend\modules\coupon\services\models\UseScope;
 
 
+use app\common\models\goods\GoodsCoupon;
 use app\common\modules\orderGoods\OrderGoodsCollection;
 use app\frontend\modules\coupon\services\models\Coupon;
 use app\frontend\modules\orderGoods\models\PreOrderGoodsCollection;
@@ -35,7 +36,21 @@ abstract class CouponUseScope
         if(isset($this->orderGoods)){
             return $this->orderGoods;
         }
-        return $this->orderGoods = $this->_getOrderGoodsOfUsedCoupon();
+        $this->orderGoods = $this->_getOrderGoodsOfUsedCoupon();
+
+        //todo 新加商品不能使用优惠券功能
+        if (!$this->orderGoods->isEmpty()) {
+            $goodsIds = $this->orderGoods->pluck('goods_id')->all();
+            $goodsCoupon = GoodsCoupon::select('goods_id','no_use')->whereIn('goods_id',$goodsIds)->get()->toArray();
+            $goodsCoupon = array_column($goodsCoupon,null,'goods_id');
+            $this->orderGoods = $this->orderGoods->filter(function ($goods) use ($goodsCoupon){
+                if(!empty($goodsCoupon[$goods->goods_id]['no_use'])){
+                    return false;
+                }
+                return true;
+            });
+        }
+        return $this->orderGoods;
     }
     /**
      * @var Coupon

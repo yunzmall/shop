@@ -7,14 +7,15 @@ use app\common\exceptions\AppException;
 use app\common\facades\Setting;
 use app\common\models\coupon\CouponSlideShow;
 use app\common\modules\coupon\models\PreMemberCoupon;
+use app\framework\Http\Request;
 use app\frontend\models\Goods;
 use app\frontend\models\Member;
 use app\frontend\modules\coupon\models\Coupon;
 use app\frontend\modules\coupon\models\MemberCoupon;
 use app\common\models\MemberShopInfo;
 use Carbon\Carbon;
-use EasyWeChat\Foundation\Application;
 use Yunshop\Hotel\common\models\CouponHotel;
+use Yunshop\StoreCashier\common\models\Store;
 
 
 class MemberCouponController extends ApiController
@@ -171,6 +172,17 @@ class MemberCouponController extends ApiController
             'slide_shows' => $slideShows
         ];
 
+        //领券中心表单
+        if (!is_null(\app\common\modules\shop\ShopConfig::current()->get('coupon_form'))) {
+            $class    = array_get(\app\common\modules\shop\ShopConfig::current()->get('coupon_form'), 'class');
+            $function = array_get(\app\common\modules\shop\ShopConfig::current()->get('coupon_form'), 'function');
+            $form = $class::$function($uid);
+            if($form && $form != -1)
+            {
+                $data = array_merge($data,['coupon_form' => $form]);
+            }
+        }
+
         return $this->successJson('ok', $data);
     }
 
@@ -178,7 +190,7 @@ class MemberCouponController extends ApiController
      * 提供给店铺装修的"优惠券中心"的数据接口
      * @return \Illuminate\Http\JsonResponse
      */
-    public function couponsForDesigner($request, $integrated = null)
+    public function couponsForDesigner(Request $request, $integrated = null)
     {
         $uid = \YunShop::app()->getMemberId();
         $member = MemberShopInfo::getMemberShopInfo($uid);
@@ -227,7 +239,6 @@ class MemberCouponController extends ApiController
            
             //添加优惠券使用范围描述
             switch ($v['use_type']) {
-
                 case Coupon::COUPON_SHOP_USE:
                     $coupons_data['data'][$k]['api_limit'] = '商城通用';
                     break;
@@ -242,6 +253,25 @@ class MemberCouponController extends ApiController
                 case 8:
                     $coupons_data['data'][$k]['api_limit'] = '适用于下列商品: ';
                     $coupons_data['data'][$k]['api_limit'] = implode(',', $v['goods_names']);
+                    break;
+                case 9:
+                    $coupons_data['data'][$k]['api_limit'] = '适用范围: ';
+                    $use_condition = unserialize($v['use_conditions']);
+                    if (empty($use_condition)) {
+                        $coupons_data['data'][$k]['api_limit'] .= '无适用范围';
+                    }
+                    if (app('plugins')->isEnabled('store-cashier')) {
+                        if ($use_condition['is_all_store'] == 1) {
+                            $coupons_data['data'][$k]['api_limit'] .= "全部门店";
+                        } else {
+                            $coupons_data['data'][$k]['api_limit'] .= '门店:'.implode(',', Store::uniacid()->whereIn('id', $use_condition['store_ids'])->pluck('store_name')->all());
+                        }
+                    }
+                    if ($use_condition['is_all_good'] == 1) {
+                        $coupons_data['data'][$k]['api_limit'] .= "平台自营商品";
+                    } else {
+                        $coupons_data['data'][$k]['api_limit'] .= '商品:'.implode(',', Goods::uniacid()->whereIn('id', $use_condition['good_ids'])->pluck('title')->all());
+                    }
                     break;
             }
         }
@@ -290,6 +320,25 @@ class MemberCouponController extends ApiController
                 case 8:
                     $coupons['data'][$k]['api_limit'] = '适用于下列商品: ';
                     $coupons['data'][$k]['api_limit'] = implode(',', $v['goods_names']);
+                    break;
+                case 9:
+                    $coupons_data['data'][$k]['api_limit'] = '适用范围: ';
+                    $use_condition = unserialize($v['use_conditions']);
+                    if (empty($use_condition)) {
+                        $coupons_data['data'][$k]['api_limit'] .= '无适用范围';
+                    }
+                    if (app('plugins')->isEnabled('store-cashier')) {
+                        if ($use_condition['is_all_store'] == 1) {
+                            $coupons_data['data'][$k]['api_limit'] .= "全部门店";
+                        } else {
+                            $coupons_data['data'][$k]['api_limit'] .= '门店:'.implode(',', Store::uniacid()->whereIn('id', $use_condition['store_ids'])->pluck('store_name')->all());
+                        }
+                    }
+                    if ($use_condition['is_all_good'] == 1) {
+                        $coupons_data['data'][$k]['api_limit'] .= "平台自营商品";
+                    } else {
+                        $coupons_data['data'][$k]['api_limit'] .= '商品:'.implode(',', Goods::uniacid()->whereIn('id', $use_condition['good_ids'])->pluck('title')->all());
+                    }
                     break;
             }
         }
@@ -518,6 +567,26 @@ class MemberCouponController extends ApiController
                 $res .= implode(',', $couponInArrayFormat['goods_names']);
                 return $res;
                 break;
+            case Coupon::COUPON_GOODS_AND_STORE_USE:
+                $res = '';
+                $use_condition = unserialize($couponInArrayFormat['use_conditions']);
+                if (empty($use_condition)) {
+                    return '无适用范围';
+                }
+                if (app('plugins')->isEnabled('store-cashier')) {
+                    if ($use_condition['is_all_store'] == 1) {
+                        $res .= "全部门店、";
+                    } else {
+                        $res .= '门店:'.implode(',', Store::uniacid()->whereIn('id', $use_condition['store_ids'])->pluck('store_name')->all()).'、';
+                    }
+                }
+                if ($use_condition['is_all_good'] == 1) {
+                    $res .= "平台自营商品";
+                } else {
+                    $res .= '商品:'.implode(',', Goods::uniacid()->whereIn('id', $use_condition['good_ids'])->pluck('title')->all());
+                }
+                return $res;
+                break;
             default:
                 return ('Enjoy shopping');
         }
@@ -600,6 +669,7 @@ class MemberCouponController extends ApiController
             $value['thumb'] = replace_yunshop(yz_tomedia($value['thumb']));
             if($coupon['coupon_method'] == 1){
                 $value['deduct_price'] = $value['price'] - $coupon['deduct'];
+                $value['deduct_price'] = $value['deduct_price']>=0?$value['deduct_price']:0;
             }elseif($coupon['coupon_method'] == 2){
                 $value['deduct_price'] = $value['price'] * $coupon['discount']/10;
             }

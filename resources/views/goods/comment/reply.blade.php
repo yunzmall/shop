@@ -38,9 +38,21 @@
                                 <img :src="comment.head_img_url" onerror="this.src='/addons/yun_shop/static/resource/images/nopic.jpg'; this.title='图片未找到.'" style="width:150px;height:150px">
                             </div>
                         </el-form-item>
+                        <el-form-item v-if="isset_live_install" label="安装师傅" >
+                            <el-input v-model="live_install.worker_name" style="width:70%;" disabled></el-input>
+                            <div style="width:150px;height:150px;position:relative;margin-top:10px">
+                                <img :src="live_install.worker_avatar" onerror="this.src='/addons/yun_shop/static/resource/images/nopic.jpg'; this.title='图片未找到.'" style="width:150px;height:150px">
+                            </div>
+                        </el-form-item>
                         <el-form-item label="评分等级" prop="level">
                             <div style="padding-top:10px">
                                 <el-rate v-model="comment.level" disabled show-score></el-rate>
+                            </div>
+                        </el-form-item>
+
+                        <el-form-item v-if="isset_live_install" label="安装评分等级" prop="level">
+                            <div style="padding-top:10px">
+                                <el-rate v-model="live_install.worker_score" disabled show-score></el-rate>
                             </div>
                         </el-form-item>
 
@@ -148,6 +160,8 @@
 
                     goods:{},
                     comment:{},
+                    live_install:{},
+                    isset_live_install:false,
                     submit_url:'',
 
                     uploadListShow:false,
@@ -178,6 +192,10 @@
                                 this.comment_id = response.data.data.comment.id;
                                 this.reply_id = response.data.data.comment.uid;
                                 this.reply_name = response.data.data.comment.nick_name;
+                                this.live_install = response.data.data.live_install ?  response.data.data.live_install : {};
+                                if(response.data.data.live_install){
+                                    this.isset_live_install = true;
+                                }
                             }
                             else {
                                 this.$message({message: response.data.msg,type: 'error'});

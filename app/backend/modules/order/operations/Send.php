@@ -8,7 +8,7 @@
 
 namespace app\backend\modules\order\operations;
 
-class Send extends OrderOperation
+class Send extends BackendOrderBase
 {
     public function getApi()
     {

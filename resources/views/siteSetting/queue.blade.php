@@ -62,13 +62,16 @@ b{
             <div class="block">
             <div class="title"><span style="width: 4px;height: 18px;background-color: #29ba9c;margin-right:15px;display:inline-block;"></span><b>队列设置</b></div>
             <el-form ref="form" :model="form" label-width="15%">
+                <el-form-item label="队列执行错误消息" prop="service_type">
+                    <el-radio v-model="form.receive_message" :label="0">开启</el-radio>
+                    <el-radio v-model="form.receive_message" :label="1">关闭</el-radio>
+                </el-form-item>
             <el-form-item label="普通队列进程数">
                     <el-input placeholder=""
                               v-model="form.default"
                               style="width: 70%">
                     </el-input>
                 </el-form-item>
-
                 <el-form-item label="微信消息队列进程数">
                     <el-input placeholder=""
                               v-model="form.message"

@@ -9,6 +9,7 @@
 namespace app\framework\Foundation;
 
 use app\framework\Events\EventServiceProvider;
+use Illuminate\Log\LogServiceProvider;
 use Illuminate\Routing\RoutingServiceProvider;
 
 class Application extends \Illuminate\Foundation\Application
@@ -30,6 +31,9 @@ class Application extends \Illuminate\Foundation\Application
         $this->register(new EventServiceProvider($this));
 
         $this->register(new RoutingServiceProvider($this));
+
+        $this->register(new LogServiceProvider($this));
+
     }
 
     /**

@@ -107,4 +107,12 @@ class MemberGroupController extends BaseController
             $this->error("删除会员分组失败");
         }
     }
+
+    public function getGroup()
+    {
+        $keyword = request()->keyword;
+
+        $level = MemberGroup::uniacid()->where('group_name','like','%'.$keyword.'%')->select('id','group_name')->get()->toArray();
+        return $this->successJson('ok',$level);
+    }
 }

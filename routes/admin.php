@@ -16,7 +16,7 @@ Route::group(['namespace' => 'platform\controllers'], function () {
     Route::any('checkCode', 'ResetpwdController@checkCode'); //检查验证码
     Route::any('detail', 'ResetpwdController@detail'); //检查验证码
     Route::any('auth', 'ResetpwdController@authPassword'); // 管理员修改密码
-
+//    Route::any('yunSwitch', 'YunSwitchController@index'); // 获取芸签平台开启公众号id
 
     Route::get('/', 'IndexController@index');
 
@@ -27,6 +27,8 @@ Route::group(['namespace' => 'platform\controllers'], function () {
     Route::post('install/set_info', 'InstallController@setInformation');     // 账号设置
     Route::post('install/create_data', 'InstallController@createData');     // 创建数据
     Route::post('install/delete', 'InstallController@delete');     // 删除控制器
+    Route::post('install/random_user', 'InstallController@getRandomUser');     // 生成随机账号
+    Route::post('install/random_psw', 'InstallController@getRandomPsw');     // 生成随机密码
     Route::get('center',['as' => 'admin.center', 'uses' => 'CenterController@index']);
 
 
@@ -37,14 +39,14 @@ Route::group(['namespace' => 'platform\controllers'], function () {
 
 Route::group(['prefix' => 'system/upload', 'namespace' => 'platform\modules\system\controllers'], function (){
     // 上传
-    Route::any('upload', 'UploadController@upload');     // 上传图片 or 视频 or 音频
+        Route::any('upload', 'UploadController@upload');     // 上传图片 or 视频 or 音频
     Route::any('image', 'UploadController@image');       // 图片列表
     Route::any('fetch', 'UploadController@fetch');       // 获取远程图片
     Route::any('delete', 'UploadController@delete');     // 删除图片
     Route::any('video', 'UploadController@video');       // 音频视频列表
 });
 
-Route::group(['middleware' => ['auth:admin', 'authAdmin', 'globalparams', 'singleLogin', 'checkPasswordSafe', 'shopbootstrap', 'check']], function () {
+Route::group(['middleware' => ['auth:admin', 'authAdmin', 'singleLogin', 'checkPasswordSafe', 'shopbootstrap', 'check']], function () {
 
     Route::get('index', ['as' => 'admin.index', 'uses' => '\app\platform\controllers\IndexController@index']);
     //清除缓存

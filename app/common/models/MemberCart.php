@@ -74,7 +74,7 @@ class MemberCart extends BaseModel
     {
 
         if (!$this->goods->stockEnough($this->total)) {
-            throw new AppException('(ID:' . $this->goods_id . ')商品库存不足');
+            throw new AppException('(ID:' . $this->goods_id . ')'.$this->goods->title.',库存不足');
         }
     }
 
@@ -90,9 +90,16 @@ class MemberCart extends BaseModel
         if (!isset($this->goodsOption)) {
             throw new AppException('(ID:' . $this->goods_id . ')未找到商品规格或已经删除');
         }
-        if (!$this->goodsOption->stockEnough($this->total)) {
-            throw new AppException('(ID:' . $this->goods_id . ')商品库存不足');
+
+        if ($this->goods_id != $this->goodsOption->goods_id) {
+            throw new AppException('规格('.$this->option_id.')'.$this->goodsOption->title.'不属于商品('.$this->goods_id.')'.$this->goods->title);
         }
+
+        if (!$this->goodsOption->stockEnough($this->total)) {
+            throw new AppException('(ID:' . $this->goods_id . ')规格'.$this->goodsOption->title.',库存不足');
+        }
+
+
     }
 
     public function member()

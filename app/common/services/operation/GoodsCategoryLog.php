@@ -30,7 +30,7 @@ class GoodsCategoryLog extends OperationBase
      protected function recordField()
      {
          return [
-             'category_id'        => '商品分类',
+             'category_id' => '商品分类',
          ];
      }
 

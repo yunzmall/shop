@@ -195,5 +195,12 @@ class MemberLevelController extends BaseController
     }
 
 
+    public function getLevel()
+    {
+        $keyword = request()->keyword;
+
+        $level = MemberLevel::uniacid()->where('level_name','like','%'.$keyword.'%')->select('id','level_name')->get()->toArray();
+        return $this->successJson('ok',$level);
+    }
 
 }

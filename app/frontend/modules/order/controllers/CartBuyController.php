@@ -24,6 +24,7 @@ class CartBuyController extends ApiController
      */
     public function index()
     {
+
         $this->validateParam();
         $trade = $this->getMemberCarts()->getTrade();
         return $this->successJson('成功', $trade);

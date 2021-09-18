@@ -130,6 +130,12 @@
                         <el-form-item label="找回密码变量" v-if="form.type==2">
                             <el-input v-model="form.forget"  style="width:70%;" placeholder="product=xx商城"></el-input>
                         </el-form-item>
+                        <el-form-item label="登录短信模板ID" v-if="form.type==2">
+                            <el-input v-model="form.templateCodeLogin"  style="width:70%;" placeholder="例如:SMS_5057806"></el-input>
+                        </el-form-item>
+                        <el-form-item label="登录变量" v-if="form.type==2">
+                            <el-input v-model="form.login"  style="width:70%;" placeholder="product=xx商城"></el-input>
+                        </el-form-item>
                         <el-form-item v-if="form.type==3" style="margin-top:-30px;">
                             <span>请到 阿里云 去申请开通,短信模板中必须包含number；阿里云默认模板为code，将code改为number，请参考默认用户注册验证码设置。</span>
                         </el-form-item>
@@ -147,6 +153,9 @@
                         </el-form-item>
                         <el-form-item label="找回密码模板编号" v-if="form.type==3">
                             <el-input v-model="form.aly_templateCodeForget"  style="width:70%;" placeholder="例如:SMS_5057806"></el-input>
+                        </el-form-item>
+                        <el-form-item label="登录模板编号" v-if="form.type==3">
+                            <el-input v-model="form.aly_templateCodeLogin"  style="width:70%;" placeholder="例如:SMS_5057806"></el-input>
                         </el-form-item>
                         <el-form-item label="余额定时提醒" v-if="form.type==3">
                             <el-input v-model="form.aly_templateBalanceCode"  style="width:70%;" placeholder="例如:SMS_5057806"></el-input>
@@ -174,6 +183,9 @@
                         </el-form-item>
                         <el-form-item label="找回密码模板ID" v-if="form.type==5">
                             <el-input v-model="form.tx_templateCodeForget"  style="width:70%;" placeholder="例如5057806"></el-input>
+                        </el-form-item>
+                        <el-form-item label="登录模板ID" v-if="form.type==5">
+                            <el-input v-model="form.tx_templateCodeLogin"  style="width:70%;" placeholder="例如5057806"></el-input>
                         </el-form-item>
                         <el-form-item label="余额定时提醒" v-if="form.type==5">
                             <el-input v-model="form.tx_templateBalanceCode"  style="width:70%;" placeholder="例如5057806"></el-input>
@@ -211,6 +223,7 @@
                         aly_signname:'',
                         aly_templateCode:'',
                         aly_templateCodeForget:'',
+                        aly_templateCodeLogin:'',
                         aly_templateBalanceCode:'',
                         aly_templateSendMessageCode:'',
                         aly_templatereChargeCode:'',
@@ -219,6 +232,7 @@
                         tx_signname:'',
                         tx_templateCode:'',
                         tx_templateCodeForget:'',
+                        tx_templateCodeLogin:'',
                         tx_templateBalanceCode:'',
                         tx_templateSendMessageCode:'',
                         tx_templatereChargeCode:'',
@@ -229,6 +243,11 @@
                         secret:'',
                         signname:'',
                         templateCode:'',
+                        product:'',
+                        templateCodeForget:'',
+                        forget:'',
+                        templateCodeLogin:'',
+                        login:'',
 
                     },
                 }

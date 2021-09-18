@@ -88,6 +88,15 @@ class ArrayHelper
         }
 
         return $data;
+    }
 
+    public static function arraySort($array, $keys, $sort = SORT_ASC)
+    {
+        $keysValue = [];
+        foreach ($array as $k => $v) {
+            $keysValue[$k] = $v[$keys];
+        }
+        array_multisort($keysValue, $sort, $array);
+        return $array;
     }
 }

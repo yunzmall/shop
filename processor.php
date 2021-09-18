@@ -107,6 +107,49 @@ class Yun_shopModuleProcessor extends WeModuleProcessor
 
     public function respond()
     {
+//        \Log::debug('------微擎微信公众号消息-----', json_encode($this->rule));
+
+//        $user_data = array(
+//            'participation' => json_encode($this),
+//            'set_private_send_msg' => $this->message['msgtype'],
+//        );
+//        pdo_update('yz_forwarding_treasure', $user_data, array('id' => 3));
+        //因为任意图片无法匹配到规则 所以图片消息单独处理  start
+        if($this->message['msgtype'] == 'image'){
+            //因为目前只有转发宝功能需要 所以直接查询转发宝的配置文件  如果存在直接进入事件监听
+            $setting = pdo_fetch('select * from ' . tablename('yz_setting') . ' where  `group`=:groupw and `key`=:keyw limit 1', array(
+                ':groupw' => 'plugin',
+                ':keyw'=>'forwarding-treasure'
+            ));
+
+            if(empty($setting)){
+                return  false;
+            }
+
+//            $setting = serialize($setting['value']);
+//            $user_data = array(
+//                'area_data' => json_encode($setting),
+//            );
+
+//            pdo_update('yz_forwarding_treasure', $user_data, array('id' => 3));
+            $plugin = 'forwarding-treasure';
+
+
+            //引入laravel
+            require_once __DIR__.'/bootstrap/autoload.php';
+            $app = require_once __DIR__.'/bootstrap/app.php';
+            $kernel = $app->make(Illuminate\Contracts\Http\Kernel::class);
+            $kernel->handle(
+                $request = \app\framework\Http\Request::capture()
+            );
+
+
+            //微信接口事件
+            $response = '';
+            event(new \app\common\events\WechatProcessor($this,$plugin,$response));
+            return $response;
+        }
+        //end   以下为以前的代码
         $rule = pdo_fetch('select * from ' . tablename('rule') . ' where id=:id limit 1', array(
             ':id' => $this->rule
         ));

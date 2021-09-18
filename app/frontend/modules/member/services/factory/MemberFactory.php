@@ -10,11 +10,14 @@ namespace app\frontend\modules\member\services\factory;
 
 use app\frontend\modules\member\services\MemberAnchorAppService;
 use app\frontend\modules\member\services\MemberAppYdbService;
+use app\frontend\modules\member\services\MemberCpsAppService;
 use app\frontend\modules\member\services\MemberDouyinService;
 use app\frontend\modules\member\services\MemberMiniAppFaceService;
 use app\frontend\modules\member\services\MemberMobileService;
 use app\frontend\modules\member\services\MemberNativeAppService;
+use app\frontend\modules\member\services\MemberPcOfficeAccountService;
 use app\frontend\modules\member\services\MemberTFBService;
+use app\frontend\modules\member\services\MemberTjpCpsService;
 use app\frontend\modules\member\services\MemberWechatService;
 use app\frontend\modules\member\services\MemberAppWechatService;
 use app\frontend\modules\member\services\MemberMiniAppService;
@@ -24,6 +27,7 @@ use app\frontend\modules\member\services\MemberAlipayService;
 use app\frontend\modules\member\services\SmsCodeService;
 use app\frontend\modules\member\services\MemberWechatQrcodeService;
 use Yunshop\Freelogin\common\service\FreeloginService;
+use Yunshop\WechatChatSidebar\frontend\service\MemberWorkService;
 
 
 class MemberFactory
@@ -41,6 +45,9 @@ class MemberFactory
     const LOGIN_DOUYIN = 11;
     const LOGIN_MINI_APP_FACE = 12;
     const LOGIN_APP_ANCHOR = 14;
+    const LOGIN_APP_CPS = 15;
+    const LOGIN_PC_OFFICE_ACCOUNT = 16;
+    const LOGIN_WORK = 17;
 
     public static function create($type = null)
     {
@@ -55,6 +62,9 @@ class MemberFactory
                 break;
             case 'freelogin':
                 return new FreeloginService();
+                break;
+            case 'tjpcps':
+                return new MemberTjpCpsService();
                 break;
         }
 
@@ -103,6 +113,15 @@ class MemberFactory
                 break;
             case self::LOGIN_APP_ANCHOR:
                 $className = new MemberAnchorAppService();
+                break;
+            case self::LOGIN_APP_CPS:
+                $className = new MemberCpsAppService();
+                break;
+            case self::LOGIN_PC_OFFICE_ACCOUNT:
+                $className = new MemberPcOfficeAccountService();
+                break;
+            case self::LOGIN_WORK:
+                $className = new MemberWorkService();
                 break;
             default:
                 $className = null;

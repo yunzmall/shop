@@ -72,7 +72,8 @@ class AuthenticateAdmin
         'admin/user/send_code',
         'admin/user/send_new_code',
         'admin/user/user_change',
-        'admin/user/modify_mobile'
+        'admin/user/modify_mobile',
+	    'admin/clear'
     ];
 
     /**
@@ -106,10 +107,9 @@ class AuthenticateAdmin
      */
     public function handle($request, Closure $next)
     {
-        $cfg   = \config::get('app.global');
         $check = $this->checkUserInfo();
-        $uri   = \Route::getCurrentRoute()->getUri();
-
+        $uri   = \Route::getCurrentRoute()->Uri();
+		$uniacid = \YunShop::app()->uniacid;
         if (!$check['result']) {
             return $this->errorJson($check['msg'], ['status' => self::USER_STATUS]);
         }
@@ -125,9 +125,9 @@ class AuthenticateAdmin
                 return $this->errorJson('无访问权限', ['status' => self::API_STATUS]);
             }
 
-            if (!empty($cfg['uniacid'])) {
-                $this->uniacid = $cfg['uniacid'];
-                $this->account = AppUser::getAccount(\Auth::guard('admin')->user()->uid, $cfg['uniacid']);
+            if (!empty($uniacid)) {
+                $this->uniacid = $uniacid;
+                $this->account = AppUser::getAccount(\Auth::guard('admin')->user()->uid, $uniacid);
 
                 if (!is_null($this->account)) {
                     $this->setRole();
@@ -137,21 +137,9 @@ class AuthenticateAdmin
             }
         }
 
-        \config::set('app.global', array_merge($this->setConfigInfo(), $this->role));
-
         return $next($request);
     }
-
-    /**
-     * 获取全局参数
-     *
-     * @return array
-     */
-    private function setConfigInfo()
-    {
-        return \config::get('app.global');
-    }
-
+    
     /**
      * 获取用户身份
      *
@@ -185,7 +173,7 @@ class AuthenticateAdmin
 
         Utils::removeUniacid();
 
-        return $this->errorJson('请重新登录', ['login_status' => 1, 'login_url' => '/#/login']);
+        return $this->errorJson('用户不存在，请重新登录', ['login_status' => 1, 'login_url' => '/#/login']);
 
     }
 

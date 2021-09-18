@@ -29,4 +29,19 @@ class MemberChangeLog extends BaseModel
     public $table = 'yz_member_change_log';
     public $guarded = [''];
     public $timestamps = true;
+
+    public static function searchLog($search)
+    {
+        $model = self::uniacid();
+
+        if ($search['member_id']) {
+            $model->where('member_id', $search['member_id']);
+        }
+
+        if ($search['mark_member_id']) {
+            $model->where('member_id_after', $search['mark_member_id']);
+        }
+
+        return $model;
+    }
 }

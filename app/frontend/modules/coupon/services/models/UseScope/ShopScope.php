@@ -25,7 +25,7 @@ class ShopScope extends CouponUseScope
                 /**
                  * @var $orderGoods PreOrderGoods
                  */
-                return !$orderGoods->goods->is_plugin && !in_array($orderGoods->goods->plugin_id,[31,32,33,36]);
+                return !$orderGoods->goods->is_plugin && !in_array($orderGoods->goods->plugin_id,[31,32,33,36,101]);
             });
 
 //        if ($orderGoods->count() > 1) {

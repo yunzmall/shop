@@ -54,6 +54,7 @@ class OrderDeductManager
     {
         if (!isset($this->orderDeductionCollection)) {
             $this->orderDeductionCollection = $this->getAllOrderDeductions();
+
             $this->order->setRelation('orderDeductions',$this->orderDeductionCollection);
             // 按照选中状态排序
             $this->orderDeductionCollection->sortOrderDeductionCollection();
@@ -62,6 +63,7 @@ class OrderDeductManager
 
 
         }
+
         return $this->orderDeductionCollection;
     }
 
@@ -124,11 +126,19 @@ class OrderDeductManager
     private function getEnableDeductions()
     {
         if (!isset($this->deductions)) {
+
+            //blank not deduction
+            if ($this->order->isDeductionDisable()) {
+                trace_log()->deduction('订单关闭的抵扣类型','');
+                return collect();
+            }
+
             /**
              * 商城开启的抵扣
              * @var Collection $deductions
              */
             $deductions = Deduction::getEnable();
+
             trace_log()->deduction('开启的抵扣类型', $deductions->pluck('code')->toJson());
             if ($deductions->isEmpty()) {
                 return collect();
@@ -140,7 +150,6 @@ class OrderDeductManager
                  */
                 return $deduction->valid();
             });
-
             // 按照用户勾选顺序排序
             $sort = array_flip($this->order->getParams('deduction_ids'));
             $this->deductions = $deductions->sortBy(function ($deduction) use ($sort) {
@@ -160,8 +169,10 @@ class OrderDeductManager
         if (!isset($this->checkedOrderDeductionCollection)) {
             // 求和订单抵扣集合中所有已选中的可用金额
             $this->checkedOrderDeductionCollection = $this->getOrderDeductions()->filter(function (PreOrderDeduction $orderDeduction) {
+
                 return $orderDeduction->isChecked();
             });
+
             // 过滤调不能抵扣的项
             $this->checkedOrderDeductionCollection->filterNotDeductible();
             $this->checkedOrderDeductionCollection->lock();

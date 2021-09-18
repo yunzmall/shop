@@ -51,24 +51,24 @@ class HomePage
         switch ($value['params']['type']) //类型
         {
             case '0':
-                $result = $LiveListController->getAllLiveList($params); //全部直播
+                $result = $LiveListController->getAllLiveList(request(),$params); //全部直播
                 break;
 
             case '1':
-                $result = $LiveListController->getLiveRecommend($params); //推荐直播
+                $result = $LiveListController->getLiveRecommend(request(),$params); //推荐直播
                 //
                 break;
 
             case '2':
-                $result = $LiveListController->getLiveList($params); //直播中
+                $result = $LiveListController->getLiveList(request(),$params); //直播中
                 break;
 
             case '3':
-                $result = $LiveListController->getLiveList($params); //直播预告
+                $result = $LiveListController->getLiveList(request(),$params); //直播预告
                 break;
 
             case '4':
-                $result = $LiveListController->playBack($params); //精彩回放
+                $result = $LiveListController->playBack(request(),$params); //精彩回放
                 break;
             
             default:

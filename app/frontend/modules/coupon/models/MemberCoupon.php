@@ -19,7 +19,7 @@ class MemberCoupon extends \app\common\models\MemberCoupon
         $coupons = static::uniacid()->with(['belongsToCoupon' => function ($query) {
             return $query->select(['id', 'name', 'coupon_method', 'deduct', 'discount', 'enough', 'use_type', 'category_ids', 'categorynames',
                 'goods_ids', 'goods_names', 'storeids', 'storenames', 'time_limit', 'time_days', 'time_start', 'time_end', 'total',
-                'money', 'credit', 'plugin_id']);
+                'money', 'credit', 'plugin_id', 'use_conditions']);
         }]);
         $coupons->whereHas('belongsToCoupon', function ($q) use ($search_type) {
             switch ($search_type) {
@@ -44,6 +44,9 @@ class MemberCoupon extends \app\common\models\MemberCoupon
                     break;
                 case Coupon::TYPE_EXCHANGE:
                     $q->where('use_type', Coupon::COUPON_EXCHANGE_USE);
+                    break;
+                case Coupon::TYPE_GOOD_AND_STORE:
+                    $q->where('use_type', Coupon::COUPON_GOODS_AND_STORE_USE);
                     break;
                 case Coupon::TYPE_MONEY_OFF:
                     $q->where('coupon_method', Coupon::COUPON_MONEY_OFF);

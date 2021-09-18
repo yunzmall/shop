@@ -9,9 +9,8 @@
 namespace app\common\services;
 
 use app\common\exceptions\AppException;
+use app\common\facades\EasyWeChat;
 use app\common\helpers\Url;
-use EasyWeChat\Foundation\Application;
-use EasyWeChat\Payment\Order as easyOrder;
 
 class WechatH5Pay extends Pay
 {
@@ -57,8 +56,7 @@ class WechatH5Pay extends Pay
                 'notify_url'         => $notify_url
             ]
         ];
-        $app = new Application($options);
-
+        $app = EasyWeChat::payment($options);
         return $app;
     }
 
@@ -102,27 +100,32 @@ class WechatH5Pay extends Pay
         /**
          * @var $app Application
          */
-        $app = $this->getEasyWeChatApp($this->paySet, $this->notify_url);
+        $payment = $this->getEasyWeChatApp($this->paySet, $this->notify_url);
 
 
-        $order = new easyOrder($this->getAllParameters());
+        $result = $payment->order->unify($this->getAllParameters());
+        \Log::debug('预下单', $result);
 
-        /**
-         * @var $payment \EasyWeChat\Payment\Payment
-         */
-        $payment = $app->payment;
-        $result = $payment->prepare($order);
-        \Log::debug('预下单', $result->toArray());
+        if ($result['return_code'] == 'SUCCESS' && $result['result_code'] == 'SUCCESS'){
 
-        if ($result->return_code == 'SUCCESS' && $result->result_code == 'SUCCESS'){
+            $mweb_url = $result['mweb_url'];
 
+            if ($mweb_url) {
+                $trade = \Setting::get('shop.trade');
+                if (!is_null($trade) && isset($trade['redirect_url']) && !empty($trade['redirect_url'])) {
+                    $mweb_url .= '&redirect_url='.urlencode($trade['redirect_url']);
+                } else {
+                    $url = Url::absoluteApp('member');
+                    $mweb_url .= '&redirect_url='.urlencode($url);
+                }
+            }
             //mweb_url为拉起微信支付收银台的中间页面，可通过访问该url来拉起微信客户端，完成支付,mweb_url的有效期为5分钟。
-            return ['mweb_url'=>$result->mweb_url];
+            return ['mweb_url'=>$mweb_url];
 
-        } elseif ($result->return_code == 'SUCCESS') {
-            throw new AppException($result->err_code_des);
+        } elseif ($result['return_code'] == 'SUCCESS') {
+            throw new AppException($result['err_code_des']);
         } else {
-            throw new AppException($result->return_msg);
+            throw new AppException($result['return_msg']);
         }
 
         return false;
@@ -158,16 +161,14 @@ class WechatH5Pay extends Pay
 
         $pay_order_model = $this->refundlog(Pay::PAY_TYPE_REFUND, '微信h5退款', $refundmoney, $op, $out_trade_no, Pay::ORDER_STATUS_NON, 0);
 
-
         /**
          * @var $app Application
          * @var $payment \EasyWeChat\Payment\Payment
          */
-        $app = $this->getEasyWeChatApp($this->paySet, '');
-        $payment = $app->payment;
+        $payment = $this->getEasyWeChatApp($this->paySet, '');
 
         try {
-            $result = $payment->refund($out_trade_no, $out_refund_no, $totalmoney * 100, $refundmoney * 100);
+            $result = $payment->refund->byOutTradeNumber($out_trade_no, $out_refund_no, $totalmoney * 100, $refundmoney * 100);
         } catch (\Exception $e) {
             throw new AppException('微信接口错误:' . $e->getMessage());
         }
@@ -177,10 +178,10 @@ class WechatH5Pay extends Pay
         \Log::debug('---微信h5退款状态---'.$status, $result);
 
         if ($status == 'PROCESSING' || $status == 'SUCCESS') {
-            $this->changeOrderStatus($pay_order_model, Pay::ORDER_STATUS_COMPLETE, $result->transaction_id);
+            $this->changeOrderStatus($pay_order_model, Pay::ORDER_STATUS_COMPLETE, $result['transaction_id']);
             return true;
         } else {
-            throw new AppException('微信接口错误:'.$result->return_msg . '-' . $result->err_code_des . '/' . $status);
+            throw new AppException('微信接口错误:'.$result['return_msg'] . '-' . $result['err_code_des'] . '/' . $status);
         }
     }
 
@@ -199,7 +200,7 @@ class WechatH5Pay extends Pay
      */
     public function queryRefund($payment, $out_trade_no)
     {
-        $result = $payment->queryRefund($out_trade_no);
+        $result = $payment->refund->queryByOutTradeNumber($out_trade_no);
 
         foreach ($result as $key => $value) {
             if (preg_match('/refund_status_\d+/', $key)) {

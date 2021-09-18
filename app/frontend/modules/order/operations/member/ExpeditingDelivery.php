@@ -35,7 +35,7 @@ class ExpeditingDelivery extends OrderOperation
     public function enable()
     {
         // TODO: Implement enable() method.
-        if ($this->expediting_set['expediting_delivery'] == 1 && in_array($this->order->plugin_id,[0,92])) {
+        if ($this->expediting_set['expediting_delivery'] == 1 && in_array($this->order->plugin_id,[0,92,32])) {
             return true;
         } else {
             return false;

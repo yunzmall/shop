@@ -13,6 +13,6 @@ class WechatH5Payment extends WebPayment
 {
     public function canUse()
     {
-        return \YunShop::request()->type != 2 && parent::canUse();
+        return \YunShop::request()->type != 2 && parent::canUse() && \YunShop::request()->wechat_app_pay_type != 'cps';
     }
 }

@@ -16,10 +16,6 @@ class QueueServiceProvider extends \Illuminate\Queue\QueueServiceProvider
      */
     protected function registerWorker()
     {
-        $this->registerWorkCommand();
-
-        $this->registerRestartCommand();
-
         $this->app->singleton('queue.worker', function ($app) {
             return new Worker(
                 $app['queue'], $app['events'],

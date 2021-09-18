@@ -3,6 +3,7 @@
 namespace app\common\services;
 
 use app\common\events\message\SendMessageEvent;
+use app\common\facades\EasyWeChat;
 use app\common\models\AccountWechats;
 use app\common\models\Member;
 use app\common\models\notice\MessageTemp;
@@ -10,11 +11,7 @@ use app\common\models\TemplateMessageRecord;
 use app\Jobs\DispatchesJobs;
 use app\Jobs\MessageNoticeJob;
 use Exception;
-use EasyWeChat\Message\News;
-use EasyWeChat\Message\Text;
-use EasyWeChat\Foundation\Application;
 use app\Jobs\MiniMessageNoticeJob;
-use app\common\models\MemberMiniAppModel;
 use app\common\models\FormId;
 class MessageService
 {
@@ -67,16 +64,22 @@ class MessageService
         $config = $this->getConfiguration($uniacid);
 
         try {
-            if(empty($url)){
-                $url = $temp->news_link;//todo 没有链接就是用模板设置的链接
-            }
-            $app = new Application($config);
-            $app = $app->notice;
-            $app = $app->uses($template_id);
-            $app = $app->andData($send_msg);
-            $app = $app->andReceiver($memberModel->hasOneFans->openid);
-            $app = $app->andUrl($url);
-            $app->send();
+			if(empty($url)){
+				$url = $temp->news_link;//todo 没有链接就是用模板设置的链接
+			}
+			$app = EasyWeChat::officialAccount($config);
+			$userService = $app->user;
+			$user = $userService->get($memberModel->hasOneFans->openid);
+			if ($user['subscribe'] != 1  && $user->subscribe != 1) {
+				\Log::debug('微信消息推送：用户未关注公众号',$user);
+				return false;
+			}
+			$app->template_message->send([
+				'touser' => $memberModel->hasOneFans->openid,
+				'template_id' => $template_id,
+				'url' => $url,
+				'data' => $send_msg,
+			]);
 
         } catch (Exception $error) {
 
@@ -84,7 +87,7 @@ class MessageService
                 'uniacid' => \YunShop::app()->uniacid,
                 'member_id' => $member_id,
                 'template_id' => $template_id,
-                'url' => $url,
+                'url' => $url?:'无',
                 'openid' => $memberModel->hasOneFans->openid ?: 0,
                 'data' => json_encode($send_msg),
                 'send_time' => time(),

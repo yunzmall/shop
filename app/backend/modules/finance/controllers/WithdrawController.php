@@ -20,7 +20,9 @@ use app\common\components\BaseController;
 use app\common\events\withdraw\WithdrawAuditedEvent;
 use app\common\events\withdraw\WithdrawPayedEvent;
 use app\common\exceptions\AppException;
+use app\common\facades\Setting;
 use app\common\models\Income;
+use app\common\services\Session;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -45,10 +47,18 @@ class WithdrawController extends BaseController
             //重新审核
             return (new AuditController())->index();
         } elseif (isset($resultData['confirm_pay'])) {
-            return (new ConfirmPayController())->index();
             //确认打款
+            $check = $this->checkVerify();//打款验证
+            if (!$check) {
+                $this->message('提现验证失败或验证已过期', yzWebUrl("withdraw.records", ['id' => $resultData['id']]), 'error');
+            }
+            return (new ConfirmPayController())->index();
         } elseif (isset($resultData['again_pay'])) {
             //重新打款
+            $check = $this->checkVerify();//打款验证
+            if (!$check) {
+                $this->message('提现验证失败或验证已过期', yzWebUrl("withdraw.records", ['id' => $resultData['id']]), 'error');
+            }
             return (new AgainPayController())->index();
         } elseif (isset($resultData['audited_rebut'])) {
             //审核后驳回
@@ -56,6 +66,64 @@ class WithdrawController extends BaseController
         }
 
         return $this->message('提交数据有误，请刷新重试', yzWebUrl("withdraw.records", ['id' => $resultData['id']]));
+    }
+
+    /**
+     * 打款验证
+     * @return bool
+     */
+    private function checkVerify()
+    {
+        $set = Setting::getByGroup('pay_password')['withdraw_verify'] ?: [];
+        if (empty($set) || empty($set['is_phone_verify'])) {
+            return true;
+        }
+        $verify = Session::get('withdraw_verify');  //没获取到
+        if ($verify && $verify >= time()) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * 发送验证码
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function sendCode()
+    {
+        $set = Setting::getByGroup('pay_password')['withdraw_verify'] ?: [];
+        $phone = $set['phone'];
+        if (!$phone || empty($set['is_phone_verify'])) {
+            return $this->errorJson('无需发送验证码');
+        }
+        $sms = app('sms')->sendWithdrawSet($phone,'86','_withdrawVerify');
+        if ($sms['status'] == 0) {
+            return $this->errorJson($sms['json']);
+        }
+        return $this->successJson();
+    }
+
+    /**
+     * 校验提现打款验证码
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function checkVerifyCode()
+    {
+        $code = request()->code;
+        if (empty($code)) {
+            return $this->errorJson('请填写验证码');
+        }
+        $set = Setting::getByGroup('pay_password')['withdraw_verify'] ?: [];
+        if (empty($set) || empty($set['is_phone_verify'])) {
+            return $this->successJson('无需验证');
+        }
+        $check = app('sms')->checkCode($set['phone'],$code,'_withdrawVerify');
+        if ($check['status'] == 0) {
+            return $this->errorJson($check['json']);
+        }
+        $expire = ($set['verify_expire']&&intval($set['verify_expire'])?intval($set['verify_expire']):10) * 60;
+        Session::set('withdraw_verify',($expire + time()),$expire);
+        return $this->successJson('校验成功',['expire'=>($expire + time())]);
     }
 
     public function submitCheck($withdrawId, $incomeData)

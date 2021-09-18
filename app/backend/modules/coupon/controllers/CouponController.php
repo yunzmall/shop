@@ -13,10 +13,12 @@ use app\backend\modules\coupon\models\CouponLog;
 use app\backend\modules\goods\models\Goods;
 use app\backend\modules\goods\models\Category;
 use app\common\facades\Setting;
+use app\common\models\Store;
 use app\common\services\ExportService;
 use app\frontend\modules\coupon\listeners\CouponSend;
 use Carbon\Carbon;
 use Yunshop\Hotel\common\models\CouponHotel;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Created by PhpStorm.
@@ -29,43 +31,11 @@ class CouponController extends BaseController
     //优惠券列表
     public function index()
     {
-//        $keyword = \YunShop::request()->keyword;
-//        $getType = \YunShop::request()->gettype;
-//        $timeSearchSwitch = \YunShop::request()->timesearchswtich;
-//        $timeStart = strtotime(\YunShop::request()->time['start']);
-//        $timeEnd = strtotime(\YunShop::request()->time['end']);
-//
-//        $pageSize = 10;
-//        if (empty($keyword) && empty($getType) && ($timeSearchSwitch == 0)) {
-//            $list = Coupon::uniacid()->pluginId()->orderBy('display_order', 'desc')->orderBy('updated_at', 'desc')->paginate($pageSize)->toArray();
-//        } else {
-//            $list = Coupon::getCouponsBySearch($keyword, $getType, $timeSearchSwitch, $timeStart, $timeEnd)
-//                ->pluginId()
-//                ->orderBy('display_order', 'desc')
-//                ->orderBy('updated_at', 'desc')
-//                ->paginate($pageSize)
-//                ->toArray();
-//        }
-//        $pager = PaginationHelper::show($list['total'], $list['current_page'], $list['per_page']);
-//        foreach ($list['data'] as &$item) {
-//            $item['gettotal'] = MemberCoupon::uniacid()->where("coupon_id", $item['id'])->count();
-//            $item['usetotal'] = MemberCoupon::uniacid()->where("coupon_id", $item['id'])->where("used", 1)->count();
-//            $lasttotal = $item['total'] - $item['gettotal'];
-//            $item['lasttotal'] = ($lasttotal > 0) ? $lasttotal : 0; //考虑到可领取总数修改成比之前的设置小, 则会变成负数
-//        }
-
-//        return view('coupon.index', [
-//            'list' => $list['data'],
-//            'pager' => $pager,
-//            'total' => $list['total'],
-//        ])->render();
         if(isset(request()->laststock)){
             //系统通知详情进来，查询剩余数量为0的优惠券
             return $this->searchNotStockCoupon();
         }
-
         return view('coupon.index')->render();
-
     }
 
     //查询剩余数量为0的优惠券
@@ -120,7 +90,6 @@ class CouponController extends BaseController
         $timeSearchSwitch = request()->timesearchswtich;
         $timeStart = request()->time['start'];
         $timeEnd = request()->time['end'];
-//        dd($getType,$timeSearchSwitch,request()->time);
         $pageSize = 10;
         if (empty($keyword) && (empty($getType) && $getType == '') && ($timeSearchSwitch == 0)) {
             $list = Coupon::uniacid()->pluginId()->orderBy('display_order', 'desc')->orderBy('updated_at', 'desc')->paginate($pageSize)->toArray();
@@ -144,7 +113,6 @@ class CouponController extends BaseController
             'total' => $list['total'],
         ];
         return $this->successJson('ok',$data);
-
     }
 
     //添加优惠券
@@ -159,20 +127,12 @@ class CouponController extends BaseController
         $couponRequest['categorynames'] = request()->category_names;
         $couponRequest['goods_ids'] = request()->goods_id ?: request()->goods_ids;
         $couponRequest['goods_names'] = request()->goods_name ?: request()->goods_names;
-
         //新增门店
         $couponRequest['storeids'] = request()->store_ids; //去重,去空值
         $couponRequest['storenames'] = request()->store_names;
-
         $hotel_is_open = app('plugins')->isEnabled('hotel');
-
-
         //获取会员等级列表
         $memberLevels = MemberLevel::getMemberLevelList();
-
-        //获取优惠券统一的模板消息 ID (因为是统一的,所以写在 setting)
-        //$template_id = Setting::get('coupon_template_id');
-
         //表单验证
         if (request()->coupon) {
             if (request()->goods_id) {
@@ -184,41 +144,33 @@ class CouponController extends BaseController
             if ($hotel_is_open) {
                 $coupon->widgets['more_hotels'] = request()->hotel_ids;
             }
+            $couponRequest['use_conditions'] = serialize($couponRequest['use_conditions']);
+            if ($couponRequest['time_limit'] == 1) {
+                //使用时间范围时
+                $couponRequest['time_end'] = strtotime(date('Y-m-d 23:59:59',$couponRequest['time_end']));
+            }
             $coupon->fill($couponRequest);
             $validator = $coupon->validator();
             if ($validator->fails()) {
-                // dd($validator->messages());
                 $this->errorJson($validator->messages());
             } elseif ($coupon->save()) {
-
-                //Setting::set('coupon_template_id', \YunShop::request()->template_id); //设置优惠券统一的模板消息ID
                 return $this->successJson('优惠券创建成功');
             } else {
 
                 $this->errorJson('优惠券创建失败');
             }
         }
-
         $store_is_open = app('plugins')->isEnabled('store-cashier');
+        $couponRequest['use_conditions'] = unserialize($couponRequest['use_conditions']);
         $data = [
             'coupon' => $couponRequest,
             'memberlevels' => $memberLevels,
             'timestart' => strtotime(\YunShop::request()->time['start']),
             'timeend' => strtotime(\YunShop::request()->time['end']),
             'hotel_is_open' => $hotel_is_open,
-            'store_is_open'    => $store_is_open
-//            'template_id' => $template_id,
+            'store_is_open'    => $store_is_open,
         ];
         return $this->successJson('ok',$data);
-
-//        return view('coupon.coupon', [
-//            'coupon' => $couponRequest,
-//            'memberlevels' => $memberLevels,
-//            'timestart' => strtotime(\YunShop::request()->time['start']),
-//            'timeend' => strtotime(\YunShop::request()->time['end']),
-//            'hotel_is_open' => $hotel_is_open
-//            //'template_id' => $template_id,
-//        ])->render();
     }
 
     //编辑优惠券
@@ -228,13 +180,8 @@ class CouponController extends BaseController
         if (!$coupon_id) {
             $this->errorJson('请传入正确参数.');
         }
-
         //获取会员等级列表
         $memberLevels = MemberLevel::getMemberLevelList();
-
-        //获取优惠券统一的模板消息 ID (因为是统一的,所以写在 setting)
-        //$template_id = Setting::get('coupon_template_id');
-
         $coupon = HotelCoupon::getCouponById($coupon_id);
         if (!empty($coupon->goods_ids)) {
             $coupon->goods_ids = array_filter(array_unique($coupon->goods_ids)); //去重,去空值
@@ -243,13 +190,26 @@ class CouponController extends BaseController
             }
         }
         if (!empty($coupon->category_ids)) {
-            $coupon->category_ids = array_filter(array_unique($coupon->category_ids)); //去重,去空值
-            $coupon->categorynames = Category::getCategoryNameByIds($coupon->category_ids); //因为商品分类名称可能修改,所以必须以商品表为准
+            $ids = $coupon->category_ids;
+            $categorynames = Category::uniacid()//因为商品分类名称可能修改,所以必须以商品表为准
+                ->select('id','name')
+                ->whereIn('id', $ids)
+                ->orderByRaw(DB::raw("FIELD(id, ".implode(',', $ids).')')) //必须按照categoryIds的顺序输出分类名称
+                ->get();
+            $ids = $categorynames->pluck('id')->toArray();
+            $names = $categorynames->pluck('name')->toArray();
         }
         //新增酒店
         $hotel_is_open = app('plugins')->isEnabled('hotel');
-
         $couponRequest = request()->coupon;
+
+        // 查询优惠券是否有被发放
+        $memberCoupon = MemberCoupon::uniacid()->where("coupon_id", $coupon->id)->first();
+        // 当存在发放优惠券并且用户编辑了发放总数,返回提示警告(中间 $couponRequest 不能被优化掉.否则前端拿不到优惠券基本信息)
+        if ($memberCoupon && $couponRequest && $couponRequest['total'] != $coupon->total) {
+            $this->errorJson('优惠券已经发放,无法对发放总数进行编辑');
+        }
+
         if ($couponRequest) {
             if ($couponRequest['use_type'] == 8) {
                 if (count(request()->goods_id) > 1) {
@@ -271,8 +231,8 @@ class CouponController extends BaseController
             if ($hotel_is_open) {
                 $coupon->widgets['more_hotels'] = request()->hotel_ids;
             }
-
             //表单验证
+            $couponRequest['use_conditions'] = serialize($couponRequest['use_conditions']);
             $coupon->fill($couponRequest);
             $validator = $coupon->validator();
             if ($validator->fails()) {
@@ -296,19 +256,19 @@ class CouponController extends BaseController
                     if (app('plugins')->isEnabled('designer')) {
                         Cache::flush();//清除缓存
                     }
-                    //Setting::set('coupon_template_id', \YunShop::request()->template_id); //设置优惠券统一的模板消息ID
                     return $this->successJson('优惠券修改成功');
                 } else {
                     $this->errorJson('优惠券修改失败');
                 }
             }
         }
+        $coupon['use_conditions'] = unserialize($coupon['use_conditions']);
         $store_is_open = app('plugins')->isEnabled('store-cashier');
         $data = [
             'coupon' => $coupon->toArray(),
             'usetype' => $coupon->use_type,
-            'category_ids' => $coupon->category_ids,
-            'category_names' => $coupon->categorynames,
+            'category_ids' => $ids,
+            'category_names' => $names,
             'goods_ids' => $coupon->goods_ids,
             'goods_names' => $coupon->goods_names,
             'memberlevels' => $memberLevels,
@@ -317,27 +277,12 @@ class CouponController extends BaseController
             'hotel_is_open' => $hotel_is_open,
             'hotel_ids' => $hotel_is_open ? CouponHotel::getHotels($coupon_id) : [],
             'store_ids' => $coupon->storeids,
-            'store_names'   =>$coupon->storenames,
-            'store_is_open'    => $store_is_open
-            //'template_id' => $template_id,
+            'store_names' =>$coupon->storenames,
+            'store_is_open' => $store_is_open,
+            'goods' => Goods::select(['id', 'title'])->uniacid()->whereIn('id', $coupon['use_conditions']['good_ids'])->get(),
+            'store' => app('plugins')->isEnabled('store-cashier') ? Store::select(['id', 'store_name'])->uniacid()->whereIn('id', $coupon['use_conditions']['store_ids'])->get() : [],
         ];
-
         return $this->successJson('ok',$data);
-
-//        return view('coupon.coupon', [
-//            'coupon' => $coupon->toArray(),
-//            'usetype' => $coupon->use_type,
-//            'category_ids' => $coupon->category_ids,
-//            'category_names' => $coupon->categorynames,
-//            'goods_ids' => $coupon->goods_ids,
-//            'goods_names' => $coupon->goods_names,
-//            'memberlevels' => $memberLevels,
-//            'timestart' => $coupon->time_start->timestamp,
-//            'timeend' => $coupon->time_end->timestamp,
-//            'hotel_is_open' => $hotel_is_open,
-//            'hotels' => $hotel_is_open ? CouponHotel::getHotels($coupon_id) : []
-//            //'template_id' => $template_id,
-//        ])->render();
     }
 
     public function couponView()

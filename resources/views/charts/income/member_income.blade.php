@@ -17,7 +17,7 @@
                     <div class="card-content">
                         <form action="" method="post" class="form-horizontal" role="form" id="form1">
                             <div class="form-group col-xs-12 col-sm-2">
-                                <input type="text" class="form-control"  name="search[member_id]" value="{{$search['member']?$search['member']:''}}" placeholder="会员ID"/>
+                                <input type="text" class="form-control"  name="search[member_id]" value="{{$search['member_id']?$search['member_id']:''}}" placeholder="会员ID"/>
                             </div>
                             <div class="form-group col-xs-12 col-sm-2">
                                 <input type="text" class="form-control"  name="search[member]" value="{{$search['member']?$search['member']:''}}" placeholder="会员昵称/姓名/手机"/>
@@ -38,6 +38,7 @@
                             </div>
                             <div class="form-group col-xs-12 col-sm-4">
                                 <button class="btn btn-success" id="search"><i class="fa fa-search"></i> 搜索</button>
+                                <button type="submit" name="export" value="1" id="export" class="btn btn-default">导出 Excel</button>
                             </div>
                         </form>
                     </div>
@@ -119,4 +120,15 @@
         </div>
     </div>
 </div>
+<script>
+    $(function () {
+        $('#export').click(function () {
+            $('#form1').attr('action', '{!! yzWebUrl('charts.income.member-income.export') !!}');
+            $('#form1').submit();
+            setTimeout(() =>{
+                $('#form1').attr('action', '');
+            },0)
+        });
+    });
+</script>
 @endsection

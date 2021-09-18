@@ -62,6 +62,19 @@
     display:flex;
     align-items:center;
 }
+.confirm-btn{
+            width: calc(100% - 266px);
+            position:fixed;
+            bottom:0;
+            right:0;
+            margin-right:10px;
+            line-height:63px;
+            background-color: #ffffff;
+            box-shadow: 0px 8px 23px 1px
+            rgba(51, 51, 51, 0.3);
+            background-color:#fff;
+            text-align:center;
+        }
 b{
     font-size:14px;
 }
@@ -87,9 +100,9 @@ b{
                     </el-form-item>
                     <el-form-item label="工单分类： " v-if="!isempty(first_list.status)">
                         <span v-if="first_list.category_id==1">bug提交</span>
-                        <span v-if="first_list.category_id==0">全部</span>
                         <span v-if="first_list.category_id==2">优化建议</span>
-                        <span v-if="first_list.category_id==3">其他</span>
+                        <span v-if="first_list.category_id==3">开发需求</span>
+                        <span v-if="first_list.category_id==4">其他</span>
                     </el-form-item>
                     <el-form-item label="提交时间：" v-if="!isempty(first_list.created_at)">
                         <span v-text="first_list.created_at"></span>
@@ -110,18 +123,33 @@ b{
             <div class="title"><span style="width: 4px;height: 18px;background-color: #29ba9c;margin-right:15px;display:inline-block;"></span><b>工单信息</b></div>
                 <el-form ref="first_list" :model="first_list"  label-width="15%" >
                     <el-form-item label="站点：">
-                        <span v-text="site_url"></span>
+                        <span v-text="first_list.domain"></span>
                     </el-form-item>
                     <el-form-item label="问题标题：" >
                         <span v-text="first_list.question_title">
                     </el-form-item>
-                    <el-form-item label="问题描述：" >
+                    <!-- <el-form-item label="问题描述：" >
                         清晰的描述问题产生的操作流程，问题结果，期望的正确结果；
                         如果是涉及到分销佣金、分红、返现等模式计算，要清晰的讲解设置、会员关系、正确的结算结果、错误的计算结果等；<br>
                         如果您觉得下方编辑框操作麻烦可使用附件上传按钮 直接上传Word、excel等说明文档。
+                    </el-form-item> -->
+                    <el-form-item label="问题描述：" >
+                    <el-input show-word-limit style="overflow:hidden;width:60%;" type="textarea" disabled v-html="first_list.question_describe" placeholder=""></el-input>
                     </el-form-item>
                     <el-form-item label=" " >
-                    <el-input show-word-limit style="overflow:hidden;padding:10px;width:60%;" type="textarea" disabled v-html="first_list.question_describe" placeholder=""></el-input>
+                        <div class="imgInfo" style="border:1px solid rgba(187, 187, 187, 1);width:989px;display:flex;align-items:center;flex-wrap:wrap;">
+                            <div  v-for="(item,index) in first_list.thumb_url"  style="padding: 10px;display: inline-block;width: 200px;display:flex;align-items:center;justify-content:center;flex-direction:column;">
+                                <img v-if="item.indexOf('xlsx')!=-1" style="width:50px;height:50px;" src="{!! resource_get('static/images/icon/xlsx.png') !!}" alt="">
+                                <img v-if="item.indexOf('docx')!=-1||item.indexOf('doc')!=-1" style="width:50px;height:50px;" src="{!! resource_get('static/images/icon/word.png') !!}" alt="">
+                                <img v-if="item.indexOf('mp4')!=-1" style="width:50px;height:50px;" src="{!! resource_get('static/images/icon/mp4.png') !!}" alt="">
+                                <img v-if="item.indexOf('mp3')!=-1" style="width:50px;height:50px;" src="{!! resource_get('static/images/icon/mp3.png') !!}" alt="">
+                                <img v-if="item.indexOf('zip')!=-1" style="width:50px;height:50px;" src="{!! resource_get('static/images/icon/zip.png') !!}" alt="">
+                                <img v-if="item.indexOf('txt')!=-1" style="width:50px;height:50px;" src="{!! resource_get('static/images/icon/txt.png') !!}" alt="">
+                                <img  v-if="item.indexOf('png')!=-1||item.indexOf('jpeg')!=-1||item.indexOf('jpg')!=-1" @click="tapFimg(item)" :src="item" alt="" style="width:146px;height:129px;margin:12px 8px 24px 15px;">
+                                <div v-if="!item.show"  v-text="" style="overflow: hidden; white-space: nowrap; text-overflow: ellipsis;" ></div>
+                                <img v-if="item.indexOf('png') == -1 || item.indexOf('jpeg') == -1 ||item.indexOf('jpg') == -1 " style="width:20px;height:20px;cursor:pointer;margin-top:20px;"  src="{!! resource_get('static/images/icon/down.png') !!}"  @click="gotoTxt(item)" alt="">
+                            </div>
+                        </div>
                     </el-form-item>
                 </el-form> 
             </div>
@@ -130,20 +158,20 @@ b{
             <div class="title"><span style="width: 4px;height: 18px;background-color: #29ba9c;margin-right:15px;display:inline-block;"></span><b>沟通记录</b></div>
             <div class="info" v-if="first_list.has_many_comment.length>0" >
                
-               <div class="imgBox" style="padding-left:10%;" >
+               <div class="imgBox" style="padding-left:15%;" >
                <div style="margin-bottom:10px;" v-for="(item,index) in first_list.has_many_comment ">
-                   <span  v-text="item.created_at" style="margin-right:20px;margin-top: 20px;display: inline-block;vertical-align: top;"></span>
-                   <span v-if="item.user_id!=0" style="font-weight:800;margin-top: 20px;display: inline-block;vertical-align: top;">
+                   <div  v-text="item.created_at" style="margin-right:20px;vertical-align: top;"></div>
+                   <div v-if="item.user_id!=0" style="font-weight:800;margin: 20px 0;vertical-align: top;">
                        售后人员：
-                   </span>
-                   <span style="font-weight:800;margin-top: 20px;display: inline-block;vertical-align: top;" v-if="item.user_id==0">
+                   </div>
+                   <div style="font-weight:800;margin: 20px 0;vertical-align: top;" v-if="item.user_id==0">
                        用户回复：
-                   </span>
+                   </div>
                    
                    <!-- <span v-text="item.content"></span> -->
                    <el-input v-model="item.content" type="textarea" style="width:989px;margin:10px 0" readonly="readonly"></el-input> 
-                   <div v-if="item.imgData.length>0" class="imgInfo" style="border:1px solid rgba(187, 187, 187, 1);width:989px;">
-                   <div  v-for="(item,index) in item.imgData"  style="padding: 10px;display: inline-block;width: 200px;text-align: center;">
+                   <div v-if="item.imgData.length>0" class="imgInfo" style="border:1px solid rgba(187, 187, 187, 1);width:989px;display:flex;align-items:center;flex-wrap:wrap;">
+                   <div  v-for="(item,index) in item.imgData"  style="padding: 10px;width: 200px;height:200px;display:flex;align-items:center;justify-content:center;flex-direction:column;">
                        <img v-if="!item.imgShow&&item.val.indexOf('xlsx')!=-1" style="width:50px;height:50px;" src="{!! resource_get('static/images/icon/xlsx.png') !!}" alt="">
                        <img v-if="item.val.indexOf('docx')!=-1||item.val.indexOf('doc')!=-1" style="width:50px;height:50px;" src="{!! resource_get('static/images/icon/word.png') !!}" alt="">
                        <img v-if="item.val.indexOf('mp4')!=-1" style="width:50px;height:50px;" src="{!! resource_get('static/images/icon/mp4.png') !!}" alt="">
@@ -151,9 +179,9 @@ b{
                        <img v-if="item.val.indexOf('zip')!=-1" style="width:50px;height:50px;" src="{!! resource_get('static/images/icon/zip.png') !!}" alt="">
                        <img v-if="item.val.indexOf('txt')!=-1" style="width:50px;height:50px;" src="{!! resource_get('static/images/icon/txt.png') !!}" alt="">
                        <img v-if="item.defaultshow" style="width:50px;height:50px;" src="{!! resource_get('static/images/icon/defailt.png') !!}" alt="">
-                       <div v-if="!item.show"  v-text="item.val" style="overflow: hidden; white-space: nowrap; text-overflow: ellipsis;" ></div>
+                       <div v-if="!item.show"  v-text="" style="overflow: hidden; white-space: nowrap; text-overflow: ellipsis;" ></div>
                        <!-- <div v-if="!item.show" style="margin-left: 20px;"  class="txt_title"  >( 下载 )</div> -->
-                       <img v-if="!item.show" style="width:20px;height:20px;cursor:pointer;" src="{!! resource_get('static/images/icon/down.png') !!}"  @click="gotoTxt(item.val)" alt="">
+                       <img v-if="!item.show" style="width:20px;height:20px;cursor:pointer;margin-top:20px;" src="{!! resource_get('static/images/icon/down.png') !!}"  @click="gotoTxt(item.val)" alt="">
                        <img   v-if="item.show"    @click="tapFimg(item.val)" :src="item.val" alt="" style="width:146px;height:129px;margin:12px 8px 24px 15px;">
                    </div>
                    </div>
@@ -166,45 +194,54 @@ b{
                 <el-dialog
                    :visible.sync="dialogVisible"
                    :show-close="false"
-                  width="20%"
+
                   top="20%"
                    >
-                   <div style="width:100%;" class="img_grop" v-if="dialogVisible">
-                   <img :src="thumb_url" id="thumb_url" alt="">
+                   <div style="" class="img_grop" v-if="dialogVisible">
+                   <img :src="thumb_url" id="thumb_url" alt="" @load="onLoad">
                     </div>
                    </el-dialog>
 
-               <div>
-                   <div class="bigJian" style="padding-left:10%;">
-                   <div contentEditable="true" ref="textarea" @keyup.delete="paseTra"  id="textarea" >
-                   </div>
-                   </div>
-                   <p style="margin-top:10px;padding-left:10%;">点击上传图片 选中输入框可直接粘贴QQ截图</p>
-                   <div class="upImg" style="width:1131px;height:152px;padding-left:10%;">
-               <el-upload
-                   class="upload-demo"
-                   action="{!!yzWebFullUrl('setting.work-order.upload-file')!!}"
-                   :on-success="onSuccess"
-                   :before-upload="beforeUpload"
-                   :on-remove="handleRemove"
-                   :auto-upload="true"
-                   multiple
-                   :limit="6"
-                   :on-exceed="exceed"
-                   :file-list="fileList"
-               
-                   >
-                   <el-button size="small" type="primary" >点击上传</el-button>
-                   <P class="text" style="margin-top:10px;padding-left:10%;">文件大小不能超过20M</P>
-                   </el-upload>
-                   </div>
-                   <br/>
-                   <div >
-                   <el-button size="small"  @click="detailCate" style="margin-left:10%;">追加说明</el-button>
-                   </div>
-               </div>
+                   <div style="background: #eff3f6;width:100%;height:15px;"></div>
+                <!-- 弹出大的图片   -->
+                   <div class="block" style="padding-bottom:70px;">
+                    <div class="title"><span style="width: 4px;height: 18px;background-color: #29ba9c;margin-right:15px;display:inline-block;"></span><b>追加说明</b></div>
+                        <div>
+                        <div class="bigJian" style="padding-left:15%;">
+                        <div contentEditable="true" ref="textarea"   id="textarea" >
+                        </div>
+                        </div>
+                       
+                        <!-- <p style="margin-top:10px;padding-left:10%;">点击上传图片 选中输入框可直接粘贴QQ截图</p> -->
+                        <div class="upImg" style="width: 989px;height:152px;padding-left:15%;">
+                    <el-upload
+                        class="upload-demo"
+                        action="{!!yzWebFullUrl('setting.work-order.upload-file')!!}"
+                        :on-success="onSuccess"
+                        :before-upload="beforeUpload"
+                        :on-remove="handleRemove"
+                        :auto-upload="true"
+                        multiple
+                        :limit="6"
+                        :on-exceed="exceed"
+                      
+                    
+                        >
+                       
+                        <el-button size="small" type="primary"  style="margin-top:20px;">点击上传文件/图片</el-button>
+                        <!-- <P class="text" style="margin-top:10px;padding-left:10%;">文件大小不能超过20M</P> -->
+                    </el-upload>
+                        </div>
+                        <br/>
+                        <div >
+                       
+                        </div>
+                    </div>
+                </div>
             </div>
-       
+            <div class="confirm-btn">
+            <el-button type="primary" @click="detailCate">提交</el-button>
+            </div>
         </div>
     </template>
 </div>
@@ -278,12 +315,20 @@ b{
             this.paseImg()
         },
         methods: {
+            onLoad(e){
+                const img = e.target;
+                let width = 0;
+                if (img.fileSize > 0 || (img.width > 1 && img.height > 1)) {
+                    width = img.width + 40;
+                }
+                this.width = width + 'px';
+            },
             goBack() {
                 window.location.href = `{!! yzWebFullUrl('setting.shop.index1') !!}`;
             },
-            paseTra(e){
-                this.fileListShop.splice(this.fileListShop.length-1,1);
-            },
+            // paseTra(e){
+            //     this.fileListShop.splice(this.fileListShop.length-1,1);
+            // },
             isempty(str){
                 if ((str == null) || (str == '') || (str == undefined)) {
                         return true
@@ -317,7 +362,7 @@ b{
             detailCate() {
                       this.detailInfo=this.$refs.textarea.innerText;
                 if (this.detailInfo == ''&&this.fileListShop.length==0) {
-                    this.$message.error('请输入文字信息')
+                    this.$message.error('请输入追加信息')
                     return;
                 }
                 this.fileListShop.map(key=>{
@@ -393,6 +438,7 @@ b{
                                     img.height=129;
                                     img.src = res.data.thumb_url;
                                     that.fileListShop.push(res.data.thumb_url)
+                                    console.log(that.fileListShop)
                                     var box=document.getElementById('textarea')
                                     box.appendChild(img);
                                  }else{

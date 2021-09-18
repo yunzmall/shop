@@ -62,18 +62,14 @@ class PayType extends BaseModel
     const YOP_ALIPAY_FACE_PAY= 47;//支付宝人脸支付(易宝)
     const WECHAT_JSAPI_PAY= 48;//微信h5支付
     const ALIPAY_JSAPI_PAY= 49;//支付宝h5支付
-
-    /**
-     *  微信H5支付
-     */
-    const WECHAT_H5 = 50;
-
+    const WECHAT_H5 = 50; //微信H5支付
     const PAY_WECHAT_TOUTIAO = 51;//微信支付（头条）
     const PAY_ALIPAY_TOUTIAO = 52;//支付宝支付（头条）
     const MEMBER_CARD_PAY = 53;//会员卡余额支付(宠物医院)
     const CONFIRM_PAY = 54; // 确认支付（支付金额为0）
     const WECHAT_MIN_PAY = 55; //微信小程序支付
     const HK_SCAN_PAY = 56;//港版微信扫码支付
+    const WECHAT_NATIVE = 57;//微信扫码支付
     const PAY_PAL = 58;//PayPal支付
     const CONVERGE_QUICK_PAY = 59;//汇聚快捷支付
     const YOP_PRO_WECHAT = 60;//易宝pro微信支付
@@ -81,6 +77,11 @@ class PayType extends BaseModel
     const HK_SCAN_ALIPAY = 62;//港版支付宝H5
     const STORE_AGGREGATE_WECHAT = 63;//微信支付-聚合支付
     const STORE_AGGREGATE_ALIPAY = 64;//支付宝支付-聚合支付
+    const STORE_AGGREGATE_SCAN = 65;//扫码支付-聚合支付
+    const DCM_SCAN_PAY = 68;//Dcm扫码支付
+    const WECHAT_CPS_APP_PAY = 71; //聚合CPS微信支付
+    const XFPAY_WECHAT = 78; //商云客聚合支付-微信支付
+    const XFPAY_ALIPAY = 79; //商云客聚合支付-支付宝
 
 
     /**

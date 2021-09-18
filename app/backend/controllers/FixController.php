@@ -15,6 +15,7 @@ use app\common\models\Order;
 use app\common\services\member\MemberRelation;
 use Illuminate\Foundation\Bus\DispatchesJobs;
 use Illuminate\Support\Facades\DB;
+use Yunshop\Commission\models\Agents;
 use Yunshop\Commission\models\Commission;
 use Yunshop\Commission\models\CommissionOrder;
 use Yunshop\Commission\services\CommissionOrderService;
@@ -27,6 +28,54 @@ class FixController extends BaseController
 {
     use DispatchesJobs;
 
+    public function getAgentUniacid()
+    {
+        $agents = DB::select('select ya.* FROM ims_yz_agents as ya LEFT JOIN ims_yz_agent_level as al on al.id = ya.agent_level_id where ya.uniacid <> al.uniacid');
+        echo '该系统有'. count($agents).'条错误数据。';
+    }
+
+    public function agentUniacid()
+    {
+        $agents = DB::select('select ya.* FROM ims_yz_agents as ya LEFT JOIN ims_yz_agent_level as al on al.id = ya.agent_level_id where ya.uniacid <> al.uniacid');
+
+        $success = 0;
+        $error = 0;
+        foreach ($agents as $agent) {
+            $log = DB::table('yz_commission_log')
+                ->where('uid',$agent['member_id'])
+                ->where('after_level_id',$agent['agent_level_id'])
+                ->orderBy('id','desc')
+                ->first();
+            $this->fixAgentUniacid($agent, $log['before_level_id']);
+            $success ++;
+        }
+        echo '成功:'. $success.'。失败：'.$error;
+
+    }
+
+    public function fixAgentUniacid($agent, $level_id)
+    {
+        if ($level_id == 0) {
+            DB::table('yz_agents')->where('member_id', $agent['member_id'])->update(['agent_level_id' => 0]);
+        } else {
+            $level = DB::table('yz_agent_level')->where('id',$level_id)->first();
+
+            if ($agent['uniacid'] == $level['uniacid']) {
+
+                DB::table('yz_agents')->where('member_id', $agent['member_id'])->update(['agent_level_id' => $level_id,'updated_at' => time()]);
+
+            } else {
+
+                $log = DB::table('yz_commission_log')
+                    ->where('uid',$agent['member_id'])
+                    ->where('after_level_id',$level_id)
+                    ->orderBy('id','desc')
+                    ->first();
+                $this->fixAgentUniacid($agent, $log['before_level_id']);
+
+            }
+        }
+    }
     public function errorDividendData()
     {
         $a = DB::table('yz_team_dividend')->select(['yz_team_dividend.uniacid as tuniacid','mc_members.uniacid as uniacid','yz_team_dividend.id' , 'yz_order.id as orderid', 'yz_order.uid', 'yz_team_dividend.order_sn', 'yz_team_dividend.member_id', 'yz_team_dividend.status'])

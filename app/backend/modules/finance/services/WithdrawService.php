@@ -69,7 +69,7 @@ class WithdrawService extends Withdraw
         $sn = $withdraw->withdraw_sn;
         $amount = $withdraw->actual_amounts;
 
-        $memberModel = Member::uniacid()->where('uid', $withdraw->member_id)->with(['hasOneFans', 'hasOneMiniApp'])->first();
+        $memberModel = Member::uniacid()->where('uid', $withdraw->member_id)->with(['hasOneFans', 'hasOneMiniApp', 'hasOneWechat'])->first();
 
         //优先使用微信会员打款
         if ($memberModel->hasOneFans->openid) {
@@ -77,6 +77,8 @@ class WithdrawService extends Withdraw
             //微信会员openid不存在时，假设使用小程序会员openid
         } elseif (app('plugins')->isEnabled('min-app') && $memberModel->hasOneMiniApp->openid) {
             $result = PayFactory::create(PayFactory::PAY_WE_CHAT_APPLET)->doWithdraw($memberId, $sn, $amount, $remark);
+        } elseif (app('plugins')->isEnabled('app-set') && $memberModel->hasOneWechat->openid) {
+            $result = PayFactory::create(PayFactory::PAY_APP_WEACHAT)->doWithdraw($memberId, $sn, $amount, $remark);
         } else {
             throw new ShopException("余额提现ID：{$withdraw->id}，提现失败：提现会员openid错误");
         }

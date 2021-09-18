@@ -1,5 +1,42 @@
-<!-- 供货商end -->
 {{--<link href="{{static_url('yunshop/goods/goods.css')}}" media="all" rel="stylesheet" type="text/css"/>--}}
+
+<style>
+    .brand-select {
+        position:relative;
+        z-index:6
+    }
+    .brand-popup-mask {
+        display:none;
+        position:fixed;
+        z-index:5;
+        top:0;
+        left:0;
+        width:100%;
+        height:100vh;
+        background:transparent;
+    }
+    .brands-popup {
+        display:none;
+        position:absolute;
+        z-index:6;
+        padding:3px;
+        width:95%;
+        user-select: none;
+        background:white;
+        box-shadow: 0 3px 5px rgba(0,0,0,0.2);
+        box-sizing: border-box;
+        border-radius:0 0 3px 3px;
+    }
+    .brand-item {
+        padding:5px;
+        border-radius:3px;
+    }
+    .brand-item:hover {
+        color:white;
+        background:brown;
+    }
+</style>
+
 
 <div class="form-group">
     <label class="col-xs-12 col-sm-3 col-md-2 control-label">排序</label>
@@ -34,19 +71,34 @@
 </div>
 
 
-<div class="form-group">
+
+<div class="form-group brands-form-item">
     <label class="col-xs-12 col-sm-3 col-md-2 control-label">品牌</label>
     <div class="col-sm-9 col-xs-12">
-        <select name="goods[brand_id]" id="brand" style="width:95%">
+        {{--<select name="goods[brand_id]" id="brand" style="width:95%">--}}
+            <div class="brand-popup-mask" onclick="hiddenBrandPopup()"></div>
+            <div class="brand-select">
+                <input type="hidden" name="goods[brand_id]" @if ($goods['brand_id']) value="{{$goods['brand_id']}}" @endif />
+                <input class="form-control" type="text" oninput="inputingBrandName(this.value)" placeholder="请输入品牌名称" onfocus="showBrandList()" value="{{$brands['name']}}" />
+                <div class="brands-popup">
+                    <ul class="brand-list">
+                    </ul>
+                </div>
+            </div>
+
+        <!-- <select name="goods[brand_id]" id="brand" style="width:95%">
             <option value="0">请选择品牌</option>
             @if (!empty($brands))
-                @foreach ($brands as $brand)
-                    <option value="{{$brand['id']}}" @if ($brand['id'] == $goods['brand_id']) selected @endif>{{$brand['name']}}</option>
+            @foreach ($brands as $brand)
+                <option value="{{$brand['id']}}" @if ($brand['id'] == $goods['brand_id']) selected @endif>{{$brand['name']}}</option>
                 @endforeach
-            @endif
-        </select>
+        @endif
+                </select>
+                </select> -->
     </div>
 </div>
+
+
 
 <div class="form-group">
     <label class="col-xs-12 col-sm-3 col-md-2 control-label">商品类型</label>
@@ -119,34 +171,90 @@
     </div>
 </div>
 
-<div class="form-group">
+{{--<div class="form-group">
     <label class="col-xs-12 col-sm-3 col-md-2 control-label"><span >*</span>{{$lang['mainimg']}}</label>
     <div class="col-sm-9 col-xs-12 col-md-6 detail-logo">
         {!! app\common\helpers\ImageHelper::tplFormFieldImage('goods[thumb]', $goods['thumb']) !!}
         <span class="help-block">建议尺寸: 640 * 640 ，或正方型图片 </span>
     </div>
-</div>
+</div>--}}
 <div class="form-group">
+    <label class="col-xs-12 col-sm-3 col-md-2 control-label"><span >*</span>{{$lang['mainimg']}}</label>
+    <div class="col-sm-9 col-xs-12 col-md-6 detail-logo">
+		<div class="input-group ">
+			<input type="text" name="goods[thumb]" value="{{$goods['thumb']}}" class="form-control" autocomplete="off">
+			<span class="input-group-btn">
+				<button class="btn btn-default" type="button" onclick="showImageDialog2(this,'');">选择图片</button>
+			</span>
+		</div>
+		<div class="input-group " style="margin-top:.5em;">
+			<img src="{{yz_tomedia($goods['thumb'])}}" onerror="this.src='{{static_url('resource/images/nopic.jpg')}}'; this.title='图片未找到.'" class="img-responsive img-thumbnail" width="150">
+			<em class="close" style="position:absolute; top: 0px; right: -14px;" title="删除这张图片" onclick="deleteImage2(this)">×</em>
+		</div>
+        <span class="help-block">建议尺寸: 640 * 640 ，或正方型图片 </span>
+    </div>
+</div>
+{{--<div class="form-group">
     <label class="col-xs-12 col-sm-3 col-md-2 control-label">其他图片</label>
     <div class="col-sm-9  col-md-6 col-xs-12">
         {!! app\common\helpers\ImageHelper::tplFormFieldMultiImage('goods[thumb_url]',$goods['thumb_url']) !!}
+        <span class="help-block">建议尺寸: 640 * 640 ，或正方型图片 </span>
+    </div>
+</div>--}}
+<div class="form-group">
+    <label class="col-xs-12 col-sm-3 col-md-2 control-label">其他图片</label>
+    <div class="col-sm-9  col-md-6 col-xs-12">
+        <div class="input-group">
+            <input type="text" class="form-control" readonly="readonly" value="" placeholder="批量上传图片" autocomplete="off">
+            <span class="input-group-btn">
+                <button class="btn btn-default" type="button" onclick="showImageDialog2(this,'more','goods[thumb_url]',0);">选择图片</button>
+                <input type="hidden" value="goods[thumb_url]">
+            </span>
+        </div>
+        <div class="input-group multi-img-details" style='display: flex;flex-wrap: wrap;'>
+            @foreach($goods['thumb_url'] as $item)
+            <div class="multi-item">
+                <div class="img_box">
+                    <img src="{{yz_tomedia($item)}}" onerror="this.src='{{static_url('resource/images/nopic.jpg')}}'; this.title='图片未找到.'" class="img-responsive img-thumbnail" title="图片未找到.">
+                </div>
+                <input type="hidden" name="goods[thumb_url][]" value="{{$item}}">
+                <em class="close" title="删除这张图片" onclick="deleteMultiImage2(this,0)">×</em>
+            </div>
+            @endforeach
+            
+        </div>
         <span class="help-block">建议尺寸: 640 * 640 ，或正方型图片 </span>
     </div>
 </div>
 <div class="form-group">
     <label class="col-xs-12 col-sm-3 col-md-2 control-label">首图视频</label>
     <div class="col-sm-9  col-md-6 col-xs-12">
-
         {!! app\common\helpers\ImageHelper::tplFormFieldVideo('widgets[video][goods_video]', $goods->hasOneGoodsVideo->goods_video) !!}
         {{--{!! tpl_form_field_video('widgets[video][goods_video]',$goods->hasOneGoodsVideo->goods_video) !!}--}}
         <span class="help-block">设置后商品详情首图默认显示视频，建议时长9-30秒</span>
 
     </div>
 </div>
-<div class="form-group">
+{{--<div class="form-group">
     <label class="col-xs-12 col-sm-3 col-md-2 control-label">视频封面</label>
     <div class="col-sm-9 col-xs-12 col-md-6 detail-logo">
         {!! app\common\helpers\ImageHelper::tplFormFieldImage('widgets[video][video_image]', $goods->hasOneGoodsVideo->video_image) !!}
+        <span class="help-block">不填默认商品主图</span>
+    </div>
+</div>--}}
+<div class="form-group">
+    <label class="col-xs-12 col-sm-3 col-md-2 control-label">视频封面</label>
+    <div class="col-sm-9 col-xs-12 col-md-6 detail-logo">
+		<div class="input-group ">
+			<input type="text" name="widgets[video][video_image]" value="{{$goods->hasOneGoodsVideo->video_image}}" class="form-control" autocomplete="off">
+			<span class="input-group-btn">
+				<button class="btn btn-default" type="button" onclick="showImageDialog2(this,'');">选择图片</button>
+			</span>
+		</div>
+		<div class="input-group " style="margin-top:.5em;">
+			<img src="{{yz_tomedia($goods->hasOneGoodsVideo->video_image)}}" onerror="this.src='{{static_url('resource/images/nopic.jpg')}}'; this.title='图片未找到.'" class="img-responsive img-thumbnail" width="150">
+			<em class="close" style="position:absolute; top: 0px; right: -14px;" title="删除这张图片" onclick="deleteImage2(this)">×</em>
+		</div>
         <span class="help-block">不填默认商品主图</span>
     </div>
 </div>
@@ -209,13 +317,14 @@
 </div>
 
 <div class="form-group">
-    <label class="col-xs-12 col-sm-3 col-md-2 control-label"><span >*</span>虚拟销量</label>
+    <label class="col-xs-12 col-sm-3 col-md-2 control-label"><span >*</span>第三方销量</label>
     <div class="col-sm-6 col-xs-12">
         <div class="input-group  col-md-3 form-group col-sm-3">
             <input type="text" onkeyup="value=value.replace(/[^\d]/g,'')" name="goods[virtual_sales]" id="total" class="form-control" value="{{$goods['virtual_sales']}}" />
             <span class="input-group-addon">件</span>
         </div>
-        <span class="help-block">前端真实销量 = 虚拟销量 + 真实销量</span>
+        <!--<span class="help-block">前端真实销量 = 虚拟销量 + 真实销量</span>-->
+        <span class="help-block">第三方销量为平台在其他第三方平台销量同步汇总，前端显示销量=第三方销量+商城销量</span>
     </div>
 </div>
 
@@ -275,6 +384,7 @@
     </div>
 </div>
 
+@include('public.admin.customImg')
 <!-->
 @if(\app\common\services\PermissionService::can('goods_goods_putaway'))
 @section('isputaway')
@@ -289,7 +399,75 @@
 @show
 @endif
 <script type="text/javascript">
-    $('#brand').select2();
+    // $('#brand').select2();
+
+    let searchTimeHandle=null;
+    function showBrandList(){
+        $(".brand-popup-mask").fadeIn();
+        if($(".brand-list").children().length>0){
+            $(".brands-popup").fadeIn();
+        }
+    }
+    function selectBrand(id,name){
+        if(id!==0){
+            $(".brand-select input[name='goods[brand_id]']").val(id);
+            $(".brand-select input.form-control").val(name);
+        }
+        hiddenBrandPopup();
+    }
+    function createBrandItem(id,name){
+        const LiEl=document.createElement("li");
+        LiEl.innerText=name;
+        LiEl.className="brand-item";
+        LiEl.setAttribute("data-id",id);
+        LiEl.onclick=selectBrand.bind(null,id,name);
+        return LiEl;
+    }
+    function inputingBrandName(value){
+        if(!value){
+            return;
+        }
+        $(".brand-list").html("");
+        $(".brand-popup-mask").fadeIn();
+        $(".brands-popup").fadeIn();
+        if(searchTimeHandle){
+            clearTimeout(searchTimeHandle);
+        }
+        searchTimeHandle=setTimeout(()=>{
+            $(".brand-list").html("");
+            $(".brand-list").append(createBrandItem(0,"查询中请稍等"));
+            $.ajax("{!! yzWebFullUrl('goods.brand.search-brand') !!}&keyword="+value,{
+                type:"POST",
+                success({data,msg,result}){
+                    $(".brand-list").html("");
+                    if(result==0){
+                        alert(msg);
+                        return;
+                    }
+                    const lis=[];
+                    if(data.length>0){
+                        data.forEach(item=>{
+                            lis.push(createBrandItem(item.id,item.name));
+                        });
+                    }else{
+                        lis.push(createBrandItem(0,"未查询到相关品牌"));
+                    }
+
+                    $(".brand-list").append(lis);
+                    searchTimeHandle=null;
+                },
+                error(xhr,message){
+                    $(".brand-list").html("");
+                    $(".brand-list").append(createBrandItem(0,"查询失败："+message));
+                }
+            })
+        },300);
+    }
+    function hiddenBrandPopup(){
+        $(".brands-popup").fadeOut();
+        $(".brand-popup-mask").fadeOut();
+    }
+
 
     $('.plusCategory').click(function () {
         appendHtml = $(this).parents().find('.tpl-category-container').html();

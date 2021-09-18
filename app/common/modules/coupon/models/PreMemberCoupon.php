@@ -94,9 +94,15 @@ class PreMemberCoupon extends MemberCoupon
         }
 
         //是否达到个人领取上限
-        $count = self::where('uid', $yzMember->member_id)->where('coupon_id', $coupon->id)->where('get_type',1)->count();
+        $counts = self::where('uid', $yzMember->member_id)->where('coupon_id', $coupon->id)->where('get_type',1);
+        $count = $counts->count();
         if ($count >= $coupon->get_max && ($coupon->get_max != -1)) {
             throw new AppException('已经达到个人领取上限');
+        }
+
+        $today_count = $counts->where('get_time','>',strtotime(date('Y-m-d',time())))->count();
+        if($coupon->get_limit_type == 1 and $coupon->get_limit_max != -1 and $today_count >= $coupon->get_limit_max){
+            throw new AppException('今日领取已达上限',['reason' => '每人每天限领' . $coupon->get_limit_max . '张']);
         }
 
         //验证是否达到优惠券总数上限

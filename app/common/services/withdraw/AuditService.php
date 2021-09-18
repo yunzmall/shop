@@ -13,6 +13,7 @@ namespace app\common\services\withdraw;
 use app\common\events\withdraw\WithdrawAuditedEvent;
 use app\common\events\withdraw\WithdrawAuditEvent;
 use app\common\events\withdraw\WithdrawAuditingEvent;
+use app\common\events\withdraw\WithdrawFailedEvent;
 use app\common\exceptions\ShopException;
 use app\common\models\Income;
 use app\common\models\Withdraw;
@@ -21,6 +22,7 @@ use app\common\services\income\WithdrawIncomeService;
 use Illuminate\Support\Facades\DB;
 use app\common\services\finance\BalanceNoticeService;
 use app\common\services\finance\MessageService;
+use app\common\models\WithdrawMergeServicetaxRate;
 
 class AuditService
 {
@@ -59,7 +61,7 @@ class AuditService
                 return $this->_withdrawAudit();
 
             } catch (\Exception $e) {
-                dd($e->getMessage());
+                event(new WithdrawFailedEvent($this->withdrawModel));
                 $this->sendMessage();
             }
         }
@@ -242,6 +244,13 @@ class AuditService
      */
     private function getLastActualServiceTax($amount, $withdraw_set)
     {
+
+        if ($this->withdrawModel->pay_way != 'balance' || !$withdraw_set['balance_special']){
+            if ($merage_rate = WithdrawMergeServicetaxRate::uniacid()->where('withdraw_id', $this->withdrawModel->id)->where('is_disabled', 0)->first()) {
+                return $merage_rate->servicetax_rate;
+            }
+        }
+        
         $servicetax_rate = $withdraw_set['servicetax_rate'];
         if ($this->withdrawModel->servicetax_rate != $servicetax_rate) {
             return $this->withdrawModel->servicetax_rate;

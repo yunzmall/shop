@@ -4,8 +4,10 @@ namespace app\frontend\controllers;
 
 use app\backend\modules\member\models\MemberRelation;
 use app\common\components\BaseController;
+use app\common\facades\RichText;
 use app\common\facades\Setting;
 use app\common\models\Protocol;
+use app\framework\Http\Request;
 use app\frontend\models\Member;
 use app\frontend\models\MemberShopInfo;
 
@@ -79,7 +81,7 @@ class SettingController extends BaseController
      * @return \Illuminate\Http\JsonResponse
      * 会员注册协议
      */
-    public function getMemberProtocol($request,$integrated = null)
+    public function getMemberProtocol(Request $request,$integrated = null)
     {
         $register = Setting::get('shop.register');
         if (!empty($register['top_img'])) {
@@ -130,9 +132,15 @@ class SettingController extends BaseController
         $data['member'] = $member_result;
 
         if(empty($data)){
-            $data = ['protocol' => 0, 'content' => '', 'title' => '', 'register' => [], 'form' => [], 'custom_field' => []];
+            $data = ['protocol' => 1, 'content' => '', 'title' => '', 'register' => [], 'form' => [], 'custom_field' => []];
         }
-
+	    $shop = Setting::get('shop.shop');
+	    
+		if ($shop['is_agreement']){
+			$data['new_agreement'] = RichText::get('shop.agreement');
+			$data['agreement_name'] = $shop['agreement_name'];
+		}
+	    
         if(is_null($integrated)){
             return $this->successJson('获取注册协议成功', $data);
         }else{
@@ -152,7 +160,7 @@ class SettingController extends BaseController
      * @return \Illuminate\Http\JsonResponse
      * 注册自定义表单接口
      */
-    public function getRegisterDiyForm($request, $integrated = null)
+    public function getRegisterDiyForm(Request $request, $integrated = null)
     {
         $member_set = Setting::get('shop.member');
 

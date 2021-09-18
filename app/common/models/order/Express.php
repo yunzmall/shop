@@ -35,12 +35,11 @@ class Express extends BaseModel
     public function getExpress($express = null, $express_sn = null)
     {
 
-//        dd($this->order_id);
         if (!isset($express_sn)) {
             $express_sn = $this->express_sn;
         }
-//        $result = $this->kD100($express,$express_sn);
-        $result = app('express')->getTraces($express, $express_sn,'',$this->order_id);
+
+        $result = app('logistics')->getTraces($express, $express_sn,'',$this->order_id);
 
         if (empty($result)) {
             return array();

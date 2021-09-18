@@ -106,7 +106,7 @@
                                 >
                                 </el-switch>
                             </template>
-                            <div style="font-size:12px;color:#ccc;">开启后平台自营/供应商待发货的订单有催发货的功能。</div>
+                            <div style="font-size:12px;color:#ccc;">开启后平台自营/供应商/门店待发货的订单有催发货的功能。</div>
                         </el-form-item>
                     </div>
 

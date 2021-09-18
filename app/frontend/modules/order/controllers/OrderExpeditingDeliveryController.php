@@ -9,6 +9,7 @@
 namespace app\frontend\modules\order\controllers;
 
 use app\common\components\ApiController;
+use app\common\events\order\AfterOrderExpeditingDeliveryEvent;
 use app\common\models\ExpeditingDelivery;
 
 class OrderExpeditingDeliveryController extends ApiController
@@ -37,6 +38,7 @@ class OrderExpeditingDeliveryController extends ApiController
         $order_expediting->fill($data);
 
         if ($order_expediting->save()) {
+            event((new AfterOrderExpeditingDeliveryEvent($order_id)));
             return $this->successJson("催发货成功");
         }
 

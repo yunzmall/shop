@@ -115,14 +115,14 @@
                                             <img class="img-responsive img-thumbnail" src='{{ tomedia($good['thumb']) }}'
                                                  onerror="this.src='{{static_url('resource/images/nopic.jpg')}}'; this.title='图片未找到.'">
                                             <div class='img-nickname' style="overflow: hidden">{{ $good['title'] }}</div>
-                                            <input type="hidden" value="{{ $goods_id }}"
-                                                   name="setdata[become_goods_id][{{ $goods_id }}]">
-                                            <input type="hidden" value="{{ $goods_id }}"
-                                                   name="setdata[become_goods][{{ $goods_id }}][goods_id]">
+                                            <input type="hidden" value="{{ $good['goods_id'] }}"
+                                                   name="setdata[become_goods_id][{{ $good['goods_id'] }}]">
+                                            <input type="hidden" value="{{ $good['goods_id'] }}"
+                                                   name="setdata[become_goods][{{ $good['goods_id'] }}][goods_id]">
                                             <input type="hidden" value="{{ $good['title'] }}"
-                                                   name="setdata[become_goods][{{ $goods_id }}][title]">
+                                                   name="setdata[become_goods][{{ $good['goods_id'] }}][title]">
                                             <input type="hidden" value="{{ $good['thumb'] }}"
-                                                   name="setdata[become_goods][{{ $goods_id }}][thumb]">
+                                                   name="setdata[become_goods][{{ $good['goods_id'] }}][thumb]">
                                             <em onclick="remove_member(this)" class="close">×</em>
                                         </div>
                                     @endforeach

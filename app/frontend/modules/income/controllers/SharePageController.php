@@ -13,10 +13,13 @@ namespace app\frontend\modules\income\controllers;
 use app\common\components\ApiController;
 use app\common\exceptions\AppException;
 use app\common\helpers\QrCodeHelper;
+use app\common\services\SmallQrCode;
 use app\frontend\models\Income;
 use app\frontend\models\Member;
 use app\frontend\models\MemberRelation;
 use Carbon\Carbon;
+use GuzzleHttp\Client;
+use Illuminate\Support\Facades\Redis;
 use Yunshop\Poster\models\Qrcode;
 
 class SharePageController extends ApiController
@@ -106,7 +109,9 @@ class SharePageController extends ApiController
         if ($this->memberModel->yzMember->is_agent == 1 && $this->memberModel->yzMember->status == 2) {
 
             $url = yzAppFullUrl('member', ['mid' => $this->memberModel->uid]);
-
+            if(request()->type == 2){
+                return $this->getMiniCode();
+            }
             return \QrCode::size(240)->get($url,'app/public/qr/share')['url'];
         }
         return "";
@@ -204,6 +209,29 @@ class SharePageController extends ApiController
     private function getRelationSet()
     {
         return MemberRelation::uniacid()->first();
+    }
+
+    //获取小程序二维码
+    private function getMiniCode()
+    {
+        $uid = \Yunshop::app()->getMemberId();
+
+        $result = Redis::get('WechatQrIncome'.$uid);
+
+        if (!$result){
+            $small_qr = new SmallQrCode();
+            $small_name = "income_code_".$uid;
+            $data['scene'] = 'mid='.$uid;
+            $data['page'] = 'packageG/member_v2/member_v2';
+
+            $code = $small_qr->getSmallQrCode($small_name, $data);
+            if ($code['code'] == 0) {
+                Redis::setex('WechatQrIncome'.$uid, 60 * 60 * 24, $code['file_path']);
+                return $code['file_path'];
+            }
+            return '';
+        }
+        return $result;
     }
 
 }

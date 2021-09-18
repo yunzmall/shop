@@ -10,6 +10,7 @@ namespace app\common\models;
 
 use app\common\events\goods\GoodsStockNotEnoughEvent;
 use app\common\facades\SiteSetting as SiteSettingFacades;
+use app\common\models\goods\GoodsFiltering;
 use app\frontend\modules\orderGoods\price\adapter\GoodsAdapterManager;
 use app\frontend\modules\orderGoods\price\adapter\GoodsPriceAdapter;
 use Illuminate\Support\Facades\Redis;
@@ -84,6 +85,7 @@ use app\common\modules\discount\GoodsMemberLevelDiscount;
  * @property Privilege hasOnePrivilege
  * @property Brand hasOneBrand
  * @property GoodsLimitBuy hasOneGoodsLimitBuy
+ * @property GoodsAdvertising hasOneGoodsAdvertising
  * @property GoodsVideo hasOneGoodsVideo
  * @property Share hasOneShare
  * @property Sale hasOneSale
@@ -255,6 +257,11 @@ class Goods extends BaseModel
         return $this->hasOne('app\common\models\goods\GoodsLimitBuy', 'goods_id', 'id');
     }
 
+    public function hasOneGoodsAdvertising()
+    {
+        return $this->hasOne('app\common\models\goods\GoodsAdvertising', 'goods_id', 'id');
+    }
+
     public function hasOneInvitePage()
     {
         return $this->hasOne('app\common\models\goods\InvitePage', 'goods_id', 'id');
@@ -332,9 +339,12 @@ class Goods extends BaseModel
                 //新加过滤搜索
                 case 'filtering':
                     $scope = explode(',', rtrim($value, ','));
-                    $query->join('yz_goods_filtering', function ($join) use ($scope) {
-                        $join->on('yz_goods_filtering.goods_id', '=', 'yz_goods.id')->whereIn('yz_goods_filtering.filtering_id', $scope);
-                    });
+
+                    $goodsFiltering = GoodsFiltering::select('goods_id')->whereIn('filtering_id', $scope)->get();
+                    $goods_ids = $goodsFiltering->pluck('goods_id')->unique()->toArray();
+                    if ($goods_ids) {
+                        $query->whereIn('yz_goods.id', $goods_ids);
+                    }
                     break;
                 case 'keyword':
                     $splice_word = Analysis::getKeywords($value, 10);
@@ -480,13 +490,25 @@ class Goods extends BaseModel
     public static function getGoodsLevelByName($keyword)
     {
         return static::uniacid()->select('id', 'title', 'thumb', 'market_price', 'price', 'real_sales', 'sku', 'plugin_id', 'stock')->where('title', 'like', '%' . $keyword . '%')->where('status', 1)//->where('is_plugin', 0)
-            ->whereIn('plugin_id', ['0', '32', '92'])//屏蔽门店、码上点餐、第三方插件接口的虚拟商品
+//            ->whereIn('plugin_id', ['0', '32', '92'])//屏蔽门店、码上点餐、第三方插件接口的虚拟商品
             ->get();
     }
 
     public static function getGoodsByNameLevel($keyword)
     {
-        return \app\common\models\Goods::select('id', 'title', 'thumb', 'market_price', 'price', 'real_sales', 'sku', 'plugin_id', 'stock')->where('title', 'like', '%' . $keyword . '%')->where('status', 1)->whereNotIn('plugin_id', [20, 60])//屏蔽门店、码上点餐、第三方插件接口的虚拟商品
+        $where = function($query)use($keyword){
+            if (!empty($keyword) && intval($keyword) == $keyword){
+                return $query->where('title', 'like', '%' . $keyword . '%')->orWhere('id',$keyword);
+            } else{
+               return $query->where('title', 'like', '%' . $keyword . '%');
+            }
+        };
+
+        return \app\common\models\Goods::select('id', 'title', 'thumb', 'market_price', 'price', 'real_sales', 'sku', 'plugin_id', 'stock')
+            ->where($where)
+//            ->where('title', 'like', '%' . $keyword . '%')
+            ->where('status', 1)
+            ->whereNotIn('plugin_id', [20, 60])//屏蔽门店、码上点餐、第三方插件接口的虚拟商品
             ->get();
     }
 
@@ -606,7 +628,7 @@ class Goods extends BaseModel
     public function verifyOption($option_id)
     {
         if ($this->has_option && empty($option_id)) {
-            throw new AppException('(ID:' . $this->id . ')商品未选择规格');
+            throw new AppException($this->title.'(ID:' . $this->id . ')商品未选择规格');
         }
 
     }
@@ -837,7 +859,8 @@ class Goods extends BaseModel
     public function goodsDispatchTypeIds()
     {
         if ($this->hasOneGoodsDispatch) {
-            return $this->hasOneGoodsDispatch->getDispatchTypeIds();
+            return $this->hasOneGoodsDispatch->getEnableDispatchTypeIds();
+            //return $this->hasOneGoodsDispatch->getDispatchTypeIds();
         }
         return [];
     }

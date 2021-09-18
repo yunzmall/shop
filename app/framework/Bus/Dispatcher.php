@@ -54,11 +54,15 @@ class Dispatcher extends \Illuminate\Bus\Dispatcher
             // 当队列任务驱动为redis，并且包含在数据库事务中时，保存redis队列任务，等待事务先提交
             if ($queue instanceof RedisQueue && app('db.connection')->transactionLevel() > 0) {
                 $this->addRedisQueue($queue, $command, app('db.connection')->transactionLevel());
-            } else {
-                return $this->pushCommandToQueue($queue, $command);
+			} else {
+            	return $this->pushCommandToQueue($queue, $command);
             }
         }
     }
+    public function getRedis()
+	{
+		return $this->redisQueues;
+	}
 
     private function addRedisQueue($queue, $command, $level)
     {
@@ -67,34 +71,38 @@ class Dispatcher extends \Illuminate\Bus\Dispatcher
 
     public function dbTransactionCommitted(TransactionCommitted $event)
     {
-        // mysql事务提交后，推送redis队列任务
-        $this->pushRedisQueues($event->connection->transactionLevel() + 1);
+        // mysql事务提交后，推送redis队列任务，判断是否level是否为0
+		if ($event->connection->transactionLevel() == 0) {
+			$this->pushRedisQueues();
+		}
     }
 
     public function dbTransactionRollBack(TransactionRolledBack $event)
     {
-        if (!isset($this->redisQueues)) {
+		if (!isset($this->redisQueues)) {
             return;
         }
         $level = $event->connection->transactionLevel();
-        if (!isset($this->redisQueues[$level])) {
+        if (!isset($this->redisQueues[$level + 1])) {
             return;
         }
         \Log::error('取消队列',$event);
 
-        unset($this->redisQueues[$level]);
+        unset($this->redisQueues[$level + 1]);
     }
 
-    public function pushRedisQueues($level)
+    public function pushRedisQueues()
     {
-        if (!isset($this->redisQueues[$level])) {
+        if (empty($this->redisQueues)) {
             return;
         }
-        foreach ($this->redisQueues[$level] as $redisQueue) {
-            list($queue, $command) = $redisQueue;
-            $this->pushCommandToQueue($queue, $command);
+        foreach ($this->redisQueues as $redisQueueLevel) {
+			foreach ($redisQueueLevel as $redisQueue) {
+				list($queue, $command) = $redisQueue;
+				$this->pushCommandToQueue($queue, $command);
+			}
         }
-        unset($this->redisQueues[$level]);
+        unset($this->redisQueues);
     }
 
 }

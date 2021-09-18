@@ -27,10 +27,12 @@ use app\framework\Redis\RedisServiceProvider;
 use app\common\services\member\MemberRelation;
 use app\common\services\MessageService;
 use app\frontend\modules\member\models\SubMemberModel;
+use app\Jobs\addReturnIncomeJob;
 use app\Jobs\MemberLowerCountJob;
 use app\Jobs\MemberLowerGroupOrderJob;
 use app\Jobs\MemberLowerOrderJob;
 use Carbon\Carbon;
+use Illuminate\Filesystem\Filesystem;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redis;
 use Yunshop\Commission\models\Agents;
@@ -38,6 +40,11 @@ use Yunshop\Commission\models\CommissionOrder;
 use Yunshop\UploadVerification\service\UploadVerificateRoute;
 use app\backend\modules\member\models\MemberShopInfo;
 use app\common\events\member\BecomeAgent;
+use app\common\events\order\AfterOrderPaidEvent;
+use app\common\models\order\OrderDeduction;
+use Yunshop\StoreBusinessAlliance\models\StoreBusinessAlliancePriceDifferenceAwardModel;
+use Yunshop\StoreBusinessAlliance\models\StoreBusinessAllianceRecommendAwardModel;
+use app\common\events\order\AfterOrderReceivedEvent;
 
 
 class TestController extends UploadVerificationBaseController
@@ -46,25 +53,56 @@ class TestController extends UploadVerificationBaseController
 
     protected $isPublic = true;
 
-    public function a()
+    //生成请求链接
+    public function getRequestUrl($base_url, //设置页面的基础链接
+                                  $app_id,   //设置页面的app_id
+                                  $app_secret, //设置页面的app_secret
+                                  $user_mobile, //会员的手机号
+                                  $point = 0, //要增加的积分点数，如果设置页面没有开启积分增加开关则无效
+                                  $notify_url = 'https://www.baidu.com' //要增加的积分点数，如果设置页面没有开启积分增加开关则无效
+    )
     {
-        $uniacid = \Yunshop::app()->uniacid;
-        (new \app\Jobs\MemberLowerGroupOrderJob($uniacid))->memberOrder();
+        $i = explode('i=', $base_url);
+        $i = trim($i[1]);
+
+        if (!$app_id || !$app_secret || !$user_mobile || !$i || $point < 0) {
+            return false;
+        }
+
+        $request_arr = [
+            'app_id' => $app_id,
+            'timestamp' => time(),
+            'user_mobile' => $user_mobile,
+            'point' => bcmul($point, 1, 2),
+            'number' => mt_rand(1000, 9999)
+        ];
+
+        $request_arr['sign'] = $this->getSign(array_merge($request_arr, ['app_secret' => $app_secret, 'i' => $i]));
+
+        return $base_url . '&' . http_build_query($request_arr);
+
+    }
+
+
+    //生成sign
+    private function getSign($sign_arr)
+    {
+        ksort($sign_arr);
+
+        return hash_hmac('sha256', http_build_query($sign_arr), $sign_arr['app_secret']);
+
     }
     public function t()
     {
-
-        $uniacid = \Yunshop::app()->uniacid;
-        (new \app\backend\modules\charts\modules\member\models\MemberLowerCount())->truncate();
-        dispatch(new \app\Jobs\MemberLowerCountJob($uniacid));
-
-        (new \app\backend\modules\charts\modules\member\models\MemberLowerOrder())->truncate();
-        dispatch(new \app\Jobs\MemberLowerOrderJob($uniacid));
-
-        (new \app\backend\modules\charts\modules\member\models\MemberLowerGroupOrder())->truncate();
-        dispatch(new \app\Jobs\MemberLowerGroupOrderJob($uniacid));
+        $a = $this->getRequestUrl('https://yz.zd71360.com/addons/yun_shop/?menu#/others/integral_shop?i=25',
+            'xksd63897','xksd78635','15736779727');
+        dd($a);
     }
 
+    public function a()
+    {
+        (new \app\backend\modules\charts\modules\member\services\TimedTaskService())->handle();
+    }
     private $amountItems;
 
     private function getAmountItems()
@@ -452,8 +490,11 @@ class TestController extends UploadVerificationBaseController
 
     public function test()
     {
-        $model = MemberShopInfo::getMemberShopInfo(2578);
-        dd(event(new BecomeAgent(2517, $model)));
+    	
+    	dd(json_decode('{"userid":"ZouMaGuanHua","remark":"Abe","description":"","createtime":1629712133,"tags":[],"remark_mobiles":[],"add_way":0}'));
+	    $data = unserialize('a:3:{i:0;a:5:{s:8:"group_id";s:32:"etDesSDgAAgSPK4ZV9R6whR-HznwfJGw";s:10:"group_name";s:16:"测试标签组1";s:11:"create_time";i:1616825466;s:3:"tag";a:2:{i:0;a:4:{s:2:"id";s:32:"etDesSDgAACFJtKmZ8DmxP3DjZmceyLw";s:4:"name";s:14:"测试标签11";s:11:"create_time";i:1616825466;s:5:"order";i:0;}i:1;a:4:{s:2:"id";s:32:"etDesSDgAAYoJscGWjVDukf38n7PJIOg";s:4:"name";s:15:"测试标签1-2";s:11:"create_time";i:1616825466;s:5:"order";i:0;}}s:5:"order";i:0;}i:1;a:5:{s:8:"group_id";s:32:"etDesSDgAAkqdytUBUMtc_fsnHRnEZ6w";s:10:"group_name";s:22:"开发测试标签组1";s:11:"create_time";i:1615434976;s:3:"tag";a:1:{i:0;a:4:{s:2:"id";s:32:"etDesSDgAAB6_PNgMEt6fWHVVJhceQow";s:4:"name";s:29:"开发测试标签组1标签1";s:11:"create_time";i:1615434976;s:5:"order";i:0;}}s:5:"order";i:0;}i:2;a:5:{s:8:"group_id";s:32:"etDesSDgAAe1uXI3LwGyNBoOtNhGr46Q";s:10:"group_name";s:12:"客户等级";s:11:"create_time";i:1581554618;s:3:"tag";a:3:{i:0;a:4:{s:2:"id";s:32:"etDesSDgAAcBFviotsZn1vuRNmolURmw";s:4:"name";s:6:"一般";s:11:"create_time";i:1581554618;s:5:"order";i:0;}i:1;a:4:{s:2:"id";s:32:"etDesSDgAAuZKtVsCgU3R6fzzYTixGMw";s:4:"name";s:6:"重要";s:11:"create_time";i:1581554618;s:5:"order";i:0;}i:2;a:4:{s:2:"id";s:32:"etDesSDgAAXjIInNAJ6GedjNyDHAqYGw";s:4:"name";s:6:"核心";s:11:"create_time";i:1581554618;s:5:"order";i:0;}}s:5:"order";i:0;}}');
+	    
+	    dd();
     }
 
     public function fixImg(){

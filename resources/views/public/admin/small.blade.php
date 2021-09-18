@@ -659,7 +659,7 @@
                         <div class="page-header">
                             <h4><i class="fa fa-folder-open-o"></i>会员中心链接</h4>
                         </div>
-                        <div id="fe-tab-link-li-21" class="btn btn-default mylink-app-nav" ng-click="chooseLink(1, 21)" data-href="/pages/member/index_v2/index_v2">会员中心</div>
+                        <div id="fe-tab-link-li-21" class="btn btn-default mylink-app-nav" ng-click="chooseLink(1, 21)" data-href="/packageG/member_v2/member_v2">会员中心</div>
                         <div id="fe-tab-link-li-22" class="btn btn-default mylink-app-nav" ng-click="chooseLink(1, 22)" data-href="/packageA/member/myOrder_v2/myOrder_v2">我的订单</div>
                         <div id="fe-tab-link-li-23" class="btn btn-default mylink-app-nav" ng-click="chooseLink(1, 23)" data-href="/pages/buy/cart_v2/cart_v2">我的购物车</div>
                         <div id="fe-tab-link-li-24" class="btn btn-default mylink-app-nav" ng-click="chooseLink(1, 24)" data-href="/packageD/member/collection/collection">我的收藏</div>
@@ -741,20 +741,20 @@
 
                 <!-- 商品品牌 start -->
                 <div role="tabpanel" class="tab-pane link_small_brand" id="link_small_brand">
-                    <div class="mylink-con">
-                        <?php $brands = \app\common\models\Brand::getBrands()->select('id', 'name')->get(); ?>
-                        @if($brands)
-                            @foreach ($brands->toArray() as $brand)
-                                <div class="mylink-line">
-                                    {{ $brand['name'] }}
-                                    <div class="mylink-sub">
-                                        <a href="javascript:;" id="brand-{{ $brand['id'] }}" class="mylink-app-nav" ng-click="chooseLink(1, 'brand-{{ $brand['id'] }}')" data-href="/packageB/member/category/brandgoods/brandgoods?id={!! $brand['id'] !!}">
-                                            选择
-                                        </a>
-                                    </div>
-                                </div>
-                            @endforeach
-                        @endif
+                    <div class="row">
+                        <div class="input-group">
+                            <input type="text" class="form-control"
+                                   name="search_brand_keyword" value=""
+                                   id="search_brand_keyword"
+                                   placeholder="请输入品牌名"/>
+                            <span class='input-group-btn'>
+                                    <button type="button" class="btn btn-default"
+                                            id="brand_search_button">搜索
+                                    </button></span>
+                        </div>
+                    </div>
+                    <div class="mylink-con"  id="brand_data_list">
+
                     </div>
                 </div>
                 <!-- 商品品牌 end -->
@@ -762,15 +762,41 @@
         </div>
     </div>
 </div>
-
+<script type="text/javascript" src="{{static_url('yunshop/js/tntreebox.js')}}"></script>
 <!-- mylink end -->
 <script language="javascript">
-    var category_url1 = "{!! yzWebUrl('goods.category.getCategorySmallData') !!}"
+    var category_url1 = "{!! yzWebUrl('goods.category.getCategorySmallData') !!}";
+    var brand_search_url = "{!! yzWebUrl('goods.brand.getBrandData') !!}";
     var category_data1 = [];
+    var brand_data1 = [];
 
     
     require(['jquery'],function(){
 
+        $("#brand_search_button").on('click',function () {
+            $(this).text('查询中...');
+            var this_obj = $(this);
+            var search_brand_keyword = $('#search_brand_keyword').val();
+            $.post(brand_search_url, {search_brand_keyword : search_brand_keyword}, function (response) {
+                if (response.result == 1) {
+                    var brand_html = '';
+                    if(response.data.length != 0){
+                        response.data.forEach(function (v) {
+                            brand_html += '<div class="mylink-line">';
+                            brand_html += v.name;
+                            brand_html += '<div class="mylink-sub">';
+                            brand_html += '<a href="javascript:;" id="brand-' + v.id + '" class="mylink-app-nav" ng-click="chooseLink(1, "brand-' + v.id + '" data-href="/packageB/member/category/brandgoods/brandgoods?id=' + v.id + '">';
+                            brand_html += '选择</a></div></div>';
+                        });
+                    }
+                    $('#brand_data_list').html(brand_html);
+                    this_obj.text('搜索');
+                }else{
+                    alert(response.msg);
+                    this_obj.text('搜索');
+                }
+            });
+        });
 
         $(function() {
             $("#chkoption").click(function() {
@@ -785,7 +811,6 @@
                 }
             });
         })
-        
 
         $(document).on("click",".nav-app-link",function(){
             var id = $(this).data("id");
@@ -801,7 +826,6 @@
                         
                     });
                 }
-                
             }
         });
         $(document).on("click",".mylink-app-nav",function(){

@@ -35,6 +35,7 @@ abstract class ChangeStatusOperation extends OrderOperation
      */
     public function handle()
     {
+
         parent::handle();
         $this->updateTable();
         $this->_fireEvent();

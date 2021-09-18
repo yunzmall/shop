@@ -11,6 +11,7 @@ use app\common\models\OrderPay;
 use app\common\models\PayOrder;
 use app\frontend\modules\finance\services\BalanceRechargeResultService;
 use app\frontend\modules\order\services\OrderService;
+use Illuminate\Support\Facades\DB;
 use Yunshop\ClockIn\models\ClockPayLogModel;
 use Yunshop\Gold\frontend\services\RechargeService;
 
@@ -71,10 +72,10 @@ class PaymentController extends BaseController
     private function getUniacid()
     {
         $body = !empty($_REQUEST['body']) ? $_REQUEST['body'] : '';
-        \Log::debug('body===========',$body);
+        \Log::debug('body===========', $body);
         //区分app支付获取
         if ($_REQUEST['sign_type'] == 'MD5') {
-            $uniacid = substr($body, strrpos($body, ':')+1);
+            $uniacid = substr($body, strrpos($body, ':') + 1);
         } else {
             $uniacid = $this->substr_var($_REQUEST['body']);
         }
@@ -95,7 +96,7 @@ class PaymentController extends BaseController
     public function substr_var($str)
     {
         if (strstr($str, '"')) {
-            return str_replace('"','', $str);
+            return str_replace('"', '', $str);
         }
         return $str;
     }
@@ -128,12 +129,12 @@ class PaymentController extends BaseController
                     OrderService::ordersPay(['order_pay_id' => $orderPay->id, 'pay_type_id' => $data['pay_type_id']]);
 
                     event(new ChargeComplatedEvent([
-                        'order_sn' => $data['out_trade_no'],
-                        'pay_sn' => $data['trade_no'],
+                        'order_sn'     => $data['out_trade_no'],
+                        'pay_sn'       => $data['trade_no'],
                         'order_pay_id' => $orderPay->id
                     ]));
-                }else{
-                    \Log::debug("金额校验失败","{$orderPay->amount}不等于{$data['total_fee']}");
+                } else {
+                    \Log::debug("金额校验失败", "{$orderPay->amount}不等于{$data['total_fee']}");
                     throw new ShopException("金额校验失败:{$orderPay->amount}不等于{$data['total_fee']}");
                 }
                 break;
@@ -142,25 +143,25 @@ class PaymentController extends BaseController
 
                 //充值成功事件
                 event(new RechargeComplatedEvent([
-                    'order_sn' => $data['out_trade_no'],
-                    'pay_sn' => $data['trade_no'],
+                    'order_sn'  => $data['out_trade_no'],
+                    'pay_sn'    => $data['trade_no'],
                     'total_fee' => $data['total_fee'],
-                    'unit' => $data['unit']
+                    'unit'      => $data['unit']
                 ]));
 
                 break;
             case "gold_recharge.succeeded":
                 \Log::debug('金币支付操作', ['gold_recharge.succeeded', $data['out_trade_no']]);
                 RechargeService::payResult([
-                    'order_sn' => $data['out_trade_no'],
-                    'pay_sn' => $data['trade_no'],
+                    'order_sn'  => $data['out_trade_no'],
+                    'pay_sn'    => $data['trade_no'],
                     'total_fee' => $data['total_fee']
                 ]);
 
                 //充值成功事件
                 event(new RechargeComplatedEvent([
-                    'order_sn' => $data['out_trade_no'],
-                    'pay_sn' => $data['trade_no'],
+                    'order_sn'  => $data['out_trade_no'],
+                    'pay_sn'    => $data['trade_no'],
                     'total_fee' => $data['total_fee']
                 ]));
                 break;
@@ -176,8 +177,8 @@ class PaymentController extends BaseController
                 if (bccomp($orderPay->amount, $data['total_fee'], 2) == 0) {
                     \Log::debug('更新订单状态');
                     event(new ChargeComplatedEvent([
-                        'order_sn' => $data['out_trade_no'],
-                        'pay_sn' => $data['trade_no'],
+                        'order_sn'  => $data['out_trade_no'],
+                        'pay_sn'    => $data['trade_no'],
                         'total_fee' => $data['total_fee']
                     ]));
                 }
@@ -185,9 +186,9 @@ class PaymentController extends BaseController
             case "dashang_charge.succeeded":
                 \Log::debug('打赏支付操作', ['dashang_charge.succeeded', $data['out_trade_no']]);
                 event(new ChargeComplatedEvent([
-                    'order_sn' => $data['out_trade_no'],
-                    'pay_sn' => '',
-                    'unit' => $data['unit'],
+                    'order_sn'  => $data['out_trade_no'],
+                    'pay_sn'    => '',
+                    'unit'      => $data['unit'],
                     'total_fee' => $data['total_fee']
                 ]));
                 break;
@@ -206,10 +207,10 @@ class PaymentController extends BaseController
 
         } catch (\Exception $e) {
             $msg = $e->getMessage();
-            \Log::debug('回调失败:',$msg);
-            echo $msg;exit();
+            \Log::debug('回调失败:', $msg);
+            echo $msg;
+            exit();
         }
-
     }
 
     /**
@@ -222,16 +223,15 @@ class PaymentController extends BaseController
     {
         if (!empty($order_id)) {
             $tag = substr($order_id, 0, 2);
-
             if ('PN' == strtoupper($tag)) {
                 return 'charge.succeeded';
-            } elseif ('RV' == strtoupper($tag) || "RF" == strtoupper($tag) || "RL" == strtoupper($tag)) {
+            } elseif ('RV' == strtoupper($tag) || "RF" == strtoupper($tag) || "RL" == strtoupper($tag) || "KA" == strtoupper($tag) || "RI" == strtoupper($tag) || "RS" == strtoupper($tag)) {
                 return 'recharge.succeeded';
             } elseif ('RG' == strtoupper($tag)) {
                 return 'gold_recharge.succeeded';
             } elseif ('CI' == strtoupper($tag)) {
                 return 'card_charge.succeeded';
-            } elseif ('DS' == strtoupper($tag)) {
+            } elseif ('DS' == strtoupper($tag) || "PG" == strtoupper($tag)) {
                 return 'dashang_charge.succeeded';
             }
         }

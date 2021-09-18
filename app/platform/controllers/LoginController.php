@@ -151,8 +151,7 @@ class LoginController extends BaseController
             }
         }
 
-        if($loginset['sms_verify'] == 1)
-        {
+        if ($loginset['sms_verify'] == 1) {
             $user = AdminUser::where('username',$request->username)->with('hasOneProfile')->first();
             if(!$user || !\YunShop::request()->mobile)
             {
@@ -172,11 +171,11 @@ class LoginController extends BaseController
             }
 
             //检查验证码是否正确
-            if (!Cache::has(\YunShop::request()->mobile.'_code')) {
-                return $this->errorJson('短信验证码已失效,请重新获取');
-            }
-            if (!\YunShop::request()->code || \YunShop::request()->code != Cache::get(\YunShop::request()->mobile.'_code')) {
-                return $this->errorJson('短信验证码错误');
+
+            $check_code = app('sms')->checkAppCode($request->mobile, $request->code);
+
+            if ($check_code['status'] != 1) {
+                return $this->errorJson($check_code['json']);
             }
         }
 
@@ -235,10 +234,20 @@ class LoginController extends BaseController
             }
         }
 
+		$loginset = SystemSetting::settingLoad('loginset', 'system_loginset');
+		$pwd_remind = 0;
+		$msg = '';
+		//密码强度校验
+		if ($loginset['password_verify'] == 1) {
+            $validatePassword = validatePassword($request->password);
+			if ($validatePassword !== true) {
+				$pwd_remind = 2;
+				$msg = '您当前密码过于简单，请先修改密码';
+			}
+		}
         if ($this->guard()->user()->uid !== 1) {
 
             $user = $this->guard()->user();
-            $loginset = SystemSetting::settingLoad('loginset', 'system_loginset');
             if($loginset['password_change'] == 1){
                 if(!$user->change_password_at)
                 {
@@ -247,32 +256,29 @@ class LoginController extends BaseController
                     return $this->successJson('成功', ['pwd_remind' => 1,'msg'=>'首次登陆，建议您修改密码']);
                 }
             }
-            if($user->change_password_at+6912000 <= time() && $user->change_remind == 0)
+            if($user->change_password_at+6912000 <= time() && $user->change_remind == 0 && $loginset['force_change_pwd'] == 1)
             {
                 $user->change_remind = 1;
                 $user->save();
                 return $this->successJson('成功', ['pwd_remind' => 1,'msg'=>'您已长时间未修改密码，请您先修改密码，否则账号将在10天后冻结']);
             }
 
-            $cfg = \config::get('app.global');
             $account = AppUser::getAccount($this->guard()->user()->uid);
 
             if (!is_null($account) && in_array($account->role, $this->authRole)) {
-                $cfg['uniacid'] = $account->uniacid;
                 Utils::addUniacid($account->uniacidb);
 
                 \YunShop::app()->uniacid = $account->uniacid;
-                \config::set('app.global', $cfg);
 
-                self::addLogsAction('其他用户登录');
+                self::addLogsAction($this->guard()->user()->uid,'其他用户',2);
 
-                return $this->successJson('成功', ['url' => Url::absoluteWeb('index.index', ['uniacid' => $account->uniacid])]);
+                return $this->successJson('成功', ['url' => Url::absoluteWeb('index.index', ['uniacid' => $account->uniacid,'pwd_remind'=>$pwd_remind])]);
             }
         }
 
-        self::addLogsAction('超级管理员登录');
+        self::addLogsAction($this->guard()->user()->uid,'超级管理员',1);
 
-        return $this->successJson('成功');
+        return $this->successJson('成功',['pwd_remind'=>$pwd_remind,'msg'=>$msg]);
     }
 
     /**
@@ -396,7 +402,7 @@ class LoginController extends BaseController
 
         Cache::put($mobile.'_code', $code, 60 * 10);
 
-        return (new ResetpwdController())->sendSmsV2($mobile, $code, $state,'login','login');
+        return (new ResetpwdController())->sendSmsV2($mobile, $code, $state,'login',3);
     }
 
     public function refreshPic()
@@ -407,13 +413,71 @@ class LoginController extends BaseController
     }
 
     //添加登录记录
-    public function addLogsAction($remark){
+    public static function addLogsAction($userId, $detail_remark, $admin_type)
+    {
+        $detail_parameter = array(2, 0, $detail_remark, 0);
+        list($other, $member_id, $remark, $uniacid) = $detail_parameter;//依次：其他管理员类型，默认会员ID，默认类型
+
+        $username = DB::table('yz_admin_users')->where('uid', $userId)->value('username');
+
+        //其他管理员
+        if ($admin_type == $other) {
+            $userTable = 'uni_account_users';
+            if (config('app.framework') == 'platform') {
+                $userTable = 'yz_app_user';
+            }
+
+            //其他管理员所属公众号
+            $uniacid = DB::table($userTable)->where('uid', $userId)->value('uniacid');
+
+            $uid_arr = ['yz_supplier'];//uid
+            $user_id_arr = ['yz_user_role', 'yz_area_dividend_agent'];//user_id
+            $user_uid_arr = ['yz_package_deliver', 'yz_subsidiary', 'yz_store', 'yz_hotel'];//user_uid
+
+            $all_arr = array_merge($uid_arr, $user_id_arr, $user_uid_arr);
+
+            //区分表的账号类型和会员id字段
+            $admin_type = [
+                'yz_user_role' => ['remark' => '操作员', 'user_type' => ''],
+                'yz_supplier' => ['remark' => '供应商', 'user_type' => 'member_id'],
+                'yz_store' => ['remark' => '门店', 'user_type' => 'uid'],
+                'yz_hotel' => ['remark' => '酒店', 'user_type' => 'uid'],
+                'yz_area_dividend_agent' => ['remark' => '区域代理', 'user_type' => 'member_id'],
+                'yz_package_deliver' => ['remark' => '自提点', 'user_type' => 'uid'],
+                'yz_subsidiary' => ['remark' => '分公司', 'user_type' => 'uid'],
+            ];
+
+            $column = '';
+            foreach ($all_arr as $item) {
+                if ($item == $uid_arr[0]) {
+                    $column = 'uid';
+                } elseif (in_array($item, $user_id_arr)) {
+                    $column = 'user_id';
+                } elseif (in_array($item, $user_uid_arr)) {
+                    $column = 'user_uid';
+                }
+
+                if ($column && \Schema::hasTable($item)) {
+                    $hasAdmin = DB::table($item)->where($column, $userId)->first();
+                    if ($hasAdmin) {
+                        $remark = $admin_type[$item]['remark'];
+                        $user_type = $admin_type[$item]['user_type'];
+                        $member_id = $hasAdmin[$user_type] ?: 0;
+                    }
+                }
+            }
+        }
+
         //添加登录记录
         DB::table('yz_admin_logs')->insert([
-            'admin_uid' => $this->guard()->user()->uid ?: 0,
+            'uniacid' => $uniacid,
+            'admin_uid' => $userId ?: 0,
             'remark' => $remark,
             'ip' => Utils::getClientIp() ?: 0,
-            'created_at' =>time()
+            'member_id' => $member_id,
+            'username' => $username,
+            'created_at' => time(),
+            'updated_at' => time()
         ]);
     }
 
@@ -424,7 +488,7 @@ class LoginController extends BaseController
     {
         $mobile = '';
 
-        if (\Schema::hasTable('yz_store')) 
+        if (\Schema::hasTable('yz_store'))
 
         {
             $member_id = DB::table('yz_store')->where('user_uid',$userId)->value('uid'); //门店

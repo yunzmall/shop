@@ -10,6 +10,8 @@ namespace app\common\services\popularize;
 
 
 
+use app\common\helpers\Cache;
+
 class PortType
 {
     /**
@@ -76,16 +78,20 @@ class PortType
      */
     public static function popularizeShow($type)
     {
-        $type = self::determineType($type);
-
-        if ($type) {
-            $info = \Setting::get('popularize.'.$type);
-            if (isset($info['popularize']) && $info['popularize'] == 1) {
-                return 0;
-            }
-        }
-
-        return 1;
+		if (!Cache::has($type."_popularize")) {
+			$real_type = self::determineType($type);
+			$status = 1;
+			if ($real_type) {
+				$info = \Setting::get('popularize.' . $real_type);
+				if (isset($info['popularize']) && $info['popularize'] == 1) {
+					$status = 0;
+				}
+			}
+			Cache::put($type."_popularize",$status,3600);
+		} else {
+			$status = Cache::get($type."_popularize");
+		}
+        return $status;
     }
 
     /**

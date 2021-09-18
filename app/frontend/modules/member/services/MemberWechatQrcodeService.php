@@ -13,6 +13,8 @@ use app\common\helpers\Url;
 use app\frontend\modules\member\models\MemberUniqueModel;
 use app\frontend\modules\member\models\MemberWechatQrcodeModel;
 use app\common\services\Session;
+use app\frontend\models\Member;
+
 
 class MemberWechatQrcodeService extends MemberService
 {
@@ -215,11 +217,23 @@ class MemberWechatQrcodeService extends MemberService
      * @param $mid
      */
     public function redirectUrl($member_id,$uniacid,$mid,$redirect_url){
+
         Session::set('member_id',$member_id);
+
         if($redirect_url){
             $url = base64_decode($redirect_url);
         }else{
             $url = Url::absoluteApp('member', ['i' => $uniacid, 'mid' => $mid]);//默认会员中心
+        }
+
+        $mobile = Member::where('uid', $member_id)->value('mobile');
+
+        if(empty($mobile) && $this->config['pc_bind_mobile']){
+            if(\YunShop::request()->pc){
+                $url = 'https://' .$_SERVER['HTTP_HOST'] ."/plugins/shop_server/login?i={$uniacid}&from=phone";
+            }else{
+                $url =  Url::absoluteApp('login', ['i' => $uniacid, 'from' => 'phone']); ;
+            }
         }
 
         redirect($url)->send();//跳转到前端会员中心页面

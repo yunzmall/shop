@@ -21,7 +21,9 @@
             </el-form-item>
             <el-form-item label="支付状态">
                 [[form.status_name]]
-                <a target="_blank" v-bind:href="'{{yzWebUrl('orderPay.fix.refund', array('order_pay_id' => ''))}}'+[[form.id]]">原路退款</a>
+                <span v-if="form.status >= 1">
+                    <a target="_blank" v-bind:href="'{{yzWebUrl('orderPay.fix.refund', array('order_pay_id' => ''))}}'+[[form.id]]">原路退款</a>
+                </span>
             </el-form-item>
 
             <el-form-item label="支付流程">
@@ -99,8 +101,8 @@
             el: '#app-order-pay',
             delimiters: ['[[', ']]'],
             data() {
-                let orderPay = JSON.parse('{!! $orderPay !!}');
-
+                // let orderPay = JSON.parse('{!! $orderPay !!}');
+                let orderPay ={!! $orderPay?:'{}' !!}
                 return {
                     rules: {},
                     form: orderPay,

@@ -16,7 +16,6 @@ class LimitBuyWidget extends Widget
     public function run(){
         $goods_id = \YunShop::request()->id;
         $data= GoodsLimitBuy::getDataByGoodsId($goods_id);
-
         $starttime = strtotime('-1 month');
         $endtime = time();
 
@@ -24,11 +23,11 @@ class LimitBuyWidget extends Widget
             $starttime = $data->start_time;
             $endtime = $data->end_time;
         }
-//        dd($starttime);
+
         return view('goods.widgets.limitbuy',[
                 'data'  =>  $data,
                 'starttime' => $starttime,
-                'endtime' => $endtime
+                'endtime' => $endtime,
             ]
         )->render();
 

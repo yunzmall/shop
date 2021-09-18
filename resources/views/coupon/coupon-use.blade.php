@@ -63,6 +63,9 @@
                     <el-form-item label="">
                         <el-button type="primary" @click="search(1)">搜索</el-button>
                     </el-form-item>
+                    <el-form-item label="">
+                        <el-button type="success" @click="export1()">导出</el-button>
+                    </el-form-item>
                 </el-form>
             </div>
         </div>
@@ -200,7 +203,22 @@
             search(val) {
                 this.getData(val);
             },
-            
+            export1(){
+                let url = "{!! yzWebFullUrl('coupon.coupon-use.export') !!}";
+                for(let i in this.search_form) {
+                    if(this.search_form[i]) {
+                        url += "&search["+i+"]="+this.search_form[i]
+                    }
+                }
+                if (this.search_form.is_time == 1) {
+                    url += "&search[time_start]="+this.times[0]/1000+"&search[time_end]="+this.times[1]/1000
+                }
+                console.log(url)
+
+                window.location.href = url;
+
+
+            },
             handleClick(val) {
                 console.log(val.name)
                 if(val.name == 1) {

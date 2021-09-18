@@ -59,8 +59,9 @@ class AdminUserController extends BaseController
         }
         if($loginset['password_verify'] == 1)
         {
-            if (!preg_match('/^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[!~@#$%^&*?\(\)]).{8,18}$/', $data['password'])) {
-                return $this->errorJson('密码长度至少为8位,要求包括数字，大小写字母和特殊字符');
+            $validatePassword = validatePassword($data['password']);
+            if ($validatePassword !== true) {
+                return $this->errorJson($validatePassword);
             }
         }
         if (!$data) {
@@ -182,13 +183,21 @@ class AdminUserController extends BaseController
         if (preg_match('/[\x{4e00}-\x{9fa5}]/u', $data['password'])>0) {
             return $this->errorJson(['密码不能含有中文']);
         }
+
+        $loginset = SystemSetting::settingLoad('loginset', 'system_loginset');
+        if($loginset['password_verify'] == 1)
+        {
+            $validatePassword = validatePassword($data['password']);
+            if ($validatePassword !== true) {
+                return $this->errorJson($validatePassword);
+            }
+        }
+
         if (!$uid || !$data) {
             return $this->check(AdminUser::returnData('0', AdminUser::PARAM));
         }
-
         $user = AdminUser::getData($uid);
-
-        return $this->returnMessage(1, $data, $user);
+		return $this->returnMessage(1, $data, $user);
     }
 
     public function userChange()
@@ -206,8 +215,9 @@ class AdminUserController extends BaseController
         $loginset = SystemSetting::settingLoad('loginset', 'system_loginset');
         if($loginset['password_verify'] == 1)
         {
-            if (!preg_match('/^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[!~@#$%^&*?\(\)]).{8,18}$/', $data['password'])) {
-                return $this->errorJson('密码长度至少为8位,要求包括数字，大小写字母和特殊字符');
+            $validatePassword = validatePassword($data['password']);
+            if ($validatePassword !== true) {
+                return $this->errorJson($validatePassword);
             }
         }
 
@@ -220,7 +230,7 @@ class AdminUserController extends BaseController
 
         $user->password = bcrypt($data['password']);
         $user->save();
-
+		\Auth::guard('admin')->logoutOtherDevices($data['password']);
         return $this->successJson('修改成功');
     }
 
@@ -320,7 +330,13 @@ class AdminUserController extends BaseController
         if (!$data) {
             return $this->check(AdminUser::returnData('0', AdminUser::PARAM));
         }
-
+		$loginset = SystemSetting::settingLoad('loginset', 'system_loginset');
+		if ($loginset['password_verify'] == 1) {
+            $validatePassword = validatePassword($data['password']);
+			if ($validatePassword !== true) {
+				return $this->errorJson($validatePassword);
+			}
+		}
         $user = \Auth::guard('admin')->user();
 
         return $this->returnMessage(1, $data, $user);
@@ -338,6 +354,7 @@ class AdminUserController extends BaseController
             return $this->errorJson(['您输入的手机与登录的账号不符合']);
         }
 
+        request()->username = $user['username'];
         return (new ResetpwdController)->SendCode();
     }
 

@@ -126,7 +126,10 @@ class Handler extends ExceptionHandler
             return $this->renderNotFoundException($exception);
 
         }
-
+		//后台登录异常--修改密码，单点登录
+		if ($exception instanceof AuthenticationException) {
+			return $this->unauthenticated($request, $exception);
+		}
         //开发模式异常
         if (app()->environment() !== 'production') {
             return $this->renderExceptionWithWhoops($exception);
@@ -151,11 +154,14 @@ class Handler extends ExceptionHandler
      */
     protected function unauthenticated($request, AuthenticationException $exception)
     {
-        if ($request->expectsJson()) {
-            return response()->json(['error' => 'Unauthenticated.'], 401);
-        }
-
-        return redirect()->guest('login');
+		if (strpos($_SERVER['REQUEST_URI'], '/admin/shop') !== false) {
+			return redirect()->guest('/admin.html');
+		}
+		$login_path = [
+			'admin' => '/#/login',
+		];
+		$url = empty($guard) ? '/login' : (isset($login_path[$guard]) ? $login_path[$guard] : '/login');
+		return response()->json(['status' => 0,'data'=>['login_status' => 1, 'login_url' => $url]]);
     }
 
     protected function renderShopException(ShopException $exception)
@@ -218,9 +224,9 @@ class Handler extends ExceptionHandler
                 $arr[$temp[0]] = $temp[1];
             }
 
-            $type = $arr['type'];
-            $i = $arr['i'];
-            $mid = $arr['mid'];
+			$type = $arr['type']?:request()->type;
+			$i = $arr['i']?:request()->i;
+			$mid = $arr['mid']?:request()->mid;
             $scope = 'login';
             $extra = '';
 

@@ -46,6 +46,20 @@ class Category extends BaseModel
             ->orderBy('id', 'asc');
     }
 
+    public static function checkCategory($ids=[]){
+        if (!$ids) return false;
+        if(!$category_data =  self::uniacid()->whereIn('id',$ids)->orderBy('level','ASC')->get()) return false;
+        $parent_id = 0;
+        $category_data->each(function ($v) use (&$parent_id){
+            if ($v->level != 1 && $v->parent_id != $parent_id){
+                return false;
+            }
+            $parent_id =$v->id;
+        });
+        return true;
+    }
+
+
     /**
      * @param $parentId
      * @param $set
@@ -65,6 +79,7 @@ class Category extends BaseModel
         $model->where('parent_id', $parentId);
         $model->where('enabled', 1);
         $model->orderBy('display_order', 'asc');
+        $model->orderBy('id', 'asc');
         return $model;
     }
 

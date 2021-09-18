@@ -12,6 +12,7 @@ namespace app\frontend\modules\withdraw\services;
 
 use app\common\exceptions\AppException;
 use app\common\facades\Setting;
+use app\common\models\McMappingFans;
 use app\frontend\modules\finance\services\WithdrawManualService;
 use app\frontend\modules\withdraw\models\Withdraw;
 
@@ -45,12 +46,31 @@ class PayWayValidatorService
             case 'converge_pay':
                 $this->convergePayValidator();
                 break;
+            case 'yee_pay':
+                $this->yeePayValidator();
+                break;
+            case 'converge-alloc-funds':
+                $this->convergeSeparatePayValidator();
+                break;
+            case 'high_light_wechat':
+                $this->highLightValidator('high_light_wechat');
+                break;
+            case 'high_light_alipay':
+                $this->highLightValidator('high_light_alipay');
+                break;
+            case 'high_light_bank':
+                $this->highLightValidator('high_light_bank');
+                break;
             default:
                 throw new AppException('未知提现方式');
                 break;
         }
     }
 
+
+    private function convergeSeparatePayValidator(){
+
+    }
 
     private function balanceValidator()
     {
@@ -109,6 +129,59 @@ class PayWayValidatorService
         }
     }
 
+    private function yeePayValidator()
+    {
+        if (!app('plugins')->isEnabled('yee-pay')) {
+            throw new AppException('易宝代付插件未开启');
+        }
+        $employee = \Yunshop\YeePay\services\EmployeeService::employee([
+            'member_id' => \YunShop::app()->getMemberId()
+        ])->first();
+        if (!$employee) {
+            throw new AppException('您未完成易宝代付签约，暂不能进行提现', ['yee_pay' => 1]);
+        }
+        return true;
+    }
+
+    private function highLightValidator($type)
+    {
+        if (!app('plugins')->isEnabled('high-light') || !\Yunshop\HighLight\services\SetService::getStatus()) {
+            throw new AppException('高灯提现插件未开启');
+        }
+        try {
+            $agreementInfo = \Yunshop\HighLight\services\AgreementService::agreementInfo(['member_id'=>\Yunshop::app()->getMemberId()])->first();
+            if (!$agreementInfo || !\Yunshop\HighLight\services\AgreementService::checkAgreement($agreementInfo)) {
+                $is_check = false;
+            } else {
+                $is_check = true;
+            }
+        } catch (\Exception $e) {
+            throw new AppException($e->getMessage());
+        }
+        if (!$is_check) {
+            throw new AppException('您未完成高灯签约，暂不能进行提现', ['high_light' => 1]);
+        }
+        switch ($type) {
+            case 'high_light_wechat':
+                $fans = McMappingFans::where('uid',\Yunshop::app()->getMemberId())->first();
+                if (!$fans) {
+                    throw new AppException('您未在公众号商城中授权登录过，无法进行高灯微信提现');
+                }
+                break;
+            case 'high_light_alipay':
+                if (!$agreementInfo->payment_account) {
+                    throw new AppException('请您填写好所要提现到的支付宝账号', ['high_light' => 1]);
+                }
+                break;
+            case 'high_light_bank':
+                if (!$agreementInfo->bank_name || !$agreementInfo->bankcard_num) {
+                    throw new AppException('请您填写好所要提现到的银行信息', ['high_light' => 1]);
+                }
+                break;
+            default:
+                throw new AppException('未知提现类型');
+        }
+    }
 
     /**
      * 是否配置银行卡信息

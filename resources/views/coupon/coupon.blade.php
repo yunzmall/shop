@@ -1,7 +1,7 @@
 @extends('layouts.base')
 @section('title', '编辑优惠券')
 @section('content')
-<link rel="stylesheet" type="text/css" href="{{static_url('yunshop/goods/vue-goods1.css')}}"/>
+    <link rel="stylesheet" type="text/css" href="{{static_url('yunshop/goods/vue-goods1.css')}}"/>
     <div class="all">
         <div id="app" v-cloak>
             <div class="vue-crumbs">
@@ -52,17 +52,17 @@
                                 时间范围
                             </el-radio>
                             <el-date-picker
-                                :disabled="form.time_limit==0"
-                                size="mini"
-                                v-model="form.time"
-                                type="daterange"
-                                value-format="timestamp"
-                                range-separator="至"
-                                start-placeholder="开始日期"
-                                end-placeholder="结束日期"
-                                style="margin-left:5px;"
-                                :default-time="['00:00:00', '23:59:59']"
-                                align="right">
+                                    :disabled="form.time_limit==0"
+                                    size="mini"
+                                    v-model="form.time"
+                                    type="daterange"
+                                    value-format="timestamp"
+                                    range-separator="至"
+                                    start-placeholder="开始日期"
+                                    end-placeholder="结束日期"
+                                    style="margin-left:5px;"
+                                    :default-time="['00:00:00', '23:59:59']"
+                                    align="right">
                             </el-date-picker>
                         </el-form-item>
                         <el-form-item label="使用方式" prop="is_complex">
@@ -83,19 +83,20 @@
                                     <template slot="append">折</template>
                                 </el-input>
                             </div>
-                            
+
                             <div class="tip">最多保留两位小数</div>
                         </el-form-item>
                         <el-form-item label="适用范围" prop="use_type">
-                        <el-radio-group v-model.number="form.use_type">
-                            <el-radio :label="0">平台自营商品（不包含供应商商品）</el-radio>
-                            <el-radio :label="1">指定商品分类 </el-radio>
-                            <el-radio :label="2">指定商品</el-radio>
-                            <el-radio :label="4" v-if="store_is_open==1">指定门店</el-radio>
-                            <el-radio :label="7" v-if="hotel_is_open==1">指定酒店  </el-radio>
-                            <el-radio :label="8">兑换券 </el-radio>
-                        </el-radio-group>
-                            
+                            <el-radio-group v-model.number="form.use_type">
+                                <el-radio :label="0">平台自营商品（不包含供应商商品）</el-radio>
+                                <el-radio :label="1">指定商品分类 </el-radio>
+                                <el-radio :label="2">指定商品</el-radio>
+                                <el-radio :label="4" v-if="store_is_open==1">指定门店</el-radio>
+                                <el-radio :label="7" v-if="hotel_is_open==1">指定酒店  </el-radio>
+                                <el-radio :label="8">兑换券 </el-radio>
+                                <el-radio :label="9">选择商品 + 选择门店 </el-radio>
+                            </el-radio-group>
+
                             <!-- 分类 -->
                             <div v-show="form.use_type==1">
                                 <el-tag v-for="(tag,index) in category_names" :key="index" closable @close="closeCategory(index)" style="margin-right:5px;">
@@ -126,13 +127,38 @@
                                     [[tag]]
                                 </el-tag>
                             </div>
-
+                            <!-- 门店+商品 -->
+                            <div v-show="form.use_type==9&&use_conditions.good_names.length>0" v-if="store_is_open==1">
+                                商品：
+                                <el-tag v-for="(tag,index) in use_conditions.good_names" :key="index" closable @close="closeGoods(index)" style="margin-right:5px;">
+                                    [[tag]]
+                                </el-tag>
+                            </div>
+                            <div v-show="form.use_type==9&&use_conditions.store_names.length>0" v-if="store_is_open==1">
+                                门店：
+                                <el-tag v-for="(tag,index) in use_conditions.store_names" :key="index" closable @close="closeStore(index)" style="margin-right:5px;">
+                                    [[tag]]
+                                </el-tag>
+                            </div>
+                            <div v-show="form.use_type==9">
+                                <el-checkbox v-model="use_conditions.is_all_good" @change="selectAllGoods">全选商品</el-checkbox>
+                                <el-checkbox v-model="use_conditions.is_all_store" @change="selectAllStores">全选门店</el-checkbox>
+                            </div>
+                            <div class="tip" v-show="form.use_type==1">供应商商品不可使用!</div>
+                            <div class="tip" v-show="form.use_type==2">供应商商品不可使用!</div>
+                            <div class="tip" v-show="form.use_type==9">
+                                供应商商品不可使用!
+                            </div>
                             <div>
                                 <el-button size="mini" @click="openDia(1)" v-show="form.use_type==1">选择分类</el-button>
                                 <el-button size="mini" @click="openDia(2)" v-show="form.use_type==2">选择商品</el-button>
                                 <el-button size="mini" @click="openDia(4)" v-show="form.use_type==4">选择门店</el-button>
                                 <el-button size="mini" @click="openDia(7)" v-show="form.use_type==7">选择酒店</el-button>
                                 <el-button size="mini" @click="openDia(8)" v-show="form.use_type==8">选择兑换商品</el-button>
+                                <div v-show="form.use_type==9" v-if="store_is_open==1">
+                                    <el-button size="mini" @click="openDia(2)">选择商品</el-button>
+                                    <el-button size="mini" @click="openDia(4)">选择门店</el-button>
+                                </div>
                             </div>
 
                             <div class="tip" v-show="form.use_type==0">如选择此项,则支持商城所有商品使用!</div>
@@ -142,11 +168,21 @@
                             <el-radio v-model.number="form.get_type" :label="0">不可以</el-radio>
                             <div class="tip">是否可以在领券中心领取 (或者只能手动发放)</div>
 
-                            <el-input v-model.number="form.get_max" style="width:70%" v-show="form.get_type==1">
-                                <template slot="prepend">每人限领</template>
-                                <template slot="append">张</template>
-                            </el-input>
-                            <div class="tip" v-show="form.get_type==1">每人限领数量 (-1为不限制数量)</div>
+                            <div v-show="form.get_type == 1">
+                                <el-input v-model.number="form.get_max" style="width:70%" v-show="form.get_type==1">
+                                    <template slot="prepend">每人限领</template>
+                                    <template slot="append">张</template>
+                                </el-input>
+                                <div class="tip" v-show="form.get_type==1">每人限领数量 (-1为不限制数量)</div>
+
+                                <el-checkbox v-model="form.get_limit_type">每人每日限领</el-checkbox>
+                                <br>
+                                <el-input v-model.number="form.get_limit_max" style="width:70%" v-show="form.get_limit_type==true">
+                                    <template slot="prepend">每人每日限领</template>
+                                    <template slot="append">张</template>
+                                </el-input>
+                                <div class="tip" v-show="form.get_limit_type==true">每人每日限领数量 (-1为不限制数量)</div>
+                            </div>
                         </el-form-item>
 
                         <el-form-item label="发放总数" prop="total">
@@ -165,7 +201,7 @@
             </div>
             <upload-img :upload-show="uploadShow" :name="chooseImgName" @replace="changeProp" @sure="sureImg"></upload-img>
 
-            
+
             <el-dialog :visible.sync="category_show" width="60%" center title="选择分类">
                 <div>
                     <div>
@@ -181,13 +217,13 @@
                                 </div>
                             </template>
                         </el-table-column>
-                        
+
                         <el-table-column prop="refund_time" label="操作" align="center" width="320">
                             <template slot-scope="scope">
                                 <el-button @click="chooseCategory(scope.row)">
                                     选择
                                 </el-button>
-                                
+
                             </template>
                         </el-table-column>
                     </el-table>
@@ -211,23 +247,23 @@
                                 </div>
                             </template>
                         </el-table-column>
-                        
+
                         <el-table-column prop="refund_time" label="操作" align="center" width="320">
                             <template slot-scope="scope">
                                 <el-button @click="chooseGoods(scope.row)">
                                     选择
                                 </el-button>
-                                
+
                             </template>
                         </el-table-column>
                     </el-table>
                 </div>
                 <el-row style="background-color:#fff;">
-                <el-col :span="24" align="center" migra style="padding:15px 5% 15px 0" v-loading="loading">
-                        <el-pagination background  @current-change="currentChange" 
-                            :current-page="current_page"
-                            layout="prev, pager, next"
-                            :page-size="Number(page_size)" :current-page="current_page" :total="page_total"></el-pagination>
+                    <el-col :span="24" align="center" migra style="padding:15px 5% 15px 0" v-loading="loading">
+                        <el-pagination background  @current-change="currentChange"
+                                       :current-page="current_page"
+                                       layout="prev, pager, next"
+                                       :page-size="Number(page_size)" :current-page="current_page" :total="page_total"></el-pagination>
                     </el-col>
                 </el-row>
                 <span slot="footer" class="dialog-footer">
@@ -249,13 +285,13 @@
                                 </div>
                             </template>
                         </el-table-column>
-                        
+
                         <el-table-column prop="refund_time" label="操作" align="center" width="320">
                             <template slot-scope="scope">
                                 <el-button @click="chooseStore(scope.row)">
                                     选择
                                 </el-button>
-                                
+
                             </template>
                         </el-table-column>
                     </el-table>
@@ -279,13 +315,13 @@
                                 </div>
                             </template>
                         </el-table-column>
-                        
+
                         <el-table-column prop="refund_time" label="操作" align="center" width="320">
                             <template slot-scope="scope">
                                 <el-button @click="chooseHotel(scope.row)">
                                     选择
                                 </el-button>
-                                
+
                             </template>
                         </el-table-column>
                     </el-table>
@@ -296,7 +332,7 @@
             </el-dialog>
         </div>
     </div>
-    @include('public.admin.uploadImg')  
+    @include('public.admin.uploadImg')
     <script>
         const category_url = '{!! yzWebFullUrl('goods.category.get-search-categorys-json') !!}';
         const goods_url = '{!! yzWebFullUrl('goods.goods.get-search-goods-json') !!}';
@@ -333,15 +369,17 @@
                         use_type:0,
                         get_type:0,
                         get_max:'1',
+                        get_limit_type:false,
+                        get_limit_max:1,
                         total:'1',
                         discount:'0',
                         deduct:'0',
-                        time:[],
+                        time:[]
                     },
 
                     category_ids : [],
                     category_names:[],
-                    goods_ids:[],	
+                    goods_ids:[],
                     goods_names:[],
                     store_ids:[],
                     store_names:[],
@@ -377,7 +415,7 @@
 
                     uploadShow:false,
                     chooseImgName:'',
-                    
+
                     loading: false,
                     uploadImg1:'',
                     rules:{
@@ -385,6 +423,16 @@
                         enough:{ required: true, message: '请输入使用条件 - 订单金额'},
                     },
                     real_search_form:'',
+
+                    //* 门店+商品
+                    use_conditions:{
+                        is_all_store:0,
+                        is_all_good:0,
+                        good_ids:[],
+                        good_names:[],
+                        store_ids:[],
+                        store_names:[]
+                    }
 
                 }
             },
@@ -425,23 +473,55 @@
                                     this.form.use_type = coupon.use_type;
                                     this.form.get_type = coupon.get_type;
                                     this.form.get_max = coupon.get_max;
+                                    this.form.get_limit_type = coupon.get_limit_type ? true : false;
+                                    this.form.get_limit_max = coupon.get_limit_max;
                                     this.form.total = coupon.total;
                                     this.form.discount = coupon.discount;
                                     this.form.deduct = coupon.deduct;
 
                                     this.category_ids = response.data.data.category_ids || [];
                                     this.category_names = response.data.data.category_names || [];
-                                    
-                                    
+
+
                                     this.store_ids = response.data.data.store_ids || [];
                                     this.store_names = response.data.data.store_names || [];
                                     if(this.form.use_type==2) {
-                                        this.goods_ids = response.data.data.goods_ids || [];	
+                                        this.goods_ids = response.data.data.goods_ids || [];
                                         this.goods_names = response.data.data.goods_names || [];
                                     }
                                     else if(this.form.use_type==8) {
                                         this.goods_id = response.data.data.goods_ids || [];
                                         this.goods_name = response.data.data.goods_names || [];
+                                    }else if(this.form.use_type==9) {
+                                        const isSelectedAllGoods=Boolean(response.data.data.coupon.use_conditions.is_all_good);
+                                        const isSelectedAllStores=Boolean(response.data.data.coupon.use_conditions.is_all_store);
+                                        let goodIds=[];
+                                        const goodNames=[];
+                                        if(isSelectedAllGoods===false){
+                                            goodIds=response.data.data.coupon.use_conditions.good_ids;
+                                            const goodsData=response.data.data.goods;
+                                            for (const goodsItem of goodsData) {
+                                                goodNames.push(goodsItem['title']);
+                                            }
+                                        }
+
+                                        let storeIds=[];
+                                        const storeNames=[];
+                                        if(isSelectedAllStores===false){
+                                            storeIds=response.data.data.coupon.use_conditions.store_ids;
+                                            const storeData=response.data.data.store;
+                                            for (const storeItem of storeData) {
+                                                storeNames.push(storeItem['store_name']);
+                                            }
+                                        }
+
+                                        this.use_conditions.good_ids = goodIds || [];
+                                        this.use_conditions.good_names = goodNames || [];
+                                        this.use_conditions.store_ids = storeIds || [];
+                                        this.use_conditions.store_names = storeNames || [];
+                                        this.use_conditions.is_all_good =isSelectedAllGoods
+                                        this.use_conditions.is_all_store = isSelectedAllStores
+                                        console.log( this.use_conditions);
                                     }
                                     if(this.goods_names) {
                                         this.goods_names.forEach((item,index) => {
@@ -469,7 +549,7 @@
                                         this.form.time[1] = response.data.data.timeend*1000;
                                         console.log(this.form)
                                     }
-                                    
+
                                 }
                                 if(!response.data.data.timeend) {
                                     this.form.time.push(Math.round(new Date()),Math.round(new Date())+(24*60*60*1000*7))
@@ -485,7 +565,7 @@
                         }
                     );
                 },
-                
+
                 openDia(type) {
                     if(type==1) {
                         this.category_show = true;
@@ -501,31 +581,33 @@
                     }
                     else if(type==8) {
                         this.goods_show = true;
+                    }else if(type==9) {
+                        this.goods_show = true;
                     }
                 },
                 currentChange(val) {
                     this.loading = true;
                     this.$http.post(goods_url,{page:val,keyword:this.real_search_form}).then(function (response){
-                        if (response.data.result){
-                              let datas = response.data.data.goods;
-                              this.goods_list=datas.data 
-                              this.page_total = datas.total;
-                              this.page_size = datas.per_page;
-                              this.current_page = datas.current_page;
-                              this.real_search_form=this.goods_keyword;
-                              this.goods_list.forEach((item,index) => {
-                                if(item.title) {
-                                    item.title = this.escapeHTML(item.title);
-                                }
-                            });
-                              this.loading = false;
-                        } else {
-                            this.$message({message: response.data.msg,type: 'error'});
+                            if (response.data.result){
+                                let datas = response.data.data.goods;
+                                this.goods_list=datas.data
+                                this.page_total = datas.total;
+                                this.page_size = datas.per_page;
+                                this.current_page = datas.current_page;
+                                this.real_search_form=this.goods_keyword;
+                                this.goods_list.forEach((item,index) => {
+                                    if(item.title) {
+                                        item.title = this.escapeHTML(item.title);
+                                    }
+                                });
+                                this.loading = false;
+                            } else {
+                                this.$message({message: response.data.msg,type: 'error'});
+                            }
+                        },function (response) {
+                            console.log(response);
+                            this.loading = false;
                         }
-                    },function (response) {
-                        console.log(response);
-                        this.loading = false;
-                    }
                     );
                 },
                 searchGoods() {
@@ -534,10 +616,10 @@
                     this.$http.post(goods_url,{keyword:this.goods_keyword}).then(response => {
                         if (response.data.result) {
                             let datas = response.data.data.goods;
-                              this.goods_list=datas.data 
-                              this.page_total = datas.total;
-                              this.page_size = datas.per_page;
-                              this.current_page = datas.current_page;
+                            this.goods_list=datas.data
+                            this.page_total = datas.total;
+                            this.page_size = datas.per_page;
+                            this.current_page = datas.current_page;
                             this.goods_list.forEach((item,index) => {
                                 if(item.title) {
                                     item.title = this.escapeHTML(item.title);
@@ -566,21 +648,36 @@
                     }
                     // 指定商品
                     let is_exist = 0;
-                    this.goods_ids.some((item1,index) => {
-                        if(item1 == item.id) {
-                            is_exist = 1;
-                            this.$message.error("请勿重复选择");
-                            return true;
+                    if(this.form.use_type == 9){
+                        this.use_conditions.good_ids.some((item1,index) => {
+                            if(item1 == item.id) {
+                                is_exist = 1;
+                                this.$message.error("请勿重复选择");
+                                return true;
+                            }
+                        });
+                        if(is_exist == 1) {
+                            return;
                         }
-                    })
-                    if(is_exist == 1) {
-                        return;
+                        this.use_conditions.good_ids.push(item.id);
+                        this.use_conditions.good_names.push(item.title);
+                        this.use_conditions.is_all_good=false;
+                    }else{
+                        this.goods_ids.some((item1,index) => {
+                            if(item1 == item.id) {
+                                is_exist = 1;
+                                this.$message.error("请勿重复选择");
+                                return true;
+                            }
+                        });
+                        if(is_exist == 1) {
+                            return;
+                        }
+                        this.goods_ids.push(item.id);
+                        this.goods_names.push(item.title);
                     }
-                    this.goods_ids.push(item.id)
-                    this.goods_names.push(item.title)
                 },
                 closeGoods(index) {
-                    console.log(index)
                     if(this.form.use_type == 2){
                         this.goods_ids.splice(index,1)
                         this.goods_names.splice(index,1)
@@ -588,6 +685,9 @@
                     else if(this.form.use_type == 8) {
                         this.goods_id = [];
                         this.goods_name = [];
+                    }else if(this.form.use_type == 9) {
+                        this.use_conditions.good_ids.splice(index,1)
+                        this.use_conditions.good_names.splice(index,1)
                     }
                 },
 
@@ -645,22 +745,42 @@
                 },
                 chooseStore(item) {
                     let is_exist = 0
-                    this.store_ids.some((item1,index) => {
-                        if(item1 == item.id) {
-                            is_exist = 1;
-                            this.$message.error("请勿重复选择");
-                            return true;
+                    if(this.form.use_type==9){
+                        this.use_conditions.store_ids.some((item1,index) => {
+                            if(item1 == item.id) {
+                                is_exist = 1;
+                                this.$message.error("请勿重复选择");
+                                return true;
+                            }
+                        });
+                        if(is_exist == 1) {
+                            return;
                         }
-                    })
-                    if(is_exist == 1) {
-                        return;
+                        this.use_conditions.store_ids.push(item.id)
+                        this.use_conditions.store_names.push(item.store_name)
+                        this.use_conditions.is_all_store=false;
+                    }else{
+                        this.store_ids.some((item1,index) => {
+                            if(item1 == item.id) {
+                                is_exist = 1;
+                                this.$message.error("请勿重复选择");
+                                return true;
+                            }
+                        });
+                        if(is_exist == 1) {
+                            return;
+                        }
+                        this.store_ids.push(item.id)
+                        this.store_names.push(item.store_name)
                     }
-                    this.store_ids.push(item.id)
-                    this.store_names.push(item.store_name)
                     console.log(this.store_names)
                 },
                 closeStore(index) {
-                    console.log(index)
+                    if(this.form.use_type===9){
+                        this.use_conditions.store_ids.splice(index,1)
+                        this.use_conditions.store_names.splice(index,1)
+                        return;
+                    }
                     this.store_ids.splice(index,1)
                     this.store_names.splice(index,1)
                 },
@@ -728,6 +848,8 @@
                             coupon_method:this.form.coupon_method,
                             get_type:this.form.get_type,
                             get_max:this.form.get_max,
+                            get_limit_type:this.form.get_limit_type ? 1 : 0,
+                            get_limit_max:this.form.get_limit_max,
                             total:this.form.total,
                             deduct:this.form.deduct || '0',
                             discount:this.form.discount || '0',
@@ -744,7 +866,15 @@
                         hotel_names:this.hotel_names,
                         time:{start:"",end:""}
                     };
-                    
+                    if(this.form.use_type===9){
+                        json['coupon']['use_conditions']={
+                            is_all_store:Number(this.use_conditions.is_all_store),
+                            is_all_good:Number(this.use_conditions.is_all_good),
+                            good_ids:this.use_conditions.good_ids,
+                            store_ids:this.use_conditions.store_ids
+                        }
+                    }
+
                     if(this.form.time && this.form.time.length>0) {
                         json.time.start = this.form.time[0]/1000;
                         json.time.end = this.form.time[1]/1000;
@@ -773,7 +903,7 @@
                         }
                     });
                 },
-                
+
                 goBack() {
                     history.go(-1)
                 },
@@ -809,6 +939,18 @@
                     a = "" + a;
                     return a.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, "\"").replace(/&apos;/g, "'");;
                 },
+                selectAllGoods(checked){
+                    if(checked){
+                        this.use_conditions.good_ids = [];
+                        this.use_conditions.good_names =  [];
+                    }
+                },
+                selectAllStores(checked){
+                    if(checked){
+                        this.use_conditions.store_ids =  [];
+                        this.use_conditions.store_names = [];
+                    }
+                }
             },
         })
 

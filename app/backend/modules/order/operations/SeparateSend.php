@@ -9,7 +9,7 @@
 namespace app\backend\modules\order\operations;
 
 
-class SeparateSend extends OrderOperation
+class SeparateSend extends BackendOrderBase
 {
     public function getApi()
     {

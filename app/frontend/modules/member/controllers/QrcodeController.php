@@ -5,80 +5,81 @@ namespace app\frontend\modules\member\controllers;
 use app\common\components\ApiController;
 use app\common\facades\Setting;
 use app\common\helpers\ImageHelper;
+use app\common\services\MiniFileLimitService;
 use app\common\services\Utils;
 use app\frontend\models\Member;
 use app\frontend\modules\member\models\MemberModel;
 use Yunshop\NewPoster\services\CreateCode;
-use Yunshop\NewPoster\services\MergePoster;
 use Yunshop\Poster\models\Poster;
 use Yunshop\Poster\models\PosterRecord;
-use Yunshop\Poster\services\CreatePosterService;
-use Yunshop\Poster\models\PosterQrcode;
-use Yunshop\Poster\models\Qrcode;
 use GuzzleHttp\Client;
-use app\frontend\modules\member\controllers\PosterController;
 
 class QrcodeController extends ApiController
 {
     protected $type;
     protected $host;
+    protected $uid;
     protected $posterModel;
     protected $memberModel;
-
 
     const WE_CHAT_SHOW_QR_CODE_URL = 'https://mp.weixin.qq.com/cgi-bin/showqrcode?ticket=';
 
     /**
      * 会员中心推广二维码(包含会员是否有生成海报权限)
-     *
-     * @param $isAgent
-     *
-     * @return string
+     * @return \Illuminate\Http\JsonResponse
+     * @throws \app\common\exceptions\AppException
      */
     public function getPoster()
     {
-        $this->type = request()->type == 2?2:1;
+        $this->type = intval(request()->type) == 2?2:1;
         $this->host = $host = request()->getSchemeAndHttpHost();
-
+        $this->uid = \YunShop::app()->getMemberId();
+        $is_agent = Member::current()->yzMember->is_agent;
         $this->memberModel = $memberModel = Member::uniacid()
             ->select('uid', 'avatar', 'nickname')
             ->with('yzMember')
-            ->ofUid(\YunShop::app()->getMemberId())
+            ->ofUid($this->uid)
             ->first();
-
+        //新海报
         if (\YunShop::plugin()->get('new-poster')) {
-            $this->type = request()->type;
+            $this->type = intval(request()->type);
             $this->posterModel = $posterModel = \Yunshop\NewPoster\models\Poster::uniacid()
-                ->where(['center_show' => 1, 'poster_type' => $this->type])
+                ->whereRaw('FIND_IN_SET('.$this->type.',center_show)')
                 ->first();
-
             if (!$this->posterModel) {
                 //默认二维码
                 if ($this->createPoster()) {
-                    return $this->successJson('ok', ['image_url' => $this->createPoster(),'center_show'=> '0']);
+                    return $this->successJson('ok', [
+                        'image_url' => $this->createPoster(),
+                        'center_show'=> '0'
+                    ]);
                 } else {
-                    return $this->errorJson('生成二维码失败');
+                    return $this->errorJson('生成海报失败');
                 }
             }
-
+            $this->type = $this->posterModel->poster_type; //取海报的类型
+            $file_name = $this->getFileName($this->posterModel, $this->type, true);
             $posterRecord = \Yunshop\NewPoster\models\PosterRecord::where([
-                'member_id' => \YunShop::app()->getMemberId(),
+                'member_id' => $this->uid,
                 'poster_type' => $this->type,
-                'poster_id' => $this->posterModel
-            ])->first();
-
+                'poster_id' => $this->posterModel->id
+            ])->orderby('id', 'desc')->first();
             if ($posterRecord) {
+                $file_res = strstr($posterRecord->url, $file_name);
+                if ($file_res) {
+                    return $this->successJson('ok', [
+                        'image_url' => $posterRecord->url.'?='.str_random(6),
+                        'center_show'=> '0',
+                    ]);
+                }
+            }
+            if ($posterModel->is_ago == 0) {
                 return $this->successJson('ok', [
-                    'image_url' => $posterRecord->url,
-                    'center_show'=> '0',
+                    'image_url' => '',
+                    'center_show'=> '2'
                 ]);
             }
-
-            if ($posterModel->is_ago == 0) {
-                return $this->successJson('ok', ['image_url' => '','center_show'=> '2']);
-            }
-
-            if ($posterModel->is_open || ($posterModel && !$posterModel->is_open && Member::current()->yzMember->is_agent)) {
+            if ($posterModel->is_open || (!$posterModel->is_open && $is_agent)) {
                 $poster_style = json_decode($posterModel['style_data'], true);
                 foreach ($poster_style as &$item) {
                     $item = $this->getRealParams($item);
@@ -90,43 +91,70 @@ class QrcodeController extends ApiController
                             $item['src'] = $memberModel->nickname;
                             break;
                         case 'qr' :
-                            $item['src'] = $this->qr($item);
+                            $item['src'] = $this->qrByType($item, $this->type); //$type 海报类型
                             break;
                         case 'img' :
                             $item['src'] = yz_tomedia($item['src']);
                             break;
+                        case 'invite' :
+                            $item['src'] = $this->memberModel->yzMember->invite_code;
+                            break;
+                        case 'mid' :
+                            $item['src'] = $this->memberModel->uid;
+                            break;
+                        case 'shopqr' :
+                            $item['src'] = $this->qrByType($item, 5);
+                            break;
                     }
                 }
-
                 $posterModel['style_data'] = $poster_style;
                 $posterModel['background'] = yz_tomedia($posterModel['background']);
                 $posterModel['new'] = true;
-
+                $posterModel['center_show'] = 1;
                 return $this->successJson('ok', $posterModel);
             }
         }
-
-        if (\YunShop::plugin()->get('poster') && \Schema::hasColumn('yz_poster', 'center_show')) 
-        {
-            $posterModel = Poster::uniacid()
-            ->where('center_show', 1)
-            ->first();
-
-            //判断是否由后台生成海报 0后台生成海报  1前端生成
-            if ($posterModel->is_ago == 0) 
-            {
-                return $this->successJson('ok', ['image_url' => '','center_show'=> '2']);
+        //旧海报
+        if (\YunShop::plugin()->get('poster') && \Schema::hasColumn('yz_poster', 'center_show')) {
+            $posterModel = Poster::uniacid()->where('center_show', 1)->first();
+            if (!$posterModel) {
+                //默认二维码
+                if ($this->createPoster()) {
+                    return $this->successJson('ok', [
+                        'image_url' => $this->createPoster(),
+                        'center_show'=> '0'
+                    ]);
+                } else {
+                    return $this->errorJson('生成海报失败');
+                }
             }
-
-            if ($posterModel->is_open || ($posterModel && !$posterModel->is_open && Member::current()->yzMember->is_agent)) 
-            {
+            $file_name = $this->getFileName($posterModel, $this->type, false);
+            $posterRecord = PosterRecord::where([
+                'member_id'=>$this->uid,
+                'poster_id'=>$posterModel->id,
+            ])->orderby('id', 'desc')->first();
+            if ($posterRecord) {
+                $file_res = strstr($posterRecord->url, $file_name);
+                if ($file_res) {
+                    return $this->successJson('ok', [
+                        'image_url' => $posterRecord->url.'?='.str_random(6),
+                        'center_show'=> '0',
+                    ]);
+                }
+            }
+            //判断是否由后台生成海报 0后台生成海报  1前端生成
+            if ($posterModel->is_ago == 0) {
+                return $this->successJson('ok', [
+                    'image_url' => '',
+                    'center_show'=> '2'
+                ]);
+            }
+            if ($posterModel->is_open || (!$posterModel->is_open && $is_agent)) {
                 $poster_info = $posterModel->toArray();
                 $params = json_decode($poster_info['style_data'], true);
-                foreach ($params as $key=>$item) 
-                {
+                foreach ($params as $key => $item) {
                     $item = $this->getRealParams($item);
-                    switch ($item['type']) 
-                    {
+                    switch ($item['type']) {
                         case 'head':
                             $item['src'] = ImageHelper::fix_wechatAvatar($memberModel->avatar_image);
                             break;
@@ -134,23 +162,24 @@ class QrcodeController extends ApiController
                             $item['src'] = $host . yzAppUrl('home', ['mid' => $this->memberModel->uid]);
                             break;
                         case 'qr_app_share':
-                            $item['src'] = $host . yzAppUrl('member/scaneditmobile', ['mid' => $this->memberModel->uid]);
+                            $item['src'] = $host . yzAppUrl('member/scaneditmobile', ['mid' => $this->memberModel->uid , 'app_type' => 7]);
                             break;
                         case 'nickname':
                             $item['src'] = $memberModel->nickname;
+                            break;
+                        case 'img':
+                            $item['src'] = yz_tomedia($item['src']);
                             break;
                     }
                     $params[$key] = $item;
                 }
                 $poster_info['style_data'] = $params;
                 $poster_info['new'] = false;
-                if ($poster_info)
-                {
+                if ($poster_info) {
                     return $this->successJson('ok', $poster_info);
                 }
             }
         }
-
         //默认二维码
         if ($this->createPoster()) {
             return $this->successJson('ok', ['image_url' => $this->createPoster(),'center_show'=> '0']);
@@ -158,89 +187,86 @@ class QrcodeController extends ApiController
             return $this->errorJson('生成二维码失败');
         }
     }
-
     /**
      * 海报记录接口
      */
     public function posterRecord()
     {
-        $imageUrl  = \YunShop::request()->image;
-        $poster_id = \YunShop::request()->poster_id;
-        $type = \YunShop::request()->type;
-
-        if (!$imageUrl || !$poster_id)
-        {
+        $image_url = request()->image;
+        $poster_id = request()->poster_id;
+        $is_new = request()->is_new;
+        $uid = \YunShop::app()->getMemberId();
+        if (!$image_url || !$poster_id) {
             return $this->errorJson('缺少参数');
         }
-
-        if (\YunShop::plugin()->get('new-poster')) {
-            if (\Yunshop\NewPoster\models\PosterRecord::where('url',$imageUrl)->get()->isEmpty()) {
-                $model = new \Yunshop\NewPoster\models\PosterRecord();
-                $model->url = $imageUrl;
-                $model->poster_type = $type;
-                $model->poster_id =  $poster_id;
-                $model->member_id =\YunShop::app()->getMemberId();
-                $model->created_at = time();
-                $model->save();
-            }
-        } else {
-            if (!\YunShop::plugin()->get('poster')) {
-                return $this->errorJson('海报插件未开启');
-            }
-
-            $posterRecord = new PosterRecord();
-            if($posterRecord::where('url',$imageUrl)->get()->isEmpty())
-            {
-                $posterRecord->url = $imageUrl;
-                $posterRecord->poster_id =  $poster_id;
-                $posterRecord->member_id =\YunShop::app()->getMemberId();
-                $posterRecord->created_at = time();
-                $posterRecord->save();
+        if (app('plugins')->isEnabled('new-poster') && $is_new) {
+            $poster = \Yunshop\NewPoster\models\Poster::find($poster_id);
+            $poster_record = \Yunshop\NewPoster\models\PosterRecord::where([
+                'poster_type' => $poster->poster_type,
+                'url' => $image_url,
+            ])->orderBy('id', 'desc')->first();
+            if ($poster_record) {
+                $poster_record->url = $image_url;
+                $poster_record->save();
+            } else {
+                $data = [
+                    'url' => $image_url,
+                    'poster_id' => $poster_id,
+                    'member_id' => $uid,
+                    'poster_type' => $poster->poster_type,
+                    'created_at' => time(),
+                ];
+                \Yunshop\NewPoster\models\PosterRecord::create($data);
             }
         }
-
+        if (app('plugins')->isEnabled('poster') && !$is_new) {
+            $poster_record = PosterRecord::where(['url'=>$image_url])->orderBy('id', 'desc')->first();
+            if ($poster_record) {
+                $poster_record->url = $image_url;
+                $poster_record->save();
+            } else {
+                $data = [
+                    'url' => $image_url,
+                    'poster_id' => $poster_id,
+                    'member_id' => $uid,
+                    'created_at' => time(),
+                ];
+                PosterRecord::create($data);
+            }
+        }
         return $this->successJson('成功');
     }
-
+    /**
+     * 生成默认海报
+     * @return string
+     */
     private function createPoster()
     {
         $width = 320;
         $height = 540;
-
         $logo_width = 40;
         $logo_height = 40;
-
         $font_size = 15;
         $font_size_show = 20;
-
         $member_id = \YunShop::app()->getMemberId();
-
         $shopInfo = Setting::get('shop.shop');
         $shopName = $shopInfo['name'] ?: '商城'; //todo 默认值需要更新
         $shopLogo = $shopInfo['logo'] ? replace_yunshop(yz_tomedia($shopInfo['logo'])) : base_path() . '/static/images/logo.png'; //todo 默认值需要更新
         $shopImg = $shopInfo['signimg'] ? replace_yunshop(yz_tomedia($shopInfo['signimg'])) : base_path() . '/static/images/photo-mr.jpg'; //todo 默认值需要更新
-
         $str_lenght = $logo_width + $font_size_show * mb_strlen($shopName);
-
         $space = ($width - $str_lenght) / 2;
-
         $uniacid = \YunShop::app()->uniacid;
         $path = storage_path('app/public/personalposter/' . $uniacid);
-
         Utils::mkdirs($path);
-
         $md5 = md5($member_id . $shopInfo['name'] . $shopInfo['logo'] . $shopInfo['signimg'] . $this->type . '2'); //用于标识组成元素是否有变化
         $extend = '.png';
         $file = $md5 . $extend;
-
         if (!file_exists($path . '/' . $file)) {
             $targetImg = imagecreatetruecolor($width, $height);
             $white = imagecolorallocate($targetImg, 255, 255, 255);
             imagefill($targetImg, 0, 0, $white);
-
             $imgSource = imagecreatefromstring(\Curl::to($shopImg)->get());
             $logoSource = imagecreatefromstring(\Curl::to($shopLogo)->get());
-
             if (2 == $this->type and request()->input('ingress') == 'weChatApplet') {
                 $qrcode = MemberModel::getWxacode();
                 $qrSource = imagecreatefromstring(\Curl::to($qrcode)->get());
@@ -248,7 +274,6 @@ class QrcodeController extends ApiController
                 $qrcode = MemberModel::getAgentQR();
                 $qrSource = imagecreatefromstring(\Curl::to($qrcode)->get());
             }
-
             $fingerPrintImg = imagecreatefromstring(file_get_contents($this->getImgUrl('ewm.png')));
             $mergeData = [
                 'dst_left' => $space,
@@ -293,48 +318,42 @@ class QrcodeController extends ApiController
                 ];
             }
             self::mergeImage($targetImg, $qrSource, $mergeData); //合并二维码图片
-
             header("Content-Type: image/png");
             $imgPath = $path . "/" . $file;
             imagepng($targetImg, $imgPath);
         }
-
         $file = $path . '/' . $file;
-
-        $imgUrl = ImageHelper::getImageUrl($file);
+        $imgUrl = ImageHelper::getImageUrl($file).'?='.str_random(6);
         return $imgUrl;
     }
-
     //合并图片并指定图片大小
     private static function mergeImage($destinationImg, $sourceImg, $data)
     {
         $w = imagesx($sourceImg);
         $h = imagesy($sourceImg);
-        imagecopyresized($destinationImg, $sourceImg, $data['dst_left'], $data['dst_top'], 0, 0, $data['dst_width'],
-            $data['dst_height'], $w, $h);
+        imagecopyresized($destinationImg,$sourceImg,$data['dst_left'],$data['dst_top'],0,0,$data['dst_width'],$data['dst_height'],$w,$h);
         imagedestroy($sourceImg);
         return $destinationImg;
     }
-
     //合并字符串
     private static function mergeText($destinationImg, $text, $data)
     {
         putenv('GDFONTPATH=' . base_path('static/fonts'));
         $font = "source_han_sans";
-
         $black = imagecolorallocate($destinationImg, 0, 0, 0);
         imagettftext($destinationImg, $data['size'], 0, $data['left'], $data['top'], $black, $font, $text);
         return $destinationImg;
     }
-
-    private function getImgUrl($file){
+    //获取图片url
+    private function getImgUrl($file)
+    {
         if (config('app.framework') == 'platform') {
             return request()->getSchemeAndHttpHost().'/addons/yun_shop/static/app/images/'.$file;
         } else {
             return base_path() . '/static/app/images/'.$file;
         }
     }
-
+    //处理坐标
     private function getRealParams($params)
     {
         $params['left'] = intval(str_replace('px', '', $params['left'])) * 2;
@@ -345,111 +364,10 @@ class QrcodeController extends ApiController
         $params['src'] = yz_tomedia($params['src']);
         return $params;
     }
-
-    //生成小程序二维码
-    private function getWxacode()
-    {
-        $token = $this->getToken();
-
-        if ($token === false) {return false;}
-
-        $url = "https://api.weixin.qq.com/wxa/getwxacodeunlimit?access_token=".$token;
-        $json_data = [
-            "scene" => 'mid='.$this->memberModel->uid,
-            "page"  => 'pages/index/index'
-        ];
-        $client = new Client;
-        $res = $client->request('POST', $url, ['json'=>$json_data]);
-        $data = json_decode($res->getBody()->getContents(), JSON_FORCE_OBJECT);
-
-        //$path_file = $this->getPosterPath().'ceshi.png';
-        //file_put_contents($path_file, $data);
-
-        if (isset($data['errcode'])) {
-            \Log::debug('===生成小程序二维码获取失败====='. self::class, $data);
-            return false;
-        }
-
-        $php_base64 = 'data:image/png;base64,'.base64_encode($res->getBody());
-        $localdir = $this->memberModel->uid."/". date('Y/m/d');
-        if (config('app.framework') == 'platform') {
-            $save_dir = '/static/app/images/'.$localdir;
-        } else {
-            $save_dir = '/addons/yun_shop/static/app/images/'.$localdir;
-        }
-
-        $php_base64 = $this->base64_image_content($php_base64,$save_dir);
-
-        return $php_base64;
-    }
-
-    //发送获取token请求,获取token(有效期2小时)
-    public function getToken()
-    {
-        $set = \Setting::get('plugin.min_app');
-
-        $paramMap = [
-            'grant_type' => 'client_credential',
-            'appid' => $set['key'],
-            'secret' => $set['secret'],
-        ];
-        //获取token的url参数拼接
-        $strQuery="";
-        foreach ($paramMap as $k=>$v){
-            $strQuery .= strlen($strQuery) == 0 ? "" : "&";
-            $strQuery.=$k."=".urlencode($v);
-        }
-
-        $getTokenUrl = "https://api.weixin.qq.com/cgi-bin/token?". $strQuery; //获取token的url
-
-        $client = new Client;
-        $res = $client->request('GET', $getTokenUrl);
-       // $res = $this->curl_post($getTokenUrl, '', $options = array());
-
-        $data = json_decode($res->getBody()->getContents(), JSON_FORCE_OBJECT);
-
-        if (isset($data['errcode'])) {
-            \Log::debug('===生成小程序二维码获取token失败====='. self::class, $data);
-            return false;
-        }
-        return $data['access_token'];
-
-    }
-
-    //获取微信二维码
-    private function getAgentQR()
-    {
-        $posterService = new CreatePosterService($this->memberModel->uid,$this->posterModel->id,$this->type);
-        return $posterService->getQrCodeUrl();
-    }
-
-    private function base64_image_content($base64_image_content,$path)
-    {
-        //匹配出图片的格式
-        if (preg_match('/^(data:\s*image\/(\w+);base64,)/', $base64_image_content, $result)){
-            $type = $result[2];
-            $new_file = $path."/".date('Ymd',time())."/";
-
-            if(!file_exists($new_file)){
-                //检查是否有该文件夹，如果没有就创建，并给予最高权限
-                mkdir($new_file, 0700);
-            }
-
-            $new_file = $new_file.time().".{$type}";
-            if (file_put_contents($new_file, base64_decode(str_replace($result[1], '', $base64_image_content)))){
-                return '/'.$new_file;
-            }else{
-                return false;
-            }
-        }else{
-            return false;
-        }
-    }
-
     //根据type获取各类二维码
-    protected function qr($item)
+    protected function qrByType($item, $type)
     {
-        switch ($this->type) {
+        switch ($type) {
             case 1 :
                 $url = $this->getQrCodeUrl();
                 break;
@@ -466,67 +384,125 @@ class QrcodeController extends ApiController
                 $url = '';
                 break;
         }
-
         return $url;
     }
-
+    //关注二维码
     protected function getQrCodeUrl()
     {
         $client = new Client;
         $res = $client->request('GET', (new CreateCode($this->memberModel, $this->posterModel, $this->host))->getQrCodeUrl());
-
         $extend = 'png';
         $filename = 'fans_' . \YunShop::app()->uniacid . '_' . \YunShop::app()->getMemberId()  . '.' . $extend;
         $paths = \Storage::url('app/public/qr/');
         $paths_change = ltrim($paths, '/');
-
         file_put_contents(base_path($paths_change) . $filename, $res->getBody());
-
         return $this->host . config('app.webPath') . $paths . $filename;
     }
-
+    //小程序二维码
     protected function getMiniCode($link)
     {
         $res = (new CreateCode($this->memberModel, $this->posterModel, $this->host))->getMiniCode($link);
         if ($res == '') {
             return '';
         }
-
         $extend = 'png';
         $filename = 'mini_' . \YunShop::app()->uniacid . '_' . \YunShop::app()->getMemberId()  . '.' . $extend;
         $paths = \Storage::url('app/public/qr/');
         $paths_change = ltrim($paths, '/');
-
         file_put_contents(base_path($paths_change) . $filename, $res);
-
         return $this->host . config('app.webPath') . $paths . $filename;
     }
-
+    //商城二维码
     protected function getQrShopImage($link)
     {
         $res = (new CreateCode($this->memberModel, $this->posterModel, $this->host))->getQrShopImage($link);
-
         $extend = 'png';
         $filename = 'shop_' . \YunShop::app()->uniacid . '_' . \YunShop::app()->getMemberId()  . '.' . $extend;
         $paths = \Storage::url('app/public/qr/');
         $paths_change = ltrim($paths, '/');
-
         file_put_contents(base_path($paths_change) . $filename, $res);
-
         return $this->host . config('app.webPath') . $paths . $filename;
     }
-
+    //app二维码
     protected function getAppShareImage()
     {
         $res = (new CreateCode($this->memberModel, $this->posterModel, $this->host))->getAppShareImage();
-
         $extend = 'png';
         $filename = 'share_' . \YunShop::app()->uniacid . '_' . \YunShop::app()->getMemberId()  . '.' . $extend;
         $paths = \Storage::url('app/public/qr/');
         $paths_change = ltrim($paths, '/');
-
         file_put_contents(base_path($paths_change) . $filename, $res);
-
         return $this->host . config('app.webPath') . $paths . $filename;
+    }
+
+    /**
+     * 海报上传本地
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function uploadLocal()
+    {
+        $file = request()->file('file');
+        $ingress = request()->ingress;
+        $poster_id = request()->poster_id;
+        if (!$file) {
+            return $this->errorJson('请传入正确参数.');
+        }
+        if (!$file->isValid()) {
+            return $this->errorJson('上传失败.');
+        }
+        if ($ingress) {
+            if ($file->getClientSize() > 1024*1024) {
+                return $this->errorJson('小程序图片安全验证图片不能大于1M');
+            }
+            $check_result = (new MiniFileLimitService())->checkImg($file);
+            if ($check_result['errcode'] == 87014) {
+                return $this->errorJson('内容含有违法违规信息');
+            }
+        }
+        $realPath = $file->getRealPath(); //临时文件的绝对路径
+        $is_new = request()->is_new;
+        if ($is_new) {
+            $posterModel = \Yunshop\NewPoster\models\Poster::find($poster_id);
+            $type = $posterModel->poster_type;
+        } else {
+            $posterModel = Poster::find($poster_id);
+            $type = request()->type == 2 ? 2 : 1;
+        }
+        if (!$posterModel) {
+            return $this->errorJson('海报已删除');
+        }
+        $file_name = $this->getFileName($posterModel, $type, $is_new);
+        $path = storage_path('app/public/poster/' . \YunShop::app()->uniacid);
+        if (!file_exists($path)) {
+            Utils::mkdirs($path);
+        }
+        $full_path = $path . DIRECTORY_SEPARATOR . $file_name;
+        file_put_contents($full_path, file_get_contents($realPath));
+        return $this->successJson('ok', [
+            'img_url' => $this->getPosterUrl($file_name),
+        ]);
+    }
+    private function getFileName($posterModel, $type, $is_new_poster)
+    {
+        $file = md5(json_encode([
+            'memberId' => \YunShop::app()->getMemberId(),
+            'posterId' => $posterModel->id,
+            'uniacid' => \YunShop::app()->uniacid,
+            'background' => $posterModel->background,
+            'style_data' => $posterModel->style_data,
+        ]));
+        if ($is_new_poster) {
+            return $file.'_new_'.$type.'.png';
+        } else {
+            return $file.'_'.$type.'.png';
+        }
+    }
+    private function getPosterUrl($file_name)
+    {
+        if (config('app.framework') == 'platform') {
+            return request()->getSchemeAndHttpHost().DIRECTORY_SEPARATOR.'storage/app/public/poster/'.\YunShop::app()->uniacid.DIRECTORY_SEPARATOR.$file_name;
+        } else {
+            return request()->getSchemeAndHttpHost().DIRECTORY_SEPARATOR.'addons/yun_shop/storage/app/public/poster/'.\YunShop::app()->uniacid.DIRECTORY_SEPARATOR.$file_name;
+        }
     }
 }

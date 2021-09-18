@@ -90,11 +90,22 @@ class MemberShopInfo extends BaseModel
         static::addGlobalScope('uniacid', function (Builder $builder) {
             return $builder->uniacid();
         });
+
     }
 
     public function level()
     {
         return $this->hasOne('app\common\models\MemberLevel', 'id', 'level_id');
+    }
+
+    public function group()
+    {
+        return $this->hasOne('app\common\models\MemberGroup', 'id', 'group_id');
+    }
+
+    public function hasPayPassword()
+    {
+        return isset($this->pay_password) && !empty($this->pay_password);
     }
 
     /**
@@ -116,7 +127,7 @@ class MemberShopInfo extends BaseModel
     /**
      * 检索关联会员等级表
      * @param $query
-     * @return mixed
+     * @return static
      */
     public function scopeWithLevel($query)
     {
@@ -133,6 +144,7 @@ class MemberShopInfo extends BaseModel
      *
      * @param $memberId
      * @return mixed
+     * @throws \app\common\exceptions\AppException
      */
     public static function getMemberShopInfo($memberId)
     {
@@ -142,7 +154,7 @@ class MemberShopInfo extends BaseModel
         }
         return self::select('*')->where('member_id', $memberId)
             ->uniacid()
-            ->first(1);
+            ->first();
     }
 
     /**
@@ -309,17 +321,18 @@ class MemberShopInfo extends BaseModel
                 }
             }
 
-            $member_relation   = Member::setMemberRelation($uid, $parent_id);
+            $member_relation = Member::setMemberRelation($uid, $parent_id);
             $plugin_commission = app('plugins')->isEnabled('commission');
-            $plugin_team       = app('plugins')->isEnabled('team-dividend');
+            $plugin_team = app('plugins')->isEnabled('team-dividend');
 
             if (isset($member_relation) && $member_relation !== false) {
                 $member = MemberShopInfo::getMemberShopInfo($uid);
 
-                $record            = new MemberRecord();
-                $record->uniacid   = \YunShop::app()->uniacid;
-                $record->uid       = $uid;
+                $record = new MemberRecord();
+                $record->uniacid = \YunShop::app()->uniacid;
+                $record->uid = $uid;
                 $record->parent_id = $member->parent_id;
+                $record->after_parent_id = $parent_id;
 
                 $record->save();
 
@@ -334,7 +347,7 @@ class MemberShopInfo extends BaseModel
 
                     if (1 == $item['status']) {
                         $member->parent_id = $parent_id;
-                        $member->inviter   = 1;
+                        $member->inviter = 1;
 
                         $member->save();
 
@@ -343,7 +356,7 @@ class MemberShopInfo extends BaseModel
 
                             if (!is_null($team)) {
                                 $team->parent_id = $parent_id;
-                                $team->relation  = $member->relation;
+                                $team->relation = $member->relation;
 
                                 $team->save();
                             }
@@ -354,7 +367,7 @@ class MemberShopInfo extends BaseModel
 
                             if (!is_null($agents)) {
                                 $agents->parent_id = $parent_id;
-                                $agents->parent    = $member->relation;
+                                $agents->parent = $member->relation;
 
                                 $agents->save();
                             }

@@ -70,7 +70,7 @@
                 <el-form-item label="自动收货天数">
                     <el-input v-model="form.receive"  style="width:70%;"></el-input>
                     <div style="padding:5px;background-color: #f6f7f9;width:60%;margin-top:5px;">
-                        <div style="line-height:20px!important;font-size: 12px;">1.订单下单未付款，n天后自动关闭，0/空为不自动收货</div>
+                        <div style="line-height:20px!important;font-size: 12px;">1.订单发货后，用户收货的天数，如果在期间未确认收货，系统自动完成收货, 0/空为不自动收货</div>
                         <div style="line-height:20px!important;font-size: 12px;">2.退换货处理中的订单不能自动收货</div>
                         <div style="line-height:20px!important;font-size: 12px;">3.配送方式为自提,酒店入住,配送站送货,司机配送,自提点的配送类型不支持自动收货</div>
                     </div>

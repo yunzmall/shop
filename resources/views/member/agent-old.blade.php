@@ -155,7 +155,7 @@
                             @endif
                             </td>
                             <td  style="text-align: center;">
-                                @if(!empty($row['yz_member']['agent']['avatar']))
+                                {{--@if(!empty($row['yz_member']['agent']['avatar']))--}}  
                                     @if(!empty($row['avatar']))
                                         <img src='{{$row['avatar']}}' style='width:30px;height:30px;padding:1px;border:1px solid #ccc' /><br/>
                                     @endif
@@ -164,7 +164,7 @@
                                     @else
                                         {{$row['nickname']}}
                                     @endif
-                                @endif
+                                {{--@endif--}}
 
                             </td>
 

@@ -84,10 +84,10 @@
                                     style="width: 4px;height: 18px;background-color: #29ba9c;margin-right:15px;display:inline-block;"></span><b>基础设置</b>
                         </div>
                         <el-form-item label="注册/绑定手机页面顶部图片">
-                            <div class="upload-box" @click="openUpload('top_img')" v-if="!form.top_img_url">
+                            <div class="upload-box" @click="openUpload('top_img',1,'one')" v-if="!form.top_img_url">
                                 <i class="el-icon-plus" style="font-size:32px"></i>
                             </div>
-                            <div @click="openUpload('top_img')" class="upload-boxed" v-if="form.top_img_url"
+                            <div @click="openUpload('top_img',1,'one')" class="upload-boxed" v-if="form.top_img_url"
                                  style="height:150px;">
                                 <img :src="form.top_img_url" alt=""
                                      style="width:150px;height:150px;border-radius: 5px;cursor: pointer;">
@@ -96,8 +96,9 @@
                             </div>
                             <div class="tip">建议尺寸640*320</div>
                         </el-form-item>
-                        <upload-img :upload-show="uploadShow" :name="chooseImgName" @replace="changeProp"
-                                    @sure="sureImg"></upload-img>
+                        <!-- <upload-img :upload-show="uploadShow" :name="chooseImgName" @replace="changeProp"
+                                    @sure="sureImg"></upload-img> -->
+                        <upload-multimedia-img :upload-show="uploadShow" :type="type" :name="chooseImgName" :sel-Num="selNum" @replace="changeProp" @sure="sureImg"></upload-multimedia-img>
                         <el-form-item label="是否设置密码">
                             <template>
                                 <el-switch
@@ -146,35 +147,38 @@
         </div>
     </div>
     <script src="{{resource_get('static/yunshop/tinymce4.7.5/tinymce.min.js')}}"></script>
+    @include('public.admin.uploadMultimediaImg')
     @include('public.admin.tinymceee')
-    @include('public.admin.uploadImg')
+    
     <script>
         var vm = new Vue({
             el: "#re_content",
             delimiters: ['[[', ']]'],
             data() {
-                    let register={!!json_encode($register?:'{}') !!}
-                   
-                    let protocol={!!json_encode($protocol?:'{}') !!}
-                    return {
-                        activeName: 'one',
-                        uploadShow:false,
-                        chooseImgName:'',
-                        uploadListShow:false,
-                        chooseImgListName:'',
-                        form: {
-                            top_img :register&&register.top_img ? register.top_img:'',
-                            top_img_url :register&&register.top_img_url ? register.top_img_url:'',
-                            is_password :register.hasOwnProperty('is_password')?register.is_password:'1',
-                            title1 :register&&register.title1 ? register.title1:'',
-                            title2 :register&&register.title2 ? register.title2:'',
-                            protocol:{
-                                title:protocol&&protocol.title ? protocol.title:'',
-                                status:protocol.hasOwnProperty('status')?protocol.status:1,
-                                content:protocol&&protocol.content ? protocol.content:'',
+                let register={!!json_encode($register?:'{}') !!}
+                let protocol={!!json_encode($protocol?:'{}') !!}
+                return {
+                    type:'',
+                    selNum:'',
+                    activeName: 'one',
+                    uploadShow:false,
+                    chooseImgName:'',
+                    uploadListShow:false,
+                    chooseImgListName:'',
+                    form: {
+                        top_img :register&&register.top_img ? register.top_img:'',
+                        top_img_url :register&&register.top_img_url ? register.top_img_url:'',
+                        is_password :register.hasOwnProperty('is_password')?register.is_password:'1',
+                        title1 :register&&register.title1 ? register.title1:'',
+                        title2 :register&&register.title2 ? register.title2:'',
+                        protocol:{
+                            title:protocol&&protocol.title ? protocol.title:'',
+                            status:protocol.hasOwnProperty('status')?protocol.status:1,
+                            content:protocol&&protocol.content ? protocol.content:'',
 
-                        }
                     },
+
+                },
                 }
             },
             mounted() {
@@ -208,10 +212,12 @@
                         this.$message({message: response.data.msg, type: 'error'});
                     })
                 },
-                openUpload(str) {
+                openUpload(str,type,sel) {
 
                     this.chooseImgName = str;
                     this.uploadShow = true;
+                    this.type = type
+                    this.selNum = sel
                 },
                 changeProp(val) {
                     if (val == true) {
@@ -221,9 +227,17 @@
                         this.uploadShow = true;
                     }
                 },
-                sureImg(name, image, image_url) {
-                    this.form[name] = image;
-                    this.form[name + '_url'] = image_url;
+                sureImg(name,uploadShow,fileList) {
+                    
+                    if(fileList.length <= 0) {
+                        return 
+                    }
+                    console.log(name)
+                    console.log(fileList)
+                    this.form[name] =fileList[0].attachment;
+                    this.form[name+'_url'] = fileList[0].url;
+                    console.log(this.form[name],'aaaaa')
+                    console.log( this.form[name+'_url'],'bbbbb')
                 },
 
             },

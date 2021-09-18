@@ -8,7 +8,6 @@
 
 namespace app\backend\controllers;
 
-
 use app\common\components\BaseController;
 use app\common\models\Address;
 use app\common\models\Street;
@@ -35,6 +34,15 @@ class AddressController extends BaseController
         }
 
         echo json_encode($addressData);
+    }
+
+    public function test()
+    {
+        $pay = new \app\common\services\AliPay();
+
+        $result = $pay->withdrawCert('ywkpgl2852@sandbox.com','沙箱环境','CS'.time(),'1');
+
+        dd($result);
     }
 
 }

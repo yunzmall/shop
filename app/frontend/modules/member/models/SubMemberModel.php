@@ -75,6 +75,7 @@ class SubMemberModel extends MemberShopInfo
     {
         return self::uniacid()
             ->where('yz_openid', $openid)
+            ->orderBy('created_at', 'desc')
             ->first();
     }
 

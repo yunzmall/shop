@@ -48,20 +48,30 @@ class Sale extends \app\common\models\Sale
             return $saleModel->delete();
         }
         $data['goods_id'] = $goodsId;
-        $data['ed_full'] = empty($data['ed_full']) ? 0 : $data['ed_full'];
-        $data['ed_reduction'] = empty($data['ed_reduction']) ? 0 : $data['ed_reduction'];
-        $data['point'] = trim($data['point']);
-        $data['award_balance'] = trim($data['award_balance']);
+        if (isset($data['ed_full'])) {
+			$data['ed_full'] = empty($data['ed_full']) ? 0 : $data['ed_full'];
+		}
+        if (isset($data['ed_reduction'])) {
+			$data['ed_reduction'] = empty($data['ed_reduction']) ? 0 : $data['ed_reduction'];
+		}
+        if (isset($data['point'])) {
+			$data['point'] = trim($data['point']);
+		}
+        if (isset($data['award_balance'])) {
+			$data['award_balance'] = trim($data['award_balance']);
+		}
 
         /**
          * Author:blank
          * UpdateTime:2017/12/13
          */
-        if ($data['is_push'] == 1) {
-            $data['push_goods_ids'] = implode('-', $data['push_goods_ids']);
-        } else {
-            $data['push_goods_ids'] = '';
-        }
+        if (isset($data['is_push'])) {
+			if ($data['is_push'] == 1) {
+				$data['push_goods_ids'] = implode('-', $data['push_goods_ids']);
+			} else {
+				$data['push_goods_ids'] = '';
+			}
+		}
 
 
         $saleModel->setRawAttributes($data);

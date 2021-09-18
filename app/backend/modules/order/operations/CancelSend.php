@@ -9,7 +9,7 @@
 namespace app\backend\modules\order\operations;
 
 
-class CancelSend extends OrderOperation
+class CancelSend extends BackendOrderBase
 {
     public function getApi()
     {

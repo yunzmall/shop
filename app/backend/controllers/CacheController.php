@@ -18,6 +18,7 @@ class CacheController extends BaseController
     public function update()
     {
         \Artisan::call('config:cache');
+        \Artisan::call('view:clear');
         \Cache::flush();
 
 

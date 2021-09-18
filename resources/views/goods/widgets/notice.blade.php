@@ -22,8 +22,7 @@
         <span id="saleravatar" class='help-block' @if (empty($saler)) style="display:none" @endif >
             <img style=""
                     src="@if (!empty($saler)) {{ $saler->avatar }} @endif"/></span>
-        <span class="help-block">单品下单通知，可指定某个用户，通知商品下单备货通知,如果商品为同一商家，建议使用系统统一设置</span>
-
+        <span class="help-block">单品下单通知，可指定某个用户，通知商品下单备货通知,如果商品为同一商家，建议使用系统统一设置<br>非公众号注册会员,无法绑定通知人员</span>
         <div id="modal-module-menus-notice" class="modal fade" tabindex="-1">
             <div class="modal-dialog" >
                 <div class="modal-content">

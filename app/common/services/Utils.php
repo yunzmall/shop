@@ -3,6 +3,7 @@
 namespace app\common\services;
 
 use Illuminate\Filesystem\Filesystem;
+use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\DB;
 use Log;
 use Carbon\Carbon;
@@ -323,9 +324,10 @@ class Utils
      */
     public static function removeUniacid()
     {
-        setcookie('uniacid', null, time() - 2160000, '/');
-        setcookie('uniacid', null, time() - 2160000, '/admin');
-        setcookie('uniacid', null, time() - 2160000, '/admin/shop');
+		Cookie::queue('uniacid',null,time() - 2160000, '/');
+		Cookie::queue('uniacid',null,time() - 2160000, '/admin');
+		Cookie::queue('uniacid',null,time() - 2160000,'/admin/shop');
+
     }
 
     /**
@@ -334,10 +336,10 @@ class Utils
     public static function addUniacid($uniacid = null)
     {
         if (is_null($uniacid)) {
-            $uniacid = request('uniacid');
+            $uniacid = request()->uniacid;
         }
+		Cookie::queue('uniacid',$uniacid,time() + 2160000, '/admin');
+		Cookie::queue('uniacid',$uniacid,time() + 2160000,'/admin/shop');
 
-        setcookie('uniacid', $uniacid, time() + 2160000, '/admin');
-        setcookie('uniacid', $uniacid, time() + 2160000, '/admin/shop');
     }
 }

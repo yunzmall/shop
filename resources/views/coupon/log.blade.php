@@ -130,29 +130,28 @@
             }
         },
         created() {
-
         },
         mounted() {
             this.getData(1);
         },
         methods: {
-            
             getData(page) {
                 console.log(this.times);
                 let that = this;
                 let json = {
-                    id:this.id,
                     page:page,
                     couponname:this.search_form.couponname,
                     nickname:this.search_form.nickname,
                     getfrom:this.search_form.getfrom || '',
                     timesearchswtich:this.search_form.timesearchswtich,
                 };
+                if(this.search_form.couponname != ''){
+                    json.id = this.id
+                }
                 if(this.times && this.times.length>0) {
                     json.time = [];
                     json.time = {start:this.times[0]/1000,end:this.times[1]/1000}
                 }
-                console.log(json)
                 let loading = this.$loading({target:document.querySelector(".content"),background: 'rgba(0, 0, 0, 0)'});
                 this.$http.post('{!! yzWebFullUrl('coupon.coupon.log') !!}',json).then(function(response) {
                     if (response.data.result) {
@@ -192,29 +191,68 @@
             },
             dataExport(){
                 var that = this;
-                console.log(that.search_form)
                 var url = "{!! yzWebFullUrl('coupon.coupon.export') !!}";
-                if (that.search_form.id) {
-                    url += "&id="+that.search_form.id;
-                }
-                if (that.search_form.getfrom) {
-                    url += "&getfrom="+that.search_form.getfrom;
-                }
-                if (that.search_form.couponname) {
+                var couponDataUrl = "{!! yzWebFullUrl('coupon.coupon.log') !!}";
+                that.search_form.id = that.id
+                const search_form = that.search_form;
+
+                if (search_form.couponname) {
                     url += "&couponname="+that.search_form.couponname;
+                    couponDataUrl += "&couponname="+that.search_form.couponname;
                 }
-                if (that.search_form.nickname) {
+
+                if (search_form.getfrom) {
+                    url += "&getfrom="+that.search_form.getfrom;
+                    couponDataUrl += "&getfrom="+that.search_form.getfrom;
+                }
+
+                if (search_form.nickname) {
                     url += "&nickname="+that.search_form.nickname;
+                    couponDataUrl += "&nickname="+that.search_form.nickname;
                 }
-                if (that.search_form.timesearchswtich) {
+
+                if (search_form.timesearchswtich) {
                     url += "&timesearchswtich="+that.search_form.timesearchswtich;
+                    couponDataUrl += "&timesearchswtich="+that.search_form.timesearchswtich;
                 }
+
+                if (search_form.id) {
+                    url += "&id="+search_form.id;
+                    couponDataUrl += "&id="+search_form.id;
+                }
+
                 if(this.times && this.times.length>0) {
                     url += "&start=" + this.times[0]/1000;
                     url += "&end=" + this.times[1]/1000
+                    couponDataUrl += "&start=" + this.times[0]/1000;
+                    couponDataUrl += "&end=" + this.times[1]/1000
                 }
-                console.log(url);
-               window.location.href = url;
+                // console.log(that.search_form)
+                this.$confirm('确认导出? (提示: 导出数据为当前搜索条件后的数据)', '提示', {
+                    confirmButtonText: '确定',
+                    cancelButtonText: '取消',
+                    type: 'warning'
+                }).then(async () => {
+                    let res = await this.$http.get(couponDataUrl)
+                    let couponDataCount = res.body.data.list.data.length ? res.body.data.list.data.length : 0
+                    if (couponDataCount > 0){
+                        this.$message({
+                            type: 'success',
+                            message: '导出中~, 请稍后!'
+                        });
+                        window.location.href = url;
+                    } else {
+                        this.$message({
+                            type: 'warning',
+                            message: '数据为空, 无法执行导出, 请确认搜索条件是否有数据.'
+                        });
+                    }
+                }).catch(() => {
+                    this.$message({
+                        type: 'info',
+                        message: '已取消导出'
+                    });
+                });
             },
 
             handleClick(val) {

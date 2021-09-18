@@ -23,12 +23,22 @@ use app\common\traits\CreateOrderSnTrait;
  */
 class SynchronizedBinder extends BaseModel
 {
- protected $table = 'yz_synchronized_binder';
-
+    protected $table = 'yz_synchronized_binder';
     protected $guarded = [''];
-
     public $timestamps = false;
 
+    public static function searchLog($search)
+    {
+        $model = self::uniacid();
 
+        if ($search['member_id']) {
+            $model->where('old_uid', $search['member_id']);
+        }
 
+        if ($search['mark_member_id']) {
+            $model->where('new_uid', $search['mark_member_id']);
+        }
+
+        return $model;
+    }
 }

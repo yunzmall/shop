@@ -10,6 +10,7 @@ namespace app\frontend\modules\payment\orderPayments;
 
 use app\common\models\OrderPay;
 use app\common\models\PayType;
+use app\common\services\password\PasswordService;
 use app\frontend\modules\payment\paymentSettings\OrderPaymentSettingCollection;
 
 /**
@@ -84,6 +85,10 @@ abstract class BasePayment
      */
     public function getName()
     {
+        if (app('plugins')->isEnabled('pay-manage')) {
+            return  \Yunshop\PayManage\models\PayType::currentPayAlias($this->payType->id);
+        }
+
         return $this->payType->name;
     }
 
@@ -97,7 +102,7 @@ abstract class BasePayment
             return false;
         }
         // 临时解决 只考虑了余额设置,后续需要改为setting中获取
-        return (bool)\Setting::get('shop.pay.balance_pay_proving');
+        return (new PasswordService())->isNeed('balance', 'pay');
     }
 
     public function getId()

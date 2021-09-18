@@ -7,12 +7,14 @@
  */
 namespace app\backend\modules\coupon\services;
 
+use app\common\models\Goods;
 use app\common\services\MessageService;
 use app\common\facades\Setting;
 use app\common\models\notice\MessageTemp;
 use app\common\models\Coupon;
 use app\backend\modules\member\models\Member;
 use app\common\services\SystemMsgService;
+use Yunshop\StoreCashier\common\models\Store;
 
 class MessageNotice extends MessageService
 {
@@ -43,6 +45,7 @@ class MessageNotice extends MessageService
             $coupon_mode['content'] = "打".floatval($coupon_mode['mode'])."折";
         }
 
+        $scope = '';
         //适用范围
         $coupon_scope = Coupon::getApplicableScope($couponDate->id);
         if($coupon_scope['type'] == 0) {
@@ -56,6 +59,23 @@ class MessageNotice extends MessageService
         } elseif ($coupon_scope['type'] == 4 || $coupon_scope['type'] == 5) {//4 多门店可用  5 单门店可用
             $goods_name = implode(',',Coupon::where('id', '=', $couponDate->id)->value('storenames'));
             $scope = "".$goods_name."门店可用";
+        } elseif ($coupon_scope['type'] == 9) {
+            $use_condition = unserialize(Coupon::where('id', '=', $couponDate->id)->value('use_conditions'));
+            if (empty($use_condition)) {
+                $scope = "无适用范围";
+            }
+            if (app('plugins')->isEnabled('store-cashier')) {
+                if ($use_condition['is_all_store'] == 1) {
+                    $scope .= "全部门店、";
+                } else {
+                    $scope = implode(',', Store::uniacid()->whereIn('id', $use_condition['store_ids'])->pluck('store_name')->all()).'、';
+                }
+            }
+            if ($use_condition['is_all_good'] == 1) {
+                $scope .= "平台自营商品";
+            } else {
+                $scope = implode(',', Goods::uniacid()->whereIn('id', $use_condition['good_ids'])->pluck('title')->all());
+            }
         }
 
         //结束时间

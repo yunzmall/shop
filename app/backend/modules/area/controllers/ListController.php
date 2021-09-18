@@ -16,6 +16,15 @@ use Illuminate\Database\Eloquent\Collection;
 class ListController extends BaseController
 {
 
+
+    public function openStreet()
+    {
+        $is_street = \Setting::get("shop.trade")['is_street']?1:0;
+
+        return $this->successJson('street', ['is_street' => $is_street]);
+    }
+
+
     public function index()
     {
         if($this->isStreet(request('parent_id'))){

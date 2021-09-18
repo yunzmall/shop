@@ -15,10 +15,12 @@ use app\common\events\order\AfterOrderPaidEvent;
 use app\common\events\order\AfterOrderPaidImmediatelyEvent;
 use app\common\events\order\AfterOrderReceivedEvent;
 use app\common\events\order\AfterOrderReceivedImmediatelyEvent;
+use app\common\events\order\AfterOrderRefundSuccessEvent;
 use app\common\events\order\AfterOrderSentImmediatelyEvent;
 use app\common\events\order\BeforeOrderCreateEvent;
 use app\common\exceptions\AppException;
 use app\common\facades\SiteSetting as SiteSettingFacades;
+use app\common\models\member\MemberCancel;
 use app\common\models\order\Express;
 use app\common\models\order\OrderChangePriceLog;
 use app\common\models\order\OrderCoinExchange;
@@ -107,7 +109,7 @@ use Yunshop\Supplier\common\models\InsuranceOrder;
  * @method static self orders(array $searchParam)
  * @method static self cancelled()
  */
-class Order extends BaseModel
+class   Order extends BaseModel
 {
     use HasProcessTrait, DispatchesJobs;
 
@@ -165,8 +167,8 @@ class Order extends BaseModel
     public function scopeHidePluginIds($query, $plugin_ids = [])
     {
         if (empty($plugin_ids)) {
-            //酒店订单、租赁订单、网约车订单、服务站补货订单、拼团订单、拼购订单、抢团订单
-            $plugin_ids = [33, 40, 41, 43, 54, 59,69,46];
+            //酒店订单、租赁订单、网约车订单、服务站补货订单、拼团订单、拼购订单、抢团订单、聚合CPS订单
+            $plugin_ids = [33, 40, 41, 43, 54, 59,69,46,70,106,96,77,78,115,74,99];
         }
 
         return $query->whereNotIn('plugin_id', $plugin_ids)->where('plugin_id', '<', '900');
@@ -406,6 +408,15 @@ class Order extends BaseModel
         return $this->hasOne(PayType::class, 'id', 'pay_type_id');
     }
 
+	/**
+	 * 代付记录
+	 * @return \Illuminate\Database\Eloquent\Relations\HasOne
+	 */
+	public function hasOneBehalfPay()
+	{
+		return $this->hasOne(OrderBehalfPayRecord::class, 'order_pay_id', 'order_pay_id');
+	}
+
     /**
      * 关联模型 1对1:订单支付信息
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
@@ -519,28 +530,20 @@ class Order extends BaseModel
      */
     public function getPayTypeNameAttribute()
     {
-
-        if ($this->pay_type_id != PayType::CASH_PAY && $this->status == self::WAIT_PAY) {
-            return '未支付';
-        }
-        if ($this->pay_type_id == 3) {
-            $set = \Setting::get('shop.shop');
-            return $set['credit'] ?: '余额';
-        }
-        return $this->hasOnePayType->name;
+		if ($this->pay_type_id != PayType::CASH_PAY && $this->status == self::WAIT_PAY) {
+			return '未支付';
+		}
+		$append = '';
+		if ($this->hasOneBehalfPay) {
+			$append = "（代付:{$this->hasOneBehalfPay->behalf_id}）";
+		}
+		if ($this->pay_type_id == 3) {
+			$set = \Setting::get('shop.shop');
+			return ($set['credit'] ?: '余额').$append;
+		}
+		return $this->hasOnePayType->name.$append;
     }
 
-    /**
-     * 订单后端操作按钮
-     * @return array
-     */
-    public function getBackendButtonModelsAttribute()
-    {
-
-        $result = (new \app\common\modules\order\BackendOrderOperationsCollector())->getOperations($this);
-
-        return $result;
-    }
 
     /**
      * 订单可点的按钮
@@ -573,16 +576,35 @@ class Order extends BaseModel
             ->HidePluginIds()
             ->groupBy('status')->get()->makeHidden(['status_name', 'pay_type_name', 'has_one_pay_type', 'button_models'])
             ->toArray();
+        $refund_status = [];
+        $icon = [
+            Order::REFUND => 'icon-fontclass-shouhouliebiao',
+            Order::WAIT_PAY => 'icon-fontclass-daifukuan',
+            Order::WAIT_SEND => 'icon-fontclass-daifahuo',
+            Order::WAIT_RECEIVE => 'icon-fontclass-daishouhuo1',
+            Order::COMPLETE => 'icon-fontclass-daishouhuo1',
+        ];
         if (in_array(Order::REFUND, $status)) {
             $refund_count = $query->refund()->count();
-            $status_counts[] = ['status' => Order::REFUND, 'total' => $refund_count];
+            $refund_status[] = [
+                'status' => Order::REFUND,
+                'status_name' => '售后列表',
+                'class' => $icon[Order::REFUND],
+                'total' => $refund_count
+            ];
         }
+        $status_counts = array_column($status_counts,null,'status');
         foreach ($status as $state) {
-            if (!in_array($state, array_column($status_counts, 'status'))) {
-                $status_counts[] = ['status' => $state, 'total' => 0];
+            if (!in_array($state,array_column($refund_status,'status'))) {
+                $refund_status[] = [
+                    'status' => $state,
+                    'status_name' => $this->getAllStatusAttribute()->where('id',$state)->first()['name']?:'',
+                    'class' => $icon[$state],
+                    'total' => $status_counts[$state]['total']?:0
+                ];
             }
         }
-        return $status_counts;
+        return $refund_status;
     }
 
     /**
@@ -710,6 +732,11 @@ class Order extends BaseModel
     public function orderPays()
     {
         return $this->belongsToMany(OrderPay::class, (new OrderPayOrder())->getTable(), 'order_id', 'order_pay_id');
+    }
+
+    public function memberCancel()
+    {
+        return $this->hasOne(MemberCancel::class, 'member_id', 'uid');
     }
 
     public function close()
@@ -943,9 +970,12 @@ class Order extends BaseModel
             $refundApply->uniacid = $this->uniacid;
             $refundApply->status = 0;
 
+
             if (!$refundApply->save()) {
                 throw  new AppException('后台申请退款失败');
             }
+
+            event(new AfterOrderRefundSuccessEvent($refundApply));
         } else {
             OrderService::orderForceClose(['order_id' => $this->id]);
         }
@@ -1081,5 +1111,37 @@ class Order extends BaseModel
             return $item['total'] * $hostCount;
         }
         return $diy_count * $hostCount;
+    }
+
+    /**
+     * 不发送消息通知的订单
+     * @return bool
+     */
+    public function notSendMessage() {
+        //酒店有自己的消息通知
+        if ($this->plugin_id == 33) {
+            return true;
+        }
+
+        //聚合CPS的订单（不包括卡券订单）是每天凌晨定时任务请求第三方数据创建的，不发送消息通知
+        if ($this->plugin_id == 70) {
+            return true;
+        }
+
+        //芸cps的订单为同步第三方订单，不发送消息通知
+        if ($this->plugin_id == 74) {
+            return true;
+        }
+
+
+    }
+
+    /**
+     * 是否盲盒订单(todo 已经有别的插件覆盖了原来的物流按钮配置，无法重写)
+     * @return bool
+     */
+    public function isBlindBox()
+    {
+        return $this->plugin_id == 107;
     }
 }

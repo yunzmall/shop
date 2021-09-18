@@ -38,10 +38,6 @@ class AddressUpdateController extends BaseController
 
         $new_address = $this->getAddressName($data);
 
-        if (($old_address == $new_address) && $orderAddress->mobile == $data['phone']) {
-            return $this->errorJson('信息与原来重复');
-        }
-
         $createData = [
             'uniacid' => \YunShop::app()->uniacid,
             'user_id' => intval(\YunShop::app()->uid),

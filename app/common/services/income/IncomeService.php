@@ -107,103 +107,39 @@ class IncomeService
     const RECOMMENDER                     = 94;
     const SUPERIOR_REWARD                 = 95;
     const SELL_AWARD                      = 96;
+    const EQUITY_REWARD                   = 97;
+    const STORE_CARD_INCOME               = 98;
+    const CONSUME_REWARD                  = 99;
+    const AGENCY_REWARD                      = 100;
+	const RANKING_AWARD                      = 102;
+    const RESERVE_FUND                       = 101;
+    const CIRCLE_VIDEO_BOUNS                 = 103;
+    const CIRCLE_INVITATION_REWARD           = 104;
+    const CIRCLE_ADD                         = 105;
+    const SCHOOL_COMPANY                     = 106;
+	const CONSUMER_REWARD                    = 109;
+    const INVEST_PEOPLE                      = 107;
+    const LIVE_INSTALL                       = 108;
+    const ROOM_CODE                          = 109;
+    const STORE_BUSINESS_ALLIANCE_RECOMMEND  = 110;
+    const STORE_BUSINESS_ALLIANCE_BUSINESS   = 111;
+    const STORE_BUSINESS_ALLIANCE_SERVICE    = 112;
+    const STORE_BUSINESS_ALLIANCE_OPERATION  = 113;
+    const STORE_BUSINESS_ALLIANCE_PRICE      = 114;
+    const STORE_BUSINESS_ALLIANCE_STORE      = 115;
+    const STORE_BUSINESS_ALLIANCE_SUPPORT    = 116;
+    const STORE_BUSINESS_ALLIANCE_TASK       = 117;
+    const STORE_BUSINESS_ALLIANCE_TEAM       = 118;
 
+    const NEW_RETAIL_REWARD                  = 119;
+    const NEW_RETAIL_RIGHT_REWARD            = 120;
+    const PLUGIN_PARENT_PAYMENT_COMMISSION   = 121;
+    const STORE_REWARDS                      = 122;
+    const ZHP_REWARD                         = 123;
+    const STORE_PROJECTS_ORDER               = 124;
+    const COMMISSION_EXTRA_BONUS             = 125;
+    const STORE_BALANCE_AWARD                = 126;
 
-    const INCOME_CONFIG_CLASS = [
-        self::COMMISSION_ORDER                  =>  'Yunshop\Commission\models\CommissionOrder',
-        self::TEAM_DIVIDEND                     =>  'Yunshop\TeamDividend\models\TeamDividendModel',
-        self::AGENT_DIVIDEND                    =>  'Yunshop\AgentDividend\common\models\AgentDividendModel',
-        self::APPOINTMENT_ORDER                 =>  'Yunshop\Appointment\common\models\AppointmentOrderService',
-        self::AREA_DIVIDEND                     =>  'Yunshop\AreaDividend\models\AreaDividend',
-        self::MEMBER_BONUS_RECORDS              =>  'Yunshop\Asset\Common\Models\MemberBonusRecordsModel',
-        self::SELL_RECORDS                      =>  'Yunshop\Asset\Common\Models\Digitization\SellRecordsModel',
-        self::AUCTION_BID_REWARD                =>  'Yunshop\Auction\models\AuctionBidReward',
-        self::AUCTION_PREPAYMENT                =>  'auction_prepayment',
-        self::CHANNEL_AWARD                     =>  'Yunshop\Channel\model\ChannelAward',
-        self::CLOCK_REWARD_LOG                  =>  'Yunshop\ClockIn\models\ClockRewardLogModel',
-        self::COMMISSION_ACTIVITY_REWARD        =>  'Yunshop\CommissionActivity\common\models\CommissionActivityReward',
-        self::COMMISSION_MANAGE_LOG             =>  'Yunshop\CommissionManage\common\models\CommissionManageLogModel',
-        self::CONSUME_RETURN                    =>  'Yunshop\ConsumeReturn\common\models\Log',
-        self::DELIVERY_STATION_DIVIDEND         =>  'Yunshop\DeliveryStation\models\DeliveryStationDividend',
-        self::DISTRIBUTOR_MANAGE                =>  'Yunshop\DistributorManage\models\DistributorManage',
-        self::DIY_QUEUE_LOG                     =>  'Yunshop\DiyQueue\common\models\DiyQueueLog',
-        self::TEAM_PERFORMANCE_STATISTICS_LOG   =>  'Yunshop\EliteAward\models\TeamPerformanceStatisticsLogModel',
-        self::ENERGY_CABIN                      =>  'Yunshop\EnergyCabin\models\Dividend',
-        self::FIXED_REWARD_LOG                  =>  'Yunshop\FixedReward\models\FixedRewardLog',
-        self::FROZE_WITH_DRAW                   =>  'Yunshop\Froze\Common\Models\FrozeWithdraw',
-        self::FULL_RETURN                       =>  'Yunshop\FullReturn\common\models\Log',
-        self::GLOBAL_DIVIDEND                   =>  'Yunshop\GlobalDividend\models\GlobalDividendModel',
-        self::HOTEL_CASHIER_ORDER               =>  'Yunshop\Hotel\common\models\CashierOrder',
-        self::HOTEL_ORDER                       =>  'Yunshop\Hotel\common\models\HotelOrder',
-        self::NOMINATE_BONUS                    =>  'Yunshop\Nominate\models\NominateBonus',
-        self::INTEGRAL_WITHDRAW                 =>  'Yunshop\Integral\Common\Models\IntegralWithdrawModel',
-        self::INTERESTS_DIVIDEND                =>  'Yunshop\InterestsDividend\models\InterestsDividendModel',
-        self::CONSUMPTION_RECORDS               =>  'Yunshop\IntervalConsumption\Common\models\ConsumptionRecords',
-        self::LEVEL_RETURN                      =>  'Yunshop\LevelReturn\models\LevelReturnModel',
-        self::LOVE_WITHDRAW_RECORDS             =>  'Yunshop\Love\Common\Models\LoveWithdrawRecords',
-        self::LOVE_RETURN_LOG                   =>  'Yunshop\Love\Common\Models\LoveReturnLogModel',
-        self::LOVE_TEAM_AWARD                   =>  'Yunshop\LoveTeam\model\LoveTeamAward',
-        self::MANAGE_AWARD_RECORDS              =>  'Yunshop\ManageAward\Common\Models\AwardRecordsModel',
-        self::MANAGEMENT_DIVIDEND               =>  'Yunshop\ManagementDividend\models\ManagementDividend',
-        self::MANUAL_LOG                        =>  'Yunshop\ManualBonus\models\ManualLog',
-        self::MEMBER_RETURN_LOG                 =>  'Yunshop\MemberReturn\common\models\Log',
-        self::MERCHANT_BONUS_LOG                =>  'Yunshop\Merchant\common\models\MerchantBonusLog',
-        self::MICRO_SHOP_BONUS_LOG              =>  'Yunshop\Micro\common\models\MicroShopBonusLog',
-        self::MICRO_COMMUNITIES_STICK_REWARD    =>  'Yunshop\MicroCommunities\models\MicroCommunitiesStickReward',
-        self::MEMBER_REFERRAL_AWARD             =>  'Yunshop\Mryt\common\models\MemberReferralAward',
-        self::MEMBER_TEAM_AWARD                 =>  'Yunshop\Mryt\common\models\MemberTeamAward',
-        self::ORDER_PARENTING_AWARD             =>  'Yunshop\Mryt\common\models\OrderParentingAward',
-        self::ORDER_TEAM_AWARD                  =>  'Yunshop\Mryt\common\models\OrderTeamAward',
-        self::TIER_AWARD                        =>  'Yunshop\Mryt\common\models\TierAward',
-        self::NET_CAR_DIVIDEND                  =>  'Yunshop\NetCar\models\NetCarDividend',
-        self::TEAM_PRIZE                        =>  'Yunshop\Nominate\models\TeamPrize',
-        self::ORDINARY_DIVIDEND                 =>  'Yunshop\OrdinaryDividend\models\RewardModel',
-        self::OZY_AWARD_RECORD                  =>  'Yunshop\Ozy\models\AwardRecordModel',
-        self::PACKAGE_DELIVER_BONUS             =>  'Yunshop\PackageDeliver\model\DeliverBonus',
-        self::PARTNER_REWARD_LOG                =>  'Yunshop\PartnerReward\common\models\PartnerRewardLogModel',
-        self::PENDING_ORDER_DIVIDEND            =>  'Yunshop\PendingOrder\models\PendingOrderDividend',
-        self::PERFORMANCE_BONUS                 =>  'Yunshop\Performance\common\model\PerformanceBonus',
-        self::PERIOD_RETURN_LOG                 =>  'Yunshop\PeriodReturn\model\PeriodLog',
-        self::POINT_ACTIVITY_AWARD_LOG          =>  'Yunshop\PointActivity\Common\Models\PointActivityAwardLog',
-        self::RED_PACKET_RECEIVE_LOGS           =>  'Yunshop\RedPacket\models\ReceiveLogsModel',
-        self::REVENUE_AWARD_BONUS               =>  'Yunshop\RevenueAward\model\IncomeBonusLogModel',
-        self::ROOM_BONUS_LOG                    =>  'Yunshop\Room\models\BonusLog',
-        self::SALES_COMMISSION                  =>  'Yunshop\SalesCommission\models\SalesCommission',
-        self::SCORING_DIVIDEND                  =>  'Yunshop\ScoringDividend\models\ScoringDividendModel',
-        self::SCORING_REWARD                    =>  'Yunshop\ScoringDividend\models\ScoringRewardModel',
-        self::SERVICE_STATION_DIVIDEND          =>  'Yunshop\ServiceStation\models\ServiceStationDividend',
-        self::SHARE_CHAIN_AWARD_LOG             =>  'Yunshop\ShareChain\common\model\ShareChainAwardLog',
-        self::SHAREHOLDER_DIVIDEND              =>  'Yunshop\ShareholderDividend\models\ShareholderDividendModel',
-        self::RETURN_SINGLE_LOG                 =>  'Yunshop\SingleReturn\models\ReturnSingleLog',
-        self::STORE_CASHIER_ORDER               =>  'Yunshop\StoreCashier\common\models\CashierOrder',
-        self::STORE_CASHIER_STORE_ORDER         =>  'Yunshop\StoreCashier\common\models\StoreOrder',
-        self::STORE_CASHIER_BOSS_ORDER          =>  'Yunshop\StoreCashier\common\models\BossOrder',
-        self::TEAM_MANAGE_BONUS                 =>  'Yunshop\TeamManage\common\model\Bonus',
-        self::TEAM_MANAGEMENT_LOG               =>  'Yunshop\TeamManagement\models\TeamManagementLogModel',
-        self::TEAM_RETURN_LOG                   =>  'Yunshop\TeamReturn\models\TeamReturnLog',
-        self::TEAM_REWARDS_ORDER                =>  'Yunshop\TeamRewards\common\models\TeamRewardsOrderModel',
-        self::TEAM_MEMBER_TASKS                 =>  'Yunshop\TeamRewards\common\models\TeamMemberTasksModel',
-        self::TEAM_SALES_BONUS                  =>  'Yunshop\TeamSales\common\models\TeamSalesModel',
-        self::LECTURER_REWARD_LOG               =>  'Yunshop\VideoDemand\models\LecturerRewardLogModel',
-        self::VIDEO_SHARE_BONUS                 =>  'Yunshop\VideoShare\common\model\Bonus',
-        self::WEIGHTED_DIVIDEND                 =>  'Yunshop\WeightedDividend\models\RewardModel',
-        self::TEAM_SZTT                         =>  'Yunshop\TeamSztt\models\TeamSzttModel',
-        self::TEAM_SIDEWAYS_WITHDRAW            =>  'Yunshop\TeamSideways\model\SidewaysWithdrawLog',
-        self::COLLAGE_BONUS                     =>  'Yunshop\Collage\models\BonusModel',
-        self::COLLAGE_AREA_DIVIDEND             =>  'Yunshop\Collage\models\AreaDividendModel',
-        self::CONSUME_RED_PACKET                =>  'Yunshop\ConsumeRedPacket\Common\Models\PondReceiveModel',
-        self::SNATCH_REWARD                     =>  'Yunshop\SnatchRegiment\models\SnatchReward',
-        self::REGIONAL_REWARD                   =>  'Yunshop\RegionalReward\Common\models\RecordModel',
-        self::CLOUD_WAREHOUSE                   =>  'Yunshop\CloudWarehouse\models\CloudWarehouseDividend',
-        self::STORE_SHAREHOLDER                 =>  'Yunshop\StoreShareholder\model\ShareholderBonusInfo',
-        self::ASSEMBLE                          =>  'Yunshop\Assemble\Common\Models\OrderBonusModel',
-        self::ASSEMBLE_WAGES                    =>  'Yunshop\Assemble\Common\Models\OrderWagesModel',
-        self::PERIOD_RETURN                     =>  'Yunshop\PeriodReturn\model\PeriodLog',
-        self::TEAM_FJYX                         =>  'Yunshop\TeamFjyx\models\TeamFjyxModel',
-        self::RECOMMENDER                       =>  'Yunshop\Recommender\models\RewardModel',
-        self::SUPERIOR_REWARD                   =>  'Yunshop\SuperiorReward\models\OrderBuyModel',
-        self::SELL_AWARD                        =>  'Yunshop\SellAward\model\AwardLog',
-    ];
 
     /**
      * @param $data 会员id：member_id，分红类型：dividend_code，分红表id：dividend_table_id，金额：amount，订单号：order_sn，详情：detail
@@ -228,12 +164,13 @@ class IncomeService
                 continue;
             }
             $uniacid = isset($data['uniacid'])?$data['uniacid']:\YunShop::app()->uniacid;
+            $type_name = isset($data['type_name'])?$data['type_name']:self::getDividendCodeName($data['dividend_code']);
             $all_income_data = [
                 'uniacid' => $uniacid,
                 'member_id' => $data['member_id'],
                 'dividend_code' => $data['dividend_code'],
                 'incometable_id' => $data['dividend_table_id'],
-                'type_name' => self::getDividendCodeName($data['dividend_code']),
+                'type_name' => $type_name,
                 'incometable_type' => self::getDividendClass($data['dividend_code']),
                 'amount' => $data['amount'],
                 'status' => 0,
@@ -252,6 +189,149 @@ class IncomeService
         return true;
     }
 
+    /**
+     * 获取自定义名称//推广中心01模板，收入占比中收入类型名称跟随插件自定义名称变化
+     * @param $code
+     * @return string
+     */
+    public static function dividendCodeCustomPluginName($code)
+    {
+        switch ($code) {
+            case self::COMMISSION_ORDER:
+                $set = \Setting::get('shop.lang', ['lang' => 'zh_cn']);
+                return $set[$set['lang']]['commission']['title'] ? $set[$set['lang']]['commission']['title'].'佣金' : self::getDividendCodeName($code);
+            case self::TEAM_DIVIDEND:
+                $set = \Setting::get('shop.lang', ['lang' => 'zh_cn']);
+                return $set[$set['lang']]['team_dividend']['title'] ? $set[$set['lang']]['team_dividend']['title'].'分红' : self::getDividendCodeName($code);
+            case self::AREA_DIVIDEND:
+                $set = \Setting::get('shop.lang', ['lang' => 'zh_cn']);
+                return $set[$set['lang']]['area_dividend']['title'] ? $set[$set['lang']]['area_dividend']['title'].'分红' : self::getDividendCodeName($code);
+            case self::MERCHANT_BONUS_LOG:
+                $set = \Setting::get('shop.lang', ['lang' => 'zh_cn']);
+                return $set[$set['lang']]['merchant']['title'] ? $set[$set['lang']]['merchant']['title'].'分红' : self::getDividendCodeName($code);
+            case self::CHANNEL_AWARD:
+                if (app('plugins')->isEnabled('channel')) {
+                    $set = \Setting::get('plugin.channel');
+                    return $set['plugin_name'] ? : self::getDividendCodeName($code);
+                }
+                break;
+            case self::CLOCK_REWARD_LOG:
+                if (app('plugins')->isEnabled('clock-in')) {
+                    $set = \Setting::get('plugin.clock_in');
+                    return $set['plugin_name'] ? : self::getDividendCodeName($code);
+                }
+                break;
+            case self::DIY_QUEUE_LOG:
+                if (app('plugins')->isEnabled('diy-queue')) {
+                    $set = \Setting::get('plugin.diy-queue');
+                    return $set['plugin_name'] ? : self::getDividendCodeName($code);
+                }
+                break;
+            case self::FROZE_WITH_DRAW:
+                if (app('plugins')->isEnabled('froze')) {
+                    $set = $set = array_pluck(\Setting::getAllByGroup('froze')->toArray(), 'value', 'key');
+                    return $set['name'] ? $set['name'].'提现' : self::getDividendCodeName($code);
+                }
+                break;
+            case self::FULL_RETURN:
+                if (app('plugins')->isEnabled('full-return')) {
+                    $set = \Setting::get('plugin.full-return');
+                    return $set['full_return_name'] ? : self::getDividendCodeName($code);
+                }
+                break;
+            case self::HOTEL_CASHIER_ORDER:
+            case self::HOTEL_ORDER:
+                if (app('plugins')->isEnabled('hotel')) {
+                    $set = \Setting::get('plugin.hotel');
+                    if ($code == self::HOTEL_CASHIER_ORDER) {
+                        $str = '收银台';
+                    } else {
+                        $str = '提现';
+                    }
+                    return $set['hotels'] ? $set['hotels'].$str : self::getDividendCodeName($code);
+                }
+                break;
+            case self::INTEGRAL_WITHDRAW:
+                if (app('plugins')->isEnabled('hotel')) {
+                    $set = array_pluck(\Setting::getAllByGroup('integral')->toArray(), 'value', 'key');
+                    return $set['plugin_name'] ? $set['plugin_name'].'提现' : self::getDividendCodeName($code);
+                }
+                break;
+            case self::LOVE_WITHDRAW_RECORDS:
+            case self::LOVE_RETURN_LOG:
+            case self::LOVE_TEAM_AWARD:
+            case self::PERIOD_RETURN_LOG:
+                if (app('plugins')->isEnabled('love')) {
+                    $set = \Setting::get('love');
+                    if ($code == self::LOVE_WITHDRAW_RECORDS) {
+                        $str = '提现';
+                    } elseif ($code == self::LOVE_RETURN_LOG) {
+                        $str = '返现';
+                    } elseif ($code == self::LOVE_RETURN_LOG) {
+                        $str = '团队奖励';
+                    } else {
+                        $str = '周期奖励';
+                    }
+                    return $set['name'] ? $set['name'].$str : self::getDividendCodeName($code);
+                }
+                break;
+            case self::MANUAL_LOG:
+                if (app('plugins')->isEnabled('manual-bonus')) {
+                    $set = \Setting::get('plugin.manual_bonus');
+                    return $set['name'] ? $set['name'].'分红' : self::getDividendCodeName($code);
+                }
+                break;
+            case self::PACKAGE_DELIVER_BONUS:
+                if (app('plugins')->isEnabled('package-deliver')) {
+                    $set = \Setting::get('plugin.package_deliver');
+                    return $set['customize_name'] ? $set['customize_name'].'奖励' : self::getDividendCodeName($code);
+                }
+                break;
+            case self::RED_PACKET_RECEIVE_LOGS:
+                if (app('plugins')->isEnabled('red-packet')) {
+                    $set = \Setting::get('plugin.red-packet');
+                    return $set['red_packet_title'] ? $set['red_packet_title'] : self::getDividendCodeName($code);
+                }
+                break;
+            case self::SHARE_CHAIN_AWARD_LOG:
+                if (app('plugins')->isEnabled('share-chain')) {
+                    $set = \Setting::get('plugin.shareChain');
+                    return $set['plugin_name'] ? $set['plugin_name'] : self::getDividendCodeName($code);
+                }
+                break;
+            case self::RETURN_SINGLE_LOG:
+                if (app('plugins')->isEnabled('single-return')) {
+                    $set = \Setting::get('shop.lang', ['lang' => 'zh_cn']);
+                    return $set[$set['lang']]['single_return']['title'] ? $set[$set['lang']]['single_return']['title'] : self::getDividendCodeName($code);
+                }
+                break;
+            case self::TEAM_RETURN_LOG:
+                if (app('plugins')->isEnabled('team-return')) {
+                    $set = \Setting::get('shop.lang', ['lang' => 'zh_cn']);
+                    return $set[$set['lang']]['team_return']['title'] ? $set[$set['lang']]['team_return']['title'] : self::getDividendCodeName($code);
+                }
+                break;
+            case self::ASSEMBLE://'安装服务分红',
+            case self::ASSEMBLE_WAGES://'安装服务工资',
+                if (app('plugins')->isEnabled('assemble')) {
+                    $set = \Setting::get('plugin.assemble');
+                    if ($code == self::ASSEMBLE) {
+                        $str = $set['assemble_name'] ? $set['assemble_name'].'分红' : self::getDividendCodeName($code);
+                    } else {
+                        $str = $set['assemble_worker_name'] ? $set['assemble_worker_name'].'工资' : self::getDividendCodeName($code);
+                    }
+                    return $str;
+                }
+                break;
+            case self::LIVE_INSTALL:
+                if (app('plugins')->isEnabled('live-install')) {
+                    $set = \Setting::get('plugin.live_install');
+                    return $set['plugin_name'] ? : self::getDividendCodeName($code);
+                }
+                break;
+        }
+        return self::getDividendCodeName($code);
+    }
 
     private static function getDividendCodeName($code)
     {
@@ -352,6 +432,37 @@ class IncomeService
             self::RECOMMENDER                           =>  '推荐官',
             self::SUPERIOR_REWARD                       =>  '上级奖',
             self::SELL_AWARD                            =>  '销售奖励',
+            self::EQUITY_REWARD                         =>  '权益奖励',
+            self::STORE_CARD_INCOME                     =>  '门店消费卡',
+            self::CIRCLE_VIDEO_BOUNS                    =>  '圈子视频分红',
+            self::CIRCLE_INVITATION_REWARD              =>  '圈子帖子打赏',
+            self::CIRCLE_ADD                            =>  '圈子加入圈子',
+            self::CONSUME_REWARD                        =>  '消费报销',
+            self::AGENCY_REWARD                         =>  '云库存代理商奖励',
+	        self::RANKING_AWARD                         =>  '推客排行榜奖励',
+            self::RESERVE_FUND                          =>  '储备金',
+            self::ROOM_CODE                             => '直播授权码',
+            self::SCHOOL_COMPANY                        =>  '一校一企',
+	        self::CONSUMER_REWARD                       =>  '消费奖励',
+            self::LIVE_INSTALL                          =>  '上门安装分红',
+            self::INVEST_PEOPLE                         =>  '招商专员',
+            self::NEW_RETAIL_REWARD                     =>  '新零售奖励',
+            self::NEW_RETAIL_RIGHT_REWARD               =>  '股权分红',
+            self::STORE_BUSINESS_ALLIANCE_RECOMMEND     =>  '店商联盟推荐奖',
+            self::STORE_BUSINESS_ALLIANCE_BUSINESS      =>  '店商联盟商家补贴',
+            self::STORE_BUSINESS_ALLIANCE_SERVICE       =>  '店商联盟服务奖',
+            self::STORE_BUSINESS_ALLIANCE_OPERATION     =>  '店商联盟运营奖',
+            self::STORE_BUSINESS_ALLIANCE_PRICE         =>  '店商联盟差价收益',
+            self::STORE_BUSINESS_ALLIANCE_STORE         =>  '店商联盟门店奖',
+            self::STORE_BUSINESS_ALLIANCE_SUPPORT       =>  '店商联盟帮扶奖',
+            self::STORE_BUSINESS_ALLIANCE_TASK          =>  '店商联盟任务奖',
+            self::STORE_BUSINESS_ALLIANCE_TEAM          =>  '店商联盟团队提成',
+            self::PLUGIN_PARENT_PAYMENT_COMMISSION      =>  '上级代付佣金',
+	        self::STORE_REWARDS                         =>  '门店奖励',
+            self::STORE_PROJECTS_ORDER                  =>  '多门店核销',
+	        self::ZHP_REWARD                            =>  '珍惠拼奖励',
+	        self::STORE_BALANCE_AWARD                   =>  '门店余额充值奖励',
+	        self::COMMISSION_EXTRA_BONUS                =>  '分销额外分红',
         ];
         return $income_config_desc[$code];
     }
@@ -451,10 +562,168 @@ class IncomeService
             self::TEAM_FJYX                         =>  'Yunshop\TeamFjyx\models\TeamFjyxModel',
             self::RECOMMENDER                       =>  'Yunshop\Recommender\models\RewardModel',
             self::SUPERIOR_REWARD                   =>  'Yunshop\SuperiorReward\models\OrderBuyModel',
-            self::SELL_AWARD                   =>  'Yunshop\SellAward\model\AwardLog',
-        ];
+            self::SELL_AWARD                        =>  'Yunshop\SellAward\model\AwardLog',
+            self::EQUITY_REWARD                     =>  'Yunshop\EquityReward\models\EquityReward',
+            self::STORE_CARD_INCOME                 =>  'Yunshop\StoreCard\Common\Models\CardIncomeModel',
+            self::CIRCLE_VIDEO_BOUNS                =>  'Yunshop\Circle\common\model\CircleVideoBonus',
+            self::CIRCLE_INVITATION_REWARD          =>  'Yunshop\Circle\common\model\CircleReward',
+            self::CIRCLE_ADD                        =>  'Yunshop\Circle\common\model\CirclePayLog',
+            self::CONSUME_REWARD                    =>  'Yunshop\ConsumeReward\models\RewardLog',
+            self::AGENCY_REWARD                     =>  'Yunshop\Agency\models\AgencyModel',
+	        self::RANKING_AWARD                     =>  'Yunshop\CommissionRanking\models\CommissionOrder',
+            self::RESERVE_FUND                      =>  'Yunshop\ReserveFund\models\ReserveFundBonusModel',
+            self::ROOM_CODE                         =>  'Yunshop\Room\models\CodeUsed',
+            self::SCHOOL_COMPANY                    =>  'Yunshop\SchoolCompany\models\IncomeModel',
+	        self::CONSUMER_REWARD                   =>  'Yunshop\ConsumerReward\common\models\ConsumerRewardRecordModel',
+            self::LIVE_INSTALL                      =>  'Yunshop\LiveInstall\models\WorkerReward',
+            self::INVEST_PEOPLE                     =>  'Yunshop\InvestPeople\models\Dividend',
+            self::NEW_RETAIL_REWARD                 =>  'Yunshop\NewRetail\models\RewardModel',
+            self::NEW_RETAIL_RIGHT_REWARD           =>  'Yunshop\NewRetail\models\StockRightReward',
+            self::STORE_BUSINESS_ALLIANCE_RECOMMEND =>  'Yunshop\StoreBusinessAlliance\models\StoreBusinessAllianceRecommendAwardModel',
+            self::STORE_BUSINESS_ALLIANCE_BUSINESS  =>  'Yunshop\StoreBusinessAlliance\models\StoreBusinessAllianceBusinessAwardModel',
+            self::STORE_BUSINESS_ALLIANCE_SERVICE   =>  'Yunshop\StoreBusinessAlliance\models\StoreBusinessAllianceServiceAwardModel',
+            self::STORE_BUSINESS_ALLIANCE_OPERATION =>  'Yunshop\StoreBusinessAlliance\models\StoreBusinessAllianceOperationAwardModel',
+            self::STORE_BUSINESS_ALLIANCE_PRICE     =>  'Yunshop\StoreBusinessAlliance\models\StoreBusinessAlliancePriceDifferenceAwardModel',
+            self::STORE_BUSINESS_ALLIANCE_STORE     =>  'Yunshop\StoreBusinessAlliance\models\StoreBusinessAllianceStoreAwardModel',
+            self::STORE_BUSINESS_ALLIANCE_SUPPORT   =>  'Yunshop\StoreBusinessAlliance\models\StoreBusinessAllianceSupportAwardModel',
+            self::STORE_BUSINESS_ALLIANCE_TASK      =>  'Yunshop\StoreBusinessAlliance\models\StoreBusinessAllianceTaskAwardModel',
+            self::STORE_BUSINESS_ALLIANCE_TEAM      =>  'Yunshop\StoreBusinessAlliance\models\StoreBusinessAllianceTeamAwardModel',
+            self::PLUGIN_PARENT_PAYMENT_COMMISSION  =>  'Yunshop\ParentPayment\common\models\BehalfOrderModel',
+	        self::STORE_REWARDS                     =>  'Yunshop\StoreRewards\common\models\StoreRewardsRecord',
+            self::STORE_PROJECTS_ORDER              =>  'Yunshop\StoreProjects\common\models\ProjectsOrderService',
+	        self::ZHP_REWARD                        =>  'Yunshop\ZhpGroupLottery\models\ZhpRewardLogModel',
+	        self::STORE_BALANCE_AWARD               =>  'Yunshop\StoreBalance\model\BalanceAward',
+	        self::COMMISSION_EXTRA_BONUS            =>  'Yunshop\CommissionExtra\models\CommissionExtraBonusModel',
+            ];
         return $income_config_class[$code];
     }
 
-
+    public static function getClass()
+    {
+        return [
+            self::COMMISSION_ORDER                  =>  'Yunshop\Commission\models\CommissionOrder',
+            self::TEAM_DIVIDEND                     =>  'Yunshop\TeamDividend\models\TeamDividendModel',
+            self::AGENT_DIVIDEND                    =>  'Yunshop\AgentDividend\common\models\AgentDividendModel',
+            self::APPOINTMENT_ORDER                 =>  'Yunshop\Appointment\common\models\AppointmentOrderService',
+            self::AREA_DIVIDEND                     =>  'Yunshop\AreaDividend\models\AreaDividend',
+            self::MEMBER_BONUS_RECORDS              =>  'Yunshop\Asset\Common\Models\MemberBonusRecordsModel',
+            self::SELL_RECORDS                      =>  'Yunshop\Asset\Common\Models\Digitization\SellRecordsModel',
+            self::AUCTION_BID_REWARD                =>  'Yunshop\Auction\models\AuctionBidReward',
+            self::AUCTION_PREPAYMENT                =>  'auction_prepayment',
+            self::CHANNEL_AWARD                     =>  'Yunshop\Channel\model\ChannelAward',
+            self::CLOCK_REWARD_LOG                  =>  'Yunshop\ClockIn\models\ClockRewardLogModel',
+            self::COMMISSION_ACTIVITY_REWARD        =>  'Yunshop\CommissionActivity\common\models\CommissionActivityReward',
+            self::COMMISSION_MANAGE_LOG             =>  'Yunshop\CommissionManage\common\models\CommissionManageLogModel',
+            self::CONSUME_RETURN                    =>  'Yunshop\ConsumeReturn\common\models\Log',
+            self::DELIVERY_STATION_DIVIDEND         =>  'Yunshop\DeliveryStation\models\DeliveryStationDividend',
+            self::DISTRIBUTOR_MANAGE                =>  'Yunshop\DistributorManage\models\DistributorManage',
+            self::DIY_QUEUE_LOG                     =>  'Yunshop\DiyQueue\common\models\DiyQueueLog',
+            self::TEAM_PERFORMANCE_STATISTICS_LOG   =>  'Yunshop\EliteAward\models\TeamPerformanceStatisticsLogModel',
+            self::ENERGY_CABIN                      =>  'Yunshop\EnergyCabin\models\Dividend',
+            self::FIXED_REWARD_LOG                  =>  'Yunshop\FixedReward\models\FixedRewardLog',
+            self::FROZE_WITH_DRAW                   =>  'Yunshop\Froze\Common\Models\FrozeWithdraw',
+            self::FULL_RETURN                       =>  'Yunshop\FullReturn\common\models\Log',
+            self::GLOBAL_DIVIDEND                   =>  'Yunshop\GlobalDividend\models\GlobalDividendModel',
+            self::HOTEL_CASHIER_ORDER               =>  'Yunshop\Hotel\common\models\CashierOrder',
+            self::HOTEL_ORDER                       =>  'Yunshop\Hotel\common\models\HotelOrder',
+            self::NOMINATE_BONUS                    =>  'Yunshop\Nominate\models\NominateBonus',
+            self::INTEGRAL_WITHDRAW                 =>  'Yunshop\Integral\Common\Models\IntegralWithdrawModel',
+            self::INTERESTS_DIVIDEND                =>  'Yunshop\InterestsDividend\models\InterestsDividendModel',
+            self::CONSUMPTION_RECORDS               =>  'Yunshop\IntervalConsumption\Common\models\ConsumptionRecords',
+            self::LEVEL_RETURN                      =>  'Yunshop\LevelReturn\models\LevelReturnModel',
+            self::LOVE_WITHDRAW_RECORDS             =>  'Yunshop\Love\Common\Models\LoveWithdrawRecords',
+            self::LOVE_RETURN_LOG                   =>  'Yunshop\Love\Common\Models\LoveReturnLogModel',
+            self::LOVE_TEAM_AWARD                   =>  'Yunshop\LoveTeam\model\LoveTeamAward',
+            self::MANAGE_AWARD_RECORDS              =>  'Yunshop\ManageAward\Common\Models\AwardRecordsModel',
+            self::MANAGEMENT_DIVIDEND               =>  'Yunshop\ManagementDividend\models\ManagementDividend',
+            self::MANUAL_LOG                        =>  'Yunshop\ManualBonus\models\ManualLog',
+            self::MEMBER_RETURN_LOG                 =>  'Yunshop\MemberReturn\common\models\Log',
+            self::MERCHANT_BONUS_LOG                =>  'Yunshop\Merchant\common\models\MerchantBonusLog',
+            self::MICRO_SHOP_BONUS_LOG              =>  'Yunshop\Micro\common\models\MicroShopBonusLog',
+            self::MICRO_COMMUNITIES_STICK_REWARD    =>  'Yunshop\MicroCommunities\models\MicroCommunitiesStickReward',
+            self::MEMBER_REFERRAL_AWARD             =>  'Yunshop\Mryt\common\models\MemberReferralAward',
+            self::MEMBER_TEAM_AWARD                 =>  'Yunshop\Mryt\common\models\MemberTeamAward',
+            self::ORDER_PARENTING_AWARD             =>  'Yunshop\Mryt\common\models\OrderParentingAward',
+            self::ORDER_TEAM_AWARD                  =>  'Yunshop\Mryt\common\models\OrderTeamAward',
+            self::TIER_AWARD                        =>  'Yunshop\Mryt\common\models\TierAward',
+            self::NET_CAR_DIVIDEND                  =>  'Yunshop\NetCar\models\NetCarDividend',
+            self::TEAM_PRIZE                        =>  'Yunshop\Nominate\models\TeamPrize',
+            self::ORDINARY_DIVIDEND                 =>  'Yunshop\OrdinaryDividend\models\RewardModel',
+            self::OZY_AWARD_RECORD                  =>  'Yunshop\Ozy\models\AwardRecordModel',
+            self::PACKAGE_DELIVER_BONUS             =>  'Yunshop\PackageDeliver\model\DeliverBonus',
+            self::PARTNER_REWARD_LOG                =>  'Yunshop\PartnerReward\common\models\PartnerRewardLogModel',
+            self::PENDING_ORDER_DIVIDEND            =>  'Yunshop\PendingOrder\models\PendingOrderDividend',
+            self::PERFORMANCE_BONUS                 =>  'Yunshop\Performance\common\model\PerformanceBonus',
+            self::PERIOD_RETURN_LOG                 =>  'Yunshop\PeriodReturn\model\PeriodLog',
+            self::POINT_ACTIVITY_AWARD_LOG          =>  'Yunshop\PointActivity\Common\Models\PointActivityAwardLog',
+            self::RED_PACKET_RECEIVE_LOGS           =>  'Yunshop\RedPacket\models\ReceiveLogsModel',
+            self::REVENUE_AWARD_BONUS               =>  'Yunshop\RevenueAward\model\IncomeBonusLogModel',
+            self::ROOM_BONUS_LOG                    =>  'Yunshop\Room\models\BonusLog',
+            self::SALES_COMMISSION                  =>  'Yunshop\SalesCommission\models\SalesCommission',
+            self::SCORING_DIVIDEND                  =>  'Yunshop\ScoringDividend\models\ScoringDividendModel',
+            self::SCORING_REWARD                    =>  'Yunshop\ScoringDividend\models\ScoringRewardModel',
+            self::SERVICE_STATION_DIVIDEND          =>  'Yunshop\ServiceStation\models\ServiceStationDividend',
+            self::SHARE_CHAIN_AWARD_LOG             =>  'Yunshop\ShareChain\common\model\ShareChainAwardLog',
+            self::SHAREHOLDER_DIVIDEND              =>  'Yunshop\ShareholderDividend\models\ShareholderDividendModel',
+            self::RETURN_SINGLE_LOG                 =>  'Yunshop\SingleReturn\models\ReturnSingleLog',
+            self::STORE_CASHIER_ORDER               =>  'Yunshop\StoreCashier\common\models\CashierOrder',
+            self::STORE_CASHIER_STORE_ORDER         =>  'Yunshop\StoreCashier\common\models\StoreOrder',
+            self::STORE_CASHIER_BOSS_ORDER          =>  'Yunshop\StoreCashier\common\models\BossOrder',
+            self::TEAM_MANAGE_BONUS                 =>  'Yunshop\TeamManage\common\model\Bonus',
+            self::TEAM_MANAGEMENT_LOG               =>  'Yunshop\TeamManagement\models\TeamManagementLogModel',
+            self::TEAM_RETURN_LOG                   =>  'Yunshop\TeamReturn\models\TeamReturnLog',
+            self::TEAM_REWARDS_ORDER                =>  'Yunshop\TeamRewards\common\models\TeamRewardsOrderModel',
+            self::TEAM_MEMBER_TASKS                 =>  'Yunshop\TeamRewards\common\models\TeamMemberTasksModel',
+            self::TEAM_SALES_BONUS                  =>  'Yunshop\TeamSales\common\models\TeamSalesModel',
+            self::LECTURER_REWARD_LOG               =>  'Yunshop\VideoDemand\models\LecturerRewardLogModel',
+            self::VIDEO_SHARE_BONUS                 =>  'Yunshop\VideoShare\common\model\Bonus',
+            self::WEIGHTED_DIVIDEND                 =>  'Yunshop\WeightedDividend\models\RewardModel',
+            self::TEAM_SZTT                         =>  'Yunshop\TeamSztt\models\TeamSzttModel',
+            self::TEAM_SIDEWAYS_WITHDRAW            =>  'Yunshop\TeamSideways\model\SidewaysWithdrawLog',
+            self::COLLAGE_BONUS                     =>  'Yunshop\Collage\models\BonusModel',
+            self::COLLAGE_AREA_DIVIDEND             =>  'Yunshop\Collage\models\AreaDividendModel',
+            self::CONSUME_RED_PACKET                =>  'Yunshop\ConsumeRedPacket\Common\Models\PondReceiveModel',
+            self::SNATCH_REWARD                     =>  'Yunshop\SnatchRegiment\models\SnatchReward',
+            self::REGIONAL_REWARD                   =>  'Yunshop\RegionalReward\Common\models\RecordModel',
+            self::CLOUD_WAREHOUSE                   =>  'Yunshop\CloudWarehouse\models\CloudWarehouseDividend',
+            self::STORE_SHAREHOLDER                 =>  'Yunshop\StoreShareholder\model\ShareholderBonusInfo',
+            self::ASSEMBLE                          =>  'Yunshop\Assemble\Common\Models\OrderBonusModel',
+            self::ASSEMBLE_WAGES                    =>  'Yunshop\Assemble\Common\Models\OrderWagesModel',
+            self::PERIOD_RETURN                     =>  'Yunshop\PeriodReturn\model\PeriodLog',
+            self::TEAM_FJYX                         =>  'Yunshop\TeamFjyx\models\TeamFjyxModel',
+            self::RECOMMENDER                       =>  'Yunshop\Recommender\models\RewardModel',
+            self::SUPERIOR_REWARD                   =>  'Yunshop\SuperiorReward\models\OrderBuyModel',
+            self::SELL_AWARD                        =>  'Yunshop\SellAward\model\AwardLog',
+            self::EQUITY_REWARD                     =>  'Yunshop\EquityReward\models\EquityReward',
+            self::STORE_CARD_INCOME                 =>  'Yunshop\StoreCard\Common\Models\CardIncomeModel',
+            self::CIRCLE_VIDEO_BOUNS                =>  'Yunshop\Circle\common\model\CircleVideoBonus',
+            self::CIRCLE_INVITATION_REWARD          =>  'Yunshop\Circle\common\model\CircleReward',
+            self::CIRCLE_ADD                        =>  'Yunshop\Circle\common\model\CirclePayLog',
+            self::CONSUME_REWARD                    =>  'Yunshop\ConsumeReward\models\RewardLog',
+            self::AGENCY_REWARD                     =>  'Yunshop\Agency\models\AgencyModel',
+            self::RANKING_AWARD                     => 'Yunshop\CommissionRanking\models\CommissionOrder',
+            self::RESERVE_FUND                      =>  'Yunshop\ReserveFund\models\ReserveFundBonusModel',
+            self::ROOM_CODE                         =>  'Yunshop\Room\models\CodeUsed',
+            self::SCHOOL_COMPANY                    =>  'Yunshop\SchoolCompany\models\IncomeModel',
+            self::LIVE_INSTALL                      =>  'Yunshop\LiveInstall\models\WorkerReward',
+            self::INVEST_PEOPLE                     =>  'Yunshop\InvestPeople\models\Dividend',
+            self::NEW_RETAIL_REWARD                 =>  'Yunshop\NewRetail\models\RewardModel',
+            self::NEW_RETAIL_RIGHT_REWARD           =>  'Yunshop\NewRetail\models\StockRightReward',
+            self::STORE_BUSINESS_ALLIANCE_RECOMMEND =>  'Yunshop\StoreBusinessAlliance\models\RecommendAward',
+            self::STORE_BUSINESS_ALLIANCE_BUSINESS  =>  'Yunshop\StoreBusinessAlliance\models\BusinessAward',
+            self::STORE_BUSINESS_ALLIANCE_SERVICE   =>  'Yunshop\StoreBusinessAlliance\models\ServiceAward',
+            self::STORE_BUSINESS_ALLIANCE_OPERATION =>  'Yunshop\StoreBusinessAlliance\models\OperationAward',
+            self::STORE_BUSINESS_ALLIANCE_PRICE     =>  'Yunshop\StoreBusinessAlliance\models\PriceDifferenceAward',
+            self::STORE_BUSINESS_ALLIANCE_STORE     =>  'Yunshop\StoreBusinessAlliance\models\StoreAward',
+            self::STORE_BUSINESS_ALLIANCE_SUPPORT   =>  'Yunshop\StoreBusinessAlliance\models\SupportAward',
+            self::STORE_BUSINESS_ALLIANCE_TASK      =>  'Yunshop\StoreBusinessAlliance\models\TaskAward',
+            self::STORE_BUSINESS_ALLIANCE_TEAM      =>  'Yunshop\StoreBusinessAlliance\models\TeamAward',
+            self::PLUGIN_PARENT_PAYMENT_COMMISSION  =>  'Yunshop\ParentPayment\common\models\BehalfOrderModel',
+	        self::STORE_REWARDS                     =>  'Yunshop\StoreRewards\common\models\StoreRewardsRecord',
+            self::STORE_PROJECTS_ORDER              =>  'Yunshop\StoreProjects\common\models\ProjectsOrderService',
+	        self::ZHP_REWARD                        =>  'Yunshop\ZhpGroupLottery\models\ZhpRewardLogModel',
+	        self::STORE_BALANCE_AWARD               =>  'Yunshop\StoreBalance\model\BalanceAward',
+            self::COMMISSION_EXTRA_BONUS            =>  'Yunshop\CommissionExtra\models\CommissionExtraBonusModel',
+        ];
+    }
 }

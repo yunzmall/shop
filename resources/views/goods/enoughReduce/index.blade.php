@@ -6,7 +6,7 @@
 <div class="all">
     <div id="app" v-cloak>
         <div class="vue-main">
-            
+
             <div class="vue-main-title">
                 <div class="vue-main-title-left"></div>
                 <div class="vue-main-title-content">满额优惠设置</div>
@@ -47,7 +47,7 @@
                                 </el-col>
 
                                 <el-col :span="3">
-                                    <el-button plain size="mini" @click="remove(this)">x</el-button>
+                                    <el-button plain size="mini" @click="remove(index)">x</el-button>
                                 </el-col>
                             </el-row>
                         </el-form-item>
@@ -121,10 +121,10 @@
             </div>
         </div>
     </div>
-</div>  
+</div>
 
         <div id="test-vue">
-            
+
         </div>
 
 
@@ -194,9 +194,10 @@
                         }
                     )
                 },
-                remove(item) {
-                    let i = this.form.enoughReduce.indexOf(item)
-                    this.form.enoughReduce.splice(i, 1)
+                remove(itemIndex) {
+                    // let i = this.form.enoughReduce.indexOf(item)
+                    // console.log(this.form.enoughReduce,i,item);
+                    this.form.enoughReduce.splice(itemIndex, 1)
                 },
                 onSubmit() {
                     if (this.formLoading) {

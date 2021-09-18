@@ -36,7 +36,7 @@ class WechatJsapiPaySetting extends BaseSetting
             return false;
         }
         $face_setting = \Setting::get('plugin.face-payment');
-        if (!$face_setting['switch'] || !$face_setting['method']['weixin'] || $face_setting['button']['wechat']) {
+        if (!$face_setting['switch'] || !$face_setting['method']['weixin'] || $face_setting['button']['wechat'] || $face_setting['shop_button']['wechat']) {
             return false;
         }
         return \Setting::get('shop.wechat_set') !== null;

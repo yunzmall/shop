@@ -291,7 +291,7 @@
                                 <label class="col-xs-12 col-sm-3 col-md-2 control-label"></label>
                                 <div class="col-sm-9 col-xs-12">
                                     <div class="alipay">
-                                        <label class='radio-inline'>手动提现</label>
+                                        <label class='radio-inline'>{{\Setting::get('shop.lang.zh_cn.income.manual_withdrawal')?:'手动提现'}}</label>
                                     </div>
                                     <div class="switch">
                                         <label class='radio-inline'>

@@ -3,6 +3,7 @@
 
 namespace app\framework\Cron;
 
+use app\common\services\SystemMsgService;
 use Illuminate\Support\Facades\Redis;
 
 /**
@@ -213,6 +214,7 @@ class Cron
             }
 
             // For all defined cron jobs run this
+            self::log('info',  $checkTime->getTimestamp() .' 定时任务开始');
             foreach (self::$cronJobs as $job) {
 
                 // If the job is enabled and if the time for this job has come
@@ -234,7 +236,8 @@ class Cron
                         self::log('info',  $job['name'] .' finish');
                     } catch (\Exception $e) {
                         // If an uncaught exception occurs
-                        $return = get_class($e) . ' in job ' . $job['name'] . ': ' . $e->getMessage();
+						SystemMsgService::addWorkMessage(['title'=>'定时任务执行错误','content'=>"{$job['name']}:{$e->getMessage()}"]);
+						$return = get_class($e) . ' in job ' . $job['name'] . ': ' . $e->getMessage();
                         self::log('error', get_class($e) . ' in job ' . $job['name'] . ': ' . $e->getMessage() . "\r\n" . $e->getTraceAsString());
                     }
 
@@ -259,7 +262,7 @@ class Cron
                 }
 
             }
-
+            self::log('info',  $checkTime->getTimestamp() .' 定时任务结束');
             // Get the end runtime after all cron job executions
             $afterAll = microtime(true);
 // todo log中记录执行时间

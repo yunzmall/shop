@@ -53,6 +53,11 @@ class HostManager
         return $result;
     }
 
+    public function pidKey()
+	{
+		return $this->localhost()->pidKeys();
+	}
+
     public function show()
     {
         $result = new Collection();

@@ -67,7 +67,7 @@
 }
     </style>
     <div id='re_content' >
-    <div class="vue-crumbs">    
+    <div class="vue-crumbs">
                 <a @click="goBack">系统</a> > 商城设置 > 幻灯片 > 添加幻灯片
     </div>
         <div class="con">
@@ -82,17 +82,18 @@
                             <el-input v-model="form.slide_name"  style="width:70%;"></el-input>
                         </el-form-item>
                         <el-form-item label="幻灯片图片" prop="head_img_url">
-                            <div class="upload-box" @click="openUpload('thumb')" v-if="!form.thumb_url">
+                            <div class="upload-box" @click="openUpload('thumb',1,'one')" v-if="!form.thumb_url">
                                 <i class="el-icon-plus" style="font-size:32px"></i>
                             </div>
-                            <div @click="openUpload('thumb')" class="upload-boxed" v-if="form.thumb_url" style="height:75px;">
+                            <div @click="openUpload('thumb',1,'one')" class="upload-boxed" v-if="form.thumb_url" style="height:75px;">
                                 <img :src="form.thumb_url" alt="" style="width:150px;height:75px;border-radius: 5px;cursor: pointer;">
                                 <div class="upload-boxed-text">点击重新上传</div>
                                 <i class="el-icon-close" @click.stop="clearImg('thumb')" title="点击清除图片"></i>
                             </div>
                             <div class="tip">建议尺寸:640 * 350 , 请将所有幻灯片图片尺寸保持一致</div>
                         </el-form-item>
-                        <upload-img :upload-show="uploadShow" :name="chooseImgName" @replace="changeProp" @sure="sureImg"></upload-img>
+                        <!-- <upload-img :upload-show="uploadShow" :name="chooseImgName" @replace="changeProp" @sure="sureImg"></upload-img> -->
+                        <upload-multimedia-img :upload-show="uploadShow" :type="type" :name="chooseImgName" :sel-Num="selNum" @replace="changeProp" @sure="sureImg"></upload-multimedia-img>
                         <el-form-item label="幻灯片链接">
                             <el-input v-model="form.link"  style="width:70%;"></el-input><el-button @click="show=true" style="margin-left:10px;">选择链接</el-button>
                         </el-form-item>
@@ -109,7 +110,6 @@
                                 </el-switch>
                             </template>
                         </el-form-item>
-                   
                 </div>
             </div>
             <div class="confirm-btn">
@@ -122,13 +122,15 @@
     </div>
     @include('public.admin.pop')
     @include('public.admin.program')
-    @include('public.admin.uploadImg') 
+    @include('public.admin.uploadMultimediaImg')
     <script>
         var vm = new Vue({
             el: "#re_content",
             delimiters: ['[[', ']]'],
             data() {
                 return {
+                    type:'',
+                    selNum:'',
                     activeName: 'first',
                     show:false,//是否开启公众号弹窗
                     pro:false ,//是否开启小程序弹窗
@@ -163,24 +165,31 @@
                 goBack() {
                 window.location.href = `{!! yzWebFullUrl('setting.shop.index') !!}`;
                 },
-                openUpload(str) {
-                   
+                openUpload(str,type,sel) {
                    this.chooseImgName = str;
                    this.uploadShow = true;
+                   this.type = type;
+                   this.selNum = sel
                 },
                 changeProp(val) {
-                            if(val == true) {
-                                this.uploadShow = false;
-                            }
-                            else {
-                                this.uploadShow = true;
-                            }
-                        },
-                sureImg(name,image,image_url) {
-                            this.form[name] = image;
-                            this.form[name+'_url'] = image_url;
-                            console.log(this.form)
+                    if(val == true) {
+                        this.uploadShow = false;
+                    }
+                    else {
+                        this.uploadShow = true;
+                    }
                 },
+                sureImg(name,uploadShow,fileList) {
+                if(fileList.length <= 0) {
+                    return
+                }
+                console.log(name)
+                console.log(fileList)
+                this.form[name] =fileList[0].attachment;
+                this.form[name+'_url'] = fileList[0].url;
+                console.log(this.form[name],'aaaaa')
+                console.log( this.form[name+'_url'],'bbbbb')
+            },
                 //弹窗显示与隐藏的控制
                 changeProp1(item){
                     this.show=item;

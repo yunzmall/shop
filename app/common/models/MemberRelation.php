@@ -12,6 +12,7 @@ namespace app\common\models;
 
 use app\common\events\member\MemberCreateRelationEvent;
 use app\common\events\member\MemberFirstChilderenEvent;
+use app\common\events\member\MemberNewOfflineEvent;
 use app\common\events\member\MemberRelationEvent;
 use app\common\events\MessageEvent;
 use app\common\models\notice\MessageTemp;
@@ -267,6 +268,7 @@ class MemberRelation extends BaseModel
 
                     //notice
                     self::sendAgentNotify($member->member_id, $mid);
+                    event(new MemberNewOfflineEvent($member->member_id,$mid));//新增下线事件
                 } else {
                     \Log::debug(sprintf('会员id-%d未确定上线id-%d', $model->member_id, $mid));
                     $model->inviter = 0;
@@ -357,6 +359,7 @@ class MemberRelation extends BaseModel
 
                         //message notice
                         self::sendAgentNotify($member->member_id, $parent->member_id);
+                        event(new MemberNewOfflineEvent($member->member_id,$parent->member_id));//新增下线事件
                     }
                 }
             }
@@ -423,6 +426,7 @@ class MemberRelation extends BaseModel
 
                         //message notice
                         self::sendAgentNotify($member->member_id, $parent->member_id);
+                        event(new MemberNewOfflineEvent($member->member_id,$parent->member_id));//新增下线事件
                     }
                 }
             }

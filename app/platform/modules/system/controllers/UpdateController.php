@@ -12,8 +12,10 @@ namespace app\platform\modules\system\controllers;
 use app\common\components\BaseController;
 use app\common\facades\Option;
 use app\common\facades\Setting;
+use app\common\helpers\Cache;
 use app\common\models\UniAccount;
 use app\common\services\AutoUpdate;
+use app\common\services\Utils;
 use Illuminate\Filesystem\Filesystem;
 use vierbergenlars\SemVer\version;
 
@@ -75,7 +77,7 @@ class UpdateController extends BaseController
         $result = ['msg' => '', 'last_version' => '', 'updated' => 0];
         $key = Setting::getNotUniacid('platform_shop.key')['key'];
         $secret = Setting::getNotUniacid('platform_shop.key')['secret'];
-        if(!$key || !$secret) {
+        if (!$key || !$secret) {
             return;
         }
 
@@ -120,17 +122,21 @@ class UpdateController extends BaseController
 
         //删除非法文件
         $this->deleteFile();
+        //执行迁移文件
+        $this->runMigrate();
+        //清理缓存
+        $this->createCache();
 
         $filesystem = app(Filesystem::class);
         $update = new AutoUpdate(null, null, 300);
 
-        $filter_file = ['composer.json', 'composer.lock', 'README.md'];
+        $filter_file = ['composer.json', 'README.md'];
         $plugins_dir = $update->getDirsByPath('plugins', $filesystem);
 
         $result = ['result' => 0, 'msg' => '网络请求超时', 'version' => ''];
         $key = Setting::getNotUniacid('platform_shop.key')['key'];
         $secret = Setting::getNotUniacid('platform_shop.key')['secret'];
-        if(!$key || !$secret) {
+        if (!$key || !$secret) {
             return response()->json(['result' => -1, 'msg' => '商城未授权', 'data' => []]);
         }
 
@@ -178,7 +184,7 @@ class UpdateController extends BaseController
 
                         //忽略没有安装的插件
                         if (preg_match('/^plugins/', $file['path'])) {
-                            $sub_dir = substr($file['path'], strpos($file['path'], '/')+1);
+                            $sub_dir = substr($file['path'], strpos($file['path'], '/') + 1);
                             $sub_dir = substr($sub_dir, 0, strpos($sub_dir, '/'));
 
                             if (!in_array($sub_dir, $plugins_dir)) {
@@ -190,11 +196,15 @@ class UpdateController extends BaseController
                         if (($file['path'] == 'config/front-version.php'
                                 || $file['path'] == 'config/backend_version.php'
                                 || $file['path'] == 'config/wq-ersion.php')
-                                && is_file(base_path() . '/' . $file['path'])) {
+                            && is_file(base_path() . '/' . $file['path'])) {
                             continue;
                         }
 
                         $entry = base_path() . '/' . $file['path'];
+
+                        if ($file['path'] == 'composer.lock' && md5_file($entry) != $file['md5']) {
+                            $this->setComposerStatus();
+                        }
 
                         //如果本地没有此文件或者文件与服务器不一致
                         if (!is_file($entry) || md5_file($entry) != $file['md5']) {
@@ -209,7 +219,7 @@ class UpdateController extends BaseController
                     }
                 }
 
-                $tmpdir = storage_path('app/public/tmp/'. date('ymd'));
+                $tmpdir = storage_path('app/public/tmp/' . date('ymd'));
                 if (!is_dir($tmpdir)) {
                     $filesystem->makeDirectory($tmpdir, 0755, true);
                 }
@@ -250,14 +260,14 @@ class UpdateController extends BaseController
     {
         $filesystem = app(Filesystem::class);
 
-        $tmpdir  = storage_path('app/public/tmp/'. date('ymd'));
-        $f       = file_get_contents($tmpdir . "/file.txt");
+        $tmpdir = storage_path('app/public/tmp/' . date('ymd'));
+        $f = file_get_contents($tmpdir . "/file.txt");
         $upgrade = json_decode($f, true);
-        $files   = $upgrade['files'];
-        $total   = count($upgrade['files']);
-        $path    = "";
+        $files = $upgrade['files'];
+        $total = count($upgrade['files']);
+        $path = "";
         $nofiles = \YunShop::request()->nofiles;
-        $status  = 1;
+        $status = 1;
 
         $update = new AutoUpdate(null, null, 300);
 
@@ -280,7 +290,7 @@ class UpdateController extends BaseController
                     }
                     unset($f);
                     $upgrade['files'] = $files;
-                    $tmpdir           = storage_path('app/public/tmp/'. date('ymd'));
+                    $tmpdir = storage_path('app/public/tmp/' . date('ymd'));
                     if (!is_dir($tmpdir)) {
                         $filesystem->makeDirectory($tmpdir, 0755, true);
                     }
@@ -292,7 +302,7 @@ class UpdateController extends BaseController
 
             $key = Setting::getNotUniacid('platform_shop.key')['key'];
             $secret = Setting::getNotUniacid('platform_shop.key')['secret'];
-            if(!$key || !$secret) {
+            if (!$key || !$secret) {
                 return;
             }
 
@@ -308,9 +318,17 @@ class UpdateController extends BaseController
                 'path' => urlencode($path)
             ]);
 
+            $this->setSysUpgrade($ret);
+            $this->setVendorZip($ret);
+
+            //下载vendor
+            if ($this->isVendorZip()) {
+                $this->downloadVendorZip();
+            }
+
             //预下载
             if (is_array($ret)) {
-                $path    = $ret['path'];
+                $path = $ret['path'];
                 $dirpath = dirname($path);
                 $save_path = storage_path('app/auto-update/shop') . '/' . $dirpath;
 
@@ -335,7 +353,7 @@ class UpdateController extends BaseController
 
                 unset($f);
                 $upgrade['files'] = $files;
-                $tmpdir           = storage_path('app/public/tmp/'. date('ymd'));
+                $tmpdir = storage_path('app/public/tmp/' . date('ymd'));
 
                 if (!is_dir($tmpdir)) {
                     $filesystem->makeDirectory($tmpdir, 0755, true);
@@ -358,32 +376,46 @@ class UpdateController extends BaseController
 
                 $content = file_get_contents(storage_path('app/auto-update/shop') . '/' . $path);
 
+                //去除空文件判断
                 if (!empty($content)) {
                     file_put_contents(base_path($path), $content);
 
                     @unlink(storage_path('app/auto-update/shop') . '/' . $path);
                 }
             }
+            $status = 2;
+            $success = $total;
+            $response = response()->json([
+                'result' => $status,
+                'total' => $total,
+                'success' => $success
+            ]);
 
-            \Log::debug('----CLI----');
-            $plugins_dir = $update->getDirsByPath('plugins', $filesystem);
-            if (!empty($plugins_dir)) {
-                \Artisan::call('update:version' ,['version'=>$plugins_dir]);
+            if ($this->isVendorZip() && $this->validateVendorZip()) {
+                $this->delConfig();
+                $this->renameVendor();
+                $res = $this->unVendorZip();
+
+                if (!$res) {
+                    $this->renameVendor($res);
+                }
             }
-            
+
             //清理缓存
-            \Log::debug('----Cache Flush----');
-            if (!is_dir(base_path('config/shop-foundation'))) {
-                \Artisan::call('config:cache');
-            }
-            \Cache::flush();
+            $this->clearCache($filesystem);
 
             \Log::debug('----Queue Restarth----');
             app('supervisor')->restart();
 
-            $status = 2;
+            if ($this->isVendorZip()) {
+                if ($this->validateVendorZip()) {
+                    $this->delVendor(base_path('vendor_' . date('Y-m-d')));
+                }
 
-            $success = $total;
+                $this->delVendorZip();
+            }
+
+            $response->send();
         }
 
         response()->json([
@@ -400,7 +432,7 @@ class UpdateController extends BaseController
     public function startDownload()
     {
         \Cache::flush();
-        $resultArr = ['msg'=>'','status'=>0,'data'=>[]];
+        $resultArr = ['msg' => '', 'status' => 0, 'data' => []];
         set_time_limit(0);
 
         $key = Setting::getNotUniacid('platform_shop.key')['key'];
@@ -459,8 +491,7 @@ class UpdateController extends BaseController
      */
     public function startDownloadFramework()
     {
-        \Cache::flush();
-        $resultArr = ['msg'=>'','status'=>0,'data'=>[]];
+        $resultArr = ['msg' => '', 'status' => 0, 'data' => []];
         set_time_limit(0);
 
         $key = Setting::getNotUniacid('platform_shop.key')['key'];
@@ -510,12 +541,12 @@ class UpdateController extends BaseController
      *
      * @param $updateList
      */
-    private function setSystemVersion($updateList, $type =1)
+    private function setSystemVersion($updateList, $type = 1)
     {
         $version = $this->getFrontVersion($updateList);
 
         $str = file_get_contents(base_path('config/') . 'front-version.php');
-        $str = preg_replace('/"[\d\.]+"/', '"'. $version . '"', $str);
+        $str = preg_replace('/"[\d\.]+"/', '"' . $version . '"', $str);
 
         switch ($type) {
             case 1:
@@ -552,36 +583,58 @@ class UpdateController extends BaseController
         //file-删除指定文件，file-空 删除目录下所有文件
         $files = [
             [
-                'path' => base_path('config/shop-foundation'),
+                'path' => base_path('config'),
+                'ext' => ['php'],
+                'file' => [
+                    base_path('database/migrations/main-menu.php'),
+                    base_path('database/migrations/notice-template.php'),
+                    base_path('database/migrations/notice.php'),
+                    base_path('database/migrations/observer.php'),
+                    base_path('database/migrations/widget.php'),
+                ]
             ],
             [
                 'path' => base_path('database/migrations'),
-                'ext'  => ['php'],
+                'ext' => ['php'],
                 'file' => [
                     base_path('database/migrations/2018_10_18_150312_add_unique_to_yz_member_income.php')
                 ]
             ],
             [
-                'path' => storage_path('cert'),
-                'ext' => ['pem']
-            ],
-            [
                 'path' => base_path('plugins/store-cashier/migrations'),
-                'ext'  => ['php'],
+                'ext' => ['php'],
                 'file' => [
-                    base_path('plugins/store-cashier/migrations/2018_11_26_174034_fix_address_store.php')
+                    base_path('plugins/store-cashier/migrations/2018_11_26_174034_fix_address_store.php'),
+                    base_path('plugins/store-cashier/migrations/2017_08_03_170658_create_ims_yz_cashier_goods_table.php')
                 ]
             ],
             [
                 'path' => base_path('plugins/supplier/migrations'),
-                'ext'  => ['php'],
+                'ext' => ['php'],
                 'file' => [
                     base_path('plugins/supplier/migrations/2018_11_26_155528_update_ims_yz_order_and_goods.php')
                 ]
+            ],
+            [
+                'path' => base_path(),
+                'file' => [
+                    base_path('manifest.xml'),
+                    base_path('map.json')
+                ]
+            ],
+            [
+                'path' => base_path('vendor/james-heinrich/getid3/demos'),
+            ],
+            [
+                'path' => base_path('storage/app/auto-update/shop/vendor/james-heinrich/getid3/demos'),
             ]
         ];
 
         foreach ($files as $rows) {
+            if (!is_dir($rows['path'])) {
+                continue;
+            }
+
             $scan_file = $filesystem->files($rows['path']);
 
             if (!empty($scan_file)) {
@@ -642,19 +695,15 @@ class UpdateController extends BaseController
 
     private function runMigrate()
     {
+        \Log::debug('----CLI----');
+        $update = new AutoUpdate();
         $filesystem = app(Filesystem::class);
-        $update = new AutoUpdate(null, null, 300);
-        $plugins = $update->getDirsByPath('plugins', $filesystem);
 
-        foreach ($plugins as $p) {
-            $path = 'plugins/' . $p . '/migrations';
+        $plugins_dir = $update->getDirsByPath('plugins', $filesystem);
 
-            if(is_dir(base_path($path) )){
-                \Artisan::call('migrate',['--force' => true,'--path' => $path]);
-            }
+        if (!empty($plugins_dir)) {
+            \Artisan::call('update:version', ['version' => $plugins_dir]);
         }
-
-        \Artisan::call('migrate',['--force' => true]);
     }
 
     private function frontendUpgrad($key, $secret)
@@ -698,7 +747,7 @@ $config[\'db\'][\'master\'][\'username\'] = \'' . env('DB_USERNAME') . '\';
 $config[\'db\'][\'master\'][\'password\'] = \'' . env('DB_PASSWORD') . '\';
 $config[\'db\'][\'master\'][\'port\'] = \'3306\';
 $config[\'db\'][\'master\'][\'database\'] = \'' . env('DB_DATABASE') . '\';
-$config[\'db\'][\'master\'][\'tablepre\'] = \'' . env('DB_PREFIX'). '\';
+$config[\'db\'][\'master\'][\'tablepre\'] = \'' . env('DB_PREFIX') . '\';
 
 $config[\'db\'][\'slave_status\'] = false;
 $config[\'db\'][\'slave\'][\'1\'][\'host\'] = \'\';
@@ -724,5 +773,188 @@ EXTEND_DIR=''";
             }
 
         }
+    }
+
+    private function downloadVendorZip()
+    {
+        $url = 'https://downloads.yunzmall.com/' . $this->getSysUpgrade() . '.zip';
+
+        $tmp_path = base_path($this->getSysUpgrade() . '_' . date('Y-m-d') . '.zip');
+
+        if (file_exists($tmp_path)) {
+            return;
+        }
+
+        try {
+            Utils::download($url, $tmp_path);
+            \Log::debug('----vendor zip 下载ok----');
+        } catch (\Exception $e) {
+            \Log::debug('----vendor zip 下载失败----');
+        }
+    }
+
+    private function unVendorZip()
+    {
+        ini_set("memory_limit", "-1"); //不限制内存
+        ini_set('max_execution_time', '0');
+
+        $path = base_path($this->getSysUpgrade() . '_' . date('Y-m-d') . '.zip');
+
+        if (file_exists($path)) {
+            $zip = new \ZipArchive();
+            $res = $zip->open($path);
+
+            if ($res === true) {
+                try {
+                    $zip->extractTo(base_path());
+                } catch (\Exception $e) {
+                    $zip->close();
+                    \Log::debug('----vendor zip 解压失败----');
+                    return false;
+                }
+            } else {
+                $zip->close();
+                \Log::debug('----vendor zip 下载失败----');
+                return false;
+            }
+            $zip->close();
+
+            \Log::debug('----vendor zip 解压ok----');
+            return true;
+        }
+    }
+
+    private function delVendorZip()
+    {
+        $path = base_path($this->getSysUpgrade() . '_' . date('Y-m-d') . '.zip');
+
+        if (file_exists($path)) {
+            @unlink($path);
+            \Log::debug('----vendor zip 删除ok----');
+        }
+    }
+
+    private function delConfig()
+    {
+        $path = base_path('bootstrap/cache/config.php');
+
+        if (file_exists($path)) {
+            @unlink($path);
+            \Log::debug('----config 删除ok----');
+        }
+    }
+
+    private function clearCache(Filesystem $filesystem = null)
+    {
+        \Log::debug('----View Cache Flush----');
+        if (is_null($filesystem)) {
+            $filesystem = app(Filesystem::class);
+        }
+
+        $allfiles = $filesystem->allFiles(storage_path('framework/views'));
+
+        foreach ($allfiles as $rows) {
+            @unlink($rows->getPathname());
+        }
+    }
+
+    private function createCache()
+    {
+        $request = request();
+        \Artisan::call('config:cache');
+        \Cache::flush();
+        app()->instance('request', $request);
+    }
+
+    private function renameVendor($res = true)
+    {
+        \Log::debug('------renameVendor-------', [$res]);
+
+        if ($res) {
+            rename(base_path('vendor'), base_path('vendor_' . date('Y-m-d')));
+        } else {
+            rename(base_path('vendor_' . date('Y-m-d')), base_path('vendor'));
+        }
+    }
+
+    private function delVendor($path)
+    {
+        \Log::debug('------delVendor-------');
+
+        if (is_dir($path)) {
+            $p = scandir($path);
+            if (count($p) > 2) {
+                foreach ($p as $val) {
+                    if ($val != "." && $val != "..") {
+                        if (is_dir($path . '/' . $val)) {
+                            $this->delVendor($path . '/' . $val . '/');
+                        } else {
+                            unlink($path . '/' . $val);
+                        }
+                    }
+                }
+            }
+        }
+
+        return rmdir($path);
+    }
+
+    private function setSysUpgrade($ret)
+    {
+        Cache::put('sys_upgrade', $ret['upgrade'], 60);
+    }
+
+    private function getSysUpgrade()
+    {
+        if (Cache::has('sys_upgrade')) {
+            return Cache::get('sys_upgrade');
+        }
+
+        return 'vendor';
+    }
+
+    private function setVendorZip($ret)
+    {
+        Cache::put('sys_vendor_zip', $ret['is_vendor_zip'], 60);
+    }
+
+    private function isVendorZip()
+    {
+        if (!$this->getComposerStatus()) {
+            return false;
+        }
+
+        if (Cache::has('sys_vendor_zip')) {
+            return Cache::get('sys_vendor_zip');
+        }
+
+        return false;
+    }
+
+    private function setComposerStatus()
+    {
+        Cache::put('sys_composer_status', 1, 60);
+    }
+
+    private function getComposerStatus()
+    {
+        if (Cache::has('sys_composer_status')) {
+            return Cache::get('sys_composer_status');
+        }
+
+        return false;
+    }
+
+    private function validateVendorZip()
+    {
+        $path = base_path($this->getSysUpgrade() . '_' . date('Y-m-d') . '.zip');
+
+        if (file_exists($path) && filesize($path) > 0) {
+            \Log::debug('--------validateVendorZip------');
+            return true;
+        }
+        \Log::debug('--------no validateVendorZip------');
+
+        return false;
     }
 }

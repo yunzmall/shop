@@ -58,6 +58,10 @@ class ApiController extends BaseController
             $type = 8;
         }
 
+        if (\YunShop::request()->client) {
+            $type = 17;
+        }
+
         $member = MemberFactory::create($type);
 
         if (is_null($member)) {
@@ -65,10 +69,11 @@ class ApiController extends BaseController
         }
 
         if (!$member->checkLogged()) {
-            if (($relaton_set->status == 1 && !in_array($this->action, $this->ignoreAction))
-                || ($relaton_set->status == 0 && !in_array($this->action, $this->publicAction))
+            if (($relaton_set->status == 1 && !in_array(request()->route()->getActionMethod(), $this->ignoreAction))
+                || ($relaton_set->status == 0 && !in_array(request()->route()->getActionMethod(), $this->publicAction))
             ) {
-                $this->jumpUrl($type, $mid);
+
+				$this->jumpUrl($type, $mid);
             }
         } else {
             if (\app\frontend\models\Member::current()->yzMember->is_black) {
@@ -103,6 +108,10 @@ class ApiController extends BaseController
         $extra   = '';
 
         $queryString = ['type'=>$type,'i'=>\YunShop::app()->uniacid, 'mid'=>$mid, 'scope' => $scope];
+
+        if (\YunShop::request()->client) {
+            $queryString['client'] = 'work';
+        }
 
         if (!is_null(\config('hflive'))) {
             $extra = ['hflive' => \config('hflive')];

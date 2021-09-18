@@ -41,7 +41,7 @@ use Yunshop\Supplier\admin\models\SupplierGoods;
 class Goods extends \app\common\models\Goods
 {
     public $hidden = ['content', 'description'];
-    public $appends = ['vip_price'];
+    public $appends = ['vip_price','next_level_price'];
 
 
 
@@ -74,6 +74,9 @@ class Goods extends \app\common\models\Goods
                     $category[] = ['id' => $value * 1];
                     $query->with("")->where('category_id', $category);
                     break;*/
+                case 'plugin_id':
+                    $query->where('plugin_id', $value);
+                    break;
                 case 'keyword':
                     $query->where('title', 'LIKE', "%{$value}%");
                     break;

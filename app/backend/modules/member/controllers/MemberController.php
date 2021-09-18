@@ -19,7 +19,8 @@ use app\backend\modules\member\models\MemberParent;
 use app\backend\modules\member\models\MemberRecord;
 use app\backend\modules\member\models\MemberShopInfo;
 use app\backend\modules\member\models\MemberUnique;
-use app\backend\modules\member\services\MemberServices;
+use app\backend\modules\member\services\HandleNickname;
+use app\frontend\modules\member\services\MemberService;
 use app\common\components\BaseController;
 use app\common\events\member\MemberDelEvent;
 use app\common\events\member\MemberLevelUpgradeEvent;
@@ -42,8 +43,11 @@ use app\common\models\MemberWechatModel;
 use app\common\services\ExportService;
 use app\common\services\member\MemberRelation;
 use app\frontend\modules\member\models\MemberModel;
+use app\frontend\modules\member\models\SubMemberModel;
 use app\frontend\modules\member\models\SubMemberModel as SubMember_Model;
 use app\Jobs\ChangeMemberRelationJob;
+use app\Jobs\ModifyRelationJob;
+use app\Jobs\ModifyRelationshipChainJob;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use iscms\AlismsSdk\RequestCheckUtil;
@@ -170,6 +174,10 @@ class MemberController extends BaseController
                 $endtime = strtotime($parames['search']['times']['end']);
             }
         }
+        $is_customers = 0;
+        if (app('plugins')->isEnabled('wechat-customers')) {
+	        $is_customers = 1;
+        }
 
         return view('member.index', [
             'list' => $list,
@@ -181,7 +189,8 @@ class MemberController extends BaseController
             'pager' => $pager,
             'request' => \YunShop::request(),
             'set' => $set,
-            'opencommission' => 1
+            'opencommission' => 1,
+	        'is_customers' => $is_customers
         ])->render();
     }
 
@@ -349,6 +358,7 @@ class MemberController extends BaseController
                 'group_id' => $default_subgroup_id,
                 'level_id' => 0,
                 'invite_code' => \app\frontend\modules\member\models\MemberModel::generateInviteCode(),
+                'system_type' => 'pc',
             );
 
             //添加用户子表
@@ -416,12 +426,12 @@ class MemberController extends BaseController
             }
         }
         $phone = array_keys($data);
-        $phones = MemberModel::select('mobile')->where('uniacid', $uniacid)->whereIn('mobile',$phone)->pluck('mobile');
+        $phones = MemberModel::uniacid()->select('mobile')->whereIn('mobile',$phone)->pluck('mobile');
         if(!empty($phones)){
             // 存在重复值 取交集
-            $repetPhone = array_intersect($phone,$phones->toArray());
+            $repeatPhone = array_intersect($phone, $phones->toArray());
             //删除重复值
-            foreach ($repetPhone as $value){
+            foreach ($repeatPhone as $value){
                 if(isset($data[$value])){
                     unset($data[$value]);
                 }
@@ -430,7 +440,9 @@ class MemberController extends BaseController
                 return $this->errorJson('表格所有信息已存在，请勿重复导入!');
             }
         }
-        $defaultGroupId = Member_Group::getDefaultGroupId(\YunShop::app()->uniacid)->first();
+        $defaultGroupId = Member_Group::getDefaultGroupId()->first();
+        $defaultSubGroupId = $defaultGroupId->id ?: 0;
+
         //整理数据入库
         $i = 0;
         $array = array();
@@ -438,7 +450,7 @@ class MemberController extends BaseController
         $memberSet = \Setting::get('shop.member');
         \Log::info('member_set',$memberSet);
         if (isset($memberSet) && $memberSet['headimg']) {
-            $avatar =yz_tomedia($memberSet['headimg']);
+            $avatar = yz_tomedia($memberSet['headimg']);
         } else {
             $avatar = Url::shopUrl('static/images/photo-mr.jpg');
         }
@@ -447,7 +459,7 @@ class MemberController extends BaseController
             $array[$i] = [
                 'uniacid' => $uniacid,
                 'mobile' => $v['手机号'],
-                'groupid' => $defaultGroupId->id ?: 0,
+                'groupid' => $defaultSubGroupId,
                 'createtime' => $_SERVER['REQUEST_TIME'],
                 'nickname' => $v['手机号'],
                 'avatar' => $avatar,
@@ -462,17 +474,10 @@ class MemberController extends BaseController
             return $this->errorJson('批量添加失败');
         }
         //todo 批量插入同时无法返回主键ID故查询一次
-        $idArray = MemberModel::select('uid','mobile')->whereIn('mobile',array_keys($data))->get();
-        $defaultSubGroupId = Member_Group::getDefaultGroupId()->first();
-
-        if (!empty($defaultSubGroupId)) {
-            $defaultSubGroupId = $defaultSubGroupId->id;
-        } else {
-            $defaultSubGroupId = 0;
-        }
+        $idArray = MemberModel::uniacid()->select('uid','mobile')->whereIn('mobile',array_keys($data))->get();
 
         $subData = [];
-        foreach ($idArray as $key => $value){
+        foreach ($idArray as $key => $value) {
             $subData[$key] = array(
                 'member_id' => $value->uid,
                 'uniacid' => $uniacid,
@@ -674,6 +679,7 @@ class MemberController extends BaseController
 
         $parame = request()->member;
 
+//        dd($parame);
 
         $invite_code = $parame['invite_code'];
         if($invite_code == ''){
@@ -744,6 +750,13 @@ class MemberController extends BaseController
         $new_level = MemberLevel::find($yz['level_id'])->level;
         if ($shopInfoModel->level_id != $yz['level_id'] && $new_level > $shopInfoModel->level->level) {
             $is_upgrade = true;
+        }
+        $data['customDatas'] = request()->myform;
+        //自定义表单
+        $member_form = (new MemberService())->updateMemberForm($data);
+
+        if (!empty($member_form)) {
+            $yz['member_form'] = json_encode($member_form);
         }
 
         $shopInfoModel->fill($yz);
@@ -902,7 +915,23 @@ class MemberController extends BaseController
             'members' => $member->toArray(),
         ]);
     }
-
+	
+	
+	/**
+	 * 获取搜索会员(json)
+	 * @return html
+	 */
+	public function searchMemberList()
+	{
+		$keyword = request()->keyword;
+		$member = Member::uniacid()->searchLike($keyword)
+			->select('uid','nickname','avatar','mobile')
+			->whereHas('yzMember', function ($query) {
+				$query->whereNull('deleted_at');
+			})->paginate(10000);
+		$member = set_medias($member, array('avatar', 'share_icon'));
+		return $this->successJson('请求接口成功',  $member->toArray());
+	}
 
     /**
      * 推广下线
@@ -977,10 +1006,54 @@ class MemberController extends BaseController
         $file_name = date('Ymdhis', time()) . '会员下级导出';
         $export_data[0] = ['ID', '昵称', '真实姓名', '电话'];
         $member_id = request()->id;
-        $child = MemberParent::where('parent_id', $member_id)->with('hasOneChildMember')->get();
+        $aid = request()->aid;
+        $keyword = request()->keyword;
+        $followed = request()->followed;
+        $isblack = request()->isblack;  
+        $level = request()->level;
+
+        $child = MemberParent::select('yz_member_parent.*')
+            ->leftJoin('yz_member', 'yz_member_parent.member_id', '=', 'yz_member.member_id')
+            ->where('yz_member_parent.parent_id', $member_id);
+
+        if ($level) {
+            $child = $child->where('yz_member_parent.level',$level);
+        }
+
+        if (isset($isblack) && $isblack !== '') {
+            $child = $child->where('yz_member.is_black',intval($isblack));
+        }
+
+        if ($aid) {
+            $child = $child->where('yz_member_parent.member_id',intval($aid));
+        }
+        
+        $child = $child->with('hasOneChildMember','hasOneChildFans')
+        ->get();
+
+        $rows = 0;
         foreach ($child as $key => $item) {
             $member = $item->hasOneChildMember;
-            $export_data[$key + 1] = [
+            $hasOneChildFans = $item->hasOneChildFans;
+
+            if (!$member) {
+                continue;
+            }
+
+            if ($followed == '1' && !$hasOneChildFans) {
+                continue;
+            }
+
+            if ($followed == '0' && $hasOneChildFans) {
+                continue;
+            }
+
+            if ($keyword && $keyword != $member->mobile && $keyword != $member->nickname && $keyword != $member->realname) {
+                continue;
+            }
+
+            $rows++;
+            $export_data[$rows] = [
                 $member->uid,
                 changeSpecialSymbols($member->nickname),
                 $member->realname,
@@ -1147,17 +1220,50 @@ class MemberController extends BaseController
      */
     public function export()
     {
-        $member_builder = Member::searchMembers(\YunShop::request());
+        $parames = \YunShop::request();
+        $member_builder = Member::searchMembers($parames);
         $export_page = request()->export_page ? request()->export_page : 1;
         $export_model = new ExportService($member_builder, $export_page);
+        $handle_nickname = new HandleNickname();
 
         $file_name = date('Ymdhis', time()) . '会员导出'.$export_page;
 
         $export_data[0] = ['会员ID', '推荐人','推荐人ID','推荐人手机号','粉丝', '姓名', '手机号', '等级', '分组', '注册时间', '积分', '余额', '订单', '金额', '关注', '提现手机号'];
 
-        foreach ($export_model->builder_model->toArray() as $key => $item) {
+        $export_model_data = $export_model->builder_model;
+        if(empty($export_model_data)) exit;
+
+        if ($parames['search']['first_count'] ||
+            $parames['search']['second_count'] ||
+            $parames['search']['third_count'] ||
+            $parames['search']['team_count']
+        ) {
+            $result_ids =  [];
+            if ($parames['search']['first_count']) {
+                $result_ids = $this->getChildCount($parames['search']['first_count'],1);
+            }
+            if ($parames['search']['second_count']) {
+                $second_ids = $this->getChildCount($parames['search']['second_count'],2);
+                $result_ids = empty($result_ids)?$second_ids:array_intersect($result_ids,$second_ids);
+                unset($second_ids);
+            }
+            if ($parames['search']['third_count']) {
+                $third_ids = $this->getChildCount($parames['search']['third_count'],3);
+                $result_ids = empty($result_ids)?$third_ids:array_intersect($result_ids,$third_ids);
+                unset($third_ids);
+            }
+            if ($parames['search']['team_count']) {
+                $team_ids = $this->getChildCount($parames['search']['team_count']);
+                $result_ids = empty($result_ids)?$team_ids:array_intersect($result_ids,$team_ids);
+                unset($team_ids);
+            }
+
+            $export_model_data = $export_model_data->whereIn('uid', $result_ids);
+        }
+
+        foreach ($export_model_data->toArray() as $key => $item) {
             if (!empty($item['yz_member']) && !empty($item['yz_member']['agent'])) {
-                $agent = $item['yz_member']['agent']['nickname'];
+                $agent = $handle_nickname->removeEmoji($item['yz_member']['agent']['nickname']);
 
             } else {
                 $agent = '总店';
@@ -1189,7 +1295,7 @@ class MemberController extends BaseController
                 $fans = '未关注';
             }
             if (substr($item['nickname'], 0, strlen('=')) === '=') {
-                $item['nickname'] = '，' . $item['nickname'];
+                $item['nickname'] = '，' . $handle_nickname->removeEmoji($item['nickname']);
             }
 
             if (!$item['yz_member']['parent_id']){
@@ -1204,13 +1310,14 @@ class MemberController extends BaseController
                 $parent_mobile = $item['yz_member']['agent']['mobile'];
             }
 
-            $export_data[$key + 1] = [$item['uid'],$agent,$parent_id,$parent_mobile, $item['nickname'], $item['realname'], $item['mobile'],
+            $export_data[$key + 1] = [$item['uid'],$agent,$parent_id,$parent_mobile, $item['nickname'], $handle_nickname->removeEmoji($item['realname']), $item['mobile'],
                 $level, $group, date('Y-m-d H:i:s', $item['createtime']), $item['credit1'], $item['credit2'], $order,
                 $price, $fans, $item['yz_member']['withdraw_mobile']];
         }
 
         $export_model->export($file_name, $export_data, \Request::query('route'));
     }
+
 
 
     public function search_member()
@@ -1261,7 +1368,7 @@ class MemberController extends BaseController
     }
 
     //修改会员上线
-    public function change_relation()
+    public function change_relation_back()
     {
 //        $parent_id = \YunShop::request()->parent;
 //        $uid       = \YunShop::request()->member;
@@ -1299,6 +1406,40 @@ class MemberController extends BaseController
             default:
                 return $this->errorJson('修改失败');
         }
+    }
+
+    public function change_relation()
+    {
+        $parent_id = (int) request()->parent;
+        $uid = (int) request()->member;
+        $member = SubMemberModel::getMemberShopInfo($uid);
+        //判断修改的上级是否推广员
+        if ($parent_id != 0) {
+            $parent = SubMemberModel::getMemberShopInfo($parent_id);
+            if (!($parent->is_agent == 1 && $parent->status == 2)) {
+                return $this->errorJson('上线没有推广权限');
+            }
+            if ($parent->parent_id  == $uid) {
+                return $this->errorJson('会员上下线冲突');
+            }
+			//验证是否闭环关系链
+			$chain = ParentOfMember::where('member_id',$parent_id)->pluck('parent_id');
+            $chain->push($uid);
+            $chain->push($parent_id);
+            if ($chain->count() != $chain->unique()->count()) {
+				return $this->errorJson('关系链闭环，请检测关系链');
+			}
+		}
+        $record_data = [
+            'uid'               =>  $uid,
+            'parent_id'         =>  $member->parent_id,
+            'after_parent_id'  =>  $parent_id,
+            'status'            =>  0,
+            'uniacid'           =>  \YunShop::app()->uniacid
+        ];
+        $member_record = MemberRecord::create($record_data);
+        $this->dispatch(new ModifyRelationshipChainJob($uid,$parent_id,$member_record->id,\YunShop::app()->uniacid));
+        return $this->successJson('关系链修改请求成功，请到关系链修改记录查看修改结果');
     }
 
     //会员上线修改记录
@@ -1470,9 +1611,7 @@ class MemberController extends BaseController
     public function memberMerge()
     {
         $member_id = request()->uid;
-
         $yz_member = MemberShopInfo::getMemberShopInfo($member_id);
-
         //合并记录
         $data = [
             'uniacid' => \YunShop::app()->uniacid,
@@ -1480,49 +1619,89 @@ class MemberController extends BaseController
             'mark_member_id' => $yz_member->mark_member_id,
             'created_at' => time(),
         ];
-
         $exception = DB::transaction(function () use ($yz_member, $data) {
             //小程序
             $memberMini = MemberMiniAppModel::getFansById($yz_member->mark_member_id);
             if (!empty($memberMini)) {
                 MemberMiniAppModel::where('member_id', $yz_member->mark_member_id)->update(['member_id' => $yz_member->member_id]);
             }
-
             //公众号
             $memberFans = McMappingFans::getFansById($yz_member->mark_member_id);
             if (!empty($memberFans)) {
                 McMappingFans::where('uid', $yz_member->mark_member_id)->update(['uid' => $yz_member->member_id]);
             }
-
             //app
             $memberWechat = \app\frontend\modules\member\models\MemberWechatModel::getFansById($yz_member->mark_member_id);
             if (!empty($memberWechat)) {
                 \app\frontend\modules\member\models\MemberWechatModel::where('member_id', $yz_member->mark_member_id)->update(['member_id' => $yz_member->member_id]);
             }
-
             //统一
-            $memberUni_main = MemberUnique::where('member_id', $yz_member->member_id)->first();
             $memberUni = MemberUnique::where('member_id', $yz_member->mark_member_id)->first();
-            if (empty($memberUni_main) && !empty($memberUni)) {
+            if (!empty($memberUni)) {
                 MemberUnique::where('member_id', $yz_member->mark_member_id)->update(['member_id' => $yz_member->member_id]);
             }
-
-            Member::where('uid', $yz_member->mark_member_id)->update(['mobile' => '', 'credit1' => 0, 'credit2' => 0]);  //mc_members清空数据
+            Member::where('uid', $yz_member->mark_member_id)->delete();  //删除mc_members数据
             MemberShopInfo::where('member_id', $yz_member->mark_member_id)->delete();  //软删除yz_member
-
             MemberMergeLog::insert($data); //添加合并记录
-
             $yz_member->is_old = 0;
             $yz_member->mark_member_id = 0;
-
             $yz_member->save();
         });
-
         if (is_null($exception)) {
+//            $this->changeYunSignData($member_id, $yz_member->mark_member_id);
             return $this->successJson('合并成功');
         } else {
             return $this->errorJson('合并失败');
         }
+    }
+
+    private function changeYunSignData($hold_uid, $give_up_uid)
+    {
+        $yunSignTableArr = [
+            'yz_yun_sign_company_account','yz_yun_sign_contract','yz_yun_sign_contract_cc','yz_yun_sign_contract_log',
+            'yz_yun_sign_contract_num','yz_yun_sign_contract_role','yz_yun_sign_contract_template', 'yz_yun_sign_order',
+            'yz_yun_sign_person_account','yz_yun_sign_person_seal','yz_yun_sign_short_url','yz_yun_sign_worker',
+            'yz_yun_sign_apps','yz_yun_sign_contract_recharge'
+        ];
+        $yunSignApiTableArr = ['yz_yun_sign_api_contract'];
+        $shopSignTableArr = [
+            'yz_shop_esign_company_account','yz_shop_esign_contract','yz_shop_esign_contract_role','yz_shop_esign_contract_template',
+            'yz_shop_esign_order','yz_shop_esign_person_account',
+        ];
+        if (\YunShop::plugin()->get('yun-sign')) {
+            $column = 'uid';
+            foreach ($yunSignTableArr as $item) {
+                if ($item == 'yz_yun_sign_apps') {
+                    $column = 'boss_uid';
+                }
+                if ($item == 'yz_yun_sign_contract_recharge') {
+                    $column = 'member_id';
+                }
+                $this->updateData($item, $column, $hold_uid, $give_up_uid);
+            }
+            $uniacid = \YunShop::app()->uniacid;
+            $tablePrefix = DB::getTablePrefix();
+            DB::raw('UPDATE '.$tablePrefix.'yz_yun_sign_contract_num_log'.' SET '.$column.'='.$hold_uid.' where boss_uid ='.$give_up_uid.' and uniacid='.$uniacid);
+        }
+        if (\YunShop::plugin()->get('yun-sign-api')) {
+            foreach ($yunSignApiTableArr as $item) {
+                $this->updateData($item, 'uid', $hold_uid, $give_up_uid);
+            }
+        }
+        if (\YunShop::plugin()->get('shop-esign')) {
+            foreach ($shopSignTableArr as $item) {
+                $this->updateData($item, 'uid', $hold_uid, $give_up_uid);
+            }
+        }
+    }
+
+    private function updateData($table, $column, $hold_uid, $give_up_uid)
+    {
+        $uniacid = \YunShop::app()->uniacid;
+        $tablePrefix = DB::getTablePrefix();
+        $sql = 'UPDATE '.$tablePrefix.$table.' SET '.$column.'='.$hold_uid.' where boss_uid ='.$give_up_uid.' and uniacid='.$uniacid;
+
+        return DB::raw($sql);
     }
 
     public function memberChart()
@@ -1571,10 +1750,30 @@ class MemberController extends BaseController
                     ->where('yz_member_unique.uniacid', \YunShop::app()->uniacid)
                     ->count();
                 break;
+	        case 6 :
+		        if (!app('plugins')->isEnabled('wechat-customers')) {
+			        $count = 0;
+			        break;
+		        }
+		        $count = Member::uniacid()->select(['uid', 'mobile'])
+			        ->join('yz_member', 'mc_members.uid', '=', 'yz_member.member_id')
+			        ->whereNull('yz_member.deleted_at')
+			        ->join('yz_member_customer', 'mc_members.uid', '=', 'yz_member_customer.uid')
+			        ->where('yz_member_customer.uniacid', \YunShop::app()->uniacid)
+			        ->count();
+		        break;
         }
 
         return $this->successJson('ok', [
             'count' => $count,
         ]);
+    }
+
+    public function recordList()
+    {
+        $list =  MemberRecord::uniacid()->orderBy('id','desc')->paginate(20)->toArray();
+        $pager = PaginationHelper::show($list['total'], $list['current_page'], $list['per_page']);
+        return view('member.record-list', ['list'=>$list, 'pager'=>$pager])->render();
+
     }
 }

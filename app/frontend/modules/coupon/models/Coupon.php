@@ -19,7 +19,7 @@ class Coupon extends \app\common\models\Coupon
         'goods_names' => 'json',
         'categorynames' => 'json',
         'time_start' => 'date',
-        'time_end' => 'date',
+//        'time_end' => 'date',
     ];
 
     const TYPE_ALL = 0;//全部
@@ -32,6 +32,7 @@ class Coupon extends \app\common\models\Coupon
     const TYPE_MONEY_OFF = 7;//满减券
     const TYPE_DISCOUNT = 8;//折扣券
     const TYPE_OVERDUE = 9;//快过期
+    const TYPE_GOOD_AND_STORE = 10;//平台商品和门店
 
     /**
      * @var array
@@ -46,6 +47,7 @@ class Coupon extends \app\common\models\Coupon
         self::TYPE_EXCHANGE => '兑换券',
         self::TYPE_MONEY_OFF => '满减券',
         self::TYPE_DISCOUNT => '折扣券',
+        self::TYPE_GOOD_AND_STORE => '平台商品和门店',
     ];
 
 
@@ -70,7 +72,7 @@ class Coupon extends \app\common\models\Coupon
         $res = static::uniacid()
             ->select(['yz_coupon.id', 'yz_coupon.name', 'yz_coupon.coupon_method', 'yz_coupon.deduct', 'yz_coupon.discount', 'yz_coupon.enough', 'yz_coupon.use_type', 'yz_coupon.category_ids',
                 'yz_coupon.categorynames', 'yz_coupon.goods_ids', 'yz_coupon.goods_names', 'yz_coupon.time_limit', 'yz_coupon.time_days', 'yz_coupon.time_start', 'yz_coupon.time_end', 'yz_coupon.get_max', 'yz_coupon.total',
-                'yz_coupon.money', 'yz_coupon.credit', 'yz_coupon.updated_at']);
+                'yz_coupon.money', 'yz_coupon.credit', 'yz_coupon.updated_at', 'use_conditions']);
         if ($coupon_type) {
             switch ($coupon_type) {
                 case Coupon::TYPE_SHOP:
@@ -94,6 +96,11 @@ class Coupon extends \app\common\models\Coupon
                     break;
                 case Coupon::TYPE_EXCHANGE:
                     $res->where('yz_coupon.use_type', Coupon::COUPON_EXCHANGE_USE);
+                    break;
+                case Coupon::TYPE_GOOD_AND_STORE:
+                    if (app('plugins')->isEnabled('store-cashier')) {
+                        $res->where('yz_coupon.use_type', Coupon::COUPON_GOODS_AND_STORE_USE);
+                    }
                     break;
                 case Coupon::TYPE_MONEY_OFF:
                     $res->where('yz_coupon.coupon_method', Coupon::COUPON_MONEY_OFF);
@@ -143,7 +150,7 @@ class Coupon extends \app\common\models\Coupon
         $res = static::uniacid()
             ->select(['yz_coupon.id', 'yz_coupon.name', 'yz_coupon.coupon_method', 'yz_coupon.deduct', 'yz_coupon.discount', 'yz_coupon.enough', 'yz_coupon.use_type', 'yz_coupon.category_ids',
                 'yz_coupon.categorynames', 'yz_coupon.goods_ids', 'yz_coupon.goods_names', 'yz_coupon.time_limit', 'yz_coupon.time_days', 'yz_coupon.time_start', 'yz_coupon.time_end', 'yz_coupon.get_max', 'yz_coupon.total',
-                'yz_coupon.money', 'yz_coupon.credit', 'yz_coupon.updated_at']);
+                'yz_coupon.money', 'yz_coupon.credit', 'yz_coupon.updated_at', 'use_conditions']);
         if ($coupon_type) {
             switch ($coupon_type) {
                 case Coupon::TYPE_SHOP:
@@ -167,6 +174,11 @@ class Coupon extends \app\common\models\Coupon
                     break;
                 case Coupon::TYPE_EXCHANGE:
                     $res->where('yz_coupon.use_type', Coupon::COUPON_EXCHANGE_USE);
+                    break;
+                case Coupon::TYPE_GOOD_AND_STORE:
+                    if (app('plugins')->isEnabled('store-cashier')) {
+                        $res->where('yz_coupon.use_type', Coupon::COUPON_GOODS_AND_STORE_USE);
+                    }
                     break;
                 case Coupon::TYPE_MONEY_OFF:
                     $res->where('yz_coupon.coupon_method', Coupon::COUPON_MONEY_OFF);

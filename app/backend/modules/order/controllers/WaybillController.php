@@ -111,6 +111,9 @@ class WaybillController extends BaseController
     		$this->name = trim($set['name']);
     		$this->apikey = trim($set['apikey']);
     		$this->merchant_id = trim($set['merchant_id']);
+    		if (empty($set['apikey']) || empty($set['merchant_id'])){
+			    return $this->errorJson('err','没有设置');
+		    }
     	}
 //    	else {
 //    		return $this->message('请配置面单', Url::absoluteWeb('plugin.exhelper.admin.panel.index'));
@@ -342,6 +345,12 @@ class WaybillController extends BaseController
 
 		$set = $this->panelSet();
 
+        if($panel['exhelper_style'] == 'JTSD'){
+            //极兔速递参数不同
+            $data['DeliveryMethod'] = 3;    //6-代收点自提， 5-快递柜自提，4-站点自提，3-派送上门
+            $data['Weight'] = $data['Weight']/1000; //使用千克
+        }
+
     	if (in_array($panel['exhelper_style'], ['DBL','PJ','DBLKY'])) {
 		   		
     		$data['CustomerName'] = trim($panel['panel_sign']);
@@ -380,7 +389,7 @@ class WaybillController extends BaseController
 		$jsonParam = json_encode($data, JSON_UNESCAPED_UNICODE);
 
 		$jsonResult = $this->submitEOrder($jsonParam, $url);
-    	\Log::info('data2', $data);
+            \Log::info('data2', $data);
 
 		//解析电子面单返回结果
 		$result = json_decode($jsonResult, true);
@@ -400,19 +409,20 @@ class WaybillController extends BaseController
 			);
 //            dd($result);
 			// $opera->orderSend($param);
-            if (!$this->saveTemplate($result,$order_sn)){
+            if (!$this->saveTemplate($result,$order_sn,$data)){
 
                 return json_encode(array('result'=>'error','resp'=>'电子面单储存失败'));
             }
             $expressCompanies = \app\common\repositories\ExpressCompany::create()->all();
             $company = '';
-            array_filter( $expressCompanies, function($var) use($result,&$company){
-                if(in_array($result['Order']['ShipperCode'],$var)){
+            $shipperCode = $result['Order']['ShipperCode'] ?: $data['ShipperCode'];
+            array_filter( $expressCompanies, function($var) use($result,&$company,$shipperCode){
+                if(in_array($shipperCode,$var)){
                     $company = $var;
                     return $var;
                 }
             });
-			return json_encode(array('result'=>'success', 'resp'=>['logistic_code'=>$result['Order']['LogisticCode'], 'shipper_code'=>$result['Order']['ShipperCode'],
+			return json_encode(array('result'=>'success', 'resp'=>['logistic_code'=>$result['Order']['LogisticCode'], 'shipper_code'=>$shipperCode  ,
                 'company'=> $company]));
 		
 		} else {
@@ -424,7 +434,7 @@ class WaybillController extends BaseController
     /*
      * 电子面单打印优化，储存电子面单模板
      */
-    public function saveTemplate($result,$order_sn)
+    public function saveTemplate($result,$order_sn,$data)
     {
         if (!$order_sn){
             return false;
@@ -438,7 +448,7 @@ class WaybillController extends BaseController
             'print_template'    => $result['PrintTemplate'],
             'mark_destination'  => $result['Order']['MarkDestination'] ?: '',
             'logistic_code'     => $result['Order']['LogisticCode'] ?: '',
-            'shipper_code'     => $result['Order']['ShipperCode'] ?: '',
+            'shipper_code'     => $result['Order']['ShipperCode'] ?: $data['ShipperCode'],
             'order_code'       => $result['Order']['OrderCode'] ?: '',
             'kdn_order_code'     => $result['Order']['KDNOrderCode'] ?: '',
             'package_code'     => $result['Order']['PackageCode'] ?: '',
@@ -778,7 +788,15 @@ class WaybillController extends BaseController
         		'SendSite'     => '寄件网点ID',
         		'WareHouseID'    => '',
         		'Name' => ''
-        	]
+        	],
+            'JTSD' => [
+                'CustomerName' => '电子面单账号',
+                'CustomerPwd'  => '密码',
+                'MonthCode'    => '',
+                'SendSite'     => '',
+                'WareHouseID'    => '',
+                'Name' => ''
+            ]
         ];
     }
 

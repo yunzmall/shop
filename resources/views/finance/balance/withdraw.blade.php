@@ -2,6 +2,7 @@
 @section('title', '余额提现')
 @section('content')
 
+
     <div class="panel panel-default">
         <div class='panel-heading'>
             提现者信息
@@ -21,7 +22,7 @@
                     {{$item['has_one_member']['mobile']}}
                 </p>
                 <p>
-                    <b>会员等级:</b> {{$item['has_one_member']['yz_member']['group']['group_name']}}
+                    <b>会员等级:</b> {{$item['has_one_member']['yz_member']['level']['level_name']}}
                 </p>
                 <p>
                     <b>提现金额: </b><span style='color:red'>{{$item['amounts']}}</span> 元
@@ -34,7 +35,7 @@
                 </p>
                 @if($item['pay_way'] == 'manual')
                     <p>
-                        <b>手动打款方式：</b>
+                        <b>{{\Setting::get('shop.lang.zh_cn.income.manual_withdrawal') ?: '手动打款'}}方式：</b>
                         @if($item['manual_type'] == 1 || empty($item['manual_type']))
                             银行卡
                     </p>
@@ -93,15 +94,15 @@
 
             </div>
         </div>
+    </div>
 
-        <div class='panel-heading'>
-            提现申请信息
-        </div>
-        <form action="{{yzWebUrl("finance.balance-withdraw.examine",['id'=>$item['id']])}}" onsubmit="return dosubmit()" method='post'
-              class='form-horizontal'>
-            <div class='panel-body'>
-                <table class="table table-hover">
-                    <thead class="navbar-inner">
+    <div class='panel-heading'>
+        提现申请信息
+    </div>
+    <form action="{{yzWebUrl("finance.balance-withdraw.examine",['id'=>$item['id']])}}" onsubmit="return confirmSubmitForm()" method='post' class='form-horizontal'>
+        <div class='panel-body'>
+            <table class="table table-hover">
+                <thead class="navbar-inner">
                     <tr>
                         <td></td>
                         <th>ID</th>
@@ -110,29 +111,26 @@
                         <th>提现状态</th>
                         <th>提现时间</th>
                     </tr>
-                    </thead>
-                    <tbody>
+                </thead>
+                <tbody>
 
 
                     <tr style="background: #eee">
                         <td>
                             @if($item['status'] == '0' || $item['status'] == '-1')
-                                <label class="radio-inline">
-                                    <input type="radio" name="status" value="1"
-                                           @if($item['status'] == 0 || $item['status'] == 1 )checked="checked"@endif/>
-                                    通过
-                                </label>
-                                <label class="radio-inline">
-                                    <input type="radio" name="status" value="-1"
-                                           @if($item['status'] == -1 )checked="checked"@endif/> 无效
-                                </label>
-                                <label class="radio-inline">
-                                    <input type="radio" name="status" value="3"
-                                           @if($item['status'] == 3 )checked="checked"@endif/> 驳回
-                                </label>
+                            <label class="radio-inline">
+                                <input type="radio" name="status" value="1" @if($item['status']==0 || $item['status']==1 )checked="checked" @endif />
+                                通过
+                            </label>
+                            <label class="radio-inline">
+                                <input type="radio" name="status" value="-1" @if($item['status']==-1 )checked="checked" @endif /> 无效
+                            </label>
+                            <label class="radio-inline">
+                                <input type="radio" name="status" value="3" @if($item['status']==3 )checked="checked" @endif /> 驳回
+                            </label>
                             @endif
                             @if($item['status'] == '1' || $item['status'] == '2')
-                                {{$row['pay_status_name']}}
+                            {{$row['pay_status_name']}}
                             @endif
 
                         </td>
@@ -145,89 +143,81 @@
                     </tr>
 
 
-                </table>
-            </div>
-            <div class='panel-body'>
-                打款信息【
-                审核金额: <span style='color:red'>{{ $item['amounts'] }}</span> 元
-                手续费: <span style='color:red'>{{ $item['actual_poundage'] }}</span> 元
-                应打款：<span style='color:red'>{{ $item['actual_amounts'] }}</span>元】
+            </table>
+        </div>
+        <div class='panel-body'>
+            打款信息【
+            审核金额: <span style='color:red'>{{ $item['amounts'] }}</span> 元
+            手续费: <span style='color:red'>{{ $item['actual_poundage'] }}</span> 元
+            应打款：<span style='color:red'>{{ $item['actual_amounts'] }}</span>元】
 
-            </div>
+        </div>
+        <div class="form-group col-sm-12">
+            @if($item['status'] == '0')
+            <input type="submit" name="submit_check" value="提交审核" class="btn btn-primary col-lg-1" onclick='return check()' />
+            @endif
 
-            <div class="form-group col-sm-12">
-                @if($item['status'] == '0')
-                    <input type="submit" name="submit_check" value="提交审核" class="btn btn-primary col-lg-1"
-                           onclick='return check()'/>
-                @endif
+            @if($item['status'] == '1')
 
-                @if($item['status'] == '1')
+            @if($item['pay_way'] == 'balance')
+            <input type="hidden" name="pay_way" value="3">
+            <input type="submit" name="submit_pay" value="打款到余额" class="btn btn-primary col-lg-1" style='margin-left:10px;' onclick='return ' />
+            @elseif($item['pay_way'] == 'wechat')
+            <input type="hidden" name="pay_way" value="1">
+            <input type="submit" name="submit_pay" value="打款到微信钱包" class="btn btn-primary col-lg-1" style='margin-left:10px;' onclick='return ' />
+            @elseif($item['pay_way'] == 'alipay')
+            <input type="hidden" name="pay_way" value="2">
+            <input type="submit" name="submit_pay" value="打款到支付宝" class="btn btn-primary col-lg-1" style='margin-left:10px;' onclick='return ' />
+            @elseif($item['pay_way'] == 'manual')
+            <input type="hidden" name="pay_way" value="4">
+            <input type="submit" name="submit_pay" value="{{\Setting::get('shop.lang.zh_cn.income.manual_withdrawal') ?: '手动打款'}}" class="btn btn-primary " style='margin-left:10px;' onclick='return ' />
+            @elseif($item['pay_way'] == 'eup_pay')
+            <input type="hidden" name="pay_way" value="5">
+            <input type="submit" name="submit_pay" value="EUP提现" class="btn btn-primary " style='margin-left:10px;' onclick='return ' />
+            @elseif($item['pay_way'] == 'huanxun')
+            <input type="hidden" name="pay_way" value="6">
+            <input type="submit" name="submit_pay" value="打款到银行卡" class="btn btn-primary " style='margin-left:10px;' onclick='return ' />
+            @elseif($item['pay_way'] == 'yop_pay')
+            <input type="hidden" name="pay_way" value="7">
+            <input type="submit" name="submit_pay" value="易宝提现" class="btn btn-primary " style='margin-left:10px;' onclick='return ' />
+            @elseif($item['pay_way'] == 'converge_pay')
+            <input type="hidden" name="pay_way" value="8">
+            <input type="submit" name="submit_pay" value="汇聚提现" class="btn btn-primary " style='margin-left:10px;' onclick='return ' />
+            @endif
+            @endif
+            @if($item['status'] == '4')
+            <input type="submit" name="again_pay" value="重新打款" class="btn btn-warning " style='margin-left:10px;' onclick='return ' />
+            @endif
+            @if($item['status'] == '1' || $item['status'] == '4')
+            <input type="submit" name="confirm_pay" value="线下确认打款" class="btn btn-success " style='margin-left:10px;' onclick="{if (confirm('本打款方式需要线下打款，系统只是完成流程!') == true){return true;}return false}" />
+            @endif
+            @if($item['status'] == '-1')
+            <input type="submit" name="submit_cancel" value="重新审核" class="btn btn-default col-lg-1" onclick='return ' />
+            @endif
+            <a class="btn btn-default" href="{{yzWebUrl('withdraw.records')}}" style='margin-left:10px;'>返回列表</a>
+        </div>
+    </form>
+</div>
 
-                    @if($item['pay_way'] == 'balance')
-                        <input type="hidden" name="pay_way" value="3">
-                        <input type="submit" name="submit_pay" value="打款到余额" class="btn btn-primary col-lg-1"
-                               style='margin-left:10px;' onclick='return '/>
-                    @elseif($item['pay_way'] == 'wechat')
-                        <input type="hidden" name="pay_way" value="1">
-                        <input type="submit" name="submit_pay" value="打款到微信钱包" class="btn btn-primary col-lg-1"
-                               style='margin-left:10px;' onclick='return '/>
-                    @elseif($item['pay_way'] == 'alipay')
-                        <input type="hidden" name="pay_way" value="2">
-                        <input type="submit" name="submit_pay" value="打款到支付宝" class="btn btn-primary col-lg-1"
-                               style='margin-left:10px;' onclick='return '/>
-                    @elseif($item['pay_way'] == 'manual')
-                        <input type="hidden" name="pay_way" value="4">
-                        <input type="submit" name="submit_pay" value="手动打款" class="btn btn-primary "
-                               style='margin-left:10px;' onclick='return '/>
-                    @elseif($item['pay_way'] == 'eup_pay')
-                        <input type="hidden" name="pay_way" value="5">
-                        <input type="submit" name="submit_pay" value="EUP提现" class="btn btn-primary "
-                               style='margin-left:10px;' onclick='return '/>
-                    @elseif($item['pay_way'] == 'huanxun')
-                        <input type="hidden" name="pay_way" value="6">
-                        <input type="submit" name="submit_pay" value="打款到银行卡" class="btn btn-primary "
-                               style='margin-left:10px;' onclick='return '/>
-                    @elseif($item['pay_way'] == 'yop_pay')
-                        <input type="hidden" name="pay_way" value="7">
-                        <input type="submit" name="submit_pay" value="易宝提现" class="btn btn-primary "
-                               style='margin-left:10px;' onclick='return '/>
-                    @elseif($item['pay_way'] == 'converge_pay')
-                        <input type="hidden" name="pay_way" value="8">
-                        <input type="submit" name="submit_pay" value="汇聚提现" class="btn btn-primary " style='margin-left:10px;' onclick='return '/>
-                    @endif
-                @endif
-                @if($item['status'] == '4')
-                    <input type="submit" name="again_pay" value="重新打款" class="btn btn-warning " style='margin-left:10px;' onclick='return '/>
-                @endif
-                @if($item['status'] == '1' || $item['status'] == '4')
-                    <input type="submit" name="confirm_pay" value="线下确认打款" class="btn btn-success " style='margin-left:10px;' onclick="{if (confirm('本打款方式需要线下打款，系统只是完成流程!') == true){return true;}return false}"/>
-                @endif
-                @if($item['status'] == '-1')
-                    <input type="submit" name="submit_cancel" value="重新审核" class="btn btn-default col-lg-1" onclick='return '/>
-                @endif
-                <a class="btn btn-default" href="{{yzWebUrl('withdraw.records')}}" style='margin-left:10px;'>返回列表</a>
-            </div>
-        </form>
-    </div>
+@include("finance.balance.verifyPopupComponent")
 
-    <script language="javascript">
+<script>
+    let isSubmied = false;
 
-        var issubmit=false;
-
-        function dosubmit() {
-            console.log('提交------------');
-            if(issubmit == false) {
-                console.log('第一次------------');
-                issubmit = true;
-
-                return true;
-
-            }else{
-                console.log('重复------------');
-                return false;
-            }
-
+    function confirmSubmitForm() {
+        //* expireTime & verifyed 变量 & showGetVerifyCodePopup方法 来自 finance.balance.verifyPopupComponent 文件
+        if (verifyed && (expireTime === 0 || expireTime * 1000 < Date.now())) {
+            showGetVerifyCodePopup();
+            return false;
         }
-    </script>
+
+        if (isSubmied) {
+            return false;
+        } else {
+            isSubmied = true;
+            return true;
+        }
+    }
+</script>
 
 @endsection

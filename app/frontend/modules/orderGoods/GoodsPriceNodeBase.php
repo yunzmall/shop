@@ -24,7 +24,7 @@ class GoodsPriceNodeBase extends BaseOrderGoodsPriceNode
      */
     function getPrice()
     {
-        return $this->orderGoodsPrice->getVipPrice();
+        return $this->orderGoodsPrice->getPrice();
     }
 
 }

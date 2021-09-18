@@ -20,6 +20,7 @@ use app\common\services\wechat\WechatFacePayService;
 use app\common\services\wechat\WechatScanPayService;
 use Yunshop\HkPay\services\HkScanAliPayService;
 use Yunshop\MinApp\Common\Services\WeChatAppletPay;
+use Yunshop\StoreBalance\services\StoreBalancePay;
 
 class PayFactory
 {
@@ -147,6 +148,9 @@ class PayFactory
      *  微信支付-HJ(汇聚)
      */
     const PAY_WECHAT_HJ = 28;
+
+
+
 
     /**
      *  支付宝支付-HJ(汇聚)
@@ -281,6 +285,12 @@ class PayFactory
      */
     const HK_SCAN_PAY = 56;
 
+
+    /**
+     *  微信扫码支付
+     */
+    const WECHAT_NATIVE = 57;
+
     /**
      *  PayPal 支付
      */
@@ -315,6 +325,55 @@ class PayFactory
      * 支付宝支付-聚合支付（门店）
      */
     const  STORE_AGGREGATE_ALIPAY = 64;
+    /**
+     * 扫码支付-聚合支付（门店）
+     */
+    const  STORE_AGGREGATE_SCAN = 65;
+
+
+    const PAY_WE_CHAT_APP = 66;
+
+    /**
+     * 汇聚分账支付
+     */
+    const PAY_SEPARATE_HJ = 75;   //微信
+
+    const PAY_ALI_SEPARATE_HJ = 76; //支付宝
+
+
+
+    /**
+     *  易宝代付
+     */
+    const YEE_PAY = 67;
+
+    /**
+     * DCM扫码支付
+     */
+    const  DCM_SCAN_PAY = 68;
+
+    /**
+     *  高灯
+     */
+    const HIGH_LIGHT = 69;
+
+
+    /**
+     * 微信APP支付
+     */
+    const WECHAT_CPS_APP_PAY = 71;
+
+    /**
+     * 商云客聚合支付
+     */
+    const  XFPAY_WECHAT = 78;    // 商云客微信
+    const  XFPAY_ALIPAY = 79;    // 商云客支付宝
+
+    /**
+     * 门店余额支付
+     */
+    const STORE_BALANCE_PAY = 80;
+
 
     public static function create($type = null)
     {
@@ -469,7 +528,21 @@ class PayFactory
                 }
                 $className = new \Yunshop\DragonDeposit\services\LcgPayService();
                 break;
-            //汇聚支付
+            //汇聚支付微信-分账
+            case self::PAY_SEPARATE_HJ:
+                if (!app('plugins')->isEnabled('converge-alloc-funds') && \Setting::get('plugin.ConvergeAllocFunds_set') == false) {
+                    throw new AppException('商城未开启汇聚分账支付');
+                }
+                $className = new \Yunshop\ConvergeAllocFunds\services\JoinPayService();
+                break;
+            //汇聚支付支付宝-分账
+            case self::PAY_ALI_SEPARATE_HJ:
+                if (!app('plugins')->isEnabled('converge-alloc-funds') && \Setting::get('plugin.ConvergeAllocFunds_set') == false) {
+                    throw new AppException('商城未开启汇聚分账支付');
+                }
+                $className = new \Yunshop\ConvergeAllocFunds\services\JoinPayService();
+                break;
+
             case self::PAY_WECHAT_HJ:
                 if (!app('plugins')->isEnabled('converge_pay') && \Setting::get('plugin.convergePay_set.wechat') == false) {
                     throw new AppException('商城未开启汇聚支付插件中微信支付');
@@ -613,6 +686,48 @@ class PayFactory
             case self::STORE_AGGREGATE_ALIPAY:
                 $className = new \Yunshop\StoreAggregatePay\services\AlipayPayService();
                 break;
+            case self::STORE_AGGREGATE_SCAN:
+                $className = new \Yunshop\StoreAggregatePay\services\ScanPayService();
+                break;
+            case self::WECHAT_NATIVE:
+                $className = new \app\common\services\WechatNativePay();
+                break;
+            case self::DCM_SCAN_PAY:
+                $className = new \Yunshop\DcmScanPay\services\ScanPayService();
+                break;
+            case self::YEE_PAY:
+                if (!app('plugins')->isEnabled('yee-pay')) {
+                    throw new AppException('商城未开启易宝代付插件');
+                }
+                $className = new \Yunshop\YeePay\services\YeePayService();
+                break;
+            case self::HIGH_LIGHT:
+                if (!app('plugins')->isEnabled('high-light') || !\Yunshop\HighLight\services\SetService::getStatus()) {
+                    throw new AppException('商城未开启高灯提现插件');
+                }
+                $className = new \Yunshop\HighLight\services\HighLightService();
+                break;
+            case self::STORE_BALANCE_PAY:
+                if (!app('plugins')->isEnabled('store-balance') || \Setting::get('plugin.store_balance.is_open') != 1) {
+                    throw new AppException('商城未开启门店余额插件');
+                }
+                $className = new StoreBalancePay();
+                break;
+            case self::WECHAT_CPS_APP_PAY:
+                $className = new WechatPay();
+                break;
+            case self::XFPAY_ALIPAY;
+                if (!app('plugins')->isEnabled('xfpay') && \Setting::get('plugin.xfpay_set.xfpay.pay_type.alipay.enabled') == 0) {
+                    throw new AppException('商城未开启商云客聚合支付 或 插件中支付宝支付');
+                }
+                $className = new \Yunshop\Xfpay\services\AlipayService;
+                break;
+            case self::XFPAY_WECHAT;
+                if (!app('plugins')->isEnabled('xfpay') && \Setting::get('plugin.xfpay_set.xfpay.pay_type.wechat.enabled') == 0) {
+                    throw new AppException('商城未开启商云客聚合支付 或 插件中微信支付');
+                }
+                $className = new \Yunshop\Xfpay\services\WechatService;
+                break;
             default:
                 $className = null;
         }
@@ -628,7 +743,7 @@ class PayFactory
             $data['extra']['pay'] = 'cloud_alipay';
         }
 
-        $result = $pay->doPay($data);
+        $result = $pay->doPay($data,$type);
 
         switch ($type) {
             case self::PAY_WEACHAT:

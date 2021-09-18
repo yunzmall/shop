@@ -8,6 +8,7 @@
 
 namespace app\frontend\modules\payType;
 
+use app\common\models\OrderBehalfPayRecord;
 use app\frontend\modules\finance\models\Balance;
 
 class CreditPay extends BasePayType
@@ -26,7 +27,6 @@ class CreditPay extends BasePayType
         } else {
             $uid = \YunShop::app()->getMemberId();
         }
-
         $result = [
             'member_id' => $uid,
             'operator' => Balance::OPERATOR_ORDER_,//订单
@@ -35,7 +35,8 @@ class CreditPay extends BasePayType
             'service_type' => Balance::BALANCE_CONSUME,
             'trade_no' => 0,
         ];
-
-        return array_merge(parent::getPayParams($option), $result);
+		//代付
+		$this->orderPay->behalfPay && $result['remark'] .= "（代付）";
+		return array_merge(parent::getPayParams($option), $result);
     }
 }

@@ -8,18 +8,28 @@
 
 namespace app\common\services\finance;
 
+use app\common\facades\Setting;
 use app\common\models\Order;
-use Setting;
+use app\common\models\OrderGoods;
+use Yunshop\StoreCashier\common\models\CashierGoods;
+use Yunshop\StoreCashier\common\models\StoreGoods;
+use Yunshop\StoreCashier\common\models\StoreSetting;
 
 class CalculationPointService
 {
-    public static function calcuationPointByGoods($order_goods_model)
+    /**
+     * @param OrderGoods $orderGoods
+     * @return array
+     */
+    public static function calculationPointByGoods($orderGoods)
     {
         $point_set = Setting::get('point.set');
 
 
-        $order = Order::find($order_goods_model->order_id);
+        $order = Order::find($orderGoods->order_id);
+
         $order_set = $order->orderSettings->where('key', 'point')->first();
+
         if ($order_set && $order_set->value['set']['give_point']) {
             $point_set['give_point'] = $order_set->value['set']['give_point'] . '%';
         }
@@ -27,32 +37,69 @@ class CalculationPointService
 
         $point_data = [];
         //todo 如果等于0  不赠送积分
-        if (isset($order_goods_model->hasOneGoods->hasOneSale) && $order_goods_model->hasOneGoods->hasOneSale->point !== '' && intval($order_goods_model->hasOneGoods->hasOneSale->point) === 0) {
+        if (isset($orderGoods->hasOneGoods->hasOneSale) && $orderGoods->hasOneGoods->hasOneSale->point !== '' && intval($orderGoods->hasOneGoods->hasOneSale->point) === 0) {
             return $point_data;
         }
 
 
-
         //todo 如果不等于空，按商品设置赠送积分，否则按统一设置赠送积分
-        if (isset($order_goods_model->hasOneGoods->hasOneSale) && !empty($order_goods_model->hasOneGoods->hasOneSale->point)) {
-            if (strexists($order_goods_model->hasOneGoods->hasOneSale->point, '%')) {
-                $point_data['point'] = floatval(str_replace('%', '', $order_goods_model->hasOneGoods->hasOneSale->point) / 100 * $order_goods_model->payment_amount);
+        if (isset($orderGoods->hasOneGoods->hasOneSale) && !empty($orderGoods->hasOneGoods->hasOneSale->point)) {
+            if (strexists($orderGoods->hasOneGoods->hasOneSale->point, '%')) {
+                $point_data['point'] = floatval(str_replace('%', '', $orderGoods->hasOneGoods->hasOneSale->point) / 100 * static::goodsProfit($point_set, $order, $orderGoods));
             } else {
-                $point_data['point'] = $order_goods_model->hasOneGoods->hasOneSale->point * $order_goods_model->total;
+                $point_data['point'] = $orderGoods->hasOneGoods->hasOneSale->point * $orderGoods->total;
             }
-            $point_data['remark'] = '购买商品[' . $order_goods_model->hasOneGoods->title .'(比例:'. $order_goods_model->hasOneGoods->hasOneSale->point .')]赠送['.$point_data['point'].']积分！';
+            $point_data['remark'] = '购买商品[' . $orderGoods->hasOneGoods->title . '(比例:' . $orderGoods->hasOneGoods->hasOneSale->point . ')]赠送[' . $point_data['point'] . ']积分！';
         } else if (!empty($point_set['give_point'] && $point_set['give_point'])) {
             if (strexists($point_set['give_point'], '%')) {
-                $point_data['point'] = floatval(str_replace('%', '', $point_set['give_point']) / 100 * $order_goods_model->payment_amount);
+                $point_data['point'] = floatval(str_replace('%', '', $point_set['give_point']) / 100 * static::goodsProfit($point_set, $order, $orderGoods));
             } else {
-                $point_data['point'] = $point_set['give_point'] * $order_goods_model->total;
+                $point_data['point'] = $point_set['give_point'] * $orderGoods->total;
             }
-            $point_data['remark'] = "购买商品[统一设置(比例:". $point_set['give_point'] .")]赠送[{$point_data['point']}]积分！";
+            $point_data['remark'] = "购买商品[统一设置(比例:" . $point_set['give_point'] . ")]赠送[{$point_data['point']}]积分！";
         }
+        \Log::debug("个人会员奖励积分kk：", $point_data);
         return $point_data;
     }
 
-    public static function calcuationPointByOrder($order_model)
+    //订单商品利润
+    private static function goodsProfit($point_set, $order, $orderGoods)
+    {
+        if ($point_set['give_type'] == 1) {
+            if (app('plugins')->isEnabled('store-cashier') && in_array($order->plugin_id, [31, 32])) {
+                return static::storeProfit($orderGoods);
+            }
+            return static::generalProfit($orderGoods);
+        }
+        return $orderGoods->payment_amount;
+    }
+
+    //门店收银台订单利润计算
+    private static function storeProfit($orderGoods)
+    {
+        $cashier_good = CashierGoods::select('id', 'goods_id', 'shop_commission')->where('goods_id', $orderGoods->goods_id)->first();
+        $store_good = StoreGoods::select('id', 'store_id', 'goods_id')->where('goods_id', $orderGoods->goods_id)->first();
+        if ($cashier_good) {
+            $profit = proportionMath($orderGoods->payment_amount, $cashier_good->shop_commission);
+        } elseif ($store_good) {
+            $store_setting = StoreSetting::where('store_id', $store_good->store_id)->where('key', 'store')->first();
+            $shop_commission = (integer)$store_setting->value['shop_commission'];
+            $profit = proportionMath($orderGoods->payment_amount, $shop_commission);
+        } else {
+            $profit = 0;
+        }
+        return $profit;
+    }
+
+    //普通订单利润计算
+    private static function generalProfit($orderGoods)
+    {
+        $profit = $orderGoods->payment_amount - $orderGoods->goods_cost_price;
+
+        return $profit > 0 ? $profit : 0;
+    }
+
+    public static function calculationPointByOrder($order_model)
     {
         $point_set = Setting::get('point.set');
         $point_data = [];
@@ -82,6 +129,7 @@ class CalculationPointService
                 }
             }
         }
+
         return $point_data;
     }
 }

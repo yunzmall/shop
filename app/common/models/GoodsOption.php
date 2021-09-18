@@ -11,6 +11,7 @@ namespace app\common\models;
 use app\common\events\goods\GoodsStockNotEnoughEvent;
 use app\common\exceptions\AppException;
 use app\frontend\modules\goods\stock\GoodsStock;
+use app\frontend\modules\orderGoods\price\adapter\GoodsOptionPriceAdapter;
 
 /**
  * Class GoodsOption
@@ -89,6 +90,13 @@ class GoodsOption extends \app\common\models\BaseModel
     public function fireStockNotEnoughtEvent($goods)
     {
         event(new GoodsStockNotEnoughEvent([],$goods));
+    }
+
+
+    //todo blank 商品价格适配器
+    public function getGoodsPriceAdapter()
+    {
+        return new GoodsOptionPriceAdapter($this);
     }
 
 }

@@ -23,13 +23,13 @@ class MemberExportController extends BaseController
         $exportService = new ExportService($this->exportBuilder(), $this->exportPage());
 
         $exportData[0] = $this->exportTitle();
-
+        
         foreach ($exportService->builder_model as $key => $item) {
             $exportData[$key + 1] = [
                 date('Y-m-d H:i:s', $item->createtime),
                 $item->uid,
-                $item->nickname,
-                $item->realname,
+                strpos($item->nickname,'=') === 0 ? ' ' . $item->nickname : $item->nickname,
+                strpos($item->realname,'=') === 0 ? ' ' . $item->realname : $item->realname,
                 $item->mobile,
                 $item->credit1,
             ];
@@ -56,11 +56,7 @@ class MemberExportController extends BaseController
 
     private function exportBuilder()
     {
-        $recordsModels = Member::uniacid();
-
-        if ($search = $this->searchParams()) {
-            $recordsModels = $recordsModels->search($search);
-        }
+        $recordsModels = Member::searchMembers(\YunShop::request(), 'credit1');
         return $recordsModels->orderBy('uid', 'desc');
     }
 

@@ -8,7 +8,7 @@
 
 namespace app\backend\modules\order\operations;
 
-class FClose extends OrderOperation
+class FClose extends BackendOrderBase
 {
     public function getApi()
     {

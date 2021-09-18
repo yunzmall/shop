@@ -642,6 +642,11 @@ class Supervisor
         return $result;
     }
 
+    public function getHostname()
+	{
+		return $this->_hostname;
+	}
+
 
     /**
      * Close the socket when the class destructs

@@ -15,13 +15,16 @@ use app\common\helpers\SettingCache;
 use app\common\modules\express\KDN;
 use app\common\managers\ModelExpansionManager;
 use app\common\models\BaseModel;
+use app\common\modules\sms\SmsService;
 use app\common\modules\status\StatusContainer;
 use app\frontend\modules\coin\CoinManager;
 use app\frontend\modules\deduction\DeductionManager;
+use app\frontend\modules\goods\services\GoodsDetailManager;
 use app\frontend\modules\goods\services\GoodsManager;
 use app\common\modules\order\OrderManager;
 use app\frontend\modules\payment\managers\PaymentManager;
 use Illuminate\Support\ServiceProvider;
+use app\common\modules\express\Logistics;
 
 class ShopProvider extends ServiceProvider
 {
@@ -60,12 +63,28 @@ class ShopProvider extends ServiceProvider
             return new OrderManager();
         });
 
+        $this->app->singleton('CartContainer', function () {
+            return new \app\frontend\modules\cart\manager\CartContainer();
+        });
+
         $this->app->singleton('StatusContainer', function () {
             return new StatusContainer();
         });
         $this->app->singleton('express', function () {
             return new KDN(Setting::get('shop.express_info.KDN.eBusinessID'), Setting::get('shop.express_info.KDN.appKey'), config('app.express.KDN.reqURL'));
         });
+
+        $this->app->singleton('logistics', function () {
+            return new Logistics();
+        });
+
+        $this->app->singleton('sms', function () {
+            return new SmsService();
+        });
+
+        $this->app->singleton('GoodsDetail',function () {
+        	return new GoodsDetailManager();
+		});
     }
 
     public function boot()

@@ -9,6 +9,21 @@
         <div class="panel panel-default">
             <div class='panel-body'>
                 <div class="form-group">
+                    <label class="col-xs-12 col-sm-3 col-md-2 control-label">主题色</label>
+                    <div class="col-sm-9 col-xs-12 wid100">
+                        {!!tpl_form_field_color('set[background_color]',$info['background_color'])!!}
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="col-xs-12 col-sm-3 col-md-2 control-label"></label>
+                    <div class="col-sm-6 col-xs-12">
+                        <span class="help-block">
+                            只支持推广中心模板1
+                        </span>
+                    </div>
+                </div>
+
+                <div class="form-group">
                     <label class="col-xs-12 col-sm-3 col-md-2 control-label">不显示插件</label>
                     <div class="col-sm-9 col-xs-12">
                         <label class="checkbox-inline">
@@ -90,6 +105,22 @@
                         <label><input type="radio" name="set[show_member_id]" placeholder="" class="radio-inline"  style="margin-right: 4px;" value="1" @if($info['show_member_id'] == 1)checked @endif>不显示</label>
                     </div>
                 </div>
+
+                <div class="form-group">
+                    <label class="col-xs-12 col-sm-3 col-md-2 control-label">插件金额显示</label>
+                    <div class="col-sm-9 col-xs-12" style="margin-top: 4px">
+                        @foreach($income_config as $item)
+                            <div class="form-group">
+                                <div class="col-sm-9 col-xs-12" style="padding: 0;margin: 0;">
+                                    <label class="col-xs-12 col-sm-3 col-md-2 control-label" style=" width: 90px; text-align: left; padding: 4px 0;">{{$item['name']}}</label>
+                                    <label style="margin-left: 15px;"><input type="radio" name="set[{{$item['value']}}]" placeholder="" class="radio-inline" style="margin-right: 4px; margin-left: 4px" value="0" @if(!$info[$item['value']]) checked @endif >累计金额</label>
+                                    <label style="margin-left: 15px;"><input type="radio" name="set[{{$item['value']}}]" placeholder="" class="radio-inline"  style="margin-right: 4px;" value="1" @if($info[$item['value']] == 1)checked @endif>剩余可提现金额</label>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+
 
 
                 @include('public.admin.small')

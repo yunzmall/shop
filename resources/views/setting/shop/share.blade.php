@@ -86,10 +86,10 @@
                             <div v-if="form.type=='1'" ><span class='help-block'>用户未关注的引导页面，建议使用短链接：<a target="_blank" href="https://dwz.cn">短网址</a></div>
                         </el-form-item>
                         <el-form-item label="分享图标" prop="head_img_url" v-if="form.type=='0'">
-                            <div class="upload-box" @click="openUpload('follow_img')" v-if="!form.follow_img_url">
+                            <div class="upload-box" @click="openUpload('follow_img',1,'one')" v-if="!form.follow_img_url">
                                 <i class="el-icon-plus" style="font-size:32px"></i>
                             </div>
-                            <div @click="openUpload('follow_img')" class="upload-boxed" v-if="form.follow_img_url">
+                            <div @click="openUpload('follow_img',1,'one')" class="upload-boxed" v-if="form.follow_img_url">
                                 <img :src="form.follow_img_url" alt="" style="width:150px;height:150px;border-radius: 5px;cursor: pointer;">
                                 <div class="upload-boxed-text">点击重新上传</div>
                             </div>
@@ -105,23 +105,26 @@
                     <span class="help-block">不填写默认商城名称</span>
                 </el-form-item>
                 <el-form-item label="分享图标" prop="head_img_url">
-                    <div class="upload-box" @click="openUpload('icon')" v-if="!form.icon_url">
+                    <div class="upload-box" @click="openUpload('icon',1,'one')" v-if="!form.icon_url">
                         <i class="el-icon-plus" style="font-size:32px"></i>
                     </div>
-                    <div @click="openUpload('icon')" class="upload-boxed" v-if="form.icon_url">
+                    <div @click="openUpload('icon',1,'one')" class="upload-boxed" v-if="form.icon_url">
                         <img :src="form.icon_url" alt="" style="width:150px;height:150px;border-radius: 5px;cursor: pointer;">
                         <div class="upload-boxed-text">点击重新上传</div>
                     </div>
                     <div class="tip">正方型图片</div>
                 </el-form-item>
-                <upload-img :upload-show="uploadShow" :name="chooseImgName" @replace="changeProp" @sure="sureImg"></upload-img>
+                <!-- <upload-img :upload-show="uploadShow" :name="chooseImgName" @replace="changeProp" @sure="sureImg"></upload-img> -->
+                <upload-multimedia-img :upload-show="uploadShow" :type="type" :name="chooseImgName" :sel-Num="selNum" @replace="changeProp" @sure="sureImg"></upload-multimedia-img>
                 <el-form-item label="分享描述">
                     <el-input v-model="form.desc" type="textarea" placeholder="请输入分享描述" style="width:70%;"></el-input>
                 </el-form-item>
+                <!--
                 <el-form-item label="分享链接">
                     <el-input v-model="form.url"  placeholder="请填写指向的链接" style="width:70%;"></el-input><el-button @click="show=true" style="margin-left:10px;">选择链接</el-button>
                     <span class='help-block'>用户分享出去的链接，默认为首页</span>
                 </el-form-item>
+                -->
             </div>
         </div>
         <div class="confirm-btn">
@@ -132,13 +135,16 @@
     </div>
     </div>
     @include('public.admin.pop')
-    @include('public.admin.uploadImg')
+    @include('public.admin.uploadMultimediaImg')
+
     <script>
         var vm = new Vue({
             el: "#re_content",
             delimiters: ['[[', ']]'],
             data() {
                 return {
+                    type:'',
+                    selNum:'',
                     activeName: 'one',
                     show:false,
                     uploadShow:false,
@@ -161,10 +167,12 @@
                 this.getData();
             },
             methods: {
-                openUpload(str) {
+                openUpload(str,type,sel) {
 
                     this.chooseImgName = str;
                     this.uploadShow = true;
+                    this.type = type
+                    this.selNum = sel
                 },
                 changeProp(val) {
                     if(val == true) {
@@ -174,9 +182,17 @@
                         this.uploadShow = true;
                     }
                 },
-                sureImg(name,image,image_url) {
-                    this.form[name] = image;
-                    this.form[name+'_url'] = image_url;
+                sureImg(name,uploadShow,fileList) {
+                    
+                    if(fileList.length <= 0) {
+                        return 
+                    }
+                    console.log(name)
+                    console.log(fileList)
+                    this.form[name] =fileList[0].attachment;
+                    this.form[name+'_url'] = fileList[0].url;
+                    console.log(this.form[name],'aaaaa')
+                    console.log( this.form[name+'_url'],'bbbbb')
                 },
                 //   弹窗显示与隐藏的控制
                 changeProp1(item){

@@ -56,6 +56,7 @@
                     <div class="title"><div style="display:flex;align-items:center;"><div style="display:flex;align-items:center;"><span style="width: 4px;height: 18px;background-color: #29ba9c;margin-right:15px;display:inline-block;"></span><b>操作日志</b><span style="color: #999999;font-size:12px;display:inline-block;margin-left:16px;">操作日志只包含部分系统操作日志，并非系统所有操作都记录日志，请悉知！</span></div><span></div></div>
                     <el-form-item label="" style="position:relative;">
                         <el-input v-model="search_form.user_name" style="width:15%;margin-right:16px;" placeholder="操作员"></el-input>
+                        <el-input v-model="search_form.mark" style="width:15%;margin-right:16px;" placeholder="模块id"></el-input>
                         <el-date-picker v-model="search_form.activity_time"  value-format="timestamp" type="datetimerange" range-separator="至" start-placeholder="开始日期" end-placeholder="结束日期"></el-date-picker>
                         <el-button type="primary" @click="search" style="margin-left:16px;">搜索</el-button>
                         <div style="position:absolute;right:0;top:0;">
@@ -87,6 +88,12 @@
                             </el-table-column>
                             <el-table-column
                                     prop="modules_name"
+                                    align="center"
+                                    label="模块名	"
+                                    label="100">
+                            </el-table-column>
+                            <el-table-column
+                                    prop="mark"
                                     align="center"
                                     label="模块ID	"
                                     label="100">

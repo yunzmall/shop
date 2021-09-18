@@ -59,7 +59,6 @@ class Trade extends BaseModel
         $this->service_fee_items = $this->getServiceFeeItems();
         $this->total_price = $this->orders->sum('price');
         event(new AfterTradeCreatedEvent($this));
-
     }
 
     public function getMemberCartCollection()
@@ -153,6 +152,7 @@ class Trade extends BaseModel
                             'code' => $orderDiscount['discount_code'],
                             'name' => $orderDiscount['name'],
                             'amount' => $orderDiscount['amount'],
+                            'no_show' => $orderDiscount['no_show'],
                         ];
                     }
                 }
@@ -183,6 +183,8 @@ class Trade extends BaseModel
         $orderCollection = $groups->map(function (MemberCartCollection $memberCartCollection) use ($member, $request) {
             return $memberCartCollection->getOrder($memberCartCollection->getPlugin(), $member, $request);
         });
+
+
         return app('OrderManager')->make(OrderCollection::class,$orderCollection->all());
     }
 

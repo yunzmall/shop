@@ -38,7 +38,7 @@ class PointMemberController extends BaseController
 
     private function resultData()
     {
-        return [
+        $data = [
             'search'        => $this->searchParams(),
             'memberList'    => $this->recordsModels,
             'page'         => $this->page(),
@@ -47,6 +47,7 @@ class PointMemberController extends BaseController
             'memberGroup'   => MemberGroup::getMemberGroupList(),
             'memberLevel'   => MemberLevel::getMemberLevelList()
         ];
+        return $data;
     }
 
     /**

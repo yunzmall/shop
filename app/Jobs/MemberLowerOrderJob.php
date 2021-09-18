@@ -50,7 +50,7 @@ class MemberLowerOrderJob implements ShouldQueue
         $members = DB::select('select member_id, parent_id from '. DB::getTablePrefix() . 'yz_member where uniacid =' . \YunShop::app()->uniacid );
         $tree = $this->tree($members);
         unset($members);
-        $this->getTreeData($tree[0]['son'],$orders,0);
+        $this->getTreeData($tree[0]['son'],$orders);
         unset($tree[0]);
         $this->getFirst($tree,$orders);
 
@@ -107,8 +107,24 @@ class MemberLowerOrderJob implements ShouldQueue
     function getFirst($tree, $orders)
     {
         foreach($tree as $kk => $t){
-            if(!isset($t['son'])) {
+            if(empty($t['son'])) {
                 continue;
+            }
+            if (empty($this->insert_data[$kk])) {
+                $this->insert_data[$kk] = [
+                    'uid'=> $t['member_id'],
+                    'uniacid'=>\YunShop::app()->uniacid,
+                    'first_order_quantity'=>0,
+                    'first_order_amount'=>0,
+                    'second_order_quantity'=>0,
+                    'second_order_amount'=>0,
+                    'third_order_quantity'=>0,
+                    'third_order_amount'=>0,
+                    'team_order_quantity'=>0,
+                    'team_order_amount'=>0,
+                    'pay_count'=>0,
+                    'created_at'=>time()
+                ];
             }
             foreach ($t['son'] as $first) {
                 $this->insert_data[$kk]['first_order_quantity'] += $orders[$first['member_id']]['count'];

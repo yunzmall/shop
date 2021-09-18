@@ -29,26 +29,23 @@ class TradeDiscount extends BaseModel
     {
         $this->trade = $trade;
         $this->setRelation('memberCoupons', $this->getCoupons());
-
         $order_coupon = \Setting::get('coupon.order_coupon');
-
         //设置 order_coupon = 0：显示 1:关闭显示
         if (isset($order_coupon) && $order_coupon == 1) {
             $this->whether_show_coupon = "0";
         }
 
-
+	
+	    $this->default_deduction = \Setting::get('point.set')['default_deduction'] ?: 0;//添加开启默认积分抵扣按钮
+	    
         $coupon_set = \Setting::getByGroup('coupon');
-
         $this->coupon_show = $coupon_set["coupon_show"];
-
         return $this;
     }
 
     protected function getCoupons()
     {
         return $this->trade->orders->getMemberCoupons();
-
     }
 
 }

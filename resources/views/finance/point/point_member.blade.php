@@ -120,15 +120,15 @@
                                     <a class='btn btn-default'
                                        style="margin-bottom: 2px"
                                        href="{{ yzWebUrl('point.recharge.index', array('id' => $list->uid)) }}">充值积分</a>
-                                    @if(0)
+                                    @if($transfer_love)
                                         <a class='btn btn-default'
                                            href="{{ yzWebUrl('finance.point-love.index', array('member_id' => $list->uid)) }}"
                                            style="margin-bottom: 2px">转出设置</a>
-                                    @else
-                                        <a class='btn btn-default'
-                                           href="{{ yzWebUrl('point.records.index', array('search[member]' => $list->uid)) }}"
-                                           style="margin-bottom: 2px">积分明细</a>
                                     @endif
+                                    <a class='btn btn-default'
+                                       href="{{ yzWebUrl('point.records.index', array('search' => ['member_id' => $list->uid])) }}"
+                                       style="margin-bottom: 2px">积分明细</a>
+
                                 </td>
                             </tr>
                         @endforeach

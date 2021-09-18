@@ -10,6 +10,7 @@ namespace app\frontend\modules\member\controllers;
 
 use app\common\components\ApiController;
 use app\common\components\BaseController;
+use app\framework\Http\Request;
 use app\frontend\modules\goods\services\GoodsService;
 use app\frontend\modules\member\models\MemberFavorite;
 
@@ -28,7 +29,7 @@ class MemberFavoriteController extends ApiController
         return $this->successJson('成功', $favoriteList);
     }
 
-    public function isFavorite($request, $integrated = null)
+    public function isFavorite(Request $request, $integrated = null)
     {
         $memberId = \YunShop::app()->getMemberId();
         $goodsId = \YunShop::request()->goods_id;

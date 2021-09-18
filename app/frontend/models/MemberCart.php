@@ -29,7 +29,17 @@ class MemberCart extends \app\common\models\MemberCart
     protected $fillable = [];
 
     protected $guarded = ['id'];
-    protected $hidden = ['member_id', 'uniacid'];
+    protected $hidden = ['member_id', 'uniacid','updated_at','deleted_at'];
+
+
+    public static function getCartNum($member_id)
+    {
+        if (!$member_id) {
+            return 0;
+        }
+
+        return static::uniacid()->where('member_id', $member_id)->count();
+    }
 
     /**
      * 根据购物车id数组,获取购物车记录数组
@@ -47,15 +57,21 @@ class MemberCart extends \app\common\models\MemberCart
         return $result;
     }
 
+    public function scopeFilterFailureGoods(Builder $query)
+    {
+        return $query->join('yz_goods', 'yz_goods.id', '=', 'yz_member_cart.goods_id')
+        ->where('yz_goods.status',1)
+        ->whereNull('yz_goods.deleted_at');
+    }
+
     public function scopeCarts(Builder $query)
     {
-        $query
-            ->uniacid()
+        return $query->select($this->getTable().'.*')->uniacid()
             ->with(['goods' => function ($query) {
-                return $query->withTrashed()->select('id', 'thumb', 'price', 'market_price', 'title', 'deleted_at','plugin_id','stock','status');
+                return $query->withTrashed()->select('id', 'thumb', 'price', 'market_price', 'title', 'deleted_at','plugin_id','stock','status','has_option');
             }])
             ->with(['goodsOption' => function ($query) {
-                return $query->select('id', 'title', 'thumb', 'product_price', 'market_price','stock');
+                return $query->select('id', 'goods_id','title', 'thumb', 'product_price', 'market_price','stock');
             }]);
     }
 

@@ -97,6 +97,9 @@
             @if(app('plugins')->isEnabled('appointment'))
                 <el-tab-pane label="门店预约" name="nine"></el-tab-pane>
             @endif
+            {{--@if(app('plugins')->isEnabled('store-projects'))//前端没弄好，先注释掉
+                <el-tab-pane label="多门店核销" name="store_projects"></el-tab-pane>
+            @endif--}}
 
             @if(app('plugins')->isEnabled('merchant'))
                 <el-tab-pane label="招商" name="twelve"></el-tab-pane>
@@ -262,6 +265,14 @@
                         <el-form-item label="顾客">
                             <el-input v-model="form.team_dividend.client" style="width:70%;"></el-input>
                         </el-form-item>
+                        <el-form-item label="直推字样自定义">
+                            <el-input v-model="form.team_dividend.recommend_text" style="width:70%;"></el-input>
+                            <div style="font-size:12px;color:#ccc;">订单概况页面"直推字样"自定义</div>
+                        </el-form-item>
+                        <el-form-item label="非直推字样自定义">
+                            <el-input v-model="form.team_dividend.no_recommend_text" style="width:70%;"></el-input>
+                            <div style="font-size:12px;color:#ccc;">订单概况页面"非直推字样"自定义</div>
+                        </el-form-item>
                     </template>
                     <template v-if="activeName=='six'">
                         <el-form-item label="插件名称">
@@ -295,6 +306,9 @@
                         <el-form-item label="劳务税">
                             <el-input v-model="form.income.special_service_tax" style="width:70%;"></el-input>
                         </el-form-item>
+                        <el-form-item label="手动提现">
+                            <el-input v-model="form.income.manual_withdrawal" style="width:70%;"></el-input>
+                        </el-form-item>
                     </template>
                     <template v-if="activeName=='nine'">
                         <el-form-item label="技师">
@@ -307,6 +321,11 @@
                             <el-input v-model="form.appointment.service" style="width:70%;"></el-input>
                         </el-form-item>
                     </template>
+                    {{--<template v-if="activeName=='store_projects'">
+                        <el-form-item label="项目">
+                            <el-input v-model="form.store_projects.project" style="width:70%;"></el-input>
+                        </el-form-item>
+                    </template>--}}
                     <template v-if="activeName=='ten'">
                         <el-form-item label="原价">
                             <el-input v-model="form.goods.market_price" style="width:70%;"></el-input>
@@ -367,6 +386,8 @@
                 </div>
                 <div class="confirm-btn">
                     <el-button type="primary" @click="submit">提交</el-button>
+                </div>
+                </el-form>
                 </div>
         </div>
     </div>
@@ -452,6 +473,9 @@
                             project: '',
                             service: '',
                         },
+                        /*store_projects: {
+                            project: ''
+                        },*/
                         goods: {
                             market_price: '',
                             price: '',

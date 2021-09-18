@@ -20,7 +20,7 @@ class CoreAttach extends BaseModel
     protected $hidden  = ['deleted_at', 'updated_at'];
     public $timestamps = true;
     protected $datas = ['deleted_at'];
-
+    protected $appends = ['tag_name'];
     // 存储在表中type字段的对应的类型
     const IMAGE_TYPE = 1;// 图片 1
     const VOICE_TYPE = 2;// 音频 2
@@ -30,7 +30,7 @@ class CoreAttach extends BaseModel
     const UPLOAD_OSS = 2;       // 阿里云
     const UPLOAD_COS = 4;       // 腾讯云
 
-    public function scopeSearch($query, $keyword)
+    public function scopeSearch($query, $keyword = null)
     {
         if ($keyword['month'] && $keyword['year']) {
 
@@ -96,5 +96,9 @@ class CoreAttach extends BaseModel
             'filename' => 'string|max:50',
             'attachment' => '',
         ];
+    }
+
+    public function getTagNameAttribute(){
+        return $this->tag_id?CoreAttachTags::where('id', $this->tag_id)->value('title'):'未分组';
     }
 }

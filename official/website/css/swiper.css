@@ -1,0 +1,217 @@
+html,
+body {
+  position: relative;
+  height: 100%;
+  margin: 0;
+}
+.top_title {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px 0;
+  position: fixed;
+  z-index: 10;
+  background: #fff;
+}
+.top_title .title_line {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.top_title .title_line .title_line_detail span {
+  margin: 0 20px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.top_title .title_login {
+  display: block;
+  background: #00a2ff;
+  color: #fff;
+  padding: 10px 30px;
+  border-radius: 5px;
+  margin-left: 5%;
+  cursor: pointer;
+}
+.middle_detail .home_page img {
+  height: 100%;
+  width: 100%;
+}
+.middle_detail .home_detail {
+  background: url(./image/background.png) no-repeat center top;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+.home_detail .top_detail {
+  width: 1614px;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+}
+.home_detail .last_detail {
+  width: 1614px;
+  height: 170% !important;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+}
+.top_detail .img_frame {
+  max-width: 152px;
+  max-height: 305px;
+  margin-left: 75%;
+}
+.top_detail .img_detail {
+  position: absolute;
+  top: 17px;
+  left: 80%;
+  width: 135px;
+  height: 272px;
+}
+.top_detail .img_frame_odd {
+  max-width: 152px;
+  max-height: 305px;
+  margin-left: -33%;
+}
+.top_detail .img_detail_odd {
+  position: absolute;
+  top: 17px;
+  left: -28%;
+  width: 135px;
+  height: 272px;
+}
+.top_detail .image_contain {
+  position: relative;
+}
+.top_detail .contain {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+.contain .contain_title {
+  font-size: 30px;
+  color: #000000;
+  margin-bottom: 24px;
+}
+.contain .contain_describe {
+  max-width: 362px;
+  display: flex;
+  flex-wrap: wrap;
+  letter-spacing: 5px;
+}
+.bottom_detail {
+  background-image: url(./image/contact_part1.png);
+  width: 100%;
+  height: 100%;
+}
+.bottom_detail .top_describe {
+  color: #fff;
+  display: flex;
+  justify-content: center;
+  align-content: center;
+  padding: 20px 0;
+}
+.bottom_detail .lef_detail {
+  display: flex;
+}
+.bottom_detail .lef_detail .contail_describe {
+  display: flex;
+  flex-direction: column;
+  margin: 0 30px;
+}
+.bottom_detail .lef_detail span {
+  margin-bottom: 10px;
+}
+.bottom_detail .lef_detail .line {
+  width: 65px;
+  height: 2px;
+  background: #fff;
+  margin-bottom: 40px;
+}
+.side_line {
+  width: 2px;
+  height: 100%;
+  background: #8b9098;
+}
+.right_detail {
+  margin: 0 40px;
+  display: flex;
+}
+.right_detail .wx_code {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-right: 60px;
+}
+.right_detail .more_code {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-right: 60px;
+}
+.right_detail img {
+  margin-bottom: 20px;
+  width: 170px;
+  height: 170px;
+}
+.bottom_describe {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  color: #fff;
+  line-height: 25px;
+  padding-bottom: 20px;
+}
+@media (max-width: 1148px) {
+  .home_detail .top_detail {
+    height: 377px;
+    width: 100%;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+  }
+  .top_title .title_line .title_line_detail span {
+    display: none;
+  }
+  .bottom_detail .lef_detail .contail_describe {
+    margin: 0px 10px;
+  }
+  .bottom_detail .lef_detail {
+    margin-left: 60px;
+  }
+}
+
+/* @media (max-height: 880px) {
+  .home_detail .last_detail {
+    margin-top: 10%;
+  }
+  .bottom_describe {
+    padding-bottom: 40px;
+  }
+  .top_detail .img_frame_odd {
+    margin-left: -42%;
+  }
+  .top_detail .img_detail_odd {
+    left: -36%;
+  }
+} */
+
+.swiper-container {
+  width: 100%;
+  height: 100%;
+}
+
+.swiper-pagination-bullet-active {
+  background: #4bdad3 !important;
+  width: 8px !important;
+  height: 25px !important;
+  border-radius: 30% !important;
+}
+.mask {
+  width: 100%;
+  height: 100%;
+  opacity: 0.7;
+}

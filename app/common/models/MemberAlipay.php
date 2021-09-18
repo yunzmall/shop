@@ -25,4 +25,11 @@ class MemberAlipay extends BaseModel
             ->where('member_id', $id)
             ->delete();
     }
+
+    public static function getFansById($memberId)
+    {
+        return self::uniacid()
+            ->where('member_id', $memberId)
+            ->first();
+    }
 }

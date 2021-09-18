@@ -1,6 +1,6 @@
 <?php
 
-namespace app\common\services\alipay\f2fpay\service;
+namespace app\common\services\alipay\f2fpay\model\request;
 /**
  * ALIPAY API: alipay.trade.refund request
  *

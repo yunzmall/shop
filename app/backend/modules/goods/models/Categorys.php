@@ -49,10 +49,10 @@ class Categorys extends \app\common\models\Category
         $setlevel = \Setting::get('shop.category.cat_level');  //根据后台设置显示两级还是三级分类
 
         return self::uniacid()
-            ->select('id', 'name', 'parent_id')->with(['hasManyChildren' => function ($query) use ($setlevel){
-                $query->select('id', 'name', 'parent_id')
+            ->select('id', 'name', 'parent_id', 'enabled', 'is_home')->with(['hasManyChildren' => function ($query) use ($setlevel){
+                $query->select('id', 'name', 'parent_id', 'enabled', 'is_home')
                     ->with(['hasManyChildren' => function ($query) use ($setlevel) {
-                        $query->select('id', 'name', 'parent_id')->where('level', $setlevel);
+                        $query->select('id', 'name', 'parent_id', 'enabled', 'is_home')->where('level', $setlevel);
                     }]);
             }])
             ->where('level', 1)

@@ -52,23 +52,40 @@ class DispatchType extends BaseModel
         return [self::CLOUD_WAREHOUSE];
     }
 
+
+    public static function goodsEnableDispatchTypeIds(array $ids)
+    {
+        if (empty($ids)) {return [];}
+
+        $dispatchTypes = self::whereIn('id', $ids)->with(['hasOneSet'])->get();
+
+        $dispatchTypes  = $dispatchTypes->map(function ($item) {
+            if (!is_null($item->hasOneSet)) {
+                $item->enable = $item->hasOneSet->enable;
+                $item->sort = $item->hasOneSet->sort;
+            }
+            return $item;
+        })->filter(function ($dispatchType) {
+            return $dispatchType->enable;
+        })->values();
+
+        return $dispatchTypes->pluck('id')->toArray();
+    }
+
     public static function dispatchTypesSetting($dispatchTypes = null)
 
     {
-        $dispatchTypes = $dispatchTypes ?: DispatchType::where('plugin', 0)->get()->toArray();
+        $dispatchTypes = $dispatchTypes ?: DispatchType::getCurrentUniacidSet()->toArray();
         $dispatchTypes = array_combine(array_column($dispatchTypes, 'code'), $dispatchTypes);
 
-        $dispatchTypesSetting = \Setting::get('goods.dispatch_types') ?: [];
 
-        foreach ($dispatchTypes as &$dispatchType) {
-
-            $dispatchType = array_merge($dispatchType, $dispatchTypesSetting[$dispatchType['code']] ?: []);
-        }
+        $dispatchTypes = array_filter($dispatchTypes, function ($dispatchTypes) {
+            return $dispatchTypes['enable'];
+        });
 
         $dispatchTypesSetting = array_sort($dispatchTypes, function ($dispatchType) {
             return $dispatchType['sort'] + $dispatchType['id'] / 100;
         });
-
 
         return $dispatchTypesSetting;
     }

@@ -160,6 +160,12 @@ class PaymentTypeManager extends Container
 
         // 过滤掉无效的
         $orderPaymentTypes = $this->getAllOrderPaymentTypes($orderPay)->filter(function ($paymentType) {
+            if (get_class($paymentType) == 'app\frontend\modules\payment\orderPayments\AlipayJsapiPayment') {
+                $paymentType->canUse();
+//                dd(debug_backtrace());
+            }
+
+
             // 可用的
             return isset($paymentType) && $paymentType instanceof BasePayment && $paymentType->canUse();
         });

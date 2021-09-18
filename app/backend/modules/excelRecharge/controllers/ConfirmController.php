@@ -371,9 +371,18 @@ class ConfirmController extends PageController
 
     private function batchRechargeLove($memberId, $rechargeValue)
     {
-        return (new LoveChangeService($this->rechargeTypeOfLove()))->recharge([
+        if ($rechargeValue >= 0) {
+            return (new LoveChangeService($this->rechargeTypeOfLove()))->recharge([
+                'member_id'    => $memberId,
+                'change_value' => $rechargeValue,
+                'operator'     => ConstService::OPERATOR_MEMBER,
+                'operator_id'  => 0,
+                'remark'       => 'Excel批量充值' . $rechargeValue,
+            ]);
+        }
+        return (new LoveChangeService($this->rechargeTypeOfLove()))->rechargeMinus([
             'member_id'    => $memberId,
-            'change_value' => $rechargeValue,
+            'change_value' => abs($rechargeValue),
             'operator'     => ConstService::OPERATOR_MEMBER,
             'operator_id'  => 0,
             'remark'       => 'Excel批量充值' . $rechargeValue,

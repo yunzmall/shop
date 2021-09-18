@@ -16,6 +16,8 @@ use app\common\events\withdraw\WithdrawApplyEvent;
 use app\common\events\withdraw\WithdrawApplyingEvent;
 use app\common\exceptions\AppException;
 use app\common\facades\Setting;
+use app\common\models\Income;
+use app\common\models\income\WithdrawIncomeApply;
 use app\common\services\income\WithdrawIncomeApplyService;
 use app\frontend\modules\withdraw\models\Withdraw;
 use Illuminate\Support\Facades\DB;
@@ -23,7 +25,9 @@ use Illuminate\Support\Facades\Log;
 use app\frontend\modules\withdraw\services\StatisticalPresentationService;
 use app\common\helpers\Url;
 use Yunshop\Commission\models\Agents;
+use app\common\models\WithdrawMergeServicetaxRate;
 use Yunshop\WithdrawalLimit\Common\models\MemberWithdrawalLimit;
+use app\common\services\finance\Withdraw as WithdrawService;
 
 class ApplyController extends ApiController
 {
@@ -67,6 +71,8 @@ class ApplyController extends ApiController
         $this->pay_way = $pay_way;
         $this->poundage = $poundage;
         $this->withdraw_data = $withdraw_data;
+        //提现数据验证
+        $this->validateData();
         //提现限额判断
         $this->cashLimitation();
        //提现额度插件判断
@@ -157,6 +163,37 @@ class ApplyController extends ApiController
                 }
             }
         }
+        if(app('plugins')->isEnabled('high-light') && in_array($this->pay_way,[
+                Withdraw::WITHDRAW_WITH_HIGH_LIGHT_WECHAT,
+                Withdraw::WITHDRAW_WITH_HIGH_LIGHT_ALIPAY,
+                Withdraw::WITHDRAW_WITH_HIGH_LIGHT_BANK
+        ])) {
+            try {
+                if ($this->amount < 1) {
+                    throw new \Exception('高灯提现金额必须大于等于1元');
+                }
+                switch ($this->pay_way)
+                {
+                    case Withdraw::WITHDRAW_WITH_HIGH_LIGHT_WECHAT:
+                        if ($this->amount > 100000) {
+                            throw new \Exception('高灯微信单笔提现不得大于10万元！');
+                        }
+                        break;
+                    case Withdraw::WITHDRAW_WITH_HIGH_LIGHT_ALIPAY:
+                        if ($this->amount > 400000) {
+                            throw new \Exception('高灯微信单笔提现不得大于40万元！');
+                        }
+                        break;
+                    case Withdraw::WITHDRAW_WITH_HIGH_LIGHT_BANK:
+                        if ($this->amount > 100000) {
+                            throw new \Exception('高灯银行卡单笔提现不得大于10万元！');
+                        }
+                        break;
+                }
+            } catch (\Exception $e) {
+                return $this->errorJson($e->getMessage());
+            }
+        }
     }
 
     private function withdrawLimitation()
@@ -174,6 +211,7 @@ class ApplyController extends ApiController
                 }
             }
         }
+        $this->validateWithdrawDate();
     }
 
     private function withdrawStart()
@@ -198,6 +236,14 @@ class ApplyController extends ApiController
     private function _withdrawStart()
     {
         $amount = '0';
+
+        if (count($this->withdraw_data) > 1){ // 如果同时提现几种类型的收入并且后台设置了劳务税金额梯度比例，劳务税按金额总和计算
+            if ($this->withdraw_set['servicetax']){
+                $merge_servicetax_withdraw_id = []; //劳务税id
+                $merge_servicetax_amount = 0; //劳务税计算金额
+            }
+        }
+
         foreach ($this->withdraw_data as $key => $item) {
 
             $withdrawModel = new Withdraw();
@@ -216,19 +262,61 @@ class ApplyController extends ApiController
 
             event(new WithdrawApplyingEvent($withdrawModel));
 
+
             if (!$withdrawModel->save()) {
                 throw new AppException("ERROR:Data storage exception -- {$item['key_name']}");
             }
+
+			//判断收入是否已提现
+			$apply_count = WithdrawIncomeApply::whereIn('income_id',array_filter(explode(',', $item['type_id'])))->whereIn('status',[0,1,-1])->lockForUpdate()->count();
+			if ($apply_count > 0) {
+				throw new AppException("ERROR:Data storage exception repeat-- {$item['key_name']}");
+			}
+
             //插入提现收入申请表
             if (!WithdrawIncomeApplyService::insert($withdrawModel)) {
                 throw new AppException("ERROR:Data storage exception -- {$item['key_name']}");
             }
 
+
+
             app('plugins')->isEnabled('converge_pay') && $this->withdraw_set['free_audit'] == 1 && $this->pay_way == 'converge_pay' ? \Setting::set('plugin.convergePay_set.notifyWithdrawUrl', Url::shopSchemeUrl('payment/convergepay/notifyUrlWithdraw.php')) : null;
             event(new WithdrawAppliedEvent($withdrawModel));
 
             $amount = bcadd($amount, $withdrawModel->amounts, 2);
+
+            if (isset($merge_servicetax_withdraw_id)
+                && !in_array($item['key_name'], ['StoreCashier', 'StoreWithdraw', 'StoreBossWithdraw'])
+                && ($withdrawModel->pay_way != 'balance' || !$this->withdraw_set['balance_special']))
+             {  //统计需要劳务税的基本计算金额
+
+                $merge_servicetax_withdraw_id[] = $withdrawModel->id;
+                $this_servicetax_amount = !$this->withdraw_set['service_tax_calculation'] ? bcsub($withdrawModel->amounts, $withdrawModel->poundage, 2) : $withdrawModel->amounts;
+                if (bccomp($this_servicetax_amount,0,2) != 1) $this_servicetax_amount = 0;
+                $merge_servicetax_amount = bcadd($merge_servicetax_amount,$this_servicetax_amount,2);
+            }
+
         }
+
+
+        if (!empty($merge_servicetax_withdraw_id)){
+            $service_tax_data = WithdrawService::getWithdrawServicetaxPercent($merge_servicetax_amount);
+            if (bccomp($service_tax_data['servicetax_percent'],0,2) == 1){
+                $time = time();
+                foreach ($merge_servicetax_withdraw_id as $v){
+                    $service_tax_insert_data[] = [
+                        'uniacid'=>\YunShop::app()->uniacid,
+                        'withdraw_id'=>$v,
+                        'servicetax_rate'=>$service_tax_data['servicetax_percent'],
+                        'created_at'=>$time,
+                        'updated_at'=>$time
+                    ];
+                }
+                WithdrawMergeServicetaxRate::insert($service_tax_insert_data);
+            }
+        }
+
+
         if (bccomp($amount, $this->amount, 2) != 0) {
             throw new AppException('提现失败：提现金额错误');
         }
@@ -379,6 +467,47 @@ class ApplyController extends ApiController
             ]
         ];
         return $data;
+    }
+
+    private function validateData()
+    {
+        $member_id = $this->getMemberId();
+        //对比提现的收入记录是否属于该会员
+        foreach ($this->withdraw_data as $withdraw) {
+            $income_ids = array_filter(explode(',', $withdraw['type_id']));
+            $income_count = Income::where('member_id', $member_id)->whereIn('id', $income_ids)->count();
+			//判断收入是否已提现
+			$apply_count = WithdrawIncomeApply::whereIn('income_id',$income_ids)->whereIn('status',[0,1,-1])->count();
+            if ($income_count != count($income_ids) || $apply_count > 0) {
+                return $this->errorJson('提现数据错误');
+            }
+        }
+    }
+
+    private function validateWithdrawDate()
+    {
+        $income_set = \Setting::get('withdraw.income');
+        $disable = 0;
+        $day_msg = '无提现限制';
+        if (is_array($income_set['withdraw_date'])) {
+            $day = date('d');
+            $day_msg = '可提现日期为：'.implode(',',$income_set['withdraw_date']).'号';
+            $disable = 1;
+            foreach ($income_set['withdraw_date'] as $date) {
+                if ($day == $date) {
+                    $disable = 0;
+                    break;
+                }
+                if ($day < $date) {
+                    $disable = 1;
+                }
+
+
+            }
+        }
+        if ($disable == 1) {
+            return $this->errorJson($day_msg,['status' => 0]);
+        }
     }
 
 

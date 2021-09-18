@@ -31,6 +31,10 @@ class OperationLog extends BaseModel
         if ($search['user_name']) {
             $model->where('user_name', 'like', '%' . $search['user_name'] . '%');
         }
+
+        if ($search['mark']) {
+            $model->where('mark', 'like', '%' . $search['mark'] . '%');
+        }
         if (!empty($search['start'])  && !empty($search['end'])) {
             $range = [$search['start'], $search['end']];
             $model->whereBetween('created_at', $range);

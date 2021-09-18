@@ -220,7 +220,7 @@
                         <div class="row">
                             <div class="input-group">
                                 <input type="text" class="form-control" name="keyword" value="" id="search-kwd-goods"
-                                       placeholder="请输入商品名称"/>
+                                       placeholder="请输入商品名称或id"/>
                                 <span class='input-group-btn'><button type="button" class="btn btn-default"
                                                                       onclick="search_goods();">搜索</button></span>
                             </div>

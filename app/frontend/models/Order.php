@@ -188,14 +188,20 @@ class Order extends \app\common\models\Order
     public function getOperationsSetting()
     {
         if (Member::current()->uid == $this->uid) {
-            //return app('OrderManager')->setting('member_order_operations')[$this->statusCode] ?: [];
-
-            $arr = app('OrderManager')->setting('member_order_operations')[$this->statusCode] ?: [];
-
-            if ($this->statusCode == 'waitSend' && !in_array('app\frontend\modules\order\operations\member\ExpeditingDelivery',$arr) && in_array($this->plugin_id,[0,92])) {
-                array_push($arr,'app\frontend\modules\order\operations\member\ExpeditingDelivery');
+            $operationsSettings = \app\common\modules\shop\OrderFrontendButtonConfig::current()->get('order_frontend_button');
+            $operations = array_values(collect($operationsSettings)->where('plugin_id',$this->plugin_id)->sortByDesc('weight')->all());
+            if (empty($operations)) {//没找到用plugin_id为0的
+                $operations = array_values(collect($operationsSettings)->where('plugin_id',0)->sortByDesc('weight')->all());
             }
-            return $arr;
+            return $operations;
+//            //return app('OrderManager')->setting('member_order_operations')[$this->statusCode] ?: [];
+//
+//            $arr = app('OrderManager')->setting('member_order_operations')[$this->statusCode] ?: [];
+//
+//            if ($this->statusCode == 'waitSend' && !in_array('app\frontend\modules\order\operations\member\ExpeditingDelivery',$arr) && in_array($this->plugin_id,[0,92])) {
+//                array_push($arr,'app\frontend\modules\order\operations\member\ExpeditingDelivery');
+//            }
+//            return $arr;
         }
         return [];
     }

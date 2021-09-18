@@ -10,9 +10,11 @@ namespace app\backend\controllers;
 
 
 use app\backend\modules\charts\models\Supplier;
+use app\backend\modules\survey\controllers\SurveyController;
 use app\common\components\BaseController;
 use app\common\models\user\WeiQingUsers;
 use app\common\services\CollectHostService;
+use app\common\services\PermissionService;
 use Illuminate\Support\Facades\DB;
 use Yunshop\Merchant\common\models\Merchant;
 use Yunshop\StoreCashier\store\admin\StoreIndexController;
@@ -27,6 +29,10 @@ class IndexController extends BaseController
     {
         $uid = \YunShop::app()->uid;
         $user = WeiQingUsers::getUserByUid($uid)->first();
+
+        if(PermissionService::isFounder() or PermissionService::isOwner() or PermissionService::isManager()){
+            return redirect(yzWebFullUrl('survey.survey.index'));
+        }
 
         if (app('plugins')->isEnabled('store-cashier')) {
             $store = Store::getStoreByUserUid($uid)->first();
@@ -54,10 +60,38 @@ class IndexController extends BaseController
                 }
             }
         }
+        if (app('plugins')->isEnabled('work-wechat')) {
+            if($user['type']==3){
+                //是企业微信管理员，跳转到企业微信管理首页
+                $crop_info = \Yunshop\WorkWechatPlatform\common\models\Crop::getByUid($uid);
+                $crop_id = $crop_info->id;
+                if($crop_id){
+                    //当前用户是企业微信总的管理员
+                    \Yunshop\WorkWechatPlatform\common\utils\CropUtils::setCropId($crop_id);
+                    \Yunshop\WorkWechatPlatform\common\utils\CropUtils::setCropName($crop_info->name);
+                    return redirect(\Yunshop\WorkWechat\common\utils\Url::absoluteManageIndexUrl());
+                }else{
+                    $work_wechat_user = \Yunshop\WorkWechat\common\models\WorkWechatUser::getOneByUid($uid);
+                    if($work_wechat_user->id){
+                        //当前用户是企业微信操作员
+                        $crop_id = $work_wechat_user->crop_id;
+                        \Yunshop\WorkWechatPlatform\common\utils\CropUtils::setCropId($crop_id);
+                        \Yunshop\WorkWechatPlatform\common\utils\CropUtils::setCropName($crop_info->name);
+                        return redirect(\Yunshop\WorkWechat\common\utils\Url::absoluteManageIndexUrl());
+                    }
+
+                }
+            }
+
+        }
 
         (new CollectHostService(request()->getHttpHost()))->handle();
 
         $designer = (new \app\backend\controllers\PluginsController)->canAccess('designer');
+
+        if (is_null($designer)) {
+            $designer = (new \app\backend\controllers\PluginsController)->canAccess('decorate');
+        }
 
         return view('index',['designer' => $designer])->render();
     }

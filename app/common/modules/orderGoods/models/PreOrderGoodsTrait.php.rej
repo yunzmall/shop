@@ -1,0 +1,11 @@
+diff a/app/common/modules/orderGoods/models/PreOrderGoodsTrait.php b/app/common/modules/orderGoods/models/PreOrderGoodsTrait.php	(rejected hunks)
+@@ -68,6 +68,9 @@
+      */
+     public function getThumbAttribute()
+     {
++        if ($this->isOption()){
++            return yz_tomedia($this->goodsOption->thumb);
++        }
+         return yz_tomedia($this->getGoods()->thumb);
+     }
+ 

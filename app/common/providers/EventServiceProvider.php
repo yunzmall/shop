@@ -157,8 +157,16 @@ class EventServiceProvider extends ServiceProvider
         ShoppingShareCouponListener::class,
 
         \app\frontend\modules\coupon\listeners\CouponDiscount::class,
+
+
+        //订单抵扣返还
         PointListener::class,
+        \app\frontend\modules\finance\listeners\OrderDeductionRollback::class,
+
+        //商品预扣库存
         GoodsStock::class,
+
+        //余额充值按钮
         \app\frontend\modules\payment\listeners\Alipay::class,
         \app\frontend\modules\payment\listeners\Credit::class,
         \app\frontend\modules\payment\listeners\Wechat::class,
@@ -188,6 +196,9 @@ class EventServiceProvider extends ServiceProvider
         \app\frontend\modules\payment\listeners\AlipayJsapi::class,
         \app\frontend\modules\payment\listeners\ToutiaoAlipayPayListener::class,
         \app\frontend\modules\payment\listeners\ToutiaoWechatPayListener::class,
+        \app\frontend\modules\payment\listeners\WechatH5Recharge::class,
+        \app\frontend\modules\payment\listeners\XfpayAlipayPayListener::class,
+        \app\frontend\modules\payment\listeners\XfpayWechatPayListener::class,
 
         orderListener::class,
         IncomeWithdraw::class,

@@ -36,10 +36,11 @@
                             <el-input v-model="form.name" style="width:70%;" placeholder="请输入分类名称"></el-input>
                         </el-form-item>
                         <el-form-item label="分类图片" prop="thumb">
-                            <div class="upload-box" @click="openUpload('thumb')" v-if="!form.thumb_url">
+                            <!-- 传1:表示图片类型 -->
+                            <div class="upload-box" @click="openUpload('thumb',1,'one')" v-if="!form.thumb_url">
                                 <i class="el-icon-plus" style="font-size:32px"></i>
                             </div>
-                            <div @click="openUpload('thumb')" class="upload-boxed" v-if="form.thumb_url">
+                            <div @click="openUpload('thumb',1,'one')" class="upload-boxed" v-if="form.thumb_url">
                                 <img :src="form.thumb_url" alt="" style="width:150px;height:150px;border-radius: 5px;cursor: pointer;">
                                 <div class="upload-boxed-text">点击重新上传</div>
                                 <i class="el-icon-close" @click.stop="clearImg('thumb')" title="点击清除图片"></i>
@@ -53,10 +54,10 @@
                         </el-form-item> -->
                         <div v-if="level!=3 && edit_level!=3">
                             <el-form-item label="移动端分类广告" prop="adv_img">
-                                <div class="upload-box" @click="openUpload('adv_img')" v-if="!form.adv_img_url">
+                                <div class="upload-box" @click="openUpload('adv_img',1,'one')" v-if="!form.adv_img_url">
                                     <i class="el-icon-plus" style="font-size:32px"></i>
                                 </div>
-                                <div @click="openUpload('adv_img')" class="upload-boxed" v-if="form.adv_img_url" style="height:75px">
+                                <div @click="openUpload('adv_img',1,'one')" class="upload-boxed" v-if="form.adv_img_url" style="height:75px">
                                     <img :src="form.adv_img_url" alt="" style="width:150px;height:75px;border-radius: 5px;cursor: pointer;">
                                     <div class="upload-boxed-text">点击重新上传</div>
                                     <i class="el-icon-close" @click.stop="clearImg('adv_img')" title="点击清除图片"></i>
@@ -130,7 +131,8 @@
                     <el-button @click="filterShow = false">取 消</el-button>
                 </span>
             </el-dialog>
-            <upload-img :upload-show="uploadShow" :name="chooseImgName" @replace="changeProp" @sure="sureImg"></upload-img>
+   
+            <upload-multimedia-img :upload-show="uploadShow" :type="type" :name="chooseImgName" :sel-Num="selNum" @replace="changeProp" @sure="sureImg"></upload-multimedia-img>
             <pop :show="show" @replace="changeLink" @add="parHref"></pop>
             <program :pro="pro" @replacepro="changeprogram" @addpro="parpro"></program>
 
@@ -138,7 +140,7 @@
         </div>
     </div>
     <script src="{{resource_get('static/yunshop/tinymce4.7.5/tinymce.min.js')}}"></script> 
-    @include('public.admin.uploadImg')
+    @include('public.admin.uploadMultimediaImg')
     @include('public.admin.pop')  
     @include('public.admin.program')
     <script>
@@ -191,6 +193,8 @@
                     rules:{
                         name:{ required: true, message: '请输入分类名称'}
                     },
+                    type:'',
+                    selNum:'',
                     
                 }
             },
@@ -392,9 +396,12 @@
                 goParent() {
                     window.location.href = `{!! yzWebFullUrl('goods.category.index') !!}`;
                 },
-                openUpload(str) {
+                openUpload(str,type,sel) {
+                    console.log(str, type,'uuuuuuuuuuu');
                     this.chooseImgName = str;
                     this.uploadShow = true;
+                    this.type = type
+                    this.selNum = sel
                 },
                 changeProp(val) {
                     if(val == true) {
@@ -404,12 +411,20 @@
                         this.uploadShow = true;
                     }
                 },
-                sureImg(name,image,image_url) {
+
+               
+                // 参数：fileList  上传文件的列表信息
+                sureImg(name,uploadShow,fileList) {
+                    if(fileList.length <= 0) {
+                        return 
+                    }
                     console.log(name)
-                    console.log(image)
-                    console.log(image_url)
-                    this.form[name] = image;
-                    this.form[name+'_url'] = image_url;
+                    console.log(fileList)
+                    this.form[name] =fileList[0].attachment;
+                    this.form[name+'_url'] = fileList[0].url;
+                    console.log(this.form[name],'aaaaa')
+                    console.log( this.form[name+'_url'],'bbbbb')
+
                 },
                 clearImg(str) {
                     this.form[str] = "";

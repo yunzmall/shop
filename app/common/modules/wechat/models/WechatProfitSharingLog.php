@@ -36,6 +36,9 @@ class WechatProfitSharingLog extends BaseModel
                 });
             });
         }
+        if ($search['status'] != '') {
+            $query->where('status', $search['status']);
+        }
         if ($search['is_time']) {
             $query->whereBetween('created_at', [strtotime($search['time']['start']), strtotime($search['time']['end'])]);
         }

@@ -593,7 +593,8 @@ CREATE TABLE IF NOT EXISTS ims_yz_goods_category (
   `updated_at` int(11) DEFAULT NULL,
   `created_at` int(11) DEFAULT NULL,
   `deleted_at` int(11) DEFAULT NULL,
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`id`),
+  KEY `idx_goodid` (`goods_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
  
@@ -949,7 +950,8 @@ CREATE TABLE IF NOT EXISTS ims_yz_member (
   `deleted_at` int(11) DEFAULT NULL,
   PRIMARY KEY (`m_id`),
   UNIQUE INDEX `un_member_id`(`member_id`),
-  KEY `idx_uniacid` (`uniacid`)
+  KEY `idx_uniacid` (`uniacid`),
+  KEY `idx_parentid` (`parent_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
@@ -3121,7 +3123,7 @@ INSERT INTO `ims_yz_address` (`id`, `areaname`, `parentid`, `level`) VALUES
 (340803, '大观区', 340800, 3),
 (340811, '宜秀区', 340800, 3),
 (340822, '怀宁县', 340800, 3),
-(340823, '枞阳县', 340800, 3),
+(340823, '枞阳县', 340700, 3),
 (340824, '潜山县', 340800, 3),
 (340825, '太湖县', 340800, 3),
 (340826, '宿松县', 340800, 3),

@@ -11,8 +11,10 @@ namespace app\frontend\modules\member\controllers;
 use app\common\components\ApiController;
 use app\common\components\BaseController;
 use app\common\events\member\MemberGoodsHistoryEvent;
+use app\framework\Http\Request;
 use app\frontend\modules\member\models\MemberFavorite;
 use app\frontend\modules\member\models\MemberHistory;
+use app\common\helpers\PaginationHelper;
 
 
 class MemberHistoryController extends ApiController
@@ -20,19 +22,11 @@ class MemberHistoryController extends ApiController
     public function index()
     {
         $memberId = \YunShop::app()->getMemberId();
-
         $historyList = MemberHistory::getMemberHistoryList($memberId);
-
-        foreach ($historyList as &$value) {
-            //过滤空数组
-            if(!empty($value['goods']['thumb'])) {
-                $value['goods']['thumb'] = yz_tomedia($value['goods']['thumb']);
-            }
-        }
         return $this->successJson('获取列表成功', $historyList);
     }
 
-    public function store($request, $integrated = null)
+    public function store(Request $request, $integrated = null)
     {
 
         $memberId = \YunShop::app()->getMemberId();

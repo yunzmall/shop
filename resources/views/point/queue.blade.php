@@ -39,6 +39,7 @@
                         <tr>
                             <th style='width:8%; text-align: center;'>ID</th>
                             <th style='width:16%; text-align: center;'>充值时间</th>
+                            <th style='width:16%; text-align: center;'>会员ID</th>
                             <th style='width:16%; text-align: center;'>粉丝</th>
                             <th style='width:16%; text-align: center;'>订单编号</th>
                             <th style='width:8%; text-align: center;'>赠送总数量</th>
@@ -54,6 +55,7 @@
                             <tr style="text-align: center;">
                                 <td>{{ $item->id }}</td>
                                 <td>{{ $item->created_at }}</td>
+                                <td>{{ $item->uid }}</td>
                                 <td>
                                     <a href="{!! yzWebUrl('member.member.detail', ['id'=>$item->uid]) !!}"><img src="{{$item->member->avatar}}" style="width:30px;height:30px;padding:1px;border:1px solid #ccc"><BR>{{$item->member->nickname}}</a>
                                 </td>

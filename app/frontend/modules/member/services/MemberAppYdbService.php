@@ -121,7 +121,7 @@ class MemberAppYdbService extends MemberService
                 }
                 Session::set('member_id', $member['member_id']);
 
-                setcookie('Yz-appToken', encrypt($openid . '\t' . $uuid), time() + self::TOKEN_EXPIRE);
+                setcookie('Yz-appToken', encrypt($openid . '\t' . $member['member_id']), time() + self::TOKEN_EXPIRE);
 
                 return show_json(1, $member->toArray());
             }
@@ -253,37 +253,46 @@ class MemberAppYdbService extends MemberService
      */
     public function checkLogged($login = null)
     {
-        $uuid       = trim($_REQUEST['uuid']);
+        if (isset($_COOKIE['Yz-appToken'])) {
+            try {
+                $yz_token = decrypt($_COOKIE['Yz-appToken']);
 
-        if (!MemberService::isLogged()) {
-            if (isset($_COOKIE['Yz-appToken'])) {
+                list($openid, $uuid) = explode('\t', $yz_token);
 
-                try {
-                    $yz_token = decrypt($_COOKIE['Yz-appToken']);
+                if (preg_match('/^\d{11}/', $openid)) {
+                    $member = \app\common\models\Member::uniacid()->where('mobile', $openid)->first();
 
-                    list($openid, $uuid) = explode('\t', $yz_token);
-
-                    if (preg_match('/^\d{11}/', $openid)) {
-                        $member = MemberWechatModel::getUserInfo_memberid($uuid);
-                    } else {
-                        $member = MemberWechatModel::getUserInfo($openid);
+                    if (!is_null($member)) {
+                        $member_id = $member->uid;
                     }
+                } else {
+                    $member = MemberWechatModel::getUserInfo($openid);
 
-                    if (!$member) {
-                        return false;
+                    if (!is_null($member)) {
+                        $member_id = $member->member_id;
                     }
+                }
 
-                    Session::set('member_id', $member->member_id);
-
-                    return true;
-                } catch (DecryptException $e) {
+                if (!$member) {
                     return false;
                 }
-            }
 
-            return false;
+                if (\YunShop::app()->getMemberId() && $member_id != \YunShop::app()->getMemberId()) {
+                    setcookie(session_name(), '',time() - 3600, '/');
+                    setcookie(session_name(), '',time() - 3600);
+                    setcookie('Yz-appToken', '',time() - 3600, '/addons/yun_shop');
+
+                    return false;
+                }
+
+                Session::set('member_id', $member_id);
+
+                return true;
+            } catch (DecryptException $e) {
+                return false;
+            }
         }
 
-        return true;
+        return false;
     }
 }

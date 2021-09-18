@@ -16,8 +16,7 @@ class AuthenticateShop
 {
     public function handle($request, Closure $next)
     {
-        $cfg = \config::get('app.global');
-
+        $cfg = \YunShop::app();
         if (!$this->validateUniacid($cfg)) {
             return $this->redirectToHome();
         }
@@ -45,8 +44,7 @@ class AuthenticateShop
         if ($sys_app->validity_time !=0 && $sys_app->validity_time < mktime(0,0,0, date('m'), date('d'), date('Y'))) {
             $msg = '平台已过期';
         }
-
-        if ($msg) {
+		if ($msg) {
             // \Cache::put('app.access', $msg, 1);
 
             return false;

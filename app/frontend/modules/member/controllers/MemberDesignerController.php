@@ -12,6 +12,7 @@ namespace app\frontend\modules\member\controllers;
 use app\common\components\ApiController;
 use app\common\facades\Setting;
 use app\common\models\Member;
+use app\framework\Http\Request;
 use app\frontend\controllers\HomePageController;
 use app\frontend\modules\coupon\controllers\MemberCouponController;
 use Yunshop\Diyform\api\DiyFormController;
@@ -27,7 +28,7 @@ use app\frontend\modules\member\controllers\MemberController;
 
 class MemberDesignerController extends ApiController
 {
-    public function index($request, $integrated = null)
+    public function index(Request $request, $integrated = null)
     {//代码结构有机会一定要重新弄一下。。。
         $res = [];
         $res['status'] = false;
@@ -123,7 +124,7 @@ class MemberDesignerController extends ApiController
                         foreach ($value['remote_data']['show_list'] as $pkey => $par)
                         {
 
-                            if (in_array($par['name'], ['store-cashier', 'hotel', 'supplier', 'micro','package_deliver']))
+                            if (in_array($par['name'], ['store-cashier', 'hotel', 'supplier', 'micro','package_deliver','ad-serving']))
                             {
                                 $decorate['datas'][$key]['remote_data']['show_list'][$pkey]['title'] = $memberData['merchants_arr'][$par['name']]['title'];
                                 $decorate['datas'][$key]['remote_data']['show_list'][$pkey]['url'] = $memberData['merchants_arr'][$par['name']]['url'];
@@ -147,6 +148,7 @@ class MemberDesignerController extends ApiController
 
                         if ($is_cashier == 1 && $has_cashier == 1 && $storeCashier === true)
                         {
+                            $memberData['merchants_arr']['cashier']['image'] = $this->handlePluginImage($memberData['merchants_arr']['cashier']['image']);
                             $decorate['datas'][$key]['remote_data']['show_list'][] = $memberData['merchants_arr']['cashier'];
                         }
 
@@ -167,9 +169,21 @@ class MemberDesignerController extends ApiController
                                 $decorate['datas'][$key]['remote_data']['show_list'][$pkey]['mini_url'] = '/packageC/video_goods/VideoList/VideoList';
                             }
 
+                            if(app('plugins')->isEnabled('customer-development') && $par['name'] == 'customer-development')
+                            {
+                                $decorate['datas'][$key]['remote_data']['show_list'][$pkey]['mini_url'] = '/packageH/toker/memberTokerCard/memberTokerCard';
+                            }
+
                             if (!in_array($par['name'], $memberData['markets']) || $par['is_open'] == false)
                             {
                                 unset($decorate['datas'][$key]['remote_data']['show_list'][$pkey]);
+                            }else{
+                                $decorate['datas'][$key]['remote_data']['show_list'][$pkey]['title'] = empty($memberData['market_arr'][$par['name']]['title'])?$decorate['datas'][$key]['remote_data']['show_list'][$pkey]['title']:$memberData['market_arr'][$par['name']]['title'];
+                                $decorate['datas'][$key]['remote_data']['show_list'][$pkey]['mini_url'] = empty($memberData['market_arr'][$par['name']]['mini_url'])?$decorate['datas'][$key]['remote_data']['show_list'][$pkey]['mini_url']:$memberData['market_arr'][$par['name']]['mini_url'];
+                                $decorate['datas'][$key]['remote_data']['show_list'][$pkey]['url'] = empty($memberData['market_arr'][$par['name']]['url'])?$decorate['datas'][$key]['remote_data']['show_list'][$pkey]['url']:$memberData['market_arr'][$par['name']]['url'];
+                                $decorate['datas'][$key]['remote_data']['show_list'][$pkey]['total'] = isset($memberData['market_arr'][$par['name']]['total'])?$memberData['market_arr'][$par['name']]['total']:$decorate['datas'][$key]['remote_data']['show_list'][$pkey]['total'];
+                                
+
                             }
                         }
                         $decorate['datas'][$key]['remote_data']['show_list'] = array_values($decorate['datas'][$key]['remote_data']['show_list']);
@@ -183,6 +197,8 @@ class MemberDesignerController extends ApiController
                             if (!in_array($par['name'], $memberData['assets']) || $par['is_open'] == false)
                             {
                                 unset($decorate['datas'][$key]['remote_data']['show_list'][$pkey]);
+                            }else{
+                                $decorate['datas'][$key]['remote_data']['show_list'][$pkey]['title'] = $memberData['assets_arr'][$par['name']]['title'];
                             }
                         }
                         $decorate['datas'][$key]['remote_data']['show_list'] = array_values($decorate['datas'][$key]['remote_data']['show_list']);
@@ -279,7 +295,7 @@ class MemberDesignerController extends ApiController
                     }
                     if ($design['temp'] == 'membermerchant') {
                         foreach ($design['data']['part'] as $pkey => $par) {
-                            if (in_array($par['name'], ['store-cashier', 'hotel', 'supplier', 'micro'])) {
+                            if (in_array($par['name'], ['store-cashier', 'hotel', 'supplier', 'micro','package_deliver'])) {
                                 $datas[$dkey]['data']['part'][$pkey]['title'] = $memberData['merchants_arr'][$par['name']]['title'];
                                 $datas[$dkey]['data']['part'][$pkey]['url'] = $memberData['merchants_arr'][$par['name']]['url'];
                                 $datas[$dkey]['data']['part'][$pkey]['mini_url'] = $memberData['merchants_arr'][$par['name']]['mini_url'];
@@ -456,9 +472,11 @@ class MemberDesignerController extends ApiController
         }
         foreach ($arr['market'] as $v) {
             $markets[] = $v['name'];
+            $market_arr[$v['name']] = $v;
         }
         foreach ($arr['asset_equity'] as $v) {
             $assets[] = $v['name'];
+            $assets_arr[$v['name']] = $v;
         }
 
         return [
@@ -466,7 +484,9 @@ class MemberDesignerController extends ApiController
             'merchants'     => $merchants,
             'markets'       => $markets,
             'assets'        => $assets,
-            'merchants_arr' => $merchants_arr
+            'merchants_arr' => $merchants_arr,
+            'assets_arr' => $assets_arr,
+            'market_arr' => $market_arr
         ];
     }
 
@@ -492,5 +512,15 @@ class MemberDesignerController extends ApiController
             }
         }
         return $name;
+    }
+
+    private function handlePluginImage($image)
+    {
+        if (config('app.framework') == 'platform') {
+            $dir = '/';
+        } else {
+            $dir = '/addons/yun_shop/';
+        }
+        return $dir.'static/yunshop/designer/images/'.$image;
     }
 }

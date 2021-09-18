@@ -46,16 +46,16 @@ class WithdrawIncomeApplyService
          $audit_ids = $withdraw_model->audit_ids;
          $rebut_ids = $withdraw_model->rebut_ids;
          $invalid_ids = $withdraw_model->invalid_ids;
-         foreach ($audit_ids as $income_id) {
-             WithdrawIncomeApply::where('withdraw_id',$withdraw_model->id)->where('income_id',$income_id)->update(['status'=>self::APPLY_AUDIT]);
-         }
-         foreach ($rebut_ids as $income_id) {
-             WithdrawIncomeApply::where('withdraw_id',$withdraw_model->id)->where('income_id',$income_id)->update(['status'=>self::APPLY_REBUT]);
-         }
-         foreach ($invalid_ids as $income_id) {
-             WithdrawIncomeApply::where('withdraw_id',$withdraw_model->id)->where('income_id',$income_id)->update(['status'=>self::APPLY_INVALID]);
-         }
-         return true;
+         if (!empty($audit_ids)) {
+			 WithdrawIncomeApply::where('withdraw_id', $withdraw_model->id)->whereIn('income_id', $audit_ids)->update(['status' => self::APPLY_AUDIT]);
+		 }
+         if (!empty($rebut_ids)) {
+			 WithdrawIncomeApply::where('withdraw_id', $withdraw_model->id)->whereIn('income_id', $rebut_ids)->update(['status' => self::APPLY_REBUT]);
+		 }
+         if (!empty($invalid_ids)) {
+			 WithdrawIncomeApply::where('withdraw_id', $withdraw_model->id)->whereIn('income_id', $invalid_ids)->update(['status' => self::APPLY_INVALID]);
+		 }
+		 return true;
      }
 
      public static function rebut($withdraw_model)

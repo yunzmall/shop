@@ -2,12 +2,11 @@
 
 namespace app\Jobs;
 
-use app\common\models\AccountWechats;
+use app\common\facades\EasyWeChat;
 use Illuminate\Bus\Queueable;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use EasyWeChat\Foundation\Application;
 
 class MessageNoticeJob implements  ShouldQueue
 {
@@ -58,18 +57,22 @@ class MessageNoticeJob implements  ShouldQueue
      */
     public function handle()
     {
-        if ($this->attempts() > 1) {
-            \Log::info('消息通知测试，执行大于两次终止');
-            return true;
-        }
-        $res = AccountWechats::getAccountByUniacid($this->uniacid);
-        $options = [
-            'app_id' => $res['key'],
-            'secret' => $res['secret'],
-        ];
-        $app = new Application($options);
-        $app = $app->notice;
-        $app->uses($this->templateId)->andData($this->noticeData)->andReceiver($this->openId)->andUrl($this->url)->send();
-        return true;
+		try {
+			\YunShop::app()->uniacid = \Setting::$uniqueAccountId =  $this->uniacid;
+			if ($this->attempts() > 1) {
+				\Log::info('消息通知测试，执行大于两次终止');
+				return true;
+			}
+			$app = EasyWeChat::officialAccount();
+			$app->template_message->send([
+				'touser' => $this->openId,
+				'template_id' => $this->templateId,
+				'url' => $this->url,
+				'data' => $this->noticeData,
+			]);
+			return true;
+		} catch (\Exception $e) {
+			\Log::debug('消息发送失败',$e->getMessage());
+		}
     }
 }

@@ -55,14 +55,29 @@ class MemberFavorite extends \app\common\models\MemberFavorite
 //            ->orderBy('created_at', 'desc')->get()->toArray();
         $data = static::select('id', 'goods_id', 'created_at')->uniacid()->where('member_id', $memberId)
             ->with(['goods' => function($query) {
-                return $query->select('id', 'thumb', 'price', 'market_price', 'title');
+                return $query->select('id', 'thumb', 'price', 'market_price', 'title')->whereNull('deleted_at');
             }])
+            ->has('goods')
             ->orderBy('created_at', 'desc')->get();
         foreach ($data as &$itme){
             $itme['vip_level_status'] = $itme->goods->vip_level_status;
         }
         return $data->toArray();
     }
+
+    /**
+     * 会员收藏数量
+     * @param $memberId
+     * @return int
+     */
+    public static function getFavoriteCount($memberId = null)
+    {
+        if ($memberId) {
+            return static::uniacid()->where('member_id', $memberId)->count();
+        }
+        return 0;
+    }
+
     /**
      * remove collection
      *

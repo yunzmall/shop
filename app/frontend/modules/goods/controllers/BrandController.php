@@ -27,7 +27,14 @@ class BrandController extends ApiController
     {
         app('db')->cacheSelect = true;
         $pageSize = 100;
-        $list = Brand::getBrands()->paginate($pageSize)->toArray();
+        $list = Brand::getBrands();
+        if (isset(\YunShop::request()->is_recommend)) 
+        {
+            $is_recommend = intval(\YunShop::request()->is_recommend);
+            $list = $list->where('is_recommend',intval($is_recommend));
+        }
+        $list = $list->paginate($pageSize)->toArray();
+
         if($list['data']){
             foreach ($list['data'] as &$item) {
                 $item['logo'] = replace_yunshop(yz_tomedia($item['logo']));

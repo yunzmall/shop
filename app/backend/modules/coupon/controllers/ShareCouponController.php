@@ -12,6 +12,7 @@ use app\common\components\BaseController;
 use app\common\helpers\PaginationHelper;
 use app\common\helpers\Url;
 use app\common\models\coupon\ShoppingShareCouponLog;
+use app\common\services\ExportService;
 
 class ShareCouponController extends BaseController
 {
@@ -61,5 +62,35 @@ class ShareCouponController extends BaseController
         ];
 
         return $this->successJson('ok',$data);
+    }
+    
+    public function export()
+    {
+	    $search = request()->search;
+	    if($search['time_search']) {
+		    $search['time']['start'] = $search['time_start'];
+		    $search['time']['end'] = $search['time_end'];
+	    }
+	    $builder = ShoppingShareCouponLog::getList($search)->orderBy('id', 'desc');
+	    
+	    $export_page = request()->export_page ? request()->export_page : 1;
+	    $export_model = new ExportService($builder, $export_page);
+	    $file_name = date('Ymdhis', time()) . '优惠券领取发放记录导出';
+	    $export_data[0] = ['ID', '优惠券名称', '分享者', '领取者', '创建时间', '日志详情'];
+	    if ($export_model->builder_model->isEmpty()) {
+		    return $this->message('导出数据为空', Url::absoluteWeb('coupon.share-coupon.log'), 'error');
+	    }
+	
+	    foreach ($export_model->builder_model as $key => $item) {
+		    $export_data[$key + 1] = [
+			    $item->id,
+			    $item->coupon_name,
+			    '昵称:'.$item['shareMember']['nickname'] .'/ 电话:'.$item['shareMember']['mobile'],
+			    '昵称:'.$item['receiveMember']['nickname'] .'/ 电话:'.$item['receiveMember']['mobile'],
+			    date('Y-m-d H:i:s',strtotime($item->created_at)),
+			    $item->log,
+		    ];
+	    }
+	    $export_model->export($file_name, $export_data, \Request::query('route'));
     }
 }

@@ -20,9 +20,9 @@
                 <b>手机号:</b>
                 {{$item->hasOneMember->mobile}}
             </p>
-            <p>
-                <b>累计收入: </b><span style='color:red'>{{$item->hasOneAgent->commission_total}}</span> 元
-            </p>
+            {{--<p>--}}
+                {{--<b>累计收入: </b><span style='color:red'>{{$item->hasOneAgent->commission_total}}</span> 元--}}
+            {{--</p>--}}
             <p>
                 <b>提现金额: </b><span style='color:red'>{{$item->amounts}}</span> 元
             <p>
@@ -34,7 +34,7 @@
             </p>
             @if($item->pay_way == 'manual')
                 <p>
-                    <b>手动打款方式：</b>
+                    <b>{{\Setting::get('shop.lang.zh_cn.income.manual_withdrawal') ?: '手动打款'}}方式：</b>
                     @if($item->manual_type == 1 || empty($item->manual_type))
                         银行卡
                 </p>
@@ -211,11 +211,10 @@
         <div class="form-group col-sm-12">
             @if($item->status == '0')
                 <input type="submit" name="submit_check" value="提交审核" class="btn btn-primary col-lg-1"
-                       onclick='return check()'/>
+                       onclick='return confirmSubmitForm()'/>
             @endif
 ·
             @if($item->status == '1')
-
                 @if($item->pay_way == 'balance')
                     <input type="submit" name="submit_pay" value="打款到余额" class="btn btn-primary col-lg-1" style='margin-left:10px;' onclick='return '/>
                 @elseif($item->pay_way == 'wechat')
@@ -229,9 +228,13 @@
                 @elseif($item->pay_way == 'yop_pay')
                     <input type="submit" name="submit_pay" value="易宝打款" class="btn btn-primary " style='margin-left:10px;' onclick='return '/>
                 @elseif($item->pay_way == 'manual')
-                    <input type="submit" name="submit_pay" value="手动打款" class="btn btn-primary " style='margin-left:10px;' onclick='return '/>
+                    <input type="submit" name="submit_pay" value="{{\Setting::get('shop.lang.zh_cn.income.manual_withdrawal') ?: '手动打款'}}" class="btn btn-primary " style='margin-left:10px;' onclick='return '/>
                 @elseif($item->pay_way == 'converge_pay')
                     <input type="submit" name="submit_pay" value="打款到汇聚" class="btn btn-primary " style='margin-left:10px;' onclick='return '/>
+                @elseif($item->pay_way == 'yee_pay')
+                        <input type="submit" name="submit_pay" value="易宝代付打款" class="btn btn-primary " style='margin-left:10px;' onclick='return '/>
+                @elseif($item->pay_way == 'high_light_wechat' || $item->pay_way == 'high_light_alipay' || $item->pay_way == 'high_light_bank')
+                    <input type="submit" name="submit_pay" value="高灯打款" class="btn btn-primary " style='margin-left:10px;' onclick='return '/>
                 @endif
             @endif
 
@@ -252,16 +255,23 @@
     </form>
 
 </div>
-<script language="javascript">
+@include("finance.balance.verifyPopupComponent")
+<script>
+    let isSubmied = false;
 
-    var issubmit=false;
+    function confirmSubmitForm() {
+        //* expireTime & verifyed 变量 & showGetVerifyCodePopup方法 来自 finance.balance.verifyPopupComponent 文件
+        if (verifyed && (expireTime === 0 || expireTime * 1000 < Date.now())) {
+            showGetVerifyCodePopup();
+            return false;
+        }
 
-    function dosubmit() {
-        if(issubmit == false) {
-            issubmit = true;
+        if (isSubmied) {
+            return false;
+        } else {
+            isSubmied = true;
             return true;
         }
-        return false;
     }
 </script>
 

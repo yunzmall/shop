@@ -43,38 +43,32 @@
                             </div>
                         </div>
                     </div>
-
-                    <div class="form-group col-xs-12 col-sm-6 col-lg-6 search-time">
-                        <div class="time-select" >
-                            <select name='search[searchtime]' class='form-control'>
-                                <option value='' @if(empty($search['searchtime'])) selected @endif>不搜索充值时间</option>
-                                <option value='1' @if($search['searchtime']==1) selected @endif >搜索充值时间</option>
+                    <div style="width: 50%;margin-left: 2%;display: flex;flex-direction: row;">
+                        <div style="width: 20%;">
+                            <select name='search[search_time]' class='form-control'>
+                                <option value='' @if(empty($search['search_time'])) selected @endif>不搜索</option>
+                                <option value='1' @if($search['search_time']==1) selected @endif >搜索</option>
                             </select>
                         </div>
-                        <div class="time-btn">
-                            {!! tpl_form_field_daterange(
-                                'search[time_range]',
-                                array(
-                                    'starttime'=>array_get($requestSearch,'time_range.start',0),
-                                    'endtime'=>array_get($requestSearch,'time_range.end',0),
-                                    'start'=>0,
-                                    'end'=>0
-                                ),
-                                true
-                            )!!}
+                        <div style="margin-left: 2%">
+                            {!! app\common\helpers\DateRange::tplFormFieldDateRange('search[time]', [
+                                'starttime'=>date('Y-m-d H:i', strtotime($search['time']['start']) ?: strtotime('-1 month')),
+                                'endtime'=>date('Y-m-d H:i',strtotime($search['time']['end']) ?: time()),
+                                'start'=>0,
+                                'end'=>0
+                            ], true) !!}
                         </div>
-                    </div>
-
-
-
-
-                    <div class="form-group col-xs-12 col-sm-6 col-lg-6 search-btn">
-                        <!--<label class="col-xs-12 col-sm-12 col-md-1 col-lg-1 control-label"></label>-->
-                        <div class="btn-input" style="margin-left: 30px">
-                            <input type="submit" class="btn btn-block btn-success" value="搜索">
-                        </div>
-                        <div class="btn-input">
-                            <button type="button" name="export" value="1" id="export" class="btn btn-default excel back ">导出Excel</button>
+                        <div class="form-group  col-xs-12 col-sm-7 col-lg-4">
+                            <div style="width: 200px">
+                                <input type="hidden" name="token" value="{{$var['token']}}" />
+                                <button class="btn btn-success ">
+                                    <i class="fa fa-search"></i>
+                                    搜索
+                                </button>
+                                <button type="button" name="export" value="1" id="export" class="btn btn-primary excel back ">
+                                    导出 EXCEL
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </form>
@@ -87,6 +81,7 @@
                     <thead class="navbar-inner">
                         <tr>
                             <th style='width:15%; text-align: center;'>充值单号</th>
+                            <th style='width:15%; text-align: center;'>会员ID</th>
                             <th style='width:10%; text-align: center;'>粉丝</th>
                             <th style='width:10%; text-align: center;'>会员信息<br/>手机号</th>
                             <th style='width:10%; text-align: center;' class='hidden-xs'>等级/分组</th>
@@ -100,6 +95,7 @@
                 @foreach($recordList as $list)
                     <tr style="text-align: center;">
                         <td>{{ $list->ordersn }}</td>
+                        <td>{{ $list->member_id }}</td>
                         <td>
                             @if($list->member->avatar || $shopSet['headimg'])
                             <img src='{{ $list->member->avatar ? tomedia($list->member->avatar) : tomedia($shopSet['headimg'])}}' style='width:30px;height:30px;padding:1px;border:1px solid #ccc'/>
@@ -159,14 +155,14 @@
     </div>
 
 
-<script language='javascript'>
-    $(function () {
-        $('#export').click(function(){
-            $('#route').val("finance.balance-recharge-records.export");
-            $('#form1').submit();
-            $('#route').val("finance.balance-recharge-records.index");
+    <script language='javascript'>
+        $(function () {
+            $('#export').click(function(){
+                $('#route').val("finance.balance-recharge-records.export");
+                $('#form1').submit();
+                $('#route').val("finance.balance-recharge-records.index");
+            });
         });
-    });
-</script>
+    </script>
 
 @endsection

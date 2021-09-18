@@ -82,10 +82,10 @@
                             <b>广告位一
                             </b></div>
                         <el-form-item label="广告位一" prop="head_img_url">
-                            <div class="upload-box" @click="openUpload('1')" v-if="!form.advs[1].img_url">
+                            <div class="upload-box" @click="openUpload('1','one')" v-if="!form.advs[1].img_url">
                                 <i class="el-icon-plus" style="font-size:32px"></i>
                             </div>
-                            <div @click="openUpload('1')" class="upload-boxed" v-if="form.advs[1].img_url" >
+                            <div @click="openUpload('1','one')" class="upload-boxed" v-if="form.advs[1].img_url" >
                                 <img :src="form.advs['1'].img_url" alt="" style="width:150px;height:150px;border-radius: 5px;cursor: pointer;">
                                 <div class="upload-boxed-text">点击重新上传</div>
                                 <i class="el-icon-close" @click.stop="clearImg('1')" title="点击清除图片"></i>
@@ -93,7 +93,8 @@
                             </div>
                             <div class="tip">建议尺寸:186.5 * 180</div>
                         </el-form-item>
-                        <upload-img :upload-show="uploadShow" :name="chooseImgName" @replace="changeProp" @sure="sureImg"></upload-img>
+                        <upload-multimedia-img :upload-show="uploadShow" :type="type" :name="chooseImgName" :sel-Num="selNum"  @replace="changeProp" @sure="sureImg"></upload-multimedia-img>
+                        <!-- <upload-img :upload-show="uploadShow" :name="chooseImgName" @replace="changeProp" @sure="sureImg"></upload-img> -->
                         <el-form-item label="广告位一链接">
                             <el-input v-model="form.advs[1].link"  style="width:60%;"></el-input><el-button @click="openConnect('1')">选择链接</el-button>
                         </el-form-item>
@@ -109,10 +110,10 @@
                             <b>广告位二
                             </b></div>
                         <el-form-item label="广告位二" prop="head_img_url">
-                            <div class="upload-box" @click="openUpload('2')" v-if="!form.advs[2].img_url">
+                            <div class="upload-box" @click="openUpload('2','one')" v-if="!form.advs[2].img_url">
                                 <i class="el-icon-plus" style="font-size:32px"></i>
                             </div>
-                            <div @click="openUpload('2')" class="upload-boxed" v-if="form.advs[2].img_url" >
+                            <div @click="openUpload('2','one')" class="upload-boxed" v-if="form.advs[2].img_url" >
                                 <img :src="form.advs['2'].img_url" alt="" style="width:150px;height:150px;border-radius: 5px;cursor: pointer;">
                                 <div class="upload-boxed-text">点击重新上传</div>
                                 <i class="el-icon-close" @click.stop="clearImg('2')" title="点击清除图片"></i>
@@ -134,10 +135,10 @@
                             <b>广告位三
                             </b></div>
                         <el-form-item label="广告位三" prop="head_img_url">
-                            <div class="upload-box" @click="openUpload('3')" v-if="!form.advs[3].img_url">
+                            <div class="upload-box" @click="openUpload('3','one')" v-if="!form.advs[3].img_url">
                                 <i class="el-icon-plus" style="font-size:32px"></i>
                             </div>
-                            <div @click="openUpload('3')" class="upload-boxed" v-if="form.advs[3].img_url" >
+                            <div @click="openUpload('3','one')" class="upload-boxed" v-if="form.advs[3].img_url" >
                                 <img :src="form.advs['3'].img_url" alt="" style="width:150px;height:150px;border-radius: 5px;cursor: pointer;">
                                 <div class="upload-boxed-text">点击重新上传</div>
                                 <i class="el-icon-close" @click.stop="clearImg('3')" title="点击清除图片"></i>
@@ -159,10 +160,10 @@
                             <b>广告位四
                             </b></div>
                         <el-form-item label="广告位四" prop="head_img_url">
-                            <div class="upload-box" @click="openUpload('4')" v-if="!form.advs[4].img_url">
+                            <div class="upload-box" @click="openUpload('4','one')" v-if="!form.advs[4].img_url">
                                 <i class="el-icon-plus" style="font-size:32px"></i>
                             </div>
-                            <div @click="openUpload('4')" class="upload-boxed" v-if="form.advs[4].img_url" >
+                            <div @click="openUpload('4','one')" class="upload-boxed" v-if="form.advs[4].img_url" >
                                 <img :src="form.advs['4'].img_url" alt="" style="width:150px;height:150px;border-radius: 5px;cursor: pointer;">
                                 <div class="upload-boxed-text">点击重新上传</div>
                                 <i class="el-icon-close" @click.stop="clearImg('5')" title="点击清除图片"></i>
@@ -184,10 +185,10 @@
                             <b>广告位五
                             </b></div>
                         <el-form-item label="广告位五" prop="head_img_url">
-                            <div class="upload-box" @click="openUpload('5')" v-if="!form.advs[5].img_url">
+                            <div class="upload-box" @click="openUpload('5','one')" v-if="!form.advs[5].img_url">
                                 <i class="el-icon-plus" style="font-size:32px"></i>
                             </div>
-                            <div @click="openUpload('5')" class="upload-boxed" v-if="form.advs[5].img_url" >
+                            <div @click="openUpload('5','one')" class="upload-boxed" v-if="form.advs[5].img_url" >
                                 <img :src="form.advs['5'].img_url" alt="" style="width:150px;height:150px;border-radius: 5px;cursor: pointer;">
                                 <div class="upload-boxed-text">点击重新上传</div>
                                 <i class="el-icon-close" @click.stop="clearImg('5')" title="点击清除图片"></i>
@@ -209,10 +210,10 @@
                             <b>广告位六
                             </b></div>
                         <el-form-item label="广告位六" prop="head_img_url">
-                            <div class="upload-box" @click="openUpload('6')" v-if="!form.advs[6].img_url">
+                            <div class="upload-box" @click="openUpload('6','one')" v-if="!form.advs[6].img_url">
                                 <i class="el-icon-plus" style="font-size:32px"></i>
                             </div>
-                            <div @click="openUpload('6')" class="upload-boxed" v-if="form.advs[6].img_url" >
+                            <div @click="openUpload('6','one')" class="upload-boxed" v-if="form.advs[6].img_url" >
                                 <img :src="form.advs['6'].img_url" alt="" style="width:150px;height:150px;border-radius: 5px;cursor: pointer;">
                                 <div class="upload-boxed-text">点击重新上传</div>
                                 <i class="el-icon-close" @click.stop="clearImg('6')" title="点击清除图片"></i>
@@ -234,10 +235,10 @@
                             <b>广告位七
                             </b></div>
                         <el-form-item label="广告位七" prop="head_img_url">
-                            <div class="upload-box" @click="openUpload('7')" v-if="!form.advs[7].img_url">
+                            <div class="upload-box" @click="openUpload('7','one')" v-if="!form.advs[7].img_url">
                                 <i class="el-icon-plus" style="font-size:32px"></i>
                             </div>
-                            <div @click="openUpload('7')" class="upload-boxed" v-if="form.advs[7].img_url" >
+                            <div @click="openUpload('7','one')" class="upload-boxed" v-if="form.advs[7].img_url" >
                                 <img :src="form.advs['7'].img_url" alt="" style="width:150px;height:150px;border-radius: 5px;cursor: pointer;">
                                 <div class="upload-boxed-text">点击重新上传</div>
                                 <i class="el-icon-close" @click.stop="clearImg('7')" title="点击清除图片"></i>
@@ -260,7 +261,8 @@
             </el-form>
         </div>
     </div>
-    @include('public.admin.uploadImg')
+    <!-- @include('public.admin.uploadImg') -->
+    @include('public.admin.uploadMultimediaImg')
     @include('public.admin.pop')
     @include('public.admin.program')
     <script>
@@ -270,6 +272,9 @@
             data() {
                 let adv = {!! $adv ?: '[]'  !!}
                     return {
+                        type:'',
+                        selNum:'',
+                        typeImg:1,
                         activeName: 'first',
                         uploadShow:false,
                         chooseImgName:'',
@@ -368,11 +373,13 @@
                 },
                 parpro(child,confirm){
                     this.pro=confirm;
-                    this.form.advs[this.str].small_link=child;
+                    this.form.advs[this.smStr].small_link=child;
                 },
-                openUpload(str) {
+                openUpload(str,sel) {
                     this.chooseImgName = str;
                     this.uploadShow = true;
+                    this.type = this.typeImg
+                    this.selNum = sel
                 },
                 changeProp(val) {
                     if(val == true) {
@@ -382,11 +389,23 @@
                         this.uploadShow = true;
                     }
                 },
-                sureImg(name,image,image_url) {
+                // sureImg(name,image,image_url) {
+                //     console.log(name)
+                //     this.form.advs[name].img=image
+                //     this.form.advs[name].img_url= image_url;
+                //     console.log(this.form)
+                // },
+                sureImg(name,uploadShow,fileList) {
+                    
+                    if(fileList.length <= 0) {
+                        return 
+                    }
                     console.log(name)
-                    this.form.advs[name].img=image
-                    this.form.advs[name].img_url= image_url;
-                    console.log(this.form)
+                    console.log(fileList)
+                    this.form.advs[name].img =fileList[0].attachment;
+                    this.form.advs[name].img_url = fileList[0].url;
+                    console.log(this.form.advs[name].img,'aaaaa')
+                    console.log(this.form.advs[name].img_url,'bbbbb')
                 },
                 submit() {
                     let loading = this.$loading({target:document.querySelector(".content"),background: 'rgba(0, 0, 0, 0)'});

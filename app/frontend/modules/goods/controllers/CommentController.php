@@ -131,8 +131,17 @@ class CommentController extends UploadVerificationApiController
         $commentModel->nick_name = $member->nickname;
         $commentModel->head_img_url = $member->avatar;
         $commentModel->type = '1';
-        return $this->insertComment($commentModel, $commentStatus);
+        $res =  $this->insertComment($commentModel, $commentStatus);
 
+        if(!is_null($event_arr = \app\common\modules\shop\ShopConfig::current()->get('after_comment_log'))){
+            foreach ($event_arr as $v){
+                $class    = array_get($v, 'class');
+                $function = array_get($v, 'function');
+                $class::$function(request());
+            }
+        }
+
+        return $res;
     }
 
     public function appendComment()
@@ -279,39 +288,72 @@ class CommentController extends UploadVerificationApiController
 
     public function getOrderGoodsComment()
     {
-        $orderId = \YunShop::request()->order_id ?: 0;
-        $commentId = \YunShop::request()->comment_id;
+        $commentId = \YunShop::request()->comment_id;//评论主键ID
+        $orderId = \YunShop::request()->order_id ?: 0;// 0为后台虚拟评论
         $goodsId = \YunShop::request()->goods_id;
-        $uid = intval(\YunShop::request()->uid) ? \YunShop::request()->uid : \YunShop::app()->getMemberId();
+        if (!$commentId) return $this->errorJson('获取评论失败!未检测到评论ID!');
 
-//        if (!$orderId) {
-//            return $this->errorJson('获取评论失败!未检测到订单ID!');
-//        }
-        if (!$goodsId) {
-            return $this->errorJson('获取评论失败!未检测到商品ID!');
+        // 0
+        if(empty($orderId)){
+            $with = [
+                'hasManyReply'=>function($query) {
+                    $query->where('type', 2);
+                },
+                'hasOneGoods' => function($query) {
+                    $query->select(['id','title','thumb','price']);
+                }
+            ];
+            if (app('plugins')->isEnabled('live-install')){
+                $with['hasOneLiveInstallComment'] = function ($query){
+                    $query->select('id','comment_id','worker_score');
+                };
+            }
+            $comment = Comment::uniacid()
+                ->with($with)
+                ->where('type', 1)
+                ->where('id', $commentId)
+                ->first();
+            $comment['has_one_order_goods'] = $comment['hasOneGoods'];
+            $comment['has_one_order_goods']['total'] = 1;
+            $comment['has_one_order_goods']['thumb'] = yz_tomedia($comment['has_one_order_goods']['thumb']);
+            $comment['head_img_url'] = yz_tomedia($comment['head_img_url']);
+            unset($comment['hasOneGoods']);
+        }else{
+            $with = [
+                'hasManyReply'=>function($query) {
+                    $query->where('type', 2);
+                },
+                'hasOneOrderGoods' => function($query) use ($goodsId) {
+                    $query->where('goods_id', $goodsId);
+                },
+            ];
+            $comment = Comment::uniacid()
+                ->with($with)
+                ->where('type', 1)
+                ->where('goods_id', $goodsId)
+                ->where('id', $commentId)
+                ->first();
         }
-        $comment = Comment::uniacid()
-            ->with(['hasManyReply'=>function($query) {
-                $query->where('type', 2);
-            }])
-            ->with(['hasOneOrderGoods'=>function($query) use($goodsId) {
-                $query->where('goods_id', $goodsId);
-            }])
-            ->where('order_id', $orderId)
-            ->where('goods_id', $goodsId)
-            ->where('type', 1)
-            ->where('uid', $uid)
-            ->where('id', $commentId)
-            ->first();
+
         if ($comment) {
             // 将图片字段反序列化
             $arrComment = $comment->toArray();
+
+            if (!is_null($event_arr = \app\common\modules\shop\ShopConfig::current()->get('frontend_comment_detail'))) {
+                foreach ($event_arr as $v) {
+                    $class = array_get($v, 'class');
+                    $function = array_get($v, 'function');
+                    $res = $class::$function($arrComment);
+                    foreach ($res as $vv) {
+                        $arrComment[$vv['key']] = $vv;
+                    }
+                }
+            }
+
             self::unSerializeImage($arrComment);
             return $this->successJson('获取评论数据成功!', $arrComment);
         }
         return $this->errorJson('未检测到评论数据!');
-
-
     }
 
     // 反序列化图片

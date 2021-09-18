@@ -37,27 +37,38 @@ class BatchSendController extends BaseController
 
     public function index()
     {
-        $send_data = request()->send;
+//        $send_data = request()->send;
+        $send_data = [];
+        $express = json_decode(request()->body);
+
+        $send_data['express_code'] = $express->value;
+        $send_data['express_company_name'] = $express->name;
+        $send_data['excelfile'] = request()->file;
         if (\Request::isMethod('post')) {
             if ($send_data['express_company_name'] == "顺丰" && $send_data['express_code'] != "SF") {
-                return $this->message('上传失败，请重新上传', Url::absoluteWeb('order.batch-send.index'), 'error');
+                return $this->errorJson('上传失败，请重新上传');
             }
 
             if (!$send_data['excelfile']) {
-                return $this->message('请上传文件', Url::absoluteWeb('order.batch-send.index'), 'error');
+                return $this->errorJson('请上传文件');
             }
 
             if ($send_data['excelfile']->isValid()) {
-                $this->uploadExcel($send_data['excelfile']);
+                try {
+                    $this->uploadExcel($send_data['excelfile']);
+                } catch (ShopException $exception) {
+                    return $this->errorJson($exception->getMessage());
+                }
                 $this->readExcel();
                 $this->handleOrders($this->getRow(), $send_data);
                 $this->sendMessage($this->uid);
                 $msg = $this->success_num . '个订单发货成功。';
-                return $this->message($msg . $this->error_msg, Url::absoluteWeb('order.batch-send.index'));
+                return $this->successJson('ok',$msg . $this->error_msg);
+//                return $this->message($msg . $this->error_msg, Url::absoluteWeb('order.batch-send.index'));
             }
         }
 
-        return view('order.batch_send', [])->render();
+        return view('order.batch_send_vue', [])->render();
     }
 
     /**
@@ -71,7 +82,7 @@ class BatchSendController extends BaseController
         $originalName = $file->getClientOriginalName(); // 文件原名
         $ext = $file->getClientOriginalExtension();     // 扩展名
         $realPath = $file->getRealPath();   //临时文件的绝对路径
-        if (!in_array($ext, ['xls', 'xlsx'])) {
+        if (!in_array($ext, ['xls', 'xlsx','csv'])) {
             throw new ShopException('不是xls、xlsx文件格式！');
         }
 
@@ -113,7 +124,6 @@ class BatchSendController extends BaseController
             $values[] = $rowValue;
             ++$row;
         }
-
         return $values;
     }
 
@@ -177,6 +187,7 @@ class BatchSendController extends BaseController
             $order->status = 2;
             $this->uid[] = $order->uid;
             $order->save();
+            $order->fireSentEvent();
             $this->success_num += 1;
         }
         $this->setErrorMsg();
@@ -219,7 +230,7 @@ class BatchSendController extends BaseController
             $excel->sheet('info', function ($sheet) use ($export_data) {
                 $sheet->rows($export_data);
             });
-        })->export('xls');
+        })->download('csv');//->export('xls');
     }
 
     private function sendMessage($uid)
@@ -248,30 +259,28 @@ class BatchSendController extends BaseController
             }
 
             $name = \Setting::get('shop.shop')['name'];
-            $aly_sms = new \app\common\services\aliyun\AliyunSMS(trim($smsSet['aly_appkey']), trim($smsSet['aly_secret']));
 
             foreach ($mobile as $key => $value) {
                 if (!$value['mobile']) {
                     continue;
                 }
-                //todo 发送短信
-                $response = $aly_sms->sendSms(
-                    $smsSet['aly_signname'], // 短信签名
-                    $smsSet['aly_templateSendMessageCode'], // 发货提醒短信
-                    $value['mobile'], // 短信接收者
-                    Array(  // 短信模板中字段的值
-                        "shop" => $name,
-                    )
+                $data =  Array(  // 短信模板中字段的值
+                    "shop" => $name,
                 );
-                if ($response->Code == 'OK' && $response->Message == 'OK') {
-                    \Log::debug($value['mobile'] . '阿里云短信发送成功');
-                } else {
-                    \Log::debug($value['mobile'] . '阿里云短信发送失败' . $response->Message);
-                }
+                //todo 发送短信
+                app('sms')->sendGoods($value['mobile'], $data);
             }
-
+            return true;
         } catch (\Exception $e) {
             return false;
         }
+    }
+
+
+    public function getExpress()
+    {
+        $data = \app\common\repositories\ExpressCompany::create()->all();
+
+        return $this->successJson('ok',$data);
     }
 }

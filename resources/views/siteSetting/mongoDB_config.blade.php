@@ -89,7 +89,7 @@
                 </div>
         </div>
         <div class="confirm-btn">
-            <el-button  @click="submit">提交</el-button>
+            <el-button  @click="submit" type="primary">提交</el-button>
         </div>
         </el-form>
     </div>

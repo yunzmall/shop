@@ -10,6 +10,7 @@
 |
 */
 
+
 $app = new \app\framework\Foundation\Application(
     realpath(__DIR__.'/../')
 );
@@ -45,6 +46,8 @@ $app->singleton(
     Illuminate\Contracts\Debug\ExceptionHandler::class,
     app\common\exceptions\Handler::class
 );
+$app->bind(app\framework\Http\Request::class,'request');
+
 error_reporting(E_ALL);ini_set('display_errors', 1);
 $app->bind(\Illuminate\Contracts\Bus\Dispatcher::class,\app\framework\Bus\Dispatcher::class);
 /*

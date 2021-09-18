@@ -57,8 +57,8 @@ Trait OrderNoticeData
                 $this->goodsId[] = $vv['goods_id'];
 
                 $this->goodsTitle .= $vv['title'];
-                if ($vv->goods_option_title) {
-                    $this->goodsTitle .= '[' . $vv->goods_option_title . '],';
+                if ($vv['goods_option_title']) {
+                    $this->goodsTitle .= '[' . $vv['goods_option_title'] . '],';
                 }
                 $this->goodsNum += $vv['total'];
             }

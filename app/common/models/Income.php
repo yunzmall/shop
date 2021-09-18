@@ -175,20 +175,8 @@ class Income extends BaseModel
      */
     public function member()
     {
-        return $this->belongsTo('app\common\models\Member');
+        return $this->belongsTo('app\common\models\Member', 'member_id', 'uid');
     }
-
-
-
-
-
-
-
-
-
-
-
-
 
     //todo 以下代码未检查 yitian :: 2017-11-14
 

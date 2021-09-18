@@ -94,7 +94,7 @@ class MemberAddress extends \app\common\models\MemberAddress
         return [
 
             'mobile'    => 'regex:/^[0-9]*$/',
-            'username'  => 'required|max:45',
+            'username'  => 'required|max:45|min:2',
             //'province'  => 'required',
             //'city'      => 'required',
             //'district'  => 'required',

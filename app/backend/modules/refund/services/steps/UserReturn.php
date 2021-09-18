@@ -51,7 +51,7 @@ class UserReturn  extends BaseStepFactory
 
     public function isShow()
     {
-        return $this->model->status < RefundApply::WAIT_RETURN_GOODS || !is_null($this->model->return_time);
+        return  (RefundApply::WAIT_CHECK < $this->model->status && $this->model->status < RefundApply::WAIT_RETURN_GOODS) || !is_null($this->model->return_time);
     }
 
     public function waitStatus()

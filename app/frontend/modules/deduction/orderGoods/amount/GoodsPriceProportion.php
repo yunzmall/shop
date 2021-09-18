@@ -43,9 +43,13 @@ class GoodsPriceProportion extends OrderGoodsDeductionAmount
     private function getBaseAmount($key)
     {
         $type = $this->getGoodsDeduction()->getDeductionAmountType() ?: 0;
+
         switch ($type) {
             case 1:
                 $amount = $this->orderGoods->getPriceBeforeWeight($this->getGoodsDeduction()->getCode() . $key) - $this->orderGoods->goods_cost_price;
+                break;
+            case 2:
+                $amount = $this->orderGoods->goods_price;
                 break;
             default :
                 $amount = $this->orderGoods->getPriceBeforeWeight($this->getGoodsDeduction()->getCode() . $key);

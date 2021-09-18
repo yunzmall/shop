@@ -8,6 +8,8 @@
 namespace app\common\services\finance;
 
 
+use app\common\events\member\MemberBalanceChangeEvent;
+use app\common\events\member\MemberBalanceDeficiencyEvent;
 use app\common\events\MessageEvent;
 use app\common\exceptions\AppException;
 use app\common\models\finance\Balance;
@@ -65,7 +67,7 @@ class BalanceChange extends Credit
         if ($this->memberModel->save()) {
             $this->sendSmsMessage();
             $this->sendMessage();
-
+            event(new MemberBalanceChangeEvent($this->memberModel,$this->new_value,$this->change_value,$this->source));
             return true;
         }
         return '写入会员余额失败';
@@ -129,12 +131,56 @@ class BalanceChange extends Credit
         $result = parent::RoomRewardTransfer($data);
 
         $data['member_id'] = $data['recipient'];
+        $money = floor(($data['change_value'] * ($data['code_proportion']/100))*100)/100;
+        $data['change_value'] = $money;
         return $result === true ? parent::RoomRewardRecipient($data) : $result;
     }
 
     public function pointTransfer(array $data)
     {
         $this->source = ConstService::SOURCE_POINT_TRANSFER;
+
+        return $this->addition($data);
+    }
+
+    public function parentPayment(array $data)
+    {
+        $this->source = ConstService::PARENT_PAYMENT_REWARD;
+
+        return $this->addition($data);
+    }
+
+    public function groupWorkAward(array $data)
+    {
+        $this->source = ConstService::GROUP_WORK_AWARD;
+
+        return $this->addition($data);
+    }
+
+    public function groupWorkHeadAward(array $data)
+    {
+        $this->source = ConstService::GROUP_WORK_HEAD_AWARD;
+
+        return $this->addition($data);
+    }
+
+    public function groupWorkParentAward(array $data)
+    {
+        $this->source = ConstService::GROUP_WORK_PARENT_AWARD;
+
+        return $this->addition($data);
+    }
+
+    public function ownerOrder(array $data)
+    {
+        $this->source = ConstService::OWNER_ORDER_WITHHOLD;
+
+        return $this->subtraction($data);
+    }
+
+    public function ownerOrderSettle(array $data)
+    {
+        $this->source = ConstService::OWNER_ORDER_SETTLE;
 
         return $this->addition($data);
     }
@@ -226,15 +272,16 @@ class BalanceChange extends Credit
         }
         $balanceNotice = new BalanceChangeNotice($this->memberModel,$this->new_value,$this->change_value,$this->source);
         $balanceNotice->sendMessage();
-        return ;
-        if ($this->change_value == 0) {
-            return;
-        }
+
         $this->balanceSet = \Setting::get('finance.balance');
         //检查余额是否达到下限
 
         if ($this->balanceSet['blance_floor'] > $this->new_value && $this->balanceSet['blance_floor_on'] == 1) {
             $this->checkBalanceFloor();
+        }
+        return ;
+        if ($this->change_value == 0) {
+            return;
         }
 
         $template_id = \Setting::get('shop.notice')['balance_change'];
@@ -279,11 +326,6 @@ class BalanceChange extends Credit
     //余额下限消息通知
     public function checkBalanceFloor()
     {
-        $template_id = \Setting::get('shop.notice')['balance_deficiency'];
-        if (!$template_id) {
-            return true;
-        }
-
         if (!$this->balanceSet['blance_floor']) {
             return true;
         }
@@ -318,6 +360,13 @@ class BalanceChange extends Credit
                 return true;
             }
         }
+
+        event(new MemberBalanceDeficiencyEvent($this->memberModel,$this->balanceSet,$this->new_value));  //会员余额不足事件
+
+        $template_id = \Setting::get('shop.notice')['balance_deficiency'];
+        if (!$template_id) {
+            return true;
+        }
         $balanceNotice = new BalanceDeficiencyNotice($this->memberModel,$this->balanceSet,$this->new_value);
         $balanceNotice->sendMessage();
 //        $params = [
@@ -348,15 +397,16 @@ class BalanceChange extends Credit
                 \Log::debug('未获取到该会员手机号');
                 return true;
             }
-            $smsSet = \Setting::get('shop.sms');
-            if ($smsSet['type'] == 3 && $smsSet['aly_templateSendMessageCode']) {
-                return $this->aliYun($smsSet);
-            } elseif ($smsSet['type'] == 5 && $smsSet['tx_templateSendMessageCode']) {
-                return $this->txYun($smsSet);
-            } else {
-                \Log::debug('短信功能设置' . $smsSet);
-                return true;
-            }
+            $name = \Setting::get('shop.shop')['name'];
+            $data =  Array(  // 短信模板中字段的值
+                'preshop' => $name,
+                'date'    => date("m月d日", time()),
+                'amount'  => $this->change_value,
+                'amounts' => $this->new_value,
+                'endshop' => $name,
+            );
+            app('sms')->sendMemberRecharge($this->memberModel->mobile, $data);
+            return true;
         } catch (\Exception $e) {
             \Log::debug($e->getMessage());
             return true;
@@ -364,46 +414,5 @@ class BalanceChange extends Credit
 
     }
 
-    private function aliYun($smsSet)
-    {
-        $name = \Setting::get('shop.shop')['name'];
-        $aly_sms = new \app\common\services\aliyun\ AliyunSMS(trim($smsSet['aly_appkey']), trim($smsSet['aly_secret']));
-        $response = $aly_sms->sendSms(
-            $smsSet['aly_signname'], // 短信签名
-            $smsSet['aly_templatereChargeCode'], // 发货提醒短信
-            $this->memberModel->mobile, // 短信接收者
-            Array(  // 短信模板中字段的值
-                'preshop' => $name,
-                'date'    => date("m月d日", time()),
-                'amount'  => $this->change_value,
-                'amounts' => $this->new_value,
-                'endshop' => $name,
-            )
-        );
-        if ($response->Code == 'OK' && $response->Message == 'OK') {
-            \Log::debug($this->memberModel->mobile . '阿里云短信发送成功');
-        } else {
-            \Log::debug($this->memberModel->mobile . '阿里云短信发送失败' . $response->Message);
-        }
-        return true;
-    }
-
-    private function txYun($smsSet)
-    {
-        //查询手机号
-        $mobile = $this->memberModel->mobile;
-        $name = \Setting::get('shop.shop')['name'];
-        $param = [$name, date("m月d日", time()), $this->change_value, $this->new_value, $name];
-        $ssender = new SmsSingleSender(trim($smsSet['tx_sdkappid']), trim($smsSet['tx_appkey']));
-        $response = $ssender->sendWithParam('86', $mobile, $smsSet['tx_templatereChargeCode'],
-            $param, $smsSet['tx_signname'], "", "");  // 签名参数不能为空串
-        $response = json_decode($response);
-        if ($response->result == 0 && $response->errmsg == 'OK') {
-            \Log::debug('模板腾讯云短信发送成功');
-        } else {
-            \Log::debug($response->errmsg);
-        }
-        return true;
-    }
 
 }

@@ -55,10 +55,10 @@ class AlipayConfig
             'notify_url' => "http://www.baidu.com",
 
             //最大查询重试次数
-            'MaxQueryRetry' => "10",
+            'MaxQueryRetry' => "12",
 
             //查询间隔
-            'QueryDuration' => "3"
+            'QueryDuration' => "5"
         );
     }
 

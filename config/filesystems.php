@@ -88,6 +88,14 @@ return [
             'visibility' => 'public',
         ],
 
+        //聚合cps的apk文件
+        'cps_apk' => [
+            'driver' => 'local',
+            'root' => base_path($attachment . '/cps_apk/0/'.date('Y').'/'.date('m')),
+            'url' => 'cps_apk/0/'.date('Y').'/'.date('m'),
+            'visibility' => 'public',
+        ],
+        
         'public' => [
             'driver' => 'local',
             'root' => storage_path('app/public'),
@@ -137,6 +145,10 @@ return [
         'recharge' => [
             'driver' => 'local',
             'root' => storage_path('app/public/recharge'),
+        ],
+        'ownerOrderImport' => [
+            'driver' => 'local',
+            'root' => storage_path('plugins/owner-order-import'),
         ],
 
         // 批量发货上传excel文件保存路径

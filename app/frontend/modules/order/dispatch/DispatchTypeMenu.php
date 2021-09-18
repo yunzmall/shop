@@ -10,24 +10,17 @@ namespace app\frontend\modules\order\dispatch;
 
 
 use app\common\models\DispatchType;
-use app\common\modules\order\OrderCollection;
-use app\frontend\modules\order\models\PreOrder;
+use app\frontend\modules\memberCart\models\DispatchTypeOrder;
 
 abstract class DispatchTypeMenu
 {
 
     /**
-     * 首个订单
-     * @var PreOrder
+     * 当前订单
+     * @var DispatchTypeOrder
      */
     protected $order;
 
-
-    /**
-     * 下单页所以订单集合
-     * @var OrderCollection
-     */
-    protected $orders;
 
     /**
      *
@@ -35,10 +28,10 @@ abstract class DispatchTypeMenu
      */
     protected $dispatchType;
 
-    public function __construct($dispatchType = null, $order, $orders)
+    public function __construct($dispatchType = null, DispatchTypeOrder $order)
     {
         $this->order = $order;
-        $this->orders = $orders;
+
         $this->dispatchType = $dispatchType;
     }
 
@@ -72,17 +65,7 @@ abstract class DispatchTypeMenu
      */
     public function orderGoodsEnable()
     {
-        $result = $this->order->orderGoods->first()->goods->goodsDispatchTypeIds();
-        foreach ($this->order->orderGoods as $orderGoods) {
-            // 与结果取差，删掉不相交的值
-            $diffIds = array_diff($result, $orderGoods->goods->goodsDispatchTypeIds());
-            foreach ($result as $key => $item) {
-                if (in_array($item, $diffIds)) {
-                    unset($result[$key]);
-                }
-            }
-        }
-        return in_array($this->getId(), $result);
+        return in_array($this->getId(), $this->order->dispatch_type_ids);
     }
 
     /**

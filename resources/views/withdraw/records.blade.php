@@ -154,10 +154,18 @@
                             <option value='huanxun' @if($search['pay_way']=='huanxun') selected @endif >提现到银行卡</option>
                         @endif
 
-                        <option value='manual' @if($search['pay_way']=='manual') selected @endif >提现到手动打款</option>
+                        @if(app('plugins')->isEnabled('yee-pay'))
+                            <option value='yee_pay' @if($search['pay_way']=='yee_pay') selected @endif >提现到易宝代付</option>
+                        @endif
+                        <option value='manual' @if($search['pay_way']=='manual') selected @endif >提现到{{\Setting::get('shop.lang.zh_cn.income.manual_withdrawal') ?: '手动打款'}}</option>
 
                         @if(app('plugins')->isEnabled('converge_pay'))
                         <option value='converge_pay' @if($search['pay_way']=='converge_pay') selected @endif >提现到银行卡-HJ</option>
+                        @endif
+                        @if(app('plugins')->isEnabled('high-light'))
+                            <option value='high_light_wechat' @if($search['pay_way']=='high_light_wechat') selected @endif >提现到微信-高灯</option>
+                            <option value='high_light_alipay' @if($search['pay_way']=='high_light_alipay') selected @endif >提现到支付宝-高灯</option>
+                            <option value='high_light_bank' @if($search['pay_way']=='high_light_bank') selected @endif >提现到银行卡-高灯</option>
                         @endif
                     </select>
                 </div>
@@ -219,29 +227,36 @@
     <div class='panel-body'>
         <table class="table">
             <thead>
-            <tr>
-                <th style='width:8%;'><input id="all" type="checkbox" value="0"> 全选</th>
-                <th style='width:15%;'>申请时间</th>
-                <th style='width:20%;'>提现编号</th>
-                <th style='width:10%;'>粉丝</th>
-                <th style='width:10%;'>姓名</br>手机</th>
-                <th style='width:10%;'>收入类型</th>
-                <th style='width:10%;'>提现方式</th>
-                <th style='width:10%;'>申请金额</th>
-                <th style='width:15%;'>提现状态</th>
-                <th style='width:10%;'>操作</th>
+            <tr style="font-weight: bold;text-align:center">
+                {{--<td style='width:8%;'><input id="all" type="checkbox" value="0"> 全选</td>--}}
+                <td style='width:15%;'>申请时间</td>
+                <td style='width:20%;'>提现编号</td>
+                <td style='width:15%;'>粉丝</td>
+                <td style='width:10%;'>姓名</br>手机</td>
+                <td style='width:10%;'>收入类型</td>
+                <td style='width:10%;'>提现方式</td>
+                <td style='width:10%;'>申请金额</td>
+                <td style='width:10%;'>提现状态</td>
+                <td style='width:10%;'>操作</td>
             </tr>
             </thead>
             <tbody>
             @foreach($records as $row)
-                <tr>
-                    <td><input type="checkbox" name="chk_withdraw" value="{{$row->id}}"></td>
+                <tr style="text-align:center">
+                    {{--<td><input type="checkbox" name="chk_withdraw" value="{{$row->id}}"></td>--}}
                     <td>{{$row->created_at}}</td>
                     <td title="{{$row->withdraw_sn}}" class="tip">{{$row->withdraw_sn}}</td>
                     <td><img src="{{tomedia($row->hasOneMember['avatar'])}}"
                              style="width: 30px; height: 30px;border:1px solid #ccc;padding:1px;">
                         <br/>
-                        {{$row->hasOneMember['nickname']}}</td>
+                        @if(!empty($row->hasOneMember['uid']))
+                            <a href="{{yzWebUrl('member.member.detail',['id' => $row->hasOneMember['uid']])}}" target="_blank">
+                                [{{$row->hasOneMember['uid']}}]{{$row->hasOneMember['nickname']}}
+                            </a>
+                        @else
+                            <a>&nbsp</a>
+                        @endif
+                    </td>
                     <td>{{$row->hasOneMember['realname']}}<br/>{{$row->hasOneMember['mobile']}}</td>
                     <td>{{$row->type_name}}</td>
                     <td>{{$row->pay_way_name}}</td>

@@ -55,6 +55,11 @@ abstract class BaseDiscount
         return $this->code;
     }
 
+    public function getName()
+    {
+        return $this->name;
+    }
+
     /**
      * 获取总金额
      * @return float|int
@@ -69,9 +74,9 @@ abstract class BaseDiscount
         if ($this->amount) {
             // 将抵扣总金额保存在订单优惠信息表中
             $preOrderGoodsDiscount = new PreOrderGoodsDiscount([
-                'discount_code' => $this->code,
+                'discount_code' => $this->getCode(),
                 'amount' => $this->amount ?: 0,
-                'name' => $this->name,
+                'name' => $this->getName(),
             ]);
             $preOrderGoodsDiscount->setOrderGoods($this->orderGoods);
         }
@@ -84,7 +89,7 @@ abstract class BaseDiscount
      */
     protected function orderDiscountCalculated()
     {
-        return $this->orderGoods->order->getDiscount()->getAmountByCode($this->code)->calculated();
+        return $this->orderGoods->order->getDiscount()->getAmountByCode($this->getCode())->calculated();
     }
 
     /**

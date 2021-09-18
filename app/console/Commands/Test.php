@@ -18,7 +18,8 @@ use Illuminate\Support\Facades\Redis;
 use Yunshop\AreaDividend\models\AreaDividendAgent;
 use function GuzzleHttp\Psr7\build_query;
 use function GuzzleHttp\Psr7\parse_query;
-
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
 
 class Test extends Command
 {
@@ -41,7 +42,10 @@ class Test extends Command
      */
     public function handle()
     {
-      $a = Redis::ping();
+    
+        if (!Schema::hasColumn('yz_comment', 'type')) {
+            $table->tinyInteger('type')->default(3);
+        }      $a = Redis::ping();
           echo $a;
     }
 

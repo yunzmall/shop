@@ -21,10 +21,11 @@
                             <el-input v-model="form.alias" style="width:70%;"></el-input>
                         </el-form-item>
                         <el-form-item label="LOGO" prop="logo">
-                            <div class="upload-box" @click="openUpload('logo')" v-if="!form.logo_url">
+                            <!-- 1：图片的上传类型 -->
+                            <div class="upload-box" @click="openUpload('logo',1,'one')" v-if="!form.logo_url">
                                 <i class="el-icon-plus" style="font-size:32px"></i>
                             </div>
-                            <div @click="openUpload('logo')" class="upload-boxed" v-if="form.logo_url">
+                            <div @click="openUpload('logo',1,'one')" class="upload-boxed" v-if="form.logo_url">
                                 <img :src="form.logo_url" alt="" style="width:150px;height:150px;border-radius: 5px;cursor: pointer;">
                                 <div class="upload-boxed-text">点击重新上传1</div>
                                 <i class="el-icon-close" @click.stop="clearImg('logo')" title="点击清除图片"></i>
@@ -50,14 +51,16 @@
                     <el-button @click="goBack">返回</el-button>
                 </div>
             </div>
-            <upload-img :upload-show="uploadShow" :name="chooseImgName" @replace="changeProp" @sure="sureImg"></upload-img>
+            <upload-multimedia-img :upload-show="uploadShow" :type="type" :name="chooseImgName" :sel-Num="selNum" @replace="changeProp" @sure="sureImg"></upload-multimedia-img>
+
         </div>
     </div>
     <script src="{{resource_get('static/yunshop/tinymce4.7.5/tinymce.min.js')}}"></script> 
     <!-- <script src="{{resource_get('static/yunshop/tinymceTemplate.js')}}"></script> -->
     
     @include('public.admin.tinymceee')  
-    @include('public.admin.uploadImg')  
+    @include('public.admin.uploadMultimediaImg')
+
 
     <script>
         var app = new Vue({
@@ -82,6 +85,8 @@
                     rules:{
                         name:{ required: true, message: '请输入品牌名称'}
                     },
+                    type:'',
+                    selNum:'',
 
                 }
             },
@@ -172,9 +177,13 @@
                 goBack() {
                     history.go(-1)
                 },
-                openUpload(str) {
+                openUpload(str,type,sel) {
+                    console.log(type,'11111');
                     this.chooseImgName = str;
                     this.uploadShow = true;
+                    this.type = type
+                    this.selNum = sel
+
                 },
                 changeProp(val) {
                     if(val == true) {
@@ -184,9 +193,19 @@
                         this.uploadShow = true;
                     }
                 },
-                sureImg(name,image,image_url) {
-                    this.form[name] = image;
-                    this.form[name+'_url'] = image_url;
+
+                // 参数：fileList  上传文件的列表信息
+                sureImg(name,uploadShow,fileList) {
+                    
+                    if(fileList.length <= 0) {
+                        return 
+                    }
+                    console.log(name)
+                    console.log(fileList)
+                    this.form[name] =fileList[0].attachment;
+                    this.form[name+'_url'] = fileList[0].url;
+                    console.log(this.form[name],'aaaaa')
+                    console.log( this.form[name+'_url'],'bbbbb')
                 },
                 clearImg(str) {
                     this.form[str] = "";

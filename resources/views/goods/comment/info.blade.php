@@ -23,10 +23,11 @@
                             </div>
                         </el-form-item>
                         <el-form-item label="用户头像" prop="head_img_url">
-                            <div class="upload-box" @click="openUpload('head_img_url')" v-if="!form.head_img_url_url">
+                            <!-- 1: 表示需要上传的类型是图片 -->
+                            <div class="upload-box" @click="openUpload('head_img_url',1,'one')" v-if="!form.head_img_url_url">
                                 <i class="el-icon-plus" style="font-size:32px"></i>
                             </div>
-                            <div @click="openUpload('head_img_url')" class="upload-boxed" v-if="form.head_img_url_url">
+                            <div @click="openUpload('head_img_url',1,'one')" class="upload-boxed" v-if="form.head_img_url_url">
                                 <img :src="form.head_img_url_url" alt="" style="width:150px;height:150px;border-radius: 5px;cursor: pointer;">
                                 <div class="upload-boxed-text">点击重新上传</div>
                                 <i class="el-icon-close" @click="clearImg('head_img_url')" title="点击清除图片"></i>
@@ -42,6 +43,21 @@
                                 <el-rate v-model="form.level" show-score></el-rate>
                             </div>
                         </el-form-item>
+
+                        <el-form-item label="设置评论时间">
+                            <template><el-switch v-model="form.time_state" :active-value="1" :inactive-value="0"></el-switch></template>
+                        </el-form-item>
+                        <el-form-item v-if="form.time_state == 1" label="评论时间" >
+                            <el-date-picker
+                                        v-model="form.comment_time"
+                                        type="datetime"
+                                        placeholder="请输入自定义评论时间"
+                                        value-format="timestamp"
+                            >
+                            </el-date-picker>
+                        </el-form-item>
+
+
                         <el-form-item label="首次评论" prop="content">
                             <el-input type="textarea" rows="5" v-model="form.content" style="width:70%;"></el-input>
                         </el-form-item>
@@ -52,7 +68,7 @@
                                     <img :src="item" alt="" style="width:150px;height:150px;border-radius: 5px;">
                                     <i class="el-icon-close" @click="clearImg('images','list',index)" title="点击清除图片"></i>
                                 </div>
-                                <div class="upload-box" @click="openListUpload('images')">
+                                <div class="upload-box" @click="openUpload('images',1,'more')">
                                     <i class="el-icon-plus" style="font-size:32px"></i>
                                 </div>
                                 <!-- <div class="upload-boxed-text">点击重新上传</div> -->
@@ -80,10 +96,11 @@
                     <el-button @click="goBack">返回</el-button>
                 </div>
             </div>
-            <upload-img :upload-show="uploadShow" :name="chooseImgName" @replace="changeProp" @sure="sureImg"></upload-img>
-            <upload-img-list :upload-list-show="uploadListShow" :name="chooseImgListName" @replace="changeListProp" @sure="sureImgList"></upload-img-list>
-
             
+            <!-- <upload-img :upload-show="uploadShow" :name="chooseImgName" @replace="changeProp" @sure="sureImg"></upload-img> -->
+            <!-- <upload-img-list :upload-list-show="uploadListShow" :name="chooseImgListName" @replace="changeListProp" @sure="sureImgList"></upload-img-list> -->
+            <upload-multimedia-img :upload-show="uploadShow" :type="type" :name="chooseImgName" :sel-Num="selNum" @replace="changeProp" @sure="sureImg"></upload-multimedia-img>
+
             <el-dialog :visible.sync="goodsShow" width="60%" center title="选择商品">
                 <div v-loading="goods_loading">
                     <div>
@@ -118,8 +135,10 @@
             <!--end-->
         </div>
     </div>
-    @include('public.admin.uploadImg')  
-    @include('public.admin.uploadImgList')
+    <!-- @include('public.admin.uploadImg')   -->
+    @include('public.admin.uploadMultimediaImg')
+    <!-- @include('public.admin.uploadImgList') -->
+
     <script>
         var app = new Vue({
             el:"#app",
@@ -142,6 +161,8 @@
                         nick_name:'',
                         image:[],
                         image_url:[],
+                        comment_time:new Date().getTime(),
+                        time_state:0
                     },
                     goods_list:[],
                     goodsShow:false,
@@ -162,6 +183,8 @@
                     rules:{
                         content:{ required: true, message: '请输入评论内容',trigger: 'blur' }
                     },
+                    type:'',
+                    selNum:'',
 
 
                 }
@@ -191,6 +214,7 @@
                                 this.form.content = response.data.data.comment?response.data.data.comment.content:'';
                                 this.form.images = response.data.data.comment?response.data.data.comment.images:[];
                                 this.form.images_url = response.data.data.comment?response.data.data.comment.images_url:[];
+                                this.form.comment_time = response.data.data.comment ? response.data.data.comment.comment_time*1000 : new Date().getTime();
                                 if(response.data.data.goods && response.data.data.goods.id && response.data.data.goods != [] && response.data.data.goods.length!=0) {
                                     this.chooseGoodsItem = JSON.parse(JSON.stringify(response.data.data.goods));
                                     this.chooseGoodsItem.title = this.escapeHTML(this.chooseGoodsItem.title);
@@ -259,6 +283,8 @@
                             level:this.form.level,
                             content:this.form.content,
                             images:this.form.images,
+                            time_state:this.form.time_state,
+                            comment_time:this.form.comment_time
                         },
                         
                     };
@@ -290,9 +316,11 @@
                 goBack() {
                     history.go(-1)
                 },
-                openUpload(str) {
+                openUpload(str,type,sel) {
                     this.chooseImgName = str;
                     this.uploadShow = true;
+                    this.type = type//1图片类型
+                    this.selNum = sel
                 },
                 changeProp(val) {
                     if(val == true) {
@@ -302,12 +330,33 @@
                         this.uploadShow = true;
                     }
                 },
-                sureImg(name,image,image_url) {
-                    console.log(name)
-                    console.log(image)
-                    console.log(image_url)
-                    this.form[name] = image;
-                    this.form[name+'_url'] = image_url;
+                // sureImg(name,image,image_url) {
+                //     console.log(name)
+                //     console.log(image)
+                //     console.log(image_url)
+                //     this.form[name] = image;
+                //     this.form[name+'_url'] = image_url;
+                // },
+                sureImg(name,uploadShow,fileList) {
+
+                    if(fileList.length <= 0) {
+                        return 
+                    }
+                    if(name == 'images') {//评论图片
+                        if(!this.form[name] || !this.form[name+'_url']) {
+                            this.form[name] = [];
+                            this.form[name+'_url'] = [];
+                        }
+                        fileList.forEach((item,index) => {
+                            this.form[name].push(item.attachment);
+                            this.form[name+'_url'].push(item.url);
+                        })
+                        console.log(this.form[name],this.form[name+'_url'])
+                    }
+                    if(name == 'head_img_url') {//用户头像
+                        this.form[name] =fileList[0].attachment;
+                        this.form[name+'_url'] = fileList[0].url;
+                    }
                 },
                 clearImg(str,type,index) {
                     if(!type) {
@@ -321,32 +370,39 @@
                     this.$forceUpdate();
                 },
 
-                openListUpload(str) {
-                    this.chooseImgListName = str;
-                    this.uploadListShow = true;
+                openListUpload(str,type) {
+                    // this.chooseImgListName = str;
+                    // this.uploadShow = true;
+                    // this.type = type;
+                    this.chooseImgName = str;
+                    this.uploadShow = true;
+                    this.type = type//1图片类型
                 },
-                changeListProp(val) {
-                    if(val == true) {
-                        this.uploadListShow = false;
-                    }
-                    else {
-                        this.uploadListShow = true;
-                    }
-                },
-                sureImgList(name,image,image_url) {
-                    console.log(name)
-                    console.log(image)
-                    console.log(image_url)
-                    if(!this.form[name] || !this.form[name+'_url']) {
-                        this.form[name] = [];
-                        this.form[name+'_url'] = [];
-                    }
-                    image.forEach((item,index) => {
-                        this.form[name].push(item);
-                        this.form[name+'_url'].push(image_url[index]);
-                    })
-                    console.log(this.form)
-                },
+                // changeListProp(val) {
+                //     if(val == true) {
+                //         this.uploadShow = false;
+                //     }
+                //     else {
+                //         this.uploadShow = true;
+                //     }
+                // },
+                // sureImgList(name,image,image_url) {
+
+                //     console.log(name,'1111')
+                //     console.log(image,'2222')
+                //     console.log(image_url,'33333')
+
+                //     return
+                //     if(!this.form[name] || !this.form[name+'_url']) {
+                //         this.form[name] = [];
+                //         this.form[name+'_url'] = [];
+                //     }
+                //     image.forEach((item,index) => {
+                //         this.form[name].push(item);
+                //         this.form[name+'_url'].push(image_url[index]);
+                //     })
+                //     console.log(this.form)
+                // },
                 clearImgList(str) {
                     this.form[str] = "";
                     this.form[str+'_url'] = "";

@@ -77,7 +77,7 @@
                                 ], true) !!}
                             </div>
                             <div class="form-group  col-xs-12 col-sm-7 col-lg-4">
-                                <div class="">
+                                <div style="width: 200px">
                                     <input type="hidden" name="token" value="{{$var['token']}}" />
                                     <button class="btn btn-success ">
                                         <i class="fa fa-search"></i>
@@ -100,6 +100,7 @@
                     <thead class="navbar-inner">
                     <tr>
                         <th style='width:5%; text-align: center;'>ID</th>
+                        <th style='width:5%; text-align: center;'>会员ID</th>
                         <th style='width:8%; text-align: center;'>粉丝</th>
                         <th style='width:8%; text-align: center;'>会员信息<br/>手机号</th>
                         <th style='width:10%; text-align: center;'>时间</th>
@@ -112,6 +113,7 @@
                     @foreach($pageList as $log)
                         <tr style="text-align: center;">
                             <td>{{ $log->id }}</td>
+                            <td>{{ $log->member->uid }}</td>
                             <td>
                                 <a href="{{ yzWebUrl('member.member.detail', array('id' => $log->member->uid)) }}">
                                     <img src='{{ $log->member->avatar}}' style='width:30px;height:30px;padding:1px;border:1px solid #ccc'/>

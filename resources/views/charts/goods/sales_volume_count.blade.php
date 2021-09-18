@@ -63,7 +63,7 @@
                                     @endif
                                 </td>
                                 <td>{{ $item['title'] }}</td>
-                                <td>{{ $item['real_sales'] }}</td>
+                                <td>{{ $item['total_sum'] }}</td>
                             </tr>
                         @endforeach
 

@@ -93,6 +93,9 @@ class CreateGoodsService
             if(empty($goods_data['cost_price'])){
                 $goods_data['cost_price'] = 0;
             }
+            if (mb_strlen($this->request['widgets']['advertising']['copywriting']) > 100) {
+                return ['status' => -1, 'msg' => '广告宣传语文案输入超过100，请重新输入'];
+            }
             $this->goods_model->fill($goods_data);
             $this->goods_model->widgets = $this->request->widgets;
             $this->goods_model->uniacid = \YunShop::app()->uniacid;

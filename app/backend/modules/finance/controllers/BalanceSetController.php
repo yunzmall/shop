@@ -60,8 +60,8 @@ class BalanceSetController extends BaseController
     }
 
     /**
-     * 更新余额设置数据
-     * @return mixed|string
+     *
+     * @return mixed|string更新余额设置数据
      */
     public function store()
     {

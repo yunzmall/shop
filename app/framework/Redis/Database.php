@@ -4,11 +4,14 @@
 namespace app\framework\Redis;
 
 
+use Closure;
+use Illuminate\Redis\RedisManager;
 use Illuminate\Support\Facades\Redis;
 
-class Database extends \Illuminate\Redis\Database
-{
 
+class Database extends RedisManager
+{
+    
     public function refresh()
     {
         app('redis')->disconnect();

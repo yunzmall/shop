@@ -5,6 +5,7 @@ namespace app\console\Commands;
 
 
 use app\framework\Cron\Cron;
+use app\framework\Log\CronLog;
 use Liebig\Cron\RunCommand;
 
 class CronRun extends RunCommand

@@ -2,6 +2,8 @@
 
 namespace app;
 
+use app\common\middleware\Install;
+use app\common\middleware\ShopRoute;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Kernel as HttpKernel;
 
@@ -16,6 +18,7 @@ class Kernel extends HttpKernel
      */
     protected $middleware = [
         \Illuminate\Foundation\Http\Middleware\CheckForMaintenanceMode::class,
+         ShopRoute::class
     ];
 
     /**
@@ -33,10 +36,12 @@ class Kernel extends HttpKernel
         ],
         'admin' => [
             //EncryptCookies::class,
+			Install::class,
             \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
             \Illuminate\Session\Middleware\StartSession::class,
             \Illuminate\View\Middleware\ShareErrorsFromSession::class,
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
+			\Illuminate\Session\Middleware\AuthenticateSession::class,
         ],
         'api' => [
             'throttle:60,1',
@@ -54,7 +59,6 @@ class Kernel extends HttpKernel
         'auth' => \app\common\middleware\Authenticate::class,
         'authAdmin' => \app\common\middleware\AuthenticateAdmin::class,
         'authShop' => \app\common\middleware\AuthenticateShop::class,
-        'globalparams' => \app\common\middleware\GlobalParams::class,
         'singleLogin' =>  \app\common\middleware\SingleLogin::class,
         'checkPasswordSafe' => \app\common\middleware\CheckPasswordSafe::class,
         'shopbootstrap' => \app\common\middleware\ShopBootstrap::class,

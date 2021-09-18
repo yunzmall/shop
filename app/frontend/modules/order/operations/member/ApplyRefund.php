@@ -15,9 +15,6 @@ class ApplyRefund extends OrderOperation
 {
     public function getApi()
     {
-        if ($this->no_refund) {
-            return \Setting::get('shop.shop')['cservice'];
-        }
         return 'refund.apply.store';
     }
     public function getValue()
@@ -26,9 +23,6 @@ class ApplyRefund extends OrderOperation
     }
     public function getName()
     {
-        if ($this->no_refund) {
-            return '联系客服';
-        }
         return '申请退款';
     }
     public function enable()

@@ -13,6 +13,7 @@ namespace app\frontend\modules\from\controllers;
 use app\common\components\ApiController;
 use app\common\services\DivFromService;
 use app\common\services\IDCardService;
+use app\framework\Http\Request;
 use app\frontend\models\Member;
 use app\common\models\MemberCertified;
 
@@ -22,7 +23,7 @@ class DivFromController extends ApiController
      * 商品表单是否显示
      * @return \Illuminate\Http\JsonResponse
      */
-    public function isDisplay($request, $integrated = null)
+    public function isDisplay(Request $request, $integrated = null)
     {
         $goods_ids = json_decode(request()->input('goods_ids'),true);
 
@@ -47,7 +48,7 @@ class DivFromController extends ApiController
      * 商品表单规则说明
      * @return \Illuminate\Http\JsonResponse
      */
-    public function explain($request, $integrated = null)
+    public function explain(Request $request, $integrated = null)
     {
         $explain = array_pluck(\Setting::getAllByGroup('div_from')->toArray(), 'value', 'key');
         if (is_null($integrated)){
@@ -59,7 +60,7 @@ class DivFromController extends ApiController
     }
 
     //判断是否开启发票
-    public function isinvoice($request, $integrated = null)
+    public function isinvoice(Request $request, $integrated = null)
     {
 
         $trade = \Setting::get('shop.trade');
@@ -109,7 +110,7 @@ class DivFromController extends ApiController
         return $this->successJson('ok');
     }
 
-    public function getMemberInfo($request, $integrated = null)
+    public function getMemberInfo(Request $request, $integrated = null)
     {
         $MemberInfo = DivFromService::getMemberCardAndName(\YunShop::app()->getMemberId());
         if (!$MemberInfo) {
@@ -127,7 +128,7 @@ class DivFromController extends ApiController
         }
 
     }
-    private function getCouponSet($request, $integrated = null)
+    private function getCouponSet(Request $request, $integrated = null)
     {
         $couponSet = \Setting::get('shop.coupon')['coupon_remind'] ?: '0';
         if(is_null($integrated)){
@@ -137,7 +138,7 @@ class DivFromController extends ApiController
         }
 
     }
-    public function getParams($request)
+    public function getParams(Request $request)
     {
         //判断是否开启发票
         $this->dataIntegrated($this->isinvoice($request, true), 'sinvoice');
@@ -152,6 +153,35 @@ class DivFromController extends ApiController
 
         //判断是否开启下单提示使用优惠券
         $this->dataIntegrated($this->getCouponSet($request, true), 'getCouponSet');
+        $this->dataIntegrated($this->getStoreSearch($request, true), 'storeSearch');
         return $this->successJson('', $this->apiData);
+    }
+
+    private function getStoreSearch(Request $request, $integrated = null)
+    {
+        $data=[];
+        if(app('plugins')->isEnabled('store-search'))
+        {
+            $store_search_set = \Setting::get('plugin.store-search');
+            if($store_search_set['is_open_but'])
+            {
+                $data =[
+                    'is_open_but'=>$store_search_set['is_open_but'],
+                    'but_title'=> $store_search_set['but_title'],
+                    'web_url'=>$store_search_set['web_url'],
+                    'app_url'=>$store_search_set['app_url'],
+                ];
+
+            }
+        }
+        if(is_null($integrated))
+        {
+            return $this->successJson('ok',$data);
+        }
+        else
+        {
+            return show_json(1,$data);
+        }
+
     }
 }

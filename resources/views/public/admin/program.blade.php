@@ -12,14 +12,12 @@ Vue.component('program', {
           Goods:[],
           store:[
             {"name":"商城首页","href":"/pages/index/index"},
-            {"name":"分类导航","href":"/pages/category_v2/category_v2"},
             {"name":"全部商品","href":"/packageC/member/searchAll/searchAll"},
             {"name":"门店聚合页面","href":"/packageC/o2o/o2oHome/o2oHome"},
           ],
           member:[
-            {"name":"会员中心","href":"/pages/member/index_v2/index_v2"},
             {"name":"我的订单","href":"/packageA/member/myOrder_v2/myOrder_v2"},
-            {"name":"我的购物车","href":"/pages/buy/cart_v2/cart_v2"},
+            // {"name":"我的购物车","href":"/pages/buy/cart_v2/cart_v2"},
             {"name":"我的收藏","href":"/packageD/member/collection/collection"},
             {"name":"我的足迹","href":"/packageD/member/footprint/footprint"},
             {"name":"会员充值","href":"/packageA/member/balance/balance/balance"},
@@ -43,7 +41,6 @@ Vue.component('program', {
             {"name":"我的收藏","href":"/packageD/member/collection/collection"},
             {"name":"我的关系","href":"/packageD/member/myRelationship/myRelationship"},
             {"name":"我的评价","href":"/packageD/member/myEvaluation/myEvaluation"},
-            {"name":"我的推广","href":"/pages/member/extension/extension"},
             {"name":"分销商","href":"/packageA/member/distribution/distribution"},
             {"name":"预计佣金","href":"/packageA/member/extension/commission/commission"},
             {"name":"未结算佣金","href":"/packageA/member/extension/unsettled/unsettled"},
@@ -54,13 +51,23 @@ Vue.component('program', {
             {"name":"优惠券","href":"/packageA/member/coupon_v2/coupon_v2"},
             {"name":"领券中心","href":"/packageD/coupon/coupon_store"},
             {"name":"搜索","href":"/packageB/member/category/search_v2/search_v2"},
-
-            {"name":"分类","href":"/pages/category_v2/category_v2"},
             {"name":"品牌","href":"/packageB/member/category/brand_v2/brand_v2"},
-            {"name":"购物车","href":"/pages/buy/cart_v2/cart_v2"},
             {"name":"音频文章","href":"packageA/member/course/VoiceList/VoiceL"},
 
-          ]
+          ],
+          diy:[
+              {"name":"分类导航","href":"/pages/category_v2/category_v2"},
+              {"name":"我的推广","href":"/pages/member/extension/extension"},
+              {"name":"购物车","href":"/pages/buy/cart_v2/cart_v2"},
+              {"name":"会员中心","href":"/pages/member/index_v2/index_v2"},
+          ],
+          newDiy:[
+              {"name":"分类导航","href":"/packageG/pages/category_v2/category_v2"},
+              {"name":"我的推广","href":"/packageG/pages/member/extension/extension"},
+              {"name":"购物车","href":"/packageG/pages/buy/cart_v2/cart_v2"},
+              {"name":"会员中心","href":"/packageG/member_v2/member_v2"},
+
+          ],
         }
     },
     watch:{
@@ -162,6 +169,14 @@ Vue.component('program', {
         <div class="page">
           <h4><i class="fa fa-folder-open-o"></i>其他链接</h4>
           <span class="link" v-for="(item,index,key) in webapp" @click="addHref(item.href)" :href="item.href">[[item.name]]</span>
+        </div>
+         <div class="page">
+          <h4><i class="fa fa-folder-open-o"></i>旧装修页面</h4>
+          <span class="link" v-for="(item,index,key) in diy" @click="addHref(item.href)" :href="item.href">[[item.name]]</span>
+        </div>
+         <div class="page">
+          <h4><i class="fa fa-folder-open-o"></i>新装修页面</h4>
+          <span class="link" v-for="(item,index,key) in newDiy" @click="addHref(item.href)" :href="item.href">[[item.name]]</span>
         </div>
       </div>
       <div class="search-content" v-show="tabID==1">

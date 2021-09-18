@@ -24,7 +24,11 @@ abstract class OrderOperation implements OrderOperationInterface
     const REMITTANCE_RECORD = 21; // 转账信息
     const CONTACT_CUSTOMER_SERVICE = 41; // 联系客服
     const CHECK_INVOICE = 50;  //查看发票
+    const View_EQUITY = 51;  //查看卡券
     const COUPON = 'coupon'; // 分享优惠卷
+    const BLIND_BOX_GOODS = 53; // 盲盒商品
+    const BLIND_BOX_REFUND = 54; // 盲盒申请退款
+    const STORE_PROJECTS_GOODS = 56;//多门店核销商品
 
     /**
      * @var Order

@@ -3,6 +3,7 @@
 namespace app\common\services;
 
 use app\common\events;
+use app\common\helpers\Cache;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
 use Illuminate\Filesystem\Filesystem;
@@ -56,10 +57,12 @@ class PluginManager
      */
     public function getPlugins()
     {
-
         if (is_null($this->plugins)) {
-
-            $plugins = new Collection();
+			$this->plugins = Cache::get('plugins_list');
+			if (!is_null($this->plugins)) {
+				return $this->plugins;
+			}
+			$plugins = new Collection();
 
             $pluginDirs = $this->filesystem->directories(base_path('plugins'));
 
@@ -80,6 +83,7 @@ class PluginManager
             $this->plugins = $plugins->sortBy(function ($plugin, $name) {
                 return $plugin->name;
             });
+            Cache::put('plugins_list',$this->plugins,5);
         }
         return $this->plugins;
     }
@@ -94,6 +98,11 @@ class PluginManager
     {
         return $this->getPlugins()->get($name);
     }
+
+	public function getEnablePlugin($name)
+	{
+		return $this->getEnabledPlugins()->get($name);
+	}
 
     public function getPluginId($name)
     {

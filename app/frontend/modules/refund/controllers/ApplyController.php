@@ -3,13 +3,14 @@
 namespace app\frontend\modules\refund\controllers;
 
 use app\common\components\ApiController;
+use app\common\events\order\OrderRefundApplyEvent;
 use app\common\exceptions\AppException;
 use app\common\models\refund\RefundApply;
 use app\common\services\SystemMsgService;
+use app\framework\Http\Request;
 use app\frontend\models\Order;
 use app\frontend\modules\refund\services\RefundService;
 use app\frontend\modules\refund\services\RefundMessageService;
-use Request;
 use app\frontend\modules\order\services\MiniMessageService;
 /**
  * Created by PhpStorm.
@@ -19,7 +20,7 @@ use app\frontend\modules\order\services\MiniMessageService;
  */
 class ApplyController extends ApiController
 {
-    public function index($request)
+    public function index(Request $request)
     {
         $this->validate([
             'order_id' => 'required|integer'
@@ -27,6 +28,17 @@ class ApplyController extends ApiController
         $order = Order::find($request->query('order_id'));
         if (!isset($order)) {
             throw new AppException('订单不存在');
+        }
+
+        //预约订单限制
+        if (!is_null(\app\common\modules\shop\ShopConfig::current()->get('store_reserve_refund'))) {
+            $class = array_get(\app\common\modules\shop\ShopConfig::current()->get('store_reserve_refund'), 'class');
+            $function = array_get(\app\common\modules\shop\ShopConfig::current()->get('store_reserve_refund'), 'function');
+            $plugin_res = $class::$function($request->query('order_id'));
+            if(!$plugin_res['res'])
+            {
+                throw new AppException($plugin_res['msg']);
+            }
         }
 
         $reasons = [
@@ -49,7 +61,7 @@ class ApplyController extends ApiController
                     'value' => 1
                 ];
         }
-        if ($order->status >= \app\common\models\Order::COMPLETE) {
+        if ($order->status >= \app\common\models\Order::WAIT_RECEIVE) {
             $refundTypes[] = [
                 'name' => '换货',
                 'value' => 2
@@ -57,25 +69,33 @@ class ApplyController extends ApiController
         }
 
         $data = compact('order', 'refundTypes', 'reasons');
-//        dd($data);
+
         return $this->successJson('成功', $data);
     }
 
 
-    public function store($request)
+    public function store(Request $request)
     {
-
         $this->validate([
             'reason' => 'required|string',
             'content' => 'sometimes|string',
-            'images' => 'sometimes|filled|json',
             'refund_type' => 'required|integer',
             'order_id' => 'required|integer'
         ], $request,[
             'reason.required'=>'退款原因未选择',
             'refund_type.required'=>'退款方式未选择',
-            'images.json' => 'images非json格式'
         ]);
+
+        //预约订单限制
+        if (!is_null(\app\common\modules\shop\ShopConfig::current()->get('store_reserve_refund'))) {
+            $class = array_get(\app\common\modules\shop\ShopConfig::current()->get('store_reserve_refund'), 'class');
+            $function = array_get(\app\common\modules\shop\ShopConfig::current()->get('store_reserve_refund'), 'function');
+            $plugin_res = $class::$function($request->input('order_id'));
+            if(!$plugin_res['res'])
+            {
+                throw new AppException($plugin_res['msg']);
+            }
+        }
 
         $order = Order::find($request->input('order_id'));
         if (!isset($order)) {
@@ -84,7 +104,7 @@ class ApplyController extends ApiController
         if ($order->uid != \YunShop::app()->getMemberId()) {
             throw new AppException('无效申请,该订单属于其他用户');
         }
-        if ($order < Order::WAIT_SEND) {
+        if ($order->status < Order::WAIT_SEND) {
             throw new AppException('订单未付款,无法退款');
         }
 
@@ -93,7 +113,14 @@ class ApplyController extends ApiController
         }
 
         $refundApply = new RefundApply($request->only(['reason', 'content', 'refund_type', 'order_id']));
-        $refundApply->images = $request->input('images', []);
+
+        if (is_array(request()->input('images'))) {
+             $refundApply->images = request()->input('images');
+        } else {
+            $refundApply->images = request()->input('images') ? json_decode(request()->input('images'), true):[];
+        }
+
+       
         $refundApply->content = $request->input('content', '');
         $refundApply->refund_sn = RefundService::createOrderRN();
         $refundApply->create_time = time();
@@ -112,6 +139,7 @@ class ApplyController extends ApiController
         RefundMessageService::applyRefundNotice($refundApply);
         RefundMessageService::applyRefundNoticeBuyer($refundApply);
 
+        event(new OrderRefundApplyEvent($refundApply));
 
         //【系統消息通知】
         (new SystemMsgService())->applyRefundNotice($refundApply);

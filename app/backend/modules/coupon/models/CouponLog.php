@@ -58,7 +58,7 @@ class CouponLog extends \app\common\models\CouponLog
         }
         if(isset($searchData['nickname'])){
             $res = $res->whereHas('member', function($query) use ($searchData){
-                return $query->where('nickname', 'like', '%'.$searchData['nickname'].'%');
+                return $query->where('nickname', 'like', '%'.$searchData['nickname'].'%')->where('uniacid',\YunShop::app()->uniacid);
             });
         }
         if(isset($searchData['get_from'])){

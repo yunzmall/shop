@@ -50,8 +50,8 @@ class Check
             $key = Setting::get('shop.key')['key'];
             $secret = Setting::get('shop.key')['secret'];
 
-            if (!$key || !$secret) {
-                redirect(Url::absoluteWeb('setting.key.index'))->send();
+			if (!$key || !$secret) {
+                redirect(Url::absoluteWeb('setting.key.index',['uniacid'=>\YunShop::app()->uniacid]))->send();
             }
         }
     }

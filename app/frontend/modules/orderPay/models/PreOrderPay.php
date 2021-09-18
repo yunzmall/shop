@@ -50,8 +50,8 @@ class PreOrderPay extends OrderPay
                 throw new AppException('(ID:' . $order->id . ')订单已关闭,无法付款');
             }
 
-            //找人代付
-            if ($order->uid != \YunShop::app()->getMemberId() && !Member::getPid() && $this->pay_type_id =! PayType::BACKEND) {
+            //找人代付  商米D2支付方式有冲突，加pos_pay请求
+            if ($order->uid != \YunShop::app()->getMemberId() && !Member::getPid() && $this->pay_type_id != PayType::BACKEND && !request()->pos_pay) {
                 throw new AppException('(ID:' . $order->id . ')该订单属于其他用户');
             }
             // 转账付款审核中

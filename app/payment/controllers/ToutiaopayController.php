@@ -9,13 +9,13 @@ namespace app\payment\controllers;
 
 
 
+use app\common\facades\EasyWeChat;
 use app\common\helpers\Url;
 use app\common\models\AccountWechats;
 use app\common\models\Order;
 use app\common\models\OrderPay;
 use app\common\services\Pay;
 use app\payment\PaymentController;
-use EasyWeChat\Foundation\Application;
 
 class ToutiaopayController extends PaymentController
 {
@@ -139,19 +139,19 @@ class ToutiaopayController extends PaymentController
     {
 
         $pay = \Setting::get('shop.pay');
-        $app = $this->getEasyWeChatApp($pay);
-        $payment = $app->payment;
-        $notify = $payment->getNotify();
+        $payment = $this->getEasyWeChatApp($pay);
 
-        //老版本-无参数
-        $valid = $notify->isValid();
+        try {
+            $message = (new \EasyWeChat\Payment\Notify\Paid($payment))->getMessage();
+            return $message;
+        } catch (\Exception $exception) {
 
-        if (!$valid) {
-            //新版本-有参数
-            $valid = $notify->isValid($pay['weixin_apisecret']);
+            \Log::debug('微信签名验证：'.$exception->getMessage());
+            return false;
         }
+        $message = (new \EasyWeChat\Payment\Notify\Paid($payment))->getMessage();
 
-        return $valid;
+        return $message;
     }
 
 
@@ -284,8 +284,7 @@ class ToutiaopayController extends PaymentController
             ]
         ];
 
-        $app = new Application($options);
-
+        $app = EasyWeChat::payment($options);
         return $app;
     }
 

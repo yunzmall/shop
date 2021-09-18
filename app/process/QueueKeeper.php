@@ -3,8 +3,10 @@
 namespace app\process;
 
 
+use app\common\exceptions\ShopException;
 use app\common\facades\SiteSetting;
 use app\common\modules\shop\ShopConfig;
+use app\common\services\SystemMsgService;
 use app\framework\Log\SimpleLog;
 use app\host\HostManager;
 use Illuminate\Queue\Events\JobExceptionOccurred;
@@ -32,12 +34,12 @@ class QueueKeeper
             if (isset($queueSetting[$item['key']]) && $queueSetting[$item['key']]) {
                 $item['total'] = $queueSetting[$item['key']];
             } else {
-                $item['total'] = count((new HostManager())->hosts()) * $item['total'];
+                $item['total'] = count(app('supervisor')->getHostname()) * $item['total'];
             }
         }
         if ($this->config != $result) {
-            $this->config = $result;
-            $this->log->add('config changed', [$this->config, $result]);
+			$this->log->add('config changed', [$this->config, $result,count(app('supervisor')->getHostname())]);
+			$this->config = $result;
         }
         $this->config = $result;
         return $result;
@@ -76,6 +78,9 @@ class QueueKeeper
             Redis::hdel('RunningQueueJobs',$this->pidKey);
             $dataStr = $event->job->getRawBody();
             $data = json_decode($dataStr);
+			if (!($event->exception instanceof ShopException)) {
+				SystemMsgService::addWorkMessage(['title'=>'队列执行错误','content'=>"{$data->data->commandName}:failed"],unserialize($data->data->command)->uniacid);
+			}
             $this->log->add("{$this->pidKey}:{$data->id}:{$data->data->commandName}:failed",[$event->job->getRawBody(),$event->exception]);
             \Log::error("队列任务[{$this->pidKey}:{$data->id}:{$data->data->commandName}]运行错误({$this->pidKey})", [$event->job->getRawBody(),$event->exception]);
         });
@@ -99,17 +104,29 @@ class QueueKeeper
         return $aliveTotal;
     }
 
+    public function aliveQueueLocalTotal()
+	{
+		$aliveTotal = 0;
+		$hostManager = new HostManager();
+		foreach ($hostManager->pidkey() as $pidkey) {
+			if (strpos($pidkey, 'queues:') !== false) {
+				$aliveTotal += 1;
+			}
+		}
+		return $aliveTotal;
+	}
+
     public function keepAlive()
     {
         Redis::setex('queueKeeperAlive', 600, 1);
         $queueTotal = collect($this->config())->sum('total');
         $hostManager = new HostManager();
         // 每个服务器平均队列数
-        $avgTotal = $queueTotal / (count($hostManager->hosts()) ?: 1) ?: 1;
+        $avgTotal = $queueTotal / (count(app('supervisor')->getHostname()) ?: 1) ?: 1;
 
         if ($this->aliveQueueTotal() < $queueTotal && $hostManager->localhost()->numberOfPids() < $avgTotal+1) {
             //
-            $i = $queueTotal - $this->aliveQueueTotal();
+            $i = $avgTotal - $this->aliveQueueLocalTotal();
             while ($this->aliveQueueTotal() < $queueTotal && $i > 0) {
                 $i--;
                 $this->startQueues();

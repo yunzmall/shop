@@ -9,6 +9,7 @@
 namespace app\frontend\modules\member\services;
 
 use app\common\exceptions\MemberErrorMsgException;
+use app\common\facades\EasyWeChat;
 use app\common\facades\Setting;
 use app\common\helpers\Cache;
 use app\common\helpers\Client;
@@ -32,64 +33,59 @@ class MemberOfficeAccountService extends MemberService
     public function login()
     {
         $member_id = 0;
-        
+
         $uniacid = \YunShop::app()->uniacid;
-        $scope   = \YunShop::request()->scope ?: 'userinfo';     //scope: base|home|userinfo
+        $scope = \YunShop::request()->scope ?: 'userinfo';     //scope: base|home|userinfo
+        $code = \YunShop::request()->code;
 
         if (Setting::get('shop.member')['wechat_login_mode'] == '1') {
             return $this->isPhoneLogin($uniacid);
         }
 
-        $code = \YunShop::request()->code;
+        $callback = ($_SERVER['REQUEST_SCHEME'] ? $_SERVER['REQUEST_SCHEME'] : 'http') . '://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
 
-        $account = AccountWechats::getAccountByUniacid($uniacid);
-        $appId = $account->key;
-        $appSecret = $account->secret;
-
-        $callback = ($_SERVER['REQUEST_SCHEME'] ? $_SERVER['REQUEST_SCHEME'] : 'http')  . '://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
-
-        $state = 'yz-' . session_id();
-
-        $authurl = $this->_getAuthUrl($appId, $callback, $state);
+        $wechat_scope = 'snsapi_userinfo';
 
         if ($scope == 'base') {
-
-            $authurl = $this->_getAuthBaseUrl($appId, $callback, $state);
+            $wechat_scope = 'snsapi_base';
         }
+
+        $config = [
+            'oauth' => [
+                'scopes' => [$wechat_scope],
+                'callback' => $callback,
+            ]
+        ];
+
+        $app = EasyWeChat::officialAccount($config);
+        $oauth = $app->oauth;
 
         if (!empty($code)) {
             $redirect_url = $this->_getClientRequestUrl();
 
-            $tokenurl = $this->_getTokenUrl($appId, $appSecret, $code);
+            $oauthUser = $oauth->user();
 
-            $token = \Curl::to($tokenurl)
-                ->asJsonResponse(true)
-                ->get();
+            $userinfo = $oauthUser->getOriginal();
 
-            if (!empty($token) && !empty($token['errmsg']) && $token['errmsg'] == 'invalid code') {
-                return show_json(5, 'token请求错误');
-            }
+            $userinfo['access_token'] = $oauthUser->getAccessToken();
+            $userinfo['expires_in'] = 7200;
+            $userinfo['refresh_token'] = $oauthUser->getRefreshToken();
 
-            $userinfo = $this->getUserInfo($appId, $appSecret, $token);
+            $user = $app->user->get($userinfo['openid']);
 
-            if (is_array($userinfo) && !empty($userinfo['errcode'])) {
-                \Log::debug('微信登陆授权失败-', $userinfo);
-                throw new MemberErrorMsgException('微信登陆授权失败');
-            }
+            $userinfo = array_merge($userinfo, $user);
 
             //Login
             $member_id = $this->memberLogin($userinfo);
 
             Session::set('member_id', $member_id);
-
             setcookie('Yz-Token', encrypt($userinfo['access_token'] . '\t' . ($userinfo['expires_in'] + time()) . '\t' . $userinfo['openid'] . '\t' . $scope), time() + self::TOKEN_EXPIRE);
         } else {
             $this->_setClientRequestUrl();
+            $oauth->redirect()->send();
 
-            redirect($authurl)->send();
             exit;
         }
-
         redirect($redirect_url)->send();
         exit;
     }
@@ -104,7 +100,7 @@ class MemberOfficeAccountService extends MemberService
      */
     public function getUserInfo($appId, $appSecret, $token)
     {
-        $scope     = \YunShop::request()->scope ?: '';
+        $scope = \YunShop::request()->scope ?: '';
         $subscribe = 0;
         $share = Setting::get('shop.share');
         $user_info = [];
@@ -391,7 +387,7 @@ class MemberOfficeAccountService extends MemberService
     public function updateFansMember($fan, $member_id, $userinfo)
     {
         $record = array(
-            'uid'       => $member_id,
+            'uid' => $member_id,
             'nickname' => stripslashes($userinfo['nickname']),
             'follow' => isset($userinfo['subscribe']) ? $userinfo['subscribe'] : 0,
             'tag' => base64_encode(serialize($userinfo))
@@ -435,13 +431,13 @@ class MemberOfficeAccountService extends MemberService
     public function isPhoneLogin($uniacid)
     {
         $mid = Member::getMid();
-        $type = \YunShop::request()->type ;
-        $mobile   = \YunShop::request()->mobile;
+        $type = \YunShop::request()->type;
+        $mobile = \YunShop::request()->mobile;
         $password = \YunShop::request()->password;
 
         $yz_redirect = \YunShop::request()->yz_redirect;
         if ($mobile && $password) {
-            $res =  (new MemberMobileService)->login();
+            $res = (new MemberMobileService)->login();
             if ($res['status'] == 1) {
                 $redirect_url = $this->_getClientRequestUrl();
                 $res['json']['redirect_url'] = $redirect_url;
@@ -463,7 +459,7 @@ class MemberOfficeAccountService extends MemberService
         $appSecret = $account->secret;
         $state = 'yz-' . session_id();
 
-        $callback = ($_SERVER['REQUEST_SCHEME'] ? $_SERVER['REQUEST_SCHEME'] : 'http')  . '://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
+        $callback = ($_SERVER['REQUEST_SCHEME'] ? $_SERVER['REQUEST_SCHEME'] : 'http') . '://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
 
         $authurl = $this->_getAuthBaseUrl($appId, $callback, $state);
         $tokenurl = $this->_getTokenUrl($appId, $appSecret, $code);
@@ -482,7 +478,7 @@ class MemberOfficeAccountService extends MemberService
             $userinfo = $this->getUserInfo($appId, $appSecret, $token);
 
             if (is_array($userinfo) && !empty($userinfo['errcode'])) {
-                \Log::debug('微信登陆授权失败-'. $userinfo['errcode']);
+                \Log::debug('微信登陆授权失败-' . $userinfo['errcode']);
                 return show_json(-3, '微信登陆授权失败');
             }
 
@@ -507,8 +503,7 @@ class MemberOfficeAccountService extends MemberService
 
     public function checkLogged($login = null)
     {
-        $uniacid = \YunShop::app()->uniacid;
-        $from    = \YunShop::request()->scope;
+        $from = \YunShop::request()->scope;
 
         if (isset($_COOKIE['Yz-Token'])) {
             try {
@@ -524,99 +519,19 @@ class MemberOfficeAccountService extends MemberService
                 return false;
             }
 
-            $yz_member = SubMemberModel::getMemberByWechatTokenAndOpenid($token, $openid);
-            
-            if (is_null($yz_member)) {
-                $openid_member = SubMemberModel::getMemberByOpenid($openid);
+            $yz_member = SubMemberModel::getMemberByOpenid($openid);
 
-                if (!is_null($openid_member) && $openid_member->access_expires_in_1 > $expires) {
-                    if (\YunShop::app()->getMemberId() != $openid_member->member_id) {
-                        Session::set('member_id', $openid_member->member_id);
-                    }
-
-                    return true;
-                }
-
+            if (is_null($yz_member) || $yz_member->member_id == 0) {
                 return false;
             }
 
-            if ($yz_member->access_expires_in_1 > time()) {
-                if (\YunShop::app()->getMemberId() != $yz_member->member_id) {
-                    Session::set('member_id', $yz_member->member_id);
-                }
-
-                return true;
-            } else {
-                if ($yz_member->refresh_expires_in_1 > time()) {
-                    $account = AccountWechats::getAccountByUniacid($uniacid);
-                    $appId = $account->key;
-                    $appSecret = $account->secret;
-
-                    $this->updateWechatUserData($yz_member, $appId, $appSecret, $openid);
-
-                    //更新token
-                    $refresh_url = $this->_refreshAuth($appId, $yz_member->refresh_token_1);
-
-                    $refresh_info = \Curl::to($refresh_url)
-                        ->asJsonResponse(true)
-                        ->get();
-
-                    if (!isset($refresh_info['errcode'])) {
-                        $yz_member->yz_openid = $refresh_info['openid'];
-                        $yz_member->access_token_1 = $refresh_info['access_token'];
-                        $yz_member->access_expires_in_1 = time() + 7200;
-                        $yz_member->refresh_token_1 = $refresh_info['refresh_token'];
-                        $yz_member->refresh_expires_in_1 = time() + (28 * 24 * 3600);
-                        $yz_member->save();
-
-                        Session::set('member_id', $yz_member->member_id);
-                        setcookie('Yz-Token', encrypt($refresh_info['access_token'] . '\t' . $yz_member->access_expires_in_1 . '\t' . $refresh_info['openid']), time() + self::TOKEN_EXPIRE);
-                        return true;
-                    }
-                } else {
-                    return false;
-                }
+            if (\YunShop::app()->getMemberId() != $yz_member->member_id) {
+                Session::set('member_id', $yz_member->member_id);
             }
+
+            return true;
         }
 
-         return false;
-    }
-
-    /**
-     * 同步微信用户信息
-     *
-     * @param $yz_member
-     * @param $appId
-     * @param $appSecret
-     * @param $openid
-     */
-    private function updateWechatUserData($yz_member, $appId, $appSecret, $openid)
-    {
-        $global_access_token_url = $this->_getAccessToken($appId, $appSecret);
-
-        $global_token = \Curl::to($global_access_token_url)
-            ->asJsonResponse(true)
-            ->get();
-
-        $global_userinfo_url = $this->_getInfo($global_token['access_token'], $openid);
-
-        $user_info = \Curl::to($global_userinfo_url)
-            ->asJsonResponse(true)
-            ->get();
-
-        $user_info['nickname'] = $this->filteNickname($user_info);
-
-        if ($user_info['subscribe'] != $yz_member->hasOneMappingFans->follow
-            || $user_info['nickname'] != $yz_member->hasOneMember->nickname
-            || $user_info['headimgurl'] != $yz_member->hasOneMember->avatar) {
-
-            if ($user_info['subscribe']) {
-                $this->updateMemberInfo($yz_member->member_id, $user_info);
-            } else {
-                  $yz_member->hasOneMappingFans->follow = $user_info['subscribe'];
-
-                  $yz_member->push();
-            }
-        }
+        return false;
     }
 }

@@ -8,6 +8,7 @@
 
 namespace app\frontend\modules\coin;
 
+use app\frontend\modules\finance\models\BalanceCoin;
 use app\frontend\modules\finance\models\PointCoin;
 use Illuminate\Container\Container;
 
@@ -22,6 +23,11 @@ class CoinManager extends Container
         $this->bind('point', function ($coinManager, $attributes = []) {
             return new PointCoin($attributes);
         });
+
+        $this->bind('balance', function ($coinManager, $attributes = []) {
+            return new BalanceCoin($attributes);
+        });
+
         $this->singleton('MemberCoinManager', function ($coinManager, $attributes = []) {
             return new MemberCoinManager($attributes);
         });

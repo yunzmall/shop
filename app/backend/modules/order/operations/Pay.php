@@ -8,7 +8,7 @@
 
 namespace app\backend\modules\order\operations;
 
-class Pay extends OrderOperation
+class Pay extends BackendOrderBase
 {
     public function getApi()
     {

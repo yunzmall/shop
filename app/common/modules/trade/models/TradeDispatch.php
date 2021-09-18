@@ -9,13 +9,16 @@
 namespace app\common\modules\trade\models;
 
 use app\common\models\BaseModel;
+use app\frontend\modules\memberCart\controllers\DispatchTypeController;
 use app\frontend\modules\order\dispatch\DispatchTypeMenu;
 use app\frontend\modules\order\models\PreOrder;
 
 
 class TradeDispatch extends BaseModel
 {
+
     protected $appends = ['delivery_method'];
+
 
     /**
      * @var Trade
@@ -93,7 +96,23 @@ class TradeDispatch extends BaseModel
 
     public function getDeliveryMethodAttribute()
     {
-        return $this->_gteDeliveryMethod();
+        if (!miniVersionCompare('1.1.105') || !versionCompare('1.1.105')) {
+            return $this->tempDeliveryMethod();
+        }
+        return [];
+    }
+
+    protected function tempDeliveryMethod()
+    {
+
+        $goods_id = $this->trade->orders->map(function (PreOrder $order) {
+            return $order->orderGoods->pluck('goods_id');
+        })->collapse()->values()->toArray();
+
+
+        $dispatch = (new DispatchTypeController())->getOrderDispatch($goods_id);
+
+        return $dispatch;
     }
 
 

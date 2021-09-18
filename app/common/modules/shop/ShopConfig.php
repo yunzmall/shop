@@ -77,7 +77,26 @@ class ShopConfig
                     'id' => 58,
                     'name' => 'market-sub'
                 ],
-
+                [
+                    'id' => 60,
+                    'name' => 'son-provider-platform'
+                ],
+                [
+                    'id' => 107,
+                    'name' => 'blind-box'
+                ],
+                [
+                    'id' => 71,
+                    'name' => 'aggregation-cps'
+                ],
+                [
+                    'id' => 113,
+                    'name' => 'store-projects'
+                ],
+                [
+                    'id' => 120,
+                    'name' => 'yz-supply'
+                ],
             ],
             'observer' => [
                 'goods' => [
@@ -131,6 +150,11 @@ class ShopConfig
                         'function_validator' => 'relationValidator',
                         'function_save' => 'relationSave'
                     ],
+                    'advertising' => [
+                        'class' => 'app\backend\modules\goods\models\Advertising',
+                        'function_validator' => 'relationValidator',
+                        'function_save' => 'relationSave'
+                    ],
                     'invite_page' => [
                         'class' => 'app\backend\modules\goods\models\InvitePage',
                         'function_validator' => 'relationValidator',
@@ -180,8 +204,7 @@ class ShopConfig
                                 return new \app\common\modules\goods\dealPrice\GoodsDealPrice($goods);
                             },
                         ], [
-                            'key' => '
-                            ',
+                            'key' => 'marketDealPrice',
                             'class' => function (\app\common\models\Goods $goods, $param = []) {
                                 return new \app\common\modules\goods\dealPrice\MarketDealPrice($goods);
                             },
@@ -189,20 +212,37 @@ class ShopConfig
                     ],
 
                     //标准商城默认都会显示下面这几种类型的商品
-                    'plugin' => [0],
+                    'plugin'    => [0],
                 ],
-                'member-cart' => [
-                    'with' => []
+                //订单列表类型区分
+                'order-list' => [
+                    'type' => [
+                        [
+                            'priority' => 0,
+                            'view' => \app\backend\modules\order\services\type\ShopOrderView::class,
+                            'class' => function (\app\common\models\Order $order) {
+                                return new \app\backend\modules\order\services\type\ShopOrder($order);
+                            },
+                        ],
+                    ],
+                    'top-row'=> [],
                 ],
-                'model' => ['PreOrder' => [
+                'member-cart'          => [
+                    'with' => [],
+                    'models' => [
+                        'shop' => \app\frontend\models\MemberCart::class,
+                    ],
+                ],
+                'model'                => [
+                    'PreOrder' => []
+                ],
+                'model-expansions'     => [\app\frontend\models\Goods::class => [
 
-                ]],
-                'model-expansions' => [\app\frontend\models\Goods::class => [
                     \Yunshop\Love\Frontend\Models\Expansions\GoodsExpansions::class,
                     \Yunshop\AreaDividend\models\expansions\GoodsExpansions::class,
                     \Yunshop\Supplier\common\models\expansions\GoodsExpansions::class
                 ]],
-                'order' => ['member_order_operations' => [
+                'order' => ['member_order_operations' => [//todo 配置已移至 app/common/modules/shop/OrderFrontendButtonConfig.php
                     'waitPay' => [
                         \app\frontend\modules\order\operations\member\Pay::class,
                         \app\frontend\modules\order\operations\member\Close::class,
@@ -234,6 +274,7 @@ class ShopConfig
                         \app\frontend\modules\order\operations\member\Refunded::class,
                         \app\frontend\modules\order\operations\member\CheckInvoice::class,
                         \app\frontend\modules\order\operations\member\Coupon::class, //分享优惠卷
+                        \app\frontend\modules\order\operations\member\ViewEquity::class, //查看卡券
 
                     ],
                     'close' => [
@@ -241,15 +282,14 @@ class ShopConfig
                         \app\frontend\modules\order\operations\member\Delete::class,
                         \app\frontend\modules\order\operations\member\Refunded::class,
                     ],
-
+                ], 'status' => [
+                    0 => 'waitPay',
+                    1 => 'waitSend',
+                    2 => 'waitReceive',
+                    3 => 'complete',
+                    -1 => 'close',
+                    ],
                 ],
-                    'status' => [
-                        0 => 'waitPay',
-                        1 => 'waitSend',
-                        2 => 'waitReceive',
-                        3 => 'complete',
-                        -1 => 'close',
-                    ],],
                 'order-dispatch-save' => [
                     'dispatch' => \app\frontend\modules\order\dispatch\order\ExpressOrderDispatchType::class
                 ],
@@ -287,6 +327,12 @@ class ShopConfig
                 ],
                 'goods-discount' => [
                     [
+                        'weight' => 2000,
+                        'class' => function (\app\frontend\modules\orderGoods\models\PreOrderGoods $preOrderGoods) {
+                            return new \app\frontend\modules\orderGoods\discount\MemberLevel($preOrderGoods);
+                        },
+                    ],
+                    [
                         'weight' => 2010,
                         'class' => function (\app\frontend\modules\orderGoods\models\PreOrderGoods $preOrderGoods) {
                             return new \app\frontend\modules\orderGoods\discount\SingleEnoughReduce($preOrderGoods);
@@ -302,6 +348,9 @@ class ShopConfig
                             return new \app\frontend\modules\orderGoods\discount\Coupon($preOrderGoods);
                         },
                     ],
+                ],
+                'coin-exchange' => [
+
                 ],
                 'coupon' => [
                     'OrderCoupon' => [
@@ -322,6 +371,12 @@ class ShopConfig
                                 'key' => \app\common\models\Coupon::COUPON_SHOP_USE,
                                 'class' => function ($coupon) {
                                     return new \app\frontend\modules\coupon\services\models\UseScope\ShopScope($coupon);
+                                },
+                            ],
+                            [
+                                'key' => \app\common\models\Coupon::COUPON_GOODS_AND_STORE_USE,
+                                'class' => function ($coupon) {
+                                    return new \app\frontend\modules\coupon\services\models\UseScope\GoodsAndStoreScope($coupon);
                                 },
                             ],
                         ]
@@ -360,6 +415,12 @@ class ShopConfig
                         ]
                     ]
                 ], 'order-discount' => [
+                    [
+                        'key' => 'memberLevel',
+                        'class' => function (\app\frontend\modules\order\models\PreOrder $preOrder) {
+                            return new \app\frontend\modules\order\discount\MemberLevel($preOrder);
+                        },
+                    ],
                     [
                         'key' => 'singleEnoughReduce',
                         'class' => function (\app\frontend\modules\order\models\PreOrder $preOrder) {
@@ -442,7 +503,37 @@ class ShopConfig
                     'option' => [],
                     'is_serial' => false
                 ],
-            ]
+            ],
+            'password' => [
+                'balance' => [
+                    'code' => 'balance',
+                    'name' => '余额设置',
+                    'condition' => [
+                        [
+                            'key' => 'pay',
+                            'name' => '余额支付'
+                        ],
+                        [
+                            'key' => 'transfer',
+                            'name' => '余额转让'
+                        ],
+                        [
+                            'key' => 'withdraw',
+                            'name' => '余额提现'
+                        ]
+                    ]
+                ],
+                'point' => [
+                    'code' => 'point',
+                    'name' => '积分设置',
+                    'condition' => [
+                        [
+                            'key' => 'transfer',
+                            'name' => '积分转让'
+                        ]
+                    ]
+                ],
+            ],
         ];
 
         $plugins = app('plugins')->getEnabledPlugins('*');
@@ -509,7 +600,7 @@ class ShopConfig
     {
         $all = $this->getItems();
         $array = $this->getItem($key) ?: [];
-        array_unshift($array,$value);
+        array_unshift($array, $value);
         array_set($all, $key, $array);
         $this->items = $all;
 

@@ -143,6 +143,28 @@
                     <div style="background: #eff3f6;width:100%;height:15px;"></div>
                     <div class="block">
                         <div class="title"><div style="display:flex;align-items:center;"><span style="width: 4px;height: 18px;background-color: #29ba9c;margin-right:15px;display:inline-block;"></span><b>自定义</b><span></div><el-button type="primary"  @click="addBlock">添加</el-button></div>
+                        <el-form-item label="自定义必填开启">
+                            <template>
+                                <el-switch
+                                        v-model="base.form_open"
+                                        active-value="1"
+                                        inactive-value="0"
+                                >
+                                </el-switch>
+                            </template>
+                            <div>开启后，自定义字段必填</div>
+                        </el-form-item>
+                        <el-form-item label="前端禁止编辑">
+                            <template>
+                                <el-switch
+                                        v-model="base.form_edit"
+                                        active-value="1"
+                                        inactive-value="0"
+                                >
+                                </el-switch>
+                            </template>
+                            <div>开启后，前端会员设置不可编辑</div>
+                        </el-form-item>
                         <div class="list-wrap">
                             <div class="list" v-for="(item,index) in form.sort">
                                 <div>

@@ -34,6 +34,7 @@ class PopularizePageShowController extends BaseController
         return view('member.popularize.index',[
             'info' => $info,
             'plugin_page' => $this->getData(),
+	        'income_config' => $this->getItems()
         ])->render();
     }
 
@@ -59,6 +60,7 @@ class PopularizePageShowController extends BaseController
         return view('member.popularize.index',[
             'info' => $info,
             'plugin_page' => $this->getData(),
+	        'income_config' => $this->getItems()
         ])->render();
     }
 
@@ -81,6 +83,7 @@ class PopularizePageShowController extends BaseController
         return view('member.popularize.index',[
             'info' => $info,
             'plugin_page' => $this->getData(),
+	        'income_config' => $this->getItems()
         ])->render();
     }
 
@@ -103,6 +106,7 @@ class PopularizePageShowController extends BaseController
         return view('member.popularize.index',[
             'info' => $info,
             'plugin_page' => $this->getData(),
+	        'income_config' => $this->getItems()
         ])->render();
     }
 
@@ -126,6 +130,7 @@ class PopularizePageShowController extends BaseController
         return view('member.popularize.index',[
             'info' => $info,
             'plugin_page' => $this->getData(),
+	        'income_config' => $this->getItems()
         ])->render();
     }
 
@@ -271,6 +276,18 @@ json;
         $lang = \Setting::get('shop.lang', ['lang' => 'zh_cn']);
 
         return $lang[$lang['lang']];
+    }
+    
+    private function getItems()//获取所有插件
+    {
+	    $config = \app\backend\modules\income\Income::current()->getPageItems();//获取所有插件
+	    $data = [];
+	    foreach ($config as $key => $item){
+		    $incomeFactory = new $item['class'];
+		    $data[$key]['value'] = $incomeFactory->getMark();//获取收类型的名称
+		    $data[$key]['name'] = $incomeFactory->getTitle();
+	    }
+	    return $data;
     }
 
 }

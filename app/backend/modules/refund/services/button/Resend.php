@@ -32,7 +32,7 @@ class Resend extends RefundButtonBase
 
     public function enable()
     {
-        return $this->refund->status < RefundApply::WAIT_RESEND_GOODS;
+        return  RefundApply::REJECT < $this->refund->status &&  $this->refund->status < RefundApply::WAIT_RESEND_GOODS;
     }
 
     public function getType()

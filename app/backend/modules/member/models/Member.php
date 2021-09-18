@@ -10,6 +10,7 @@ namespace app\backend\modules\member\models;
 
 use app\backend\modules\member\observers\MemberObserver;
 use app\backend\modules\order\models\Order;
+use app\common\facades\Setting;
 use app\common\models\member\MemberDel;
 use app\common\traits\MemberTreeTrait;
 use Illuminate\Database\Eloquent\Builder;
@@ -323,7 +324,7 @@ class Member extends \app\common\models\Member
             $result->where('yz_member.group_id', $parame['search']['groupid']);
         }
 
-        if (!empty($parame['search']['level'])) {
+        if (is_numeric($parame['search']['level'])) {
             $result->where('yz_member.level_id', $parame['search']['level']);
         }
 
@@ -372,6 +373,24 @@ class Member extends \app\common\models\Member
         if (file_exists(base_path('plugins/alipay-onekey-login'))) {
             $result->with('hasOneAlipay');
         }
+
+        //判断会员标签插件
+        $set = array_pluck(Setting::getAllByGroup('member-tags')->toArray(), 'value', 'key');
+        if (app('plugins')->isEnabled('member-tags') && $set['is_open']) {
+            if ($parame['tag_id'])
+            {
+                $result->whereHas('hasManyTag', function($query) use($parame){
+                    $query->where('tag_id', $parame['tag_id']);
+                });
+            }
+            $result->with(['hasManyTag' => function($query){
+                $query->with('tag');
+            }]);
+        }
+	
+	    if (app('plugins')->isEnabled('wechat-customers') && app('plugins')->isEnabled('work-wechat-platform')) {
+		    $result->with('hasOneCustomers');
+	    }
 
         $result->whereNull('yz_member_del_log.member_id')
             ->whereNull('yz_member.deleted_at')

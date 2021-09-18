@@ -15,6 +15,7 @@ use app\common\models\OrderPay;
 use app\common\models\PayOrder;
 use app\common\models\PayType;
 use app\common\services\alipay\MobileAlipay;
+use app\common\services\alipay\sdk\AopCertClient;
 use app\common\services\alipay\WebAlipay;
 use app\common\services\alipay\WapAlipay;
 use app\common\models\Member;
@@ -208,7 +209,7 @@ class AliPay extends Pay
         $batch_no = $this->setUniacidNo(\YunShop::app()->uniacid);
 
         $op = '支付宝提现 批次号：' . $out_trade_no . '提现金额：' . $money;
-        $this->withdrawlog(Pay::PAY_TYPE_REFUND, $this->pay_type[Pay::PAY_MODE_ALIPAY], $money, $op, $out_trade_no, Pay::ORDER_STATUS_NON, $member_id);
+        $pay_order_model = $this->withdrawlog(Pay::PAY_TYPE_REFUND, $this->pay_type[Pay::PAY_MODE_ALIPAY], $money, $op, $out_trade_no, Pay::ORDER_STATUS_NON, $member_id);
 
         $alipay = app('alipay.web');
 
@@ -229,7 +230,23 @@ class AliPay extends Pay
             throw new AppException('没有设定支付宝账号');
         }
 
-        return $alipay->withdraw($account, $name, $out_trade_no, $batch_no);
+        //请求数据日志
+        $pay_data = [
+            'out_biz_no' => $out_trade_no,
+            'payee_account' => $account,
+            'amount'     => $money,
+            'payee_real_name' => $name,
+        ];
+        $this->payRequestDataLog($pay_order_model->id, $pay_order_model->type, $pay_order_model->type, json_encode($pay_data));
+
+        if (\Setting::get('shop.pay')['alipay_transfer']) {
+            return $this->withdrawCert($account, $name, $out_trade_no, $money);
+        }
+
+        $result = $alipay->withdraw($account, $name, $out_trade_no, $batch_no);
+        //响应数据
+        $this->payResponseDataLog($pay_order_model->out_order_no, $pay_order_model->type, json_encode($result));
+        return $result;
     }
 
     public function doBatchWithdraw($withdraws)
@@ -271,5 +288,64 @@ class AliPay extends Pay
     public function buildRequestSign()
     {
         // TODO: Implement buildRequestSign() method.
+    }
+
+    /**
+     * 支付宝单笔转账接口 证书签名模式
+     * @param $account string 支付宝账号
+     * @param $name string 支付宝账号真实姓名
+     * @param $out_trade_no string 转账单号
+     * @param $money mixed 转账金额
+     * @return array
+     */
+    public function withdrawCert($account, $name, $out_trade_no, $money)
+    {
+        $data = [
+            'out_biz_no' => $out_trade_no,
+            'trans_amount'     => $money,
+            'product_code' => 'TRANS_ACCOUNT_NO_PWD',
+            'biz_scene' => 'DIRECT_TRANSFER',
+            'order_title' => '佣金提现',
+            'remark' => '测试',
+            'payee_info' => [
+                'identity'=> $account,
+                'identity_type'=>'ALIPAY_LOGON_ID',
+                'name' => $name,
+            ]
+
+        ];
+
+        $aop = $this->aopCert();
+
+        $result = $aop->execute('alipay.fund.trans.uni.transfer',$data);
+
+        if (!$result['code']) {
+            \Log::debug('-----支付宝转账失败-----', $result['data']);
+            return ['errno'=> 1, 'message'=> $result['msg']];
+        }
+
+        return  ['errno'=> 0, 'message'=> $result['msg']];
+    }
+
+    protected function aopCert()
+    {
+
+        $pay = \Setting::get('shop.pay');
+        //Utils::dataDecrypt($pay);
+
+        $config = [
+            'appId' => $pay['alipay_transfer_app_id'],
+            'merchantPrivateKey' => $pay['alipay_transfer_private'],
+            'merchantCertPath' => $pay['alipay_app_public_cert'],
+            'alipayCertPath' => $pay['alipay_public_cert'],
+            'alipayRootCertPath' => $pay['alipay_root_cert'],
+        ];
+
+        $aop = new AopCertClient();
+
+        $aop->setConfig($config);
+
+//        $aop->setConfigValue('gatewayHost','openapi.alipaydev.com'); //沙箱测试
+        return $aop;
     }
 }

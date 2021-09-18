@@ -110,17 +110,18 @@
                     <div class="block">
                         <div class="title"><span style="width: 4px;height: 18px;background-color: #29ba9c;margin-right:15px;display:inline-block;"></span><b>推荐分类页面广告设置</b></div>
                         <el-form-item label="推荐分类广告" prop="head_img_url">
-                            <div class="upload-box" @click="openUpload('cat_adv_img')" v-if="!form.cat_adv_img_url">
+                            <div class="upload-box" @click="openUpload('cat_adv_img',1,'one')" v-if="!form.cat_adv_img_url">
                                 <i class="el-icon-plus" style="font-size:32px"></i>
                             </div>
-                            <div @click="openUpload('cat_adv_img')" class="upload-boxed" v-if="form.cat_adv_img_url" style="height:75px;">
+                            <div @click="openUpload('cat_adv_img',1,'one')" class="upload-boxed" v-if="form.cat_adv_img_url" style="height:75px;">
                                 <img :src="form.cat_adv_img_url" alt="" style="width:150px;height:75px;border-radius: 5px;cursor: pointer;">
                                 <div class="upload-boxed-text">点击重新上传</div>
                                 <i class="el-icon-close" @click.stop="clearImg('cat_adv_img')" title="点击清除图片"></i>
                             </div>
                             <div class="tip">分类页面中，推荐分类的广告图，建议尺寸640*320</div>
                         </el-form-item>
-                        <upload-img :upload-show="uploadShow" :name="chooseImgName" @replace="changeProp" @sure="sureImg"></upload-img>
+                        <!-- <upload-img :upload-show="uploadShow" :name="chooseImgName" @replace="changeProp" @sure="sureImg"></upload-img> -->
+                        <upload-multimedia-img :upload-show="uploadShow" :type="type" :name="chooseImgName" :sel-Num="selNum" @replace="changeProp" @sure="sureImg"></upload-multimedia-img>
                         <el-form-item label="推荐分类广告链接">
                             <el-input v-model="form.cat_adv_url" placeholder="请填写指向的链接" style="width:60%;"></el-input><el-button @click="show=true" style="margin-left:10px;">选择链接</el-button>
                         </el-form-item>
@@ -138,7 +139,7 @@
         </el-form>
     </div>
     </div>
-    @include('public.admin.uploadImg')
+    @include('public.admin.uploadMultimediaImg')
     @include('public.admin.pop')
     @include('public.admin.program')
     <script>
@@ -147,6 +148,8 @@
             delimiters: ['[[', ']]'],
             data() {
                 return {
+                    type:'',
+                    selNum:'',
                     activeName: 'one',
                     show:false,//是否开启公众号弹窗
                     pro:false ,//是否开启小程序弹窗
@@ -181,10 +184,12 @@
                     }
                     this.$forceUpdate();
                 },
-                openUpload(str) {
-
+                openUpload(str,type,sel) {
+                    console.log(type,'111111111111111')
                     this.chooseImgName = str;
                     this.uploadShow = true;
+                    this.type = type
+                    this.selNum = sel
                 },
                 changeProp(val) {
                     if(val == true) {
@@ -194,9 +199,17 @@
                         this.uploadShow = true;
                     }
                 },
-                sureImg(name,image,image_url) {
-                    this.form[name] = image;
-                    this.form[name+'_url'] = image_url;
+                sureImg(name,uploadShow,fileList) {
+                    
+                    if(fileList.length <= 0) {
+                        return 
+                    }
+                    console.log(name)
+                    console.log(fileList)
+                    this.form[name] =fileList[0].attachment;
+                    this.form[name+'_url'] = fileList[0].url;
+                    console.log(this.form[name],'aaaaa')
+                    console.log( this.form[name+'_url'],'bbbbb')
                 },
                 //弹窗显示与隐藏的控制
                 changeProp1(item){

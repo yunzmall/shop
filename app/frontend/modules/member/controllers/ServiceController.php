@@ -95,6 +95,7 @@ class ServiceController extends ApiController
     public function miniSetting($set)
     {
         return [
+            'cservice'=>$set['mini_link'],
             'customer_open'=>$set['mini_open'],
             'service_QRcode' => yz_tomedia($set['mini_QRcode']),
             'service_mobile' => $set['mini_mobile']

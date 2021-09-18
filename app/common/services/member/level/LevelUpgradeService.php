@@ -21,16 +21,17 @@ use app\common\models\notice\MessageTemp;
 use app\common\models\Order;
 use app\common\services\MessageService;
 use app\common\services\notice\official\MemberUpgradeNotice;
+use Yunshop\UniversalCard\models\ConsumeCoupon;
+use Yunshop\UniversalCard\models\ConsumeCouponLog;
+use Yunshop\UniversalCard\models\UniversalCardLevel;
+use Yunshop\UniversalCard\services\MsgSendService;
 
 class LevelUpgradeService
 {
     private $orderModel;
     private $orderId;
-
     private $memberModel;
-
     private $new_level;
-
     private $validity;
 
     public function test($order)
@@ -116,29 +117,60 @@ class LevelUpgradeService
         if (!$this->validity['is_goods']) {
             return;
         }
+        $current_level_id = '';
         if ($this->validity['upgrade']) {
+            $current_level_id = $this->new_level->id;
             $validity = $this->new_level->validity * $this->validity['goods_total'];
         } else {
             //bug 会员当前等级 > 新的等级  有效期不应该叠加, 当等级相等时才叠加
             //$validity = $this->memberModel->validity + $this->new_level->validity * $this->validity['goods_total'];
-            
             if ($this->validity['superposition']) {
+                $current_level_id = $this->memberModel->level->id;
                 $validity = $this->memberModel->validity + $this->new_level->validity * $this->validity['goods_total'];
             }
         }
-
         if (isset($validity)) {
+            //一卡通消费券
+            if (app('plugins')->isEnabled('consume-coupon-switch') && Setting::get('plugin.consume_coupon_switch.status') == 1) {
+                if (app('plugins')->isEnabled('universal-card') && Setting::get('plugin.universal_card.switch') == 1) {
+                    $consume_coupon = ConsumeCoupon::uniacid()->where('member_id', $this->memberModel->member_id)->first();
+                    $universalCardLevel = UniversalCardLevel::uniacid()->where('member_level_id', $current_level_id)->first();
+                    if ($universalCardLevel->consume_coupon_num) {
+                        $get_consume_coupon = $universalCardLevel->consume_coupon_num * $this->validity['goods_total'];
+                        if ($consume_coupon) {
+                            $consume_coupon->amount = $consume_coupon->amount + $get_consume_coupon;
+                        } else {
+                            $consume_coupon = new ConsumeCoupon();
+                            $consume_coupon->uniacid = $this->memberModel->uniacid;
+                            $consume_coupon->member_id = $this->memberModel->member_id;
+                            $consume_coupon->amount = $consume_coupon->amount + $get_consume_coupon;
+                        }
+                        $consume_coupon->amount = round($consume_coupon->amount, 2);
+                        $consume_coupon->status = 1;
+                        if ($consume_coupon->save()) {
+                            $data = [
+                                'uniacid' => \YunShop::app()->uniacid,
+                                'member_id' => $this->memberModel->member_id,
+                                'store_id' => 0,
+                                'order_id' => $this->orderModel->id,
+                                'type' => 1,
+                                'amount' => $get_consume_coupon,
+                                'created_at' => time(),
+                            ];
+                            ConsumeCouponLog::create($data);
+                            MsgSendService::getConsumeCoupon($get_consume_coupon, $this->memberModel->member_id);
+                        };
+                    }
+                }
+            }
             $this->memberModel->validity = $validity;
             $this->memberModel->downgrade_at = 0;
             $this->memberModel->save();
-
             if (!$isUpgrate) {
-                
                 $levelId = intval($this->new_level->id);
                 event(new MemberLevelValidityEvent($this->memberModel, $this->validity['goods_total'], $levelId));
             }
         }
-
     }
 
     private function check($status)
@@ -175,7 +207,7 @@ class LevelUpgradeService
         //比对当前等级权重，判断是否升级
         if ($this->new_level) {
             $memberLevel = isset($this->memberModel->level->level) ? $this->memberModel->level->level : 0;
-                
+
                 \Log::info('---==会员等级信息==----', [$memberLevel, $this->new_level->level]);
 
             if ($this->new_level->level == $memberLevel) {
@@ -270,6 +302,12 @@ class LevelUpgradeService
 
             if ($level) {
                 $memberModel = MemberShopInfo::ofMemberId($uid)->withLevel()->first();
+
+                //查询会员不存在则不升级
+                if (is_null($memberModel)) {
+                    continue;
+                }
+
                 $memberLevel = isset($memberModel->level->level) ? $memberModel->level->level : 0;
                 if ($level->level > $memberLevel) {
                     $memberModel->level_id = $level->id;
@@ -315,14 +353,14 @@ class LevelUpgradeService
     {
         $reallevel = [];
         $goodsIds = array_pluck($this->orderModel->hasManyOrderGoods->toArray(), 'goods_id');
-        
+
         \Log::debug('---==get_order_model==---', $this->orderModel);
         \Log::debug('---==get_member_model==---', $this->memberModel);
         // $level = MemberLevel::uniacid()->select('id', 'level', 'level_name', 'goods_id', 'validity')->whereIn('goods_id', $goodsIds)->orderBy('level', 'desc')->first();  // 原先逻辑为购买指定某一商品即可升级, 现为购买指定任易商品即可升级
         //获取
-        
+
         $levelid = MemberLevel::find($this->memberModel->level_id);
-        
+
         \Log::debug('---==levelid==---', $levelid);
 
         $levels = MemberLevel::uniacid()->where('level', '>=', $levelid->level ? : 0)->select('id', 'level', 'level_name', 'goods_id', 'validity')->orderBy('level', 'desc')->get();
@@ -333,11 +371,11 @@ class LevelUpgradeService
 
         foreach ($this->orderModel->hasManyOrderGoods as $time) {
             // if ($time->goods_id == $level->goods_id) { // 原先逻辑为购买指定某一商品即可升级, 现为购买指定任易商品即可升级
-            
+
             foreach ($levels as  $level) {
-                
+
                 $levelGoodsId = explode(',', $level->goods_id);
-        
+
         \Log::debug('---==levelGoodsId==---', $levelGoodsId);
         \Log::debug('---==checkInarray==---', in_array($time->goods_id, $levelGoodsId));
 
@@ -365,10 +403,8 @@ class LevelUpgradeService
 
     private function upgrade($levelId)
     {
-
         $this->memberModel->level_id = $levelId;
         $this->memberModel->upgrade_at = time();
-
         if ($this->memberModel->save()) {
             //会员等级升级触发事件
             $pluginLevel=[
@@ -384,7 +420,6 @@ class LevelUpgradeService
         } else {
             \Log::info('会员ID' . $this->memberModel->member_id . '会员等级升级失败，等级ID' . $levelId);
         }
-
         //todo 会员等级升级通知
         return true;
     }

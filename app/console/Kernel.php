@@ -32,7 +32,9 @@ class Kernel extends ConsoleKernel
         'app\console\Commands\CorrectionSupplierData',
         WriteFrame::class,
         MemberRelease::class,
-        FixMemberRelease::class
+        FixMemberRelease::class,
+//        \app\console\Commands\ZhuzherCurl::class
+//        CreditSeed::class
     ];
     /**
      * The bootstrap classes for the application.
@@ -40,14 +42,13 @@ class Kernel extends ConsoleKernel
      * @var array
      */
     protected $bootstrappers = [
-        'Illuminate\Foundation\Bootstrap\DetectEnvironment',
-        'Illuminate\Foundation\Bootstrap\LoadConfiguration',
-        'Illuminate\Foundation\Bootstrap\ConfigureLogging',
-        'Illuminate\Foundation\Bootstrap\HandleExceptions',
-        'Illuminate\Foundation\Bootstrap\RegisterFacades',
-        SetRequestForConsole::class,
-        'Illuminate\Foundation\Bootstrap\RegisterProviders',
-        'Illuminate\Foundation\Bootstrap\BootProviders',
+        \Illuminate\Foundation\Bootstrap\LoadEnvironmentVariables::class,
+        \Illuminate\Foundation\Bootstrap\LoadConfiguration::class,
+        \Illuminate\Foundation\Bootstrap\HandleExceptions::class,
+        \Illuminate\Foundation\Bootstrap\RegisterFacades::class,
+        \app\framework\Foundation\Bootstrap\SetRequestForConsole::class,
+        \Illuminate\Foundation\Bootstrap\RegisterProviders::class,
+        \Illuminate\Foundation\Bootstrap\BootProviders::class,
     ];
     /**
      * Define the application's command schedule.
@@ -59,6 +60,8 @@ class Kernel extends ConsoleKernel
     {
         // $schedule->command('inspire')
         //          ->hourly();
+//        $schedule->command('ZhuzherCurl')->everyMinute();
+//        $schedule->command('CreditSeed')->everyMinute();
     }
 
     /**

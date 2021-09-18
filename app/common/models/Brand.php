@@ -35,7 +35,7 @@ class Brand extends BaseModel
             $result->where('id',$search['id']);
         }
         if ($search['name']){
-            $result->where('name','like',$search['name'] .'%');
+            $result->where('name','like','%'.$search['name'] .'%');
         }
         return $result;
     }
@@ -52,6 +52,6 @@ class Brand extends BaseModel
 
     public function keywordGetBrand($keyword)
     {
-        return self::uniacid()->where('name','like',$keyword .'%')->select(['id','name']);
+        return self::uniacid()->where('name','like','%'.$keyword .'%')->select(['id','name']);
     }
 }

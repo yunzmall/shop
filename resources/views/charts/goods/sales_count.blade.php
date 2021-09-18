@@ -57,13 +57,13 @@
                             <tr>
                                 <td>
                                     @if($key <= 2)
-                                        <label class='label label-danger' style='padding:8px;'>&nbsp;{{ $key + 1 }}&nbsp;</label>
+                                        <label class='label label-danger' style='padding:8px;'>&nbsp;{{ $item['ranking'] }}&nbsp;</label>
                                     @else
-                                        <label class='label label-default'  style='padding:8px;'>&nbsp;{{ $key + 1 }}&nbsp;</label>
+                                        <label class='label label-default'  style='padding:8px;'>&nbsp;{{ $item['ranking'] }}&nbsp;</label>
                                     @endif
                                 </td>
-                                <td>{{ $item->title }}</td>
-                                <td>{{ $item->sales_price }}</td>
+                                <td>{{ $item['title'] }}</td>
+                                <td>{{ $item['price_sum'] }}</td>
                             </tr>
                         @endforeach
 

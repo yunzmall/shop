@@ -48,15 +48,18 @@ class IncomePageFactory
      * @var array
      */
     private $total_income;
+    
+    private $key;
 
 
-    public function __construct(IIncomePage $income, $lang_set, $is_relation = false, $is_agent = false, $total_income)
+    public function __construct(IIncomePage $income, $lang_set, $is_relation = false, $is_agent = false, $total_income,$key)
     {
         $this->_income = $income;
         $this->is_agent = $is_agent;
         $this->is_relation = $is_relation;
         $this->lang_set = $lang_set;
         $this->total_income = $total_income;
+        $this->key = $key;
     }
 
 
@@ -115,11 +118,11 @@ class IncomePageFactory
 
     /**
      * 获取收入模型数据
-     *
+     * @param bool $level
      * @return array
      * @throws AppException
      */
-    public function getIncomeData()
+    public function getIncomeData($level = true)
     {
         if (!$this->isShow()) {
             throw new AppException('IncomeFactory' . $this->_income->getTitle() . 'no use');
@@ -130,7 +133,7 @@ class IncomePageFactory
             'icon' => $this->_income->getIcon(),
             'mark' => $this->getMark(),
             'title' => $this->getTitle(),
-            'level' => $this->_income->getLevel(),
+            'level' => $level ? $this->_income->getLevel() : '',    //新增参数控制是否获取等级信息
             'value' => $this->getValue(),
             'is_agent' => $this->isAgent(),
             'is_relation' => $this->isRelation(),
@@ -171,14 +174,47 @@ class IncomePageFactory
      */
     private function getValue()
     {
-        $value = $this->_income->getTypeValue();
-        if (is_numeric($value)) {
-            return $value;
-        } else {
-            $total_income = $this->total_income->where('incometable_type', $value)->first();
-            return  $total_income ? $total_income->total_amount : '0.00';
-        }
+	    $value = $this->_income->getTypeValue();//这里是累计金额
+	    if (!is_numeric($value)) {
+		    $total_income = $this->total_income->where('incometable_type', $value)->first();
+		    $value = $total_income ? $total_income->total_amount : '0.00';
+	    }
+	    if ($this->getSet()) {//后台插件金额显示设置
+		    $value = $this->calculation();//计算可提现金额
+	    }
+	    return $value;
     }
+	
+	/**
+	 * @return mixed
+	 * 类型
+	 */
+    private function getSet()
+    {
+	    $type_name = $this->_income->getMark();
+    	$type = request()->type;
+    	
+    	switch ($type){
+		    case 5: $res = \Setting::get("popularize.wap.".$type_name);  break;
+		    case 1: $res = \Setting::get("popularize.wechat.".$type_name);  break;
+		    case 2: $res = \Setting::get("popularize.mini.".$type_name);  break;
+		    case 9: $res = \Setting::get("popularize.app.".$type_name);  break;
+		    case 8: $res = \Setting::get("popularize.alipay.".$type_name);  break;
+		    default : $res = \Setting::get("popularize.wechat.".$type_name);  break;
+	    }
+	    return $res;
+    }
+	
+	/**
+	 * 计算手续费独立提现手续费
+	 */
+	private function calculation()
+	{
+		$value = Income::getIncomes()->where('member_id', \YunShop::app()->getMemberId())
+			->where('incometable_type', $this->_income->getTypeValue())
+			->where('status', 0)->sum('amount');
+		return $value;
+	}
 
 
     /**

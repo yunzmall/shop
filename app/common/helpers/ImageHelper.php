@@ -61,10 +61,10 @@ class ImageHelper
 
         $s = '';
         if (!defined('TPL_INIT_IMAGE')) {
-
+            
             $s = '
 		<script type="text/javascript">
-			function showImageDialog(elm, opts, options) {
+			function showImageDialog(elm, opts, options) {           
 			    require.config({
                     paths:{
                         "'.$param['util'].'":"'.$param['util_url'].'"
@@ -159,7 +159,12 @@ class ImageHelper
 				require(["'.$param['util'].'"], function(util){
 					util.image("", function(urls){
 						$.each(urls, function(idx, url){
-                            $(elm).parent().parent().next().append(\'<div class="multi-item"><img onerror="this.src=\\\''.static_url('./resource/images/nopic.jpg').'\\\'; this.title=\\\'图片未找到.\\\'" src="\'+url.url+\'" class="img-responsive img-thumbnail"><input type="hidden" name="\'+name+\'[]" value="\'+url.attachment+\'"><em class="close" title="删除这张图片" onclick="deleteMultiImage(this)">×</em></div>\');
+						    /*返回 url.data 则为网络提取图片*/
+						    if(url.hasOwnProperty("data")){
+						        $(elm).parent().parent().next().append(\'<div class="multi-item"><img onerror="this.src=\\\''.static_url('./resource/images/nopic.jpg').'\\\'; this.title=\\\'图片未找到.\\\'" src="\'+url.data.img_url+\'" class="img-responsive img-thumbnail"><input type="hidden" name="\'+name+\'[]" value="\'+url.data.img_url+\'"><em class="close" title="删除这张图片" onclick="deleteMultiImage(this)">×</em></div>\');
+						    }else{
+						        $(elm).parent().parent().next().append(\'<div class="multi-item"><img onerror="this.src=\\\''.static_url('./resource/images/nopic.jpg').'\\\'; this.title=\\\'图片未找到.\\\'" src="\'+url.url+\'" class="img-responsive img-thumbnail"><input type="hidden" name="\'+name+\'[]" value="\'+url.attachment+\'"><em class="close" title="删除这张图片" onclick="deleteMultiImage(this)">×</em></div>\');    
+						    }
                         });
 					}, ' . json_encode($options) . ');
 				});
@@ -223,32 +228,32 @@ EOF;
         $s = '';
         if (!defined('TPL_INIT_VIDEO')) {
             $s = '
-<script type="text/javascript">
-	function showVideoDialog(elm, options) {
-	    require.config({
-            paths:{
-                "'.$param['util'].'":"'.$param['util_url'].'"
-            }
-        });
-		require(["'.$param['util'].'"], function(util){
-			var btn = $(elm);
-			var ipt = btn.parent().prev();
-			var val = ipt.val();
-			util.audio(val, function(url){
-				if(url && url.attachment && url.url){
-					btn.prev().show();
-					ipt.val(url.attachment);
-					ipt.attr("filename",url.filename);
-					ipt.attr("url",url.url);
-				}
-				if(url && url.media_id){
-					ipt.val(url.media_id);
-				}
-			}, '.json_encode($options).');
-		});
-	}
+            <script type="text/javascript">
+                function showVideoDialog(elm, options) {
+                    require.config({
+                        paths:{
+                            "'.$param['util'].'":"'.$param['util_url'].'"
+                        }
+                    });
+                    require(["'.$param['util'].'"], function(util){
+                        var btn = $(elm);
+                        var ipt = btn.parent().prev();
+                        var val = ipt.val();
+                        util.audio(val, function(url){
+                            if(url && url.attachment && url.url){
+                                btn.prev().show();
+                                ipt.val(url.attachment);
+                                ipt.attr("filename",url.filename);
+                                ipt.attr("url",url.url);
+                            }
+                            if(url && url.media_id){
+                                ipt.val(url.media_id);
+                            }
+                        }, '.json_encode($options).');
+                    });
+                }
 
-</script>';
+            </script>';
             echo $s;
             define('TPL_INIT_VIDEO', true);
         }
@@ -294,7 +299,7 @@ EOF;
     public static function iosWechatAvatar($avatar)
     {
         $osType = Client::osType();
-        if ($osType == Client::OS_TYPE_IOS) {
+        if ($osType == Client::OS_TYPE_IOS || $osType == Client::OS_TYPE_ANDROID) {
             return preg_replace("/^http:/i","https:", $avatar);
         }
         return $avatar;

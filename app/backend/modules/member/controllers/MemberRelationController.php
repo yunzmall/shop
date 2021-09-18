@@ -44,23 +44,30 @@ class MemberRelationController extends BaseController
         }
 
         if (!empty($relation['become_goods'])) {
-            $goods = unserialize($relation['become_goods']);
+            $relation_goods = unserialize($relation['become_goods']);
 
-//            $goods = Goods::getGoodsById($relation['become_goods_id']);
-//
-//            if (!empty($goods)) {
-//                $goods = $goods->toArray();
-//            } else {
-//                $goods = [];
-//            }
-
+            // 查询当前未被删除的商品
+            $current_goods = Goods::uniacid()->select('id')
+                                            ->whereIn('id', array_keys($relation_goods))
+                                            ->whereNull('deleted_at')
+                                            ->get();
+            if($current_goods){
+               // 获取商品ids集合
+               foreach ($current_goods as $good){
+                   $current_goods_keys[] = $good['id'];
+               }
+               // 商品存在Relation中有记录时进行赋值
+               foreach ($current_goods_keys as $val){
+                   if ($relation_goods[$val]) {
+                       $goods[] = $relation_goods[$val];
+                   }
+               }
+            }else{
+              $goods = [];
+            }
         } else {
             $goods = [];
         }
-//        if (!empty($relation['become_goods_id'])) {
-//            $relation['become_goods_id'] = explode(',',$relation['become_goods_id']);
-//        }
-
         return view('member.relation', [
             'set' => $relation,
             'setting' => $setting,

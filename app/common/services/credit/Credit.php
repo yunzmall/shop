@@ -39,6 +39,16 @@ abstract class Credit
 
     //abstract function validatorOzy();
 
+    /**
+     * 打赏接口
+     * @param array $data
+     * @return string
+     */
+    public function giveReward(array $data)
+    {
+        $this->source = ConstService::KART_GIVE_REWARD;
+        return $this->addition($data);
+    }
 
     /**
      * 充值接口
@@ -59,6 +69,22 @@ abstract class Credit
     public function rechargeMinus(array $data)
     {
         $this->source = ConstService::SOURCE_RECHARGE_MINUS;
+        return $this->subtraction($data);
+    }
+
+    /**
+     * 自定义 source 参数,消费接口
+     * @param array $data
+     * @return string
+     */
+    public function customConsume(array $data)
+    {
+        if ($data['source']) {
+            $this->source = $data['source'];
+        } else {
+            $this->source = ConstService::SOURCE_CONSUME;
+        }
+
         return $this->subtraction($data);
     }
 
@@ -338,6 +364,29 @@ abstract class Credit
     }
 
     /**
+     * 拼团抽奖奖励余额
+     * @param array $data
+     * @return bool|string
+     */
+    public function FightGroupsLotteryComfortReward(array $data)
+    {
+        $this->source = $data['source'];
+
+        return $this->addition($data);
+    }
+
+    /**
+     * 加入付费圈子奖励
+     * @param array $data
+     * @return string
+     */
+    public function CircleAddReward(array $data)
+    {
+        $this->source = $data['source'];
+        return $this->addition($data);
+    }
+
+    /**
      * 抢团成功奖励
      * @param array $data
      * @return string
@@ -345,6 +394,28 @@ abstract class Credit
     public function SnatchRegimentSuccessReward(array $data)
     {
         $this->source = ConstService::SNATCH_REGIMENT_SUCCESS_AWARD;
+        return $this->addition($data);
+    }
+
+    /**
+     * 星拼乐成功奖励
+     * @param array $data
+     * @return string
+     */
+    public function StarSpellSuccessReward(array $data)
+    {
+        $this->source = ConstService::STAR_SPELL_SUCCESS_AWARD;
+        return $this->addition($data);
+    }
+
+    /**
+     * 抽奖奖励
+     * @param array $data
+     * @return string
+     */
+    public function LuckDrawReward(array $data)
+    {
+        $this->source = ConstService::LUCK_DRAW_AWARD;
         return $this->addition($data);
     }
 
@@ -359,6 +430,67 @@ abstract class Credit
         return $this->addition($data);
     }
 
+    /**
+     * 信用值中南呗转入
+     * @param array $data
+     * @return string
+     */
+    public function CreditZnbTransfer(array $data)
+    {
+        $this->source = ConstService::CREDIT_ZNB_TRANSFER;
+        return $this->addition($data);
+    }
+
+    /**
+     * 投放广告插件-获得红包
+     * @param array $data
+     * @return string
+     */
+    public function AdServingRedpackReward(array $data)
+    {
+        $this->source = ConstService::AD_SERVING_REDPACK_REWARD;
+        return $this->addition($data);
+    }
+
+    /**
+     * 投放广告插件-投放广告扣除金额
+     * @param array $data
+     * @return string
+     */
+    public function AdServingPutInAdvertisingDeduct(array $data)
+    {
+        $this->source = ConstService::AD_SERVING_PUT_IN_ADVERTISING_DEDUCT;
+        return $this->subtraction($data);
+    }
+
+    /**
+     * 投放广告插件-退款
+     * @param array $data
+     * @return string
+     */
+    public function AdServingRefund(array $data)
+    {
+        $this->source = ConstService::AD_SERVING_REFUND;
+        return $this->addition($data);
+    }
+
+
+    public function CpsSubPlatformReward(array $data)
+    {
+        $this->source = ConstService::CPS_SUB_PLATFORM;
+        return $this->addition($data);
+    }
+
+    /**
+     * 珍惠拼 - 退团
+     * @param array $data
+     * @return string
+     */
+    public function ZhpQuitGroupRefund(array $data)
+    {
+        $this->source = ConstService::ZHP_QUIT_GROUP_REFUND;
+        return $this->addition($data);
+    }
 
     //加法
     protected function addition($data)
@@ -442,8 +574,18 @@ abstract class Credit
         return $this->subtraction($data);
     }
 
+    // 个人红包发放
+    public function redpackUserSend(array $data)
+    {
+        $this->source = ConstService::REDPACK_USER_SEND;
+
+        return $this->subtraction($data);
+    }
+
     protected function result()
     {
+        if (!(double)$this->data['change_value']) return true;
+
         DB::transaction(function () {
             $this->_result();
         });

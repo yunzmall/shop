@@ -341,6 +341,22 @@ class Template
                     '昵称', '时间','会员等级','过期时间'
                 ]
             ],
+            'consume_coupon_get' => [
+                'title' => '消费券获取',
+                'subtitle' => '消费券获取通知',
+                'value' => 'consume_coupon_get',
+                'param' => [
+                    '昵称','时间','获得数量',
+                ]
+            ],
+            'consume_coupon_use' => [
+                'title' => '消费券使用',
+                'subtitle' => '消费券使用通知',
+                'value' => 'consume_coupon_use',
+                'param' => [
+                    '昵称','时间','使用数量',
+                ]
+            ],
             'consumption_points' => [
                 'title' => '消费积分【变动通知】',
                 'subtitle' => '消费积分变动通知',
@@ -2473,6 +2489,42 @@ class Template
                     ],
                 ],
                 'remark' => '您可再次申请或者联系客服哦！',
+            ],
+            'store_order_send' => [
+                'template_id_short' => 'OPENTM413713493',
+                'title' => '订单发货通知[门店]',
+                'first_color' => '#000000',
+                'remark_color' => '#000000',
+                'first' => '您的订单已发货，请注意查收。',
+                'data' => [
+                    0 => [
+                        "keywords" => "keyword1",
+                        "value" => "[订单号]",
+                        "color" => "#000000",
+                    ],
+                    1 => [
+                        "keywords" => "keyword2",
+                        "value" => "[商品详情（含规格）]",
+                        "color" => "#000000",
+                    ],
+                    2 => [
+                        "keywords" => "keyword3",
+                        "value" => "[快递公司]",
+                        "color" => "#000000",
+                    ],
+                    3 => [
+                        "keywords" => "keyword4",
+                        "value" => "[快递单号]",
+                        "color" => "#000000",
+                    ],
+                    4 => [
+                        "keywords" => "keyword5",
+                        "value" => "[发货时间]",
+                        "color" => "#000000",
+                    ],
+                ],
+                'remark' => '感谢您的惠顾。',
+
             ],
 
             'expire' => [

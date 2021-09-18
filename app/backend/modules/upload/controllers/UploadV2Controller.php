@@ -25,8 +25,9 @@ namespace app\backend\modules\upload\controllers;
 use app\backend\modules\upload\models\CoreAttach;
 use app\common\components\BaseController;
 use app\common\services\ImageZip;
+use app\common\services\upload\UploadService;
 use app\platform\modules\system\models\SystemSetting;
-
+use getID3;
 class UploadV2Controller extends BaseController
 {
     protected $isPublic = true;
@@ -70,7 +71,7 @@ class UploadV2Controller extends BaseController
 
             $defaultImgType = [
                 'jpg', 'bmp', 'eps', 'gif', 'mif', 'miff', 'png', 'tif',
-                'tiff', 'svg', 'wmf', 'jpe', 'jpeg', 'dib', 'ico', 'tga', 'cut', 'pic'
+                'tiff', 'svg', 'wmf', 'jpe', 'jpeg', 'dib', 'ico', 'tga', 'cut', 'pic','mp4'
             ];
 
             if (!in_array($ext, $defaultImgType)) {
@@ -293,7 +294,9 @@ class UploadV2Controller extends BaseController
 
             if (config('app.framework') == 'platform') {
                 $remote = SystemSetting::settingLoad('remote', 'system_remote');
-
+                $getID3 = new getID3();
+                $ThisFileInfo = $getID3->analyze($realPath); //分析文件，$path为音频文件的地址
+                $timeline=$ThisFileInfo['playtime_seconds']; //这个获得的便是音频文件的时长
                 //本地上传
                 $result = \Storage::disk('videos')->put($newOriginalName, file_get_contents($realPath));
                 if (!$result) {
@@ -318,7 +321,8 @@ class UploadV2Controller extends BaseController
                     'type' => 3,
                     'module_upload_dir' => '',
                     'group_id' => intval($this->uniacid),
-                    'upload_type' => $remote['type']
+                    'upload_type' => $remote['type'],
+                    'timeline' => $timeline
                 ]);
 
                 //远程上传
@@ -429,7 +433,9 @@ class UploadV2Controller extends BaseController
 
             if (config('app.framework') == 'platform') {
                 $remote = SystemSetting::settingLoad('remote', 'system_remote');
-
+                $getID3 = new getID3();
+                $ThisFileInfo = $getID3->analyze($realPath); //分析文件，$path为音频文件的地址
+                $timeline=$ThisFileInfo['playtime_seconds']; //这个获得的便是音频文件的时长
                 //本地上传
                 $result = \Storage::disk('audios')->put($newOriginalName, file_get_contents($realPath));
                 if (!$result) {
@@ -447,7 +453,9 @@ class UploadV2Controller extends BaseController
                     'type' => 3,
                     'module_upload_dir' => '',
                     'group_id' => intval($this->uniacid),
-                    'upload_type' => $remote['type']
+                    'upload_type' => $remote['type'],
+                    'timeline' => $timeline,
+                    'tag_id' => 0
                 ]);
 
                 //远程上传
@@ -495,6 +503,7 @@ class UploadV2Controller extends BaseController
                     'createtime' => TIMESTAMP,
                     'module_upload_dir' => '',
                     'group_id' => 0,
+                    'tag_id' => 0
                 ]);
 
                 //远程上传
@@ -525,7 +534,205 @@ class UploadV2Controller extends BaseController
 //                $info['state'] = 'SUCCESS';
 //                die(json_encode($info));
             }
+        } elseif ($type == 'file') {
+            if ($file->getClientSize() > 30 * 1024 * 1024) {
+                return $this->errorJson('图片过大.');
+            }
+
+            //允许上传的文件,新添mp4格式
+            $defaultImgType = [
+                'jpg', 'bmp', 'eps', 'gif', 'mif', 'miff', 'png', 'tif',
+                'tiff', 'svg', 'wmf', 'jpe', 'jpeg', 'dib', 'ico', 'tga', 'cut', 'pic','pdf','mp4'
+            ];
+
+            if (!in_array($ext, $defaultImgType)) {
+                return $this->errorJson('非规定类型的文件格式');
+            }
+
+            if (!$ext) {
+                return $this->errorJson('非规定类型的文件格式');
+            }
+            $newOriginalName = md5($originalName . str_random(6)) . '.' . $ext;
+
+            if (config('app.framework') == 'platform') {
+                $setting = SystemSetting::settingLoad('global', 'system_global');
+                $remote = SystemSetting::settingLoad('remote', 'system_remote');
+                $setting['image_extentions'][] = 'pdf';
+                if (in_array($ext, $defaultImgType)) {
+                    if ($setting['image_extentions'] && !in_array($ext, array_filter($setting['image_extentions']))) {
+                        return $this->errorJson('非规定类型的文件格式');
+                    }
+                    $defaultImgSize = $setting['img_size'] ? $setting['img_size'] * 1024 : 1024 * 1024 * 5; //默认大小为5M
+                    if ($file->getClientSize() > $defaultImgSize) {
+                        return $this->errorJson('文件大小超出规定值');
+                    }
+                }
+
+                if ($setting['image']['zip_percentage'] && $ext != 'pdf') {
+                    //执行图片压缩
+                    $imagezip = new ImageZip();
+                    $imagezip->makeThumb(
+                        yz_tomedia($newOriginalName),
+                        yz_tomedia($newOriginalName),
+                        $setting['image']['zip_percentage']
+                    );
+                }
+
+                if ($setting['thumb_width'] == 1 && $setting['thumb_width'] && $ext != 'pdf') {
+                    $imagezip = new ImageZip();
+                    $imagezip->makeThumb(
+                        yz_tomedia($newOriginalName),
+                        yz_tomedia($newOriginalName),
+                        $setting['thumb_width']
+                    );
+                }
+
+                $result = \Storage::disk('newimages')->put($newOriginalName, file_get_contents($realPath));
+                if (!$result) {
+                    return $this->successJson('上传失败');
+                }
+
+                $url = \Storage::disk('newimages')->url($newOriginalName);
+
+                //图片审核
+                if(app('plugins')->isEnabled('upload-verification')){
+                    if(in_array($ext,['png','jpg','jpeg','bmp','gif','webp','tiff'])){
+                        $uploadReuslt = do_upload_verificaton(yz_tomedia($url), 'img');
+                        if(0 === $uploadReuslt[0]['status']){
+                            return $this->errorJson($uploadReuslt[0]['msg']);
+                        }
+                    }
+                }
+
+                if ($ext != 'pdf') 
+                {
+                    \app\platform\modules\application\models\CoreAttach::create([
+                        'uniacid' => $this->uniacid,
+                        'uid' => \Auth::guard('admin')->user()->uid,
+                        'filename' => safe_gpc_html(htmlspecialchars_decode($originalName, ENT_QUOTES)),
+                        'attachment' => $url,
+                        'type' => 1,
+                        'module_upload_dir' => '',
+                        'group_id' => intval($this->uniacid),
+                        'upload_type' => $remote['type'],
+                        'tag_id' => 0
+                    ]);
+                }
+
+                //远程上传
+                if ($remote['type'] != 0) {
+                    file_remote_upload_new($url, true, $remote);
+                }
+
+
+                return $this->successJson('上传成功', [
+                    'name' => $originalName,
+                    'ext' => $ext,
+                    'filename' => $newOriginalName,
+                    'attachment' => $url,
+                    'url' => yz_tomedia($url),
+                    'is_image' => 1,
+                    'filesize' => 'null',
+                    'group_id' => intval($this->uniacid),
+                    'state'     => 'SUCCESS'
+                ]);
+            } else {
+                //全局配置
+                global $_W;
+
+                //公众号独立配置信息 优先使用公众号独立配置
+                $uni_setting = app('WqUniSetting')->get()->toArray();
+                if (!empty($uni_setting['remote']) && iunserializer($uni_setting['remote'])['type'] != 0) {
+                    $setting['remote'] = iunserializer($uni_setting['remote']);
+                    $remote = $setting['remote'];
+                    $upload = $_W['setting']['upload'];
+                } else {
+                    $remote = $_W['setting']['remote'];
+                    $upload = $_W['setting']['upload'];
+                }
+
+                if (in_array($ext, $defaultImgType)) {
+                    $upload['image']['extentions'][] = 'pdf';
+                    if ($upload['image']['extentions'] && !in_array($ext, $upload['image']['extentions'])) {
+                        return $this->errorJson('非规定类型的文件格式');
+                    }
+                    $defaultImgSize = $upload['image']['limit'] ? $upload['image']['limit'] * 1024 : 5 * 1024 * 1024;
+                    if ($file->getClientSize() > $defaultImgSize) {
+                        return $this->errorJson('文件大小超出规定值');
+                    }
+                }
+
+                if ($upload['image']['zip_percentage'] && $ext != 'pdf') {
+                    //执行图片压缩
+                    $imagezip = new ImageZip();
+                    $imagezip->makeThumb(
+                        yz_tomedia($newOriginalName),
+                        yz_tomedia($newOriginalName),
+                        $upload['image']['zip_percentage']
+                    );
+                }
+
+                if ($upload['image']['thumb'] == 1 && $upload['image']['width'] && $ext != 'pdf') {
+                    $imagezip = new ImageZip();
+                    $imagezip->makeThumb(
+                        yz_tomedia($newOriginalName),
+                        yz_tomedia($newOriginalName),
+                        $upload['image']['width']
+                    );
+                }
+
+                //本地上传
+                $result = \Storage::disk('image')->put($newOriginalName, file_get_contents($realPath));
+                if (!$result) {
+                    return $this->successJson('上传失败');
+                }
+
+                $url = \Storage::disk('image')->url($newOriginalName);
+
+                //图片审核
+                if(app('plugins')->isEnabled('upload-verification')){
+                    if(in_array($ext,['png','jpg','jpeg','bmp','gif','webp','tiff'])){
+                        $uploadReuslt = do_upload_verificaton(yz_tomedia($url), 'img');
+                        if(0 === $uploadReuslt[0]['status']){
+                            return $this->errorJson($uploadReuslt[0]['msg']);
+                        }
+                    }
+                }
+
+                if ($ext != 'pdf') 
+                {
+                    CoreAttach::create([
+                        'uniacid' => $this->uniacid,
+                        'uid' => $_W['uid'],
+                        'filename' => safe_gpc_html(htmlspecialchars_decode($originalName, ENT_QUOTES)),
+                        'attachment' => $url,
+                        'type' => 1,
+                        'createtime' => TIMESTAMP,
+                        'module_upload_dir' => '',
+                        'group_id' => 0,
+                        'tag_id' => 0
+                    ]);
+                }
+
+                //远程上传
+                if ($remote['type'] != 0) {
+                    file_remote_upload_wq($url, true, $remote, true);
+                }
+
+                return $this->successJson('上传成功', [
+                    'name' => $originalName,
+                    'ext' => $ext,
+                    'filename' => $newOriginalName,
+                    'attachment' => $url,
+                    'url' => yz_tomedia($url),
+                    'is_image' => 1,
+                    'filesize' => 'null',
+                    'group_id' => intval($this->uniacid),
+                    'state'     => 'SUCCESS'
+                ]);
+            }
         }
+
     }
 
     public function fetch()
@@ -596,7 +803,8 @@ class UploadV2Controller extends BaseController
                 'type' => 1,
                 'module_upload_dir' => '',
                 'group_id' => intval($this->uniacid),
-                'upload_type' => $remote['type']
+                'upload_type' => $remote['type'],
+                'tag_id' => 0
             ]);
 
             //远程上传
@@ -659,6 +867,7 @@ class UploadV2Controller extends BaseController
                 'createtime' => TIMESTAMP,
                 'module_upload_dir' => '',
                 'group_id' => 0,
+                'tag_id' => 0
             ]);
 
             $url = \Storage::disk('image')->url($newOriginalName);
@@ -994,5 +1203,32 @@ class UploadV2Controller extends BaseController
             'options' => $option,
             'folder' => $folder,
         ];
+    }
+
+
+    public function uploadVue()
+    {
+        $type = request()->upload_type;
+        $file = request()->file('file');
+        if (!$file) {
+            return $this->errorJson('请传入正确参数.');
+        }
+        if (!$file->isValid()) {
+            return $this->errorJson('上传失败.');
+        }
+        switch ($type) {
+            case 'video' :
+                $dir = 'videos';
+                break;
+            case 'audio' :
+                $dir = 'audio';
+                break;
+            default :
+                $dir = 'image';
+                break;
+        }
+        $uploadService = new UploadService();
+        $upload_res = $uploadService->upload($file, $type, $dir);
+        return json_encode(['location' => $upload_res['absolute_path']]);
     }
 }

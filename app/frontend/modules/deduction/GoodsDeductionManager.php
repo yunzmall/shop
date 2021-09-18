@@ -9,6 +9,7 @@
 namespace app\frontend\modules\deduction;
 
 use app\frontend\models\Goods;
+use app\frontend\modules\finance\deduction\BalanceGoodsDeduction;
 use app\frontend\modules\finance\deduction\PointDeductionSettingManager;
 use app\frontend\modules\finance\deduction\PointGoodsDeduction;
 use Illuminate\Container\Container;
@@ -35,6 +36,21 @@ class GoodsDeductionManager extends Container
              */
             $deductionSettingCollection = $aDeductionSettingManager->getDeductionSettingCollection($params[0]);
             return new PointGoodsDeduction($deductionSettingCollection);
+        });
+
+        /**
+         * 余额抵扣设置模型
+         */
+        $this->bind('balance', function ($deductionSettingManager, $params) {
+            /**
+             * @var DeductionSettingManagerInterface $aDeductionSettingManager
+             */
+            $aDeductionSettingManager = app('DeductionManager')->make('DeductionSettingManager')->make('balance');
+            /**
+             * @var PointDeductionSettingManager $aDeductionSettingManager
+             */
+            $deductionSettingCollection = $aDeductionSettingManager->getDeductionSettingCollection($params[0]);
+            return new BalanceGoodsDeduction($deductionSettingCollection);
         });
     }
 }

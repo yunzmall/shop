@@ -113,7 +113,12 @@ scratch. This page gets rid of all links and provides the needed markup only.
     <link href="{{ static_url('yunshop/element-ui/2.10.1/css/index.css') }}" rel="stylesheet">
     {{--<script src="https://cdn.bootcss.com/element-ui/2.4.0/index.js"></script>--}}
     <script src="{{ static_url('yunshop/element-ui/2.10.1/js/element-ui_2.10.1_index.js') }}"></script>
+
+    <link href="//at.alicdn.com/t/font_432132_nxqv1lzyzsh.css " rel="stylesheet">
+    <link href="//at.alicdn.com/t/font_432132_kyk1qc6ulvh.css " rel="stylesheet">
     <link href="//at.alicdn.com/t/font_432132_rei18ayu1qo.css" rel="stylesheet">
+    <link href="//at.alicdn.com/t/font_432132_0n3q5gx5aiio.css" rel="stylesheet">
+
 
     <script src="{{static_url('assets/js/perfect-scrollbar.jquery.min.js')}}" type="text/javascript"></script>
     <!-- Library for adding dinamically elements -->
@@ -307,7 +312,8 @@ scratch. This page gets rid of all links and provides the needed markup only.
         });
     }
     $(".yz-menu").click(function(){
-        console.log('sidebar', $(".sidebar"));
+        // console.log('sidebar', $(".sidebar"));
+        $("#plugins_list_left").toggle();
         $(".sidebar").toggle();
     });
 </script>
@@ -328,6 +334,117 @@ scratch. This page gets rid of all links and provides the needed markup only.
         }
         a.href = initsurl + pms
     }
+</script>
+
+<!-- 修改密码弹框 -->
+    <div id="pwd_remind_dialog">
+        <div id="pwd_remind_popLayer" onclick="closeBox()"></div>
+        <div id="pwd_remind_pop">
+            <div class="pwd_remind_close">
+                <a href="javascript:void(0)" onclick="closeBox()">X</a>
+            </div>
+            <div class="pwd_remind_dialog_content">
+                提示：您当前密码过于简单，请先修改密码
+            </div>
+            <div class="pwd_remind_button" onclick="editPas()">修改密码</div>
+        </div>
+    </div>
+
+<style>
+#pwd_remind_dialog #pwd_remind_popLayer {
+    width: 100vw;
+    height: 100vh;
+    display: none;
+    background-color: #B3B3B3;
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 999;
+    background:rgba(0,0,0, 0.5);
+}
+/*弹出层*/
+#pwd_remind_dialog #pwd_remind_pop {
+    display: none;
+    background-color: #FFFFFF;
+    z-index: 1000;
+    width: 40%;
+    height: 30%;
+    position:fixed;
+    top:0;
+    right:0;
+    left:0;
+    bottom:0;
+    margin:auto;
+    border-radius: 10px;
+    box-sizing: border-box;
+    padding: 10px;
+}
+#pwd_remind_dialog #pwd_remind_pop .pwd_remind_close{
+    text-align: right;
+    margin-right: 5px;
+    padding: 5px;
+    background-color: #F8F8F8;
+}
+/*关闭按钮*/
+#pwd_remind_dialog #pwd_remind_pop .pwd_remind_close a {
+    text-decoration: none;
+    color: #2D2C3B;
+}
+#pwd_remind_dialog .pwd_remind_dialog_content {
+    position: relative;
+    width:100%;
+    height: 80%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    word-break: break-all;
+    overflow: hidden;
+}
+#pwd_remind_dialog .pwd_remind_button {
+    position: absolute;
+    bottom: 0;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: inline-block;
+    line-height: 1;
+    white-space: nowrap;
+    cursor: pointer;
+    padding: 10px 20px;
+    font-size: 14px;
+    border-radius: 4px;
+    color: #fff;
+    background-color: #409EFF;
+    border-color: #409EFF;
+}
+</style>
+<script>
+    var dialogBox = document.getElementById("pwd_remind_pop");
+    var popLayer = document.getElementById("pwd_remind_popLayer");
+    @if($_GET['pwd_remind'] == 2)
+    popBox();
+
+    @endif
+    
+    /*点击弹出按钮*/
+    function popBox() {
+        dialogBox.style.display = "block";
+        popLayer.style.display = "block";
+    }
+    /*点击关闭按钮*/
+    function closeBox() {
+        dialogBox.style.display = "none";
+        popLayer.style.display = "none";
+    }
+    // 修改密码
+    function editPas() {
+        openPwd()
+        closeBox();
+    }
+    window.popBox = popBox;
+    window.closeBox = closeBox;
 </script>
 </body>
 </html>

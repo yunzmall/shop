@@ -21,11 +21,13 @@ use app\frontend\modules\member\models\MemberModel;
 use app\frontend\modules\member\models\MemberWechatModel;
 use app\frontend\repositories\MemberAddressRepository;
 use Carbon\Carbon;
+use Yunshop\AggregationCps\models\AggregationCpsOrderModel;
 use Yunshop\AreaDividend\models\AreaDividendAgent;
 use Yunshop\Commission\models\Agents;
 use Yunshop\Gold\frontend\services\MemberCenterService;
 use Yunshop\Love\Common\Models\MemberLove;
 use Yunshop\Love\Common\Services\SetService;
+use Yunshop\MemberTags\Common\models\MemberTagsRelationModel;
 use Yunshop\Merchant\common\models\Merchant;
 use Yunshop\Micro\common\models\MicroShop;
 use Yunshop\Micro\common\services\MicroShop\GetButtonService;
@@ -34,6 +36,7 @@ use Yunshop\Supplier\admin\models\Supplier;
 use Yunshop\Supplier\common\services\VerifyButton;
 use Yunshop\TeamDividend\models\TeamDividendAgencyModel;
 use app\common\models\member\MemberInvitationCodeLog;
+use Yunshop\WechatCustomers\common\models\MemberCustomer;
 
 /**
  * Created by PhpStorm.
@@ -221,6 +224,18 @@ class Member extends BackendModel
         return $this->hasOne(MemberAlipay::class, 'member_id', 'uid');
     }
 
+    //会员标签
+    public function hasManyTag()
+    {
+        return $this->hasMany(MemberTagsRelationModel::class, 'member_id', 'uid');
+    }
+	
+	//企业微信客户
+	public function hasOneCustomers()
+	{
+		return $this->hasOne(MemberCustomer::class, 'uid', 'uid');
+	}
+
     /**
      * 会员－订单1:1关系 todo 会员和订单不是一对多关系吗?
      *
@@ -391,7 +406,7 @@ class Member extends BackendModel
 
         if ($search['min_credit2']) $query->where('credit2', '>=', $search['min_credit2']);
 
-        if ($search['max_credit2']) $query->where('credit2', '=<', $search['max_credit2']);
+        if ($search['max_credit2']) $query->where('credit2', '<=', $search['max_credit2']);
 
         //todo 移除一下代码，规范使用，如果模糊查询 会员ID、昵称、姓名、手机号使用 $search['member']
         if ($search['realname']) $query->searchLike($search['realname']);
@@ -845,7 +860,7 @@ class Member extends BackendModel
             }
 
             if (in_array($uid, $curr_arr)) {
-                return false;
+                throw new AppException('修改关系链后冲突');
             }
         }
 
@@ -859,6 +874,7 @@ class Member extends BackendModel
     {
         switch ($type) {
             case 2:
+            case 55:
                 $mini_app = MemberMiniAppModel::getFansById($member_id);
 
                 return $mini_app->openid;
@@ -867,6 +883,13 @@ class Member extends BackendModel
                 $mini_app = MemberWechatModel::getFansById($member_id);
 
                 return $mini_app->openid;
+                break;
+            case 71:
+                if (!app('plugins')->isEnabled('aggregation-cps')){
+                    return '';
+                }
+                $mini_app = AggregationCpsOrderModel::where('member_id',$member_id)->first();
+                return $mini_app->openid ? : '';
                 break;
             default:
                 $fans = McMappingFans::getFansById($member_id);

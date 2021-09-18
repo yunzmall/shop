@@ -154,14 +154,11 @@ class Shop extends Command
             app('db')->refresh();
             Timer::add(1, function () {
                 $hostManager = new HostManager();
-                // 升级后自动重启服务器
-                if ($this->startTime < $hostManager->restartTime()) {
-                    app('supervisor')->restart();
-                }
-                //
-//                if (!in_array(gethostname(), $hostManager->hostnames())) {
-//                    Worker::stopAll();
-//                }
+                // 升级后延时重启队列（防止更新后无重启队列）
+				//判断重启时间,如果60秒内重启过就不重启
+				if (($hostManager->restartTime() > $this->startTime) && ($this->startTime + 60 < $hostManager->restartTime())) {
+					app('supervisor')->restart();
+				}
             });
         };
         // 关闭队列进程
@@ -212,8 +209,8 @@ class Shop extends Command
         $this->daemonKeeper();
         $this->queueKeeper();
         $this->cronKeeper();
-        if(function_exists('stream_socket_server')){
-            $this->logReader();
-        }
+//        if(function_exists('stream_socket_server')){
+//            $this->logReader();
+//        }
     }
 }

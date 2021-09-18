@@ -9,6 +9,7 @@
 namespace app\backend\modules\refund\controllers;
 
 use app\common\components\BaseController;
+use app\common\events\order\AfterOrderRefundSuccessEvent;
 use app\common\exceptions\ShopException;
 use app\common\modules\refund\services\RefundService;
 use app\backend\modules\refund\services\RefundMessageService;
@@ -65,6 +66,7 @@ class PayController extends BaseController
 
         RefundMessageService::passMessage($this->refundApply);//通知买家
 
+        event(new  AfterOrderRefundSuccessEvent($this->refundApply));
         if (app('plugins')->isEnabled('instation-message')) {
             event(new \Yunshop\InstationMessage\event\OrderRefundSuccessEvent($this->refundApply));
         }

@@ -8,7 +8,9 @@
 
 namespace app\common\models;
 
+use app\common\events\order\OrderPayValidateEvent;
 use app\common\traits\HasProcessTrait;
+//use app\frontend\models\Member;
 use app\frontend\modules\order\models\PreOrder;
 use app\frontend\modules\order\OrderCollection;
 use Carbon\Carbon;
@@ -210,7 +212,7 @@ class OrderPay extends BaseModel
         }
 
         $this->orders->each(function (\app\common\models\Order $order) {
-            if ($order->status > Order::WAIT_PAY) {
+        	if ($order->status > Order::WAIT_PAY) {
                 throw new AppException('(ID:' . $order->id . ')订单已付款,请勿重复付款');
             }
             if ($order->status == Order::CLOSE) {
@@ -221,6 +223,16 @@ class OrderPay extends BaseModel
             throw new AppException('(ID' . $this->id . '),此流水号对应订单价格发生变化,请重新请求支付');
         };
     }
+
+	/**
+	 * 支付事件校验，点击支付按钮时触发
+	 */
+    private function OrderPayValidate()
+	{
+		$this->orders->each(function (\app\common\models\Order $order) {
+			event(new OrderPayValidateEvent($order));
+		});
+	}
 
     /**
      * @throws AppException
@@ -238,6 +250,15 @@ class OrderPay extends BaseModel
         return $this->hasMany(PayOrder::class, 'out_order_no', 'pay_sn');
     }
 
+	/**
+	 * 代付记录
+	 * @return \Illuminate\Database\Eloquent\Relations\HasOne
+	 */
+    public function behalfPay()
+	{
+		return $this->hasOne(OrderBehalfPayRecord::class,'order_pay_id','id');
+	}
+
     /**
      * 获取支付参数
      * @param int $payTypeId
@@ -251,11 +272,13 @@ class OrderPay extends BaseModel
         if ($this->created_at->timestamp + 60 < time()) {
             throw new AppException('支付请求记录已过期,请返回订单页面重新选择付款');
         }
+
         if (!is_null($payTypeId)) {
             $this->pay_type_id = $payTypeId;
         }
-
         $this->payValidate();
+		// 支付前校验事件
+		$this->OrderPayValidate();
         // 从丁哥的接口获取统一的支付参数
 
         $query_str = $this->getPayType()->getPayParams($payParams);
@@ -307,6 +330,7 @@ class OrderPay extends BaseModel
         if (!isset($order)) {
             $amount = $this->amount;
         } else {
+            event(new \app\common\events\order\BeforeOrderRefundedEvent($order));
             $amount = $order->price;
         }
 

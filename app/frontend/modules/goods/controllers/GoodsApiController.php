@@ -40,9 +40,21 @@ class GoodsApiController extends ApiController
         $is_new_goods = 0;
         if (app('plugins')->isEnabled('decorate') && \Setting::get('plugin.decorate.is_open') == "1") {
             //商品模版
-            $view_set = DecorateTempletModel::getList(['is_default'=>1,'type'=>4],'*',false);
-            if ($view_set && $view_set->code == 'goods02') {
-                $is_new_goods = 1;
+            $pc_status = 0;
+            if(!empty(\YunShop::request()->pc) && app('plugins')->isEnabled('pc-terminal')){
+                $pc_status = \Yunshop\PcTerminal\service\SetService::getPcStatus(); //PC端开启状态
+            }
+
+            if(!empty($pc_status)){
+                $view_set = DecorateTempletModel::getList(['is_default'=>1,'type'=>6],'*',false);
+                if ($view_set && $view_set->code == 'PCGoods02') {
+                    $is_new_goods = 1;
+                }
+            }else{
+                $view_set = DecorateTempletModel::getList(['is_default'=>1,'type'=>4],'*',false);
+                if ($view_set && $view_set->code == 'goods02') {
+                    $is_new_goods = 1;
+                }
             }
         }elseif (app('plugins')->isEnabled('designer')) {
             //商品模版
@@ -77,8 +89,8 @@ class GoodsApiController extends ApiController
             $member = MemberFactory::create($type);
 
             if (!$member->checkLogged()) {
-                if (($relaton_set->status == 1 && !in_array($this->action, $this->ignoreAction))
-                    || ($relaton_set->status == 0 && !in_array($this->action, $this->publicAction))
+                if (($relaton_set->status == 1 && !in_array(request()->route()->getActionMethod(), $this->ignoreAction))
+                    || ($relaton_set->status == 0 && !in_array(request()->route()->getActionMethod(), $this->publicAction))
                 ) {
                     $this->jumpUrl($type, $mid);
                 }

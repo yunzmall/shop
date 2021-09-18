@@ -27,13 +27,19 @@ class ThemeSetController extends BaseController
 
         if (!isset($set['is_open'])) {
             $set['is_open'] = 1;
+            $set['is_customize'] = 0;
+            $set['customize_url'] = '';
             \Setting::set('official_website.theme_set',$set);
         }
 
         $data = request()->is_open;
+        $is_customize = request()->is_customize;
+        $customize_url = request()->customize_url;
 
         if ($data) {
             $set['is_open'] = $data;
+            $set['is_customize'] = $is_customize;
+            $set['customize_url'] = $customize_url;
             \Setting::set('official_website.theme_set',$set);
         }
 
@@ -91,6 +97,7 @@ class ThemeSetController extends BaseController
             $theme = empty($theme) ? [] : $theme->toArray();
             //解压数据
             $theme_data = $this->processData($status,$theme);
+            $theme_data['identification'] = $theme['identification'];
             $theme_data['uniAccount'] = UniAccount::select("uniacid","name")->get();
         } else {
             //保存

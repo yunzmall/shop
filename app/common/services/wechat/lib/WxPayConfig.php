@@ -136,7 +136,7 @@ class WxPayConfig extends WxPayConfigInterface
      */
 	public function GetReportLevenl()
 	{
-		return 1;
+		return 0;
 	}
 
 
@@ -189,6 +189,6 @@ class WxPayConfig extends WxPayConfigInterface
 
 
 
-    public $MaxQueryRetry = 10;//最大查询重试次数
-    public $QueryDuration = 3;//查询间隔
+    public $MaxQueryRetry = 12;//最大查询重试次数
+    public $QueryDuration = 5;//查询间隔
 }

@@ -24,6 +24,7 @@ use Ixudra\Curl\Facades\Curl;
 
 class PluginsController extends BaseController
 {
+	public $terminal = 'wechat|min|wap';
     private $request_domain = 'https://yun.yunzmall.com';
 
     public function showManage()
@@ -68,6 +69,9 @@ class PluginsController extends BaseController
                     \Cache::flush();
                     return $this->successJson('禁用成功');
                 case 'delete':
+                    if (!PermissionService::isFounder()) {
+                        return $this->errorJson('您暂没有权限卸载插件');
+                    }
                     $plugins->uninstall($name);
                     \Artisan::call('config:cache');
                     \Cache::flush();
@@ -138,25 +142,36 @@ class PluginsController extends BaseController
             $plugins[] = $key;
             $data[$i] = $item->toArray();
             $data[$i]['status'] = $item->isEnabled() ? true : false;
+            $data[$i]['new_version'] = 0;
+            $data[$i]['permit_status'] = '未授权';
             $i++;
         });
 
         $content = Curl::to($url)
-            ->withData(['plugins' => $plugins, 'domain'=> $domain])
+            ->withData(['domain' => $domain])
             ->asJsonResponse(true)
             ->get();
 
         //未授权插件数量
         $unPermitPlugin = 0;
         //TODO  数组合并
-        foreach ($data as $key=>&$value){
-            $value['new_version'] = array_values($content['data'])[$key]['version'];
-            $value['permit_status'] = array_values($content['data'])[$key]['status'];
-            if( '未授权' === $value['permit_status']){
-                $unPermitPlugin ++;
+        foreach ($content['data'] as $k => $v) {
+            foreach ($data as $key => &$value) {
+                if ($k == $value['name']) {
+                    $value['new_version'] = $v['version'];
+                    $value['permit_status'] = $v['status'];
+                }
             }
         }
-        if(request()->ajax()){
+        unset($value);
+
+        foreach ($data as $key => $value) {
+            if ('未授权' === $value['permit_status']) {
+                $unPermitPlugin++;
+            }
+        }
+
+        if (request()->ajax()) {
             return $this->searchPlugin($data, request()->search);
         }
         return view('admin.plugins', [
@@ -166,42 +181,32 @@ class PluginsController extends BaseController
         ]);
     }
 
-    public function getPluginList()
-    {
+	public function getPluginList()
+	{
+		$class = $this->getType();
+		$data = [];
+		$plugins = Menu::current()->getPluginMenus();//全部插件
+		foreach ($plugins as $key => $plugin) {
+			$name = explode('.',$plugin['url'])[1];
+			if (!$plugin['type']) {
+				continue;
+			}
 
-//        $dividend['name'] = '分润类';
-//        $industry['name'] = '行业类';
-//        $marketing['name'] = '营销类';
-//        $tool['name'] = '工具类';
-//        $recharge['name'] = '生活充值';
-//        $api['name'] = '接口类';
-        //\Cache::flush();
-        $class = $this->getType();
-        $data = [];
+			$terminal = app('plugins')->getPlugin($name)->terminal;
 
-        $plugins = Menu::current()->getPluginMenus();//全部插件
+			$data[$plugin['type']][$key] = $plugin;
+			$data[$plugin['type']][$key]['terminal'] = explode('|',$terminal);
+			$data[$plugin['type']][$key]['description'] = app('plugins')->getPlugin($name)->description?:$plugin['name'];
+			$data[$plugin['type']][$key]['icon_url'] = file_exists(base_path('static/yunshop/plugins/list-icon/img/' . $plugin['list_icon'] . '.png')) ? static_url("yunshop/plugins/list-icon/img/{$plugin['list_icon']}.png") : static_url("yunshop/plugins/list-icon/img/default2.png");
+			$data[$plugin['type']][$key]['url'] = $this->canAccess($key);
 
-        foreach ($plugins as $key => $plugin) {
-
-            if (!$plugin['type']) {
-                continue;
-            }
-            $data[$plugin['type']][$key] = $plugin;
-            $data[$plugin['type']][$key]['description'] = app('plugins')->getPlugin($key)->description;
-            $data[$plugin['type']][$key]['icon_url'] = static_url("yunshop/plugins/list-icon/img/{$plugin['list_icon']}.png");
-
-
-            $data[$plugin['type']][$key]['url'] = $this->canAccess($key);
-
-        }
-
-        return view('admin.pluginslist', [
-            'plugins' => $plugins,
-            'data' => $data,
-            'class' => $class
-        ]);
-    }
-
+		}
+		return view('admin.pluginslist', [
+			'plugins' => $plugins,
+			'data' => $data,
+			'class' => $class
+		]);
+	}
     public static function canAccess($item)
     {
         $current_menu = Menu::current()->getPluginMenus()[$item];
@@ -256,14 +261,13 @@ class PluginsController extends BaseController
             return $this->message('取消顶部栏成功', Url::web('plugins.getPluginList'));
         } else {
 
-            $menu = config(config('app.menu_key','menu'));
+            $menu = config(config('app.menu_key', 'menu'));
             $counts = 0;
             //常用功能
             foreach ($menu as $key => $itme) {
-                if(isset($itme['menu']) && $itme['menu'] == 1 && can($key) && ($itme['top_show'] == 1 || app('plugins')->isTopShow($key)))
-                {
+                if (isset($itme['menu']) && $itme['menu'] == 1 && can($key) && ($itme['top_show'] == 1 || app('plugins')->isTopShow($key))) {
                     ++$counts;
-                    if ($counts > 7){
+                    if ($counts > 7) {
                         return $this->message('顶部栏最大数量为八个');
                     }
                 }
@@ -312,6 +316,10 @@ class PluginsController extends BaseController
                 'name' => '营销类',
                 'color' => '#f0b652',
             ],
+            'business_management' => [
+                'name' => '企业管理类',
+                'color' => '#f05295',
+            ],
             'tool' => [
                 'name' => '工具类',
                 'color' => '#f59753',
@@ -326,39 +334,49 @@ class PluginsController extends BaseController
             ],
             'store' => [
                 'name' => '门店应用类',
-                'color' => '#f0b652',
+                'color' => '#98aafa',
             ],
             'blockchain' => [
                 'name' => '区块链类',
                 'color' => '#469de2',
             ],
-
         ];
     }
 
     public function searchPlugin($data, $search)
     {
-         foreach($data as $key=>$value) {
-            if($search['title'] && !strexists($value['title'], $search['title'])){
+        foreach ($data as $key => $value) {
+            if ($search['title'] && !strexists($value['title'], $search['title'])) {
                 unset($data[$key]);
             }
-             if($search['permit_status'] && !strexists($value['permit_status'], $search['permit_status'])){
-                 unset($data[$key]);
-             }
-            if($search['update_status'] == '可升级' && $value['version'] == $value['new_version']){
-                    unset($data[$key]);
-            }
-             if($search['update_status'] == '不可升级' && $value['version'] < $value['new_version']){
-                 unset($data[$key]);
-             }
-            if ($search['status'] === 'enable' && $value['status'] == false ){
+            if ($search['permit_status'] && !strexists($value['permit_status'], $search['permit_status'])) {
                 unset($data[$key]);
             }
-             if ($search['status'] === 'disable' && $value['status'] == true ){
-                 unset($data[$key]);
-             }
-         };
-        return $this->successJson('请求成功',array_values($data));
+            if ($search['update_status'] == '可升级' && $value['version'] == $value['new_version']) {
+                unset($data[$key]);
+            }
+            if ($search['update_status'] == '不可升级' && $value['version'] < $value['new_version']) {
+                unset($data[$key]);
+            }
+            if ($search['status'] === 'enable' && $value['status'] == false) {
+                unset($data[$key]);
+            }
+            if ($search['status'] === 'disable' && $value['status'] == true) {
+                unset($data[$key]);
+            }
+        };
+        return $this->successJson('请求成功', array_values($data));
+    }
 
+    /**
+     * 中转方法，安装应用菜单判断应用市场是否开启
+     */
+    public function jump()
+    {
+        if(app('plugins')->isEnabled('plugins-market')){
+            return view('Yunshop\PluginsMarket::new_market')->render();
+        }else{
+            return $this->message('请先开启插件市场插件',yzWebFullUrl('plugins.get-plugin-data'));
+        }
     }
 }

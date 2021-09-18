@@ -30,9 +30,13 @@ class ConvergepayController extends PaymentController
     public function notifyUrlWechat()
     {
         if (empty(\YunShop::app()->uniacid)) {
-            $this->attach = explode(':', $_GET['r2_OrderNo']);
 
-            \Setting::$uniqueAccountId = \YunShop::app()->uniacid = $this->attach[1];
+            if (!$this->getResponse('r5_Mp')) {
+                \Log::debug('汇聚支付回调公众号为空--->', $this->parameter);
+                echo 'No official account exists.';exit();
+            }
+
+            \Setting::$uniqueAccountId = \YunShop::app()->uniacid =$this->getResponse('r5_Mp');
 
             AccountWechats::setConfig(AccountWechats::getAccountByUniacid(\YunShop::app()->uniacid));
         }
@@ -70,18 +74,21 @@ class ConvergepayController extends PaymentController
         }
 
         if (0 == $_GET['state'] && $_GET['errorDetail'] == '成功') {
-            redirect(Url::absoluteApp('member/payYes', ['i' => $_GET['attach']]))->send();
+            redirect(Url::absoluteApp('member/payYes', ['i' => $this->getResponse('r5_Mp')]))->send();
         } else {
-            redirect(Url::absoluteApp('member/payErr', ['i' => $_GET['attach']]))->send();
+            redirect(Url::absoluteApp('member/payErr', ['i' => $this->getResponse('r5_Mp')]))->send();
         }
     }
 
     public function notifyUrlAlipay()
     {
         if (empty(\YunShop::app()->uniacid)) {
-            $this->attach = explode(':', $_GET['r2_OrderNo']);
+            if (!$this->getResponse('r5_Mp')) {
+                \Log::debug('汇聚支付回调公众号为空--->', $this->parameter);
+                echo 'No official account exists.';exit();
+            }
 
-            \Setting::$uniqueAccountId = \YunShop::app()->uniacid = $this->attach[1];
+            \Setting::$uniqueAccountId = \YunShop::app()->uniacid = $this->getResponse('r5_Mp');
 
             AccountWechats::setConfig(AccountWechats::getAccountByUniacid(\YunShop::app()->uniacid));
         }
@@ -118,9 +125,9 @@ class ConvergepayController extends PaymentController
         }
 
         if (0 == $_GET['state'] && $_GET['errorDetail'] == '成功') {
-            redirect(Url::absoluteApp('member/payYes', ['i' => $_GET['attach']]))->send();
+            redirect(Url::absoluteApp('member/payYes', ['i' => $this->getResponse('r5_Mp')]))->send();
         } else {
-            redirect(Url::absoluteApp('member/payErr', ['i' => $_GET['attach']]))->send();
+            redirect(Url::absoluteApp('member/payErr', ['i' => $this->getResponse('r5_Mp')]))->send();
         }
     }
 
@@ -150,7 +157,7 @@ class ConvergepayController extends PaymentController
         //访问记录
         Pay::payAccessLog();
         //保存响应数据
-        Pay::payResponseDataLog($this->attach[0], $sign, json_encode($data));
+        Pay::payResponseDataLog($this->getResponse('r2_OrderNo'), $sign, json_encode($data));
     }
 
     /**
@@ -163,7 +170,7 @@ class ConvergepayController extends PaymentController
     {
         $data = [
             'total_fee' => floatval($this->parameter['r3_Amount']),
-            'out_trade_no' => $this->attach[0],
+            'out_trade_no' => $this->getResponse('r2_OrderNo'),
             'trade_no' => $this->parameter['r7_TrxNo'],
             'unit' => 'yuan',
             'pay_type' => $pay_type,
@@ -343,10 +350,26 @@ class ConvergepayController extends PaymentController
      */
     public function logRefund($data, $sign)
     {
-        $orderNo = explode(':', $data['r2_OrderNo']);
         //访问记录
         Pay::payAccessLog();
         //保存响应数据
-        Pay::payResponseDataLog($orderNo[0], $sign, json_encode($data));
+        Pay::payResponseDataLog($data['r2_OrderNo'], $sign, json_encode($data));
+    }
+
+    /**
+     * 获取参数值
+     * @param string $key
+     * @return string
+     */
+    public function getResponse($key)
+    {
+
+        //todo 兼容以前判断
+        if ($key == 'r2_OrderNo' && strpos($this->parameter['r2_OrderNo'], ':') !== false) {
+            $attach = explode(':', $_GET['r2_OrderNo']);
+            return $attach[0];
+        }
+
+        return array_get($this->parameter, $key, '');
     }
 }

@@ -8,6 +8,7 @@ use app\common\facades\Setting;
 use app\common\models\Category;
 use app\common\models\Goods;
 use app\common\models\Slide;
+use app\framework\Http\Request;
 use app\frontend\modules\goods\models\Brand;
 use Illuminate\Support\Facades\DB;
 use app\common\services\goods\VideoDemandCourseGoods;
@@ -72,7 +73,7 @@ class IndexController extends ApiController
             ->orderBy("display_order", 'desc')
             ->orderBy("id", 'desc')
             ->get();
-        $timeGoods->vip_level_status;
+       // $timeGoods->vip_level_status;
         if (!empty($timeGoods->toArray())) {
             foreach ($timeGoods as $key => &$value) {
                 $value->thumb = yz_tomedia($value->thumb);
@@ -191,7 +192,7 @@ class IndexController extends ApiController
         return $advs;
     }
 
-    public function getPayProtocol($request, $integrated = null)
+    public function getPayProtocol(Request $request, $integrated = null)
     {
         $setting = Setting::get('shop.trade');
         //共享链支付协议开启
