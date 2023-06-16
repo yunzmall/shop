@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/2/27
  * Time: 上午9:17
  */
@@ -144,12 +144,18 @@ class BrandController extends UploadVerificationBaseController
      */
     public function deletedBrand()
     {
-        $brand = Brand::getBrand(request()->id);
-        if(!$brand) {
-            return $this->errorJson('无此品牌或已经删除');
+        if (request()->ids) {
+            $brand = Brand::whereIn('id', request()->ids);
+
+            $result = $brand->delete();
+        } else {
+            $brand = Brand::getBrand(request()->id);
+            if(!$brand) {
+                return $this->errorJson('无此品牌或已经删除');
+            }
+            $result = Brand::deletedBrand(request()->id);
         }
 
-        $result = Brand::deletedBrand(request()->id);
         if($result) {
            return $this->successJson('删除品牌成功');
         }else{

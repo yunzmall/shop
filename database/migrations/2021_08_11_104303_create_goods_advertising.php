@@ -24,7 +24,7 @@ class CreateGoodsAdvertising extends Migration
                 $table->integer('updated_at')->nullable()->comment('修改时间');
             });
         }
-        \Illuminate\Support\Facades\DB::statement("ALTER TABLE ".app('db')->getTablePrefix()."yz_goods_advertising comment '广告宣传语记录表'");
+        \Illuminate\Support\Facades\DB::statement("ALTER TABLE `".app('db')->getTablePrefix()."yz_goods_advertising` comment'商品--广告宣传语记录表'");//表注释
     }
 
     /**

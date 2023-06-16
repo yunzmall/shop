@@ -1,6 +1,6 @@
 <?php
 /**
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/7/25
  * Time: 上午11:31
  */
@@ -9,14 +9,25 @@ namespace app\common\services;
 
 class OrderExportService extends ExportService
 {
+    public function __construct($builder, $export_page = 1,$page_size=500)
+    {
+        $this->page_size=$page_size;
+        parent::__construct($builder, $export_page);
+    }
+
+    public function getExportBuilder()
+    {
+        return new \app\backend\modules\order\models\OrderExport($this->export_data);
+    }
+
     protected function exportBuilder()
     {
         $export_data = $this->export_data;
 
         return \Excel::create($this->file_name, function ($excel) use ($export_data) {
             $excel->setTitle('Office 2005 XLSX Document');
-            $excel->setCreator('芸众商城')
-                ->setLastModifiedBy("芸众商城")
+            $excel->setCreator('商城')
+                ->setLastModifiedBy("商城")
                 ->setSubject("Office 2005 XLSX Test Document")
                 ->setDescription("Test document for Office 2005 XLSX, generated using PHP classes.")
                 ->setKeywords("office 2005 openxml php")
@@ -102,4 +113,5 @@ class OrderExportService extends ExportService
             return chr($rowKey + 65);
         }
     }
+
 }

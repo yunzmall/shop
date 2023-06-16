@@ -24,6 +24,8 @@ class CreateImsYzOrderCreatedJobTable extends Migration
                 $table->integer('deleted_at')->nullable();
             });
 
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE `".app('db')->getTablePrefix()."yz_order_created_job` comment'订单--创建队列情况'");//表注释
+
         }
     }
 

@@ -19,6 +19,8 @@ class DataValidatorService
     const  WITHDRAW_TYPE_WECHAT   = 'wechat';
 
     const  WITHDRAW_TYPE_ALIPAY   = 'alipay';
+
+    const  WITHDRAW_TYPE_CONVERGE   = 'converge_pay';
     /**
      * @var Withdraw
      */
@@ -145,6 +147,14 @@ class DataValidatorService
                 throw new AppException("{$type_name}提现到支付宝单笔提现额度最低{$alipay_min}元",['status'=>0]);
             }elseif( $this->withdrawModel->amounts > $alipay_max && !empty($alipay_max)){
                 throw new AppException("{$type_name}提现到支付宝单笔提现额度最高{$alipay_max}元",['status'=>0]);
+            }
+        } elseif ($type == self::WITHDRAW_TYPE_CONVERGE) {
+            $converge_min =  $set['converge_pay_min'] ;
+            $converge_max =  $set['converge_pay_max'] ;
+            if( $this->withdrawModel->amounts < $converge_min && !empty($converge_min)){
+                throw new AppException("{$type_name}提现到汇聚单笔提现额度最低{$converge_min}元",['status'=>0]);
+            }elseif( $this->withdrawModel->amounts > $converge_max && !empty($converge_max)){
+                throw new AppException("{$type_name}提现到汇聚单笔提现额度最高{$converge_max}元",['status'=>0]);
             }
         }
     }

@@ -1,72 +1,229 @@
 @extends('layouts.base')
 
 @section('content')
+    <link href="{{static_url('yunshop/balance/balance.css')}}" media="all" rel="stylesheet" type="text/css"/>
+    <link rel="stylesheet" type="text/css" href="{{static_url('yunshop/goods/vue-goods1.css')}}"/>
+    <style>
+        .vue-main-form {
+            margin-top: 0;
+        }
+        .vue-main{
+            height: 100%;
+            padding: 5px;
+        }
+        .content {
+            background: #eff3f6;
+            padding: 10px !important;
+        }
 
-    <div class="rightlist">
-        <form action="{{ yzWebUrl('finance.point-love.update') }}" method="post" class="form-horizontal form" enctype="multipart/form-data">
+        .el-form-item__label {
+            width: 300px;
+            text-align: right;
+            color: #2f2310;
+        }
 
-            <div class="right-titpos">
-                @include('layouts.tabs')
-            </div>
-
-            <div class="panel panel-default">
-
-                <div class="panel-heading">积分自动转入设置</div>
-                <div class="panel-body">
-                    <div class="form-group">
-                        <label class="col-xs-12 col-sm-3 col-md-2 control-label">粉丝</label>
-                        <div class="col-sm-9 col-xs-12">
-                            <img src='{{ $memberModel->avatar }}' style='width:100px;height:100px;padding:1px;border:1px solid #ccc' />
-                            {{ $memberModel->nickname }}
-                        </div>
-                    </div>
-
-
-                    <div class="form-group">
-                        <label class="col-xs-12 col-sm-3 col-md-2 control-label">会员信息</label>
-                        <div class="col-sm-9 col-xs-12">
-                            <div class="form-control-static">姓名: {{ $memberModel->realname or $memberModel->nickname }} / 手机号: {{ $memberModel->mobile }}
+        .on-submit-div {
+            background-color: #fff !important;
+            border-top: #f6f6f6;
+            margin: 0 10px;
+            border-top-style: solid;
+            height: 100px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .el-radio-button__inner, .el-radio-group {
+            vertical-align: 0;
+        }
+        .
+    </style>
+    <div id="app" v-cloak class="main">
+        <div class="block">
+            @include('layouts.vueTabs')
+        </div>
+        <el-form ref="form" :model="set">
+            <div class="block">
+                <div class="vue-main">
+                    <div class="vue-main-form">
+                        <div class="vue-main-title" style="margin-bottom:20px">
+                            <div class="vue-main-title-left"></div>
+                            <div class="vue-main-title-content">
+                                积分自动转入设置
                             </div>
                         </div>
-                    </div>
-                    <div class="form-group">
-                        <label class="col-xs-12 col-sm-3 col-md-2 control-label">转入比例</label>
-                        <div class="col-sm-4 col-lg-3">
-                            <div class='input-group' style="width: 260px;">
-                                <input type="text" name="rate" value="{{ $memberModel->pointLove->rate or '' }}" class="form-control" />
-                                <span class='input-group-addon'>%</span>
+                        <el-form-item label="粉丝">
+                            <div style="display: flex;flex-direction: column;justify-content: center">
+                                <div style="width: 100px; height: 100px">
+                                    <el-image
+                                            style="width: 100px; height: 100px"
+                                            :src="memberModel.avatar"
+                                    v-if="info">
+                                    </el-image>
+                                </div>
+                                <div style="width: 100px;text-align: center">
+                                    <span class="demonstration">[[memberModel.nickname]]</span>
+                                </div>
                             </div>
-                            <span class='help-block'>自动转入{{ $love_name }}独立比例设置：为空、为零使用基础设置中自动转入比例，-1 此会员不自动转入</span>
-                        </div>
+                        </el-form-item>
+                        <el-form-item label="姓名">
+                            [[memberModel.realname ? memberModel.realname : memberModel.nickname]]
+                        </el-form-item>
+                        <el-form-item label="手机号">
+                            [[memberModel.mobile]]
+                        </el-form-item>
+                        <el-form-item label="转入比例">
+                            <el-input style="width: 450px"
+                                      v-model="set.rate">
+                                <template slot="append">%</template>
+                            </el-input>
+                            <span class='help-block'>自动转入爱心值/111独立比例设置：为空、为零使用基础设置中自动转入比例，-1 此会员不自动转入</span>
+                        </el-form-item>
+                        <el-form-item label="积分转入爱心值比例设置">
+                            <el-input style="width: 450px"
+                                      v-model="set.transfer_integral">
+                                <template slot="append"><span style="font-size: 16px"><b>:</b></span></template>
+                            </el-input>
+                            <el-input class="" style="width: 450px"
+                                      v-model="set.transfer_love">
+                            </el-input>
+                            <span class='help-block'>如果积分转入爱心值比例设置为空、为零，使用全局比例设置</span>
+                        </el-form-item>
                     </div>
-                    <div class="form-group">
-                        <label class="col-xs-12 col-sm-3 col-md-2 control-label">积分转入爱心值比例设置</label>
-                        <div class="col-sm-4 col-lg-2">
-                            <div class='input-group recharge-item'>
-                                <span class="input-group-addon"></span>
-                                <input type="text" name="transfer_integral" value="{{ $memberModel->pointLove->transfer_integral or '' }}"
-                                       class="form-control wid100"/>
-                                <span class='input-group-addon'>:</span>
-                                <input type="text" name="transfer_love" value="{{ $memberModel->pointLove->transfer_love or '' }}"
-                                       class="form-control wid100"/>
-                            </div>
-                            <div class="help-block">
-                                如果积分转入爱心值比例设置为空、为零，使用全局比例设置
-                            </div>
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label class="col-xs-12 col-sm-3 col-md-2 control-label"></label>
-                        <div class="col-sm-9 col-xs-12">
-                            <input type="hidden" name="member_id" value="{{ $memberModel->uid }}"/>
-                            <input name="submit" type="submit" value="修 改" class="btn btn-success span2" onclick="return confirm('确认修改？');return false;">
-                        </div>
-                    </div>
-
                 </div>
             </div>
-
-        </form>
+            <div class="vue-page" style="text-align: center">
+                <el-button type="primary" @click="onSubmit">提交</el-button>
+            </div>
+        </el-form>
     </div>
+    <script>
+        var vm = new Vue({
+            el: '#app',
+            // 防止后端冲突,修改ma语法符号
+            delimiters: ['[[', ']]'],
+            data() {
+                return {
+                    set:{
+                        rate: '',
+                        transfer_love: '',
+                        transfer_integral: '',
+                    },
+                    memberModel: {},
+                    activeName: '',
+                    member_id: '',
+                    tab_list:{},
+                    info: false
+                }
+            },
+            mounted() {
+                this.member_id = this.getParam('member_id')
+                this.getData()
+            },
+            //定义全局的方法
+            beforeCreate() {
+            },
+            filters: {},
+            methods: {
+                getParam(name) {
+                    return location.href.match(new RegExp("[?#&]" + name + "=([^?#&]+)", "i"))
+                        ? RegExp.$1
+                        : "";
+                },
+                getData() {
+                    let loading = this.$loading({
+                        target: document.querySelector(".content"),
+                        background: 'rgba(0, 0, 0, 0)'
+                    });
+                    this.$http.post('{!! yzWebFullUrl('finance.point-love.index') !!}',{member_id:this.member_id}).then(function (response) {
+                        if (response.data.result) {
+                            this.memberModel = response.data.data.memberModel
+                            console.log(this.memberModel)
+                            this.set.rate = response.data.data.memberModel.point_love ? response.data.data.memberModel.point_love.rate : ''
+                            this.set.transfer_integral = response.data.data.memberModel.point_love ? response.data.data.memberModel.point_love.transfer_integral : ''
+                            this.set.transfer_love = response.data.data.memberModel.point_love ? response.data.data.memberModel.point_love.transfer_love : ''
+                            this.tab_list = response.data.data.tab_list
+                            loading.close();
+                            this.info = true;
+                        } else {
+                            this.$message({
+                                message: response.data.msg,
+                                type: 'error'
+                            });
+                        }
+
+                        loading.close();
+                    }, function (response) {
+                        this.$message({
+                            message: response.data.msg,
+                            type: 'error'
+                        });
+                        loading.close();
+                    });
+                },
+                onSubmit() {
+                    let loading = this.$loading({
+                        target: document.querySelector(".content"),
+                        background: 'rgba(0, 0, 0, 0)'
+                    });
+                    this.set.member_id = this.member_id
+                    this.$http.post('{!! yzWebFullUrl('finance.point-love.update') !!}', this.set).then(function (response) {
+                        if (response.data.result) {
+                            this.$message({
+                                message: response.data.msg,
+                                type: 'success'
+                            });
+                            loading.close();
+                        } else {
+                            this.$message({
+                                message: response.data.msg,
+                                type: 'error'
+                            });
+                        }
+
+                        loading.close();
+                    }, function (response) {
+                        this.$message({
+                            message: response.data.msg,
+                            type: 'error'
+                        });
+                        loading.close();
+                    });
+                },
+                removeConsumeItem(index) {
+                    this.set.enoughs.splice(index, 1)
+                },
+                getUrl() {
+                    let url = ''
+                    switch (this.activeName) {
+                        case 'member_point' :
+                            url = '{!! yzWebFullUrl('finance.point-member.index') !!}';
+                            break;
+                        case 'basic_set' :
+                            url = '{!! yzWebFullUrl('finance.point-set.index') !!}';
+                            break;
+                        case 'recharge_record' :
+                            url = '{!! yzWebFullUrl('point.recharge-records.index') !!}';
+                            break;
+                        case 'point_detailed' :
+                            url = '{!! yzWebFullUrl('point.records.index') !!}';
+                            break;
+                        case 'point_queue' :
+                            url = '{!! yzWebFullUrl('point.queue.index') !!}';
+                            break;
+                        case 'queue_detailed' :
+                            url = '{!! yzWebFullUrl('point.queue-log.index') !!}';
+                            break;
+                        case 'superior_queue' :
+                            url = '{!! yzWebFullUrl('point.queue-log.parentIndex') !!}';
+                            break;
+                    }
+                    return url
+                },
+                handleClick() {
+                    window.location.href = this.getUrl()
+                },
+            },
+        })
+    </script>
 
 @endsection

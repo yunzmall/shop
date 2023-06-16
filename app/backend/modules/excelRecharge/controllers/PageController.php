@@ -23,9 +23,13 @@ class PageController extends BaseController
     //批量充值页面接口
     public function index()
     {
-        $this->makeFilePath();
+        if (request()->ajax()) {
+            $this->makeFilePath();
+            return $this->successJson('ok', $this->resultData());
+        }
 
-        return view('excelRecharge.page', $this->resultData());
+
+        return view('excelRecharge.page');
     }
 
     /**

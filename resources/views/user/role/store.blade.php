@@ -35,7 +35,7 @@
     margin-right:10px;
     line-height:63px;
 	background-color: #ffffff;
-	box-shadow: 0px 8px 23px 1px 
+	box-shadow: 0px 8px 23px 1px
 		rgba(51, 51, 51, 0.3);
     background-color:#fff;
     text-align:center;
@@ -70,7 +70,7 @@ b{
 
 </style>
 <div id='re_content' >
-<div class="vue-crumbs">    
+<div class="vue-crumbs">
                 <a @click="goBack">系统</a> > 权限管理 > 角色管理 > 添加角色
     </div>
     <div class="con">
@@ -92,11 +92,12 @@ b{
                     </template>
                     <div>提示：如果禁用，则当前角色的操作员全部会禁止使用</div>
                 </el-form-item>
-               
+
             </div>
             <div style="background: #eff3f6;width:100%;height:15px;"></div>
             <div class="block">
             <div class="title"><span style="width: 4px;height: 18px;background-color: #29ba9c;margin-right:15px;display:inline-block;"></span><b>角色权限</b></div>
+            <el-checkbox v-model="ischeckedAll"  style="margin-left:30px;" @change="checkedAll"><b>一键勾选</b></el-checkbox>
             <el-collapse v-model="active" accordion>
                 <template v-for="(item,index) in permissions" class="warp">
                   <el-collapse-item  :name="index">
@@ -137,12 +138,19 @@ b{
                   status:'1'
                 },
                 arr:[],
+                ischeckedAll:false
            }
         },
         mounted () {
           this.getData();
         },
         methods: {
+            checkedAll(){
+                this.permissions.forEach(item=>{
+                    item.checked = this.ischeckedAll;
+                    this.firstUpdate(item)
+                })
+            },
             goBack() {
                 window.location.href = `{!! yzWebFullUrl('setting.shop.index') !!}`;
                 },
@@ -185,8 +193,8 @@ b{
                     if(list.child&&list.child.length>0){
                         list.child.forEach((obj,index)=>{
                                     obj.checked=false
-                        }) 
-                    } 
+                        })
+                    }
                 }
                 let a=item.child.some((block,index)=>{
                     return block.checked==true
@@ -203,7 +211,7 @@ b{
                     let a=list.child.some((obj,index)=>{
                         return obj.checked==true
                     })
-                    
+
                     if(a){
                         list.checked=true
                     }else{
@@ -214,7 +222,7 @@ b{
                     let b=item.child.some((list,index)=>{
                         return list.checked==true
                     })
-                    
+
                     if(b){
                         item.checked=true
                     }else{
@@ -242,7 +250,7 @@ b{
                                 });
                             }else{
                               this.$message({message: response.data.msg,type: 'error'});
-                            }            
+                            }
                          },function (response) {
                             this.$message({message: response.data.msg,type: 'error'});
                       })

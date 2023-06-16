@@ -18,26 +18,35 @@ use app\common\models\MemberShopInfo;
 
 class MemberInvitedController extends BaseController
 {
+    /**
+     * 加载模板
+     * @return string
+     * @throws \Throwable
+     */
     public function index()
     {
-        $search = \YunShop::request()->search;
+        return view('member.invited', [])->render();
+    }
 
-        $list =  MemberInvitationCodeLog::
-        searchLog($search)
+    public function show()
+    {
+        $search = \YunShop::request()->search;
+        $list =  MemberInvitationCodeLog::searchLog($search)
         ->orderBy('id', 'desc')
         ->groupBy('member_id')
         ->paginate()
         ->toArray();
 
-        $pager = PaginationHelper::show($list['total'], $list['current_page'], $list['per_page']);
-
-        return view('member.invited', ['list'=>$list, 'pager'=>$pager, 'search'=>$search])->render();
+        return $this->successJson('ok', [
+            'list'=>$list,
+            'search'=>$search
+        ]);
     }
 
     public function export()
     {
-        $member_builder = MemberInvitationCodeLog::searchLog(\YunShop::request()->search)->orderBy('id', 'desc');
-        $export_page = request()->export_page ? request()->export_page : 1; 
+        $member_builder = MemberInvitationCodeLog::searchLog(\YunShop::request()->search);
+        $export_page = request()->export_page ? request()->export_page : 1;
 
         $export_model = new ExportService($member_builder, $export_page);
         $file_name = date('Ymdhis', time()) . '邀请码使用情况导出';
@@ -53,22 +62,9 @@ class MemberInvitedController extends BaseController
                     $item['created_at']
                 ];
             }
-            \Excel::create($file_name, function ($excel) use ($export_data) {
-                // Set the title
-                $excel->setTitle('Office 2005 XLSX Document');
-
-                // Chain the setters
-                $excel->setCreator('芸众商城')
-                    ->setLastModifiedBy("芸众商城")
-                    ->setSubject("Office 2005 XLSX Test Document")
-                    ->setDescription("Test document for Office 2005 XLSX, generated using PHP classes.")
-                    ->setKeywords("office 2005 openxml php")
-                    ->setCategory("report file");
-
-                $excel->sheet('info', function ($sheet) use ($export_data) {
-                    $sheet->rows($export_data);
-                });
-            })->export('xls');
+         // 此处参照商城订单管理的导出接口
+            app('excel')->store(new \app\exports\FromArray($export_data),$file_name.'.xlsx','export');
+            app('excel')->download(new \app\exports\FromArray($export_data),$file_name.'.xlsx')->send();
 
         } else {
             return $this->message('暂无数据', yzWebUrl('member.member-invited.index'));

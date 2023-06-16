@@ -22,6 +22,8 @@ class CreateYzProtocolTable extends Migration
                 $table->integer('created_at')->nullable();
                 $table->integer('updated_at')->nullable();
             });
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE " . app('db')->getTablePrefix()
+                . "yz_protocol comment '会员--会员注册协议表'");//表注释
         }
 
         $member_protocol = \app\common\models\Setting::where(['key' => 'protocol', 'group' => 'shop'])->select('uniacid', 'value')->get()->toArray();

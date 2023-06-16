@@ -37,4 +37,12 @@ class StoreController extends BaseController
 
         return $this->successJson("设置保存成功", Url::absoluteWeb('siteSetting.queue.index'));
     }
+
+    public function websocket()
+    {
+        $setting = request()->input('setting');
+        SiteSetting::set('websocket', $setting);
+
+        return $this->successJson("设置保存成功");
+    }
 }

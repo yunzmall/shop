@@ -29,7 +29,7 @@ class KdnLogistics implements Logistics
         $this->set_data = $data;
     }
 
-    public function getTraces($comCode, $expressSn, $orderSn = '',$order_id = '')
+    public function getTraces($comCode, $expressSn, $orderSn = '',$phoneLastFour = '')
     {
        //快递鸟1002状态为免费，8001状态为收费
         $express_api = $this->set_data;//\Setting::get('shop.express_info');
@@ -43,12 +43,12 @@ class KdnLogistics implements Logistics
                 ]
             );
         }elseif ($comCode == 'SF'){
-            $mobile = $this->getMobile($order_id);
+//            $mobile = $this->getMobile($order_id);
 
             $requestData = json_encode(
                 [
                     'OrderCode' => $orderSn,
-                    'CustomerName' => $mobile,
+                    'CustomerName' => $phoneLastFour,
                     'ShipperCode' => $comCode,
                     'LogisticCode' => $expressSn,
                 ]
@@ -73,10 +73,17 @@ class KdnLogistics implements Logistics
                 'RequestData' => urlencode($requestData),
                 'DataType' => '2',
             );
-        }else{  //不为1002或者8001返回错误
+        } else{  //不为1002或者8001返回错误
             throw new ShopException("快递鸟状态错误");
         }
-
+	    if ($express_api['KDN']['package_type'] == 2) {
+		    $datas = array(
+			    'EBusinessID' => $this->eBusinessID,
+			    'RequestType' => 8002,//8002状态为快递查询套餐
+			    'RequestData' => urlencode($requestData),
+			    'DataType' => '2',
+		    );
+	    }
         $datas['DataSign'] = $this->encrypt($requestData);
 
         $response = Curl::to($this->reqURL)->withData($datas)

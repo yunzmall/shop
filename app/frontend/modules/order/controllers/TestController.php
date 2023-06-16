@@ -14,7 +14,7 @@ use Yunshop\StoreCashier\common\models\Store;
 
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 21/02/2017
  * Time: 11:34
  */

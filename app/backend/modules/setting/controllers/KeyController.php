@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/3/9
  * Time: 下午5:26
  */
@@ -13,6 +13,8 @@ use app\common\facades\Setting;
 use app\common\models\Address;
 use app\common\models\Setting as SettingModel;
 use app\common\services\AutoUpdate;
+use app\common\services\PluginManager;
+use app\common\services\systemUpgrade;
 use Ixudra\Curl\Facades\Curl;
 
 class KeyController extends BaseController
@@ -34,71 +36,49 @@ class KeyController extends BaseController
      */
     public function index()
     {
-        $requestModel = request()->upgrade;
-        $upgrade = Setting::get('shop.key');
-        $page = 'auth';
+		$key = '';
+		$province = [];
+		$plugins = '';
+		$unauthorized = '';
+		$page = 'auth';
+		$domain = request()->getHttpHost();
+		$url = config('auto-update.registerUrl') . '/check_domain.json';
 
-        if (empty($upgrade['key']) && empty($upgrade['secret'])) {
-            $domain = request()->getHttpHost();
-            $url = config('auto-update.registerUrl') . '/check_domain.json';
+		$auth_str = Curl::to($url)
+			->withData(['domain' => $domain])
+			->asJsonResponse(true)
+			->get();
 
-            $auth_str = Curl::to($url)
-                ->withData(['domain' => $domain])
-                ->asJsonResponse(true)
-                ->get();
 
-            if (empty($auth_str['data']['key']) && empty($auth_str['data']['secret'])) {
-                $page = 'free';
-            } else {
-                $upgrade = $auth_str['data'];
+		if (empty($auth_str['data']['key']) && empty($auth_str['data']['secret'])) {
+			$page = 'free';
+			$province = Address::getProvince()->toArray();
+		} else {
+			$key = $auth_str['data']['key'];
+            Setting::set('shop.key', $auth_str['data']);
 
-                $this->processingKey($upgrade, 'create');
+			$systemUpgrade = new systemUpgrade($auth_str['data']['key'], $auth_str['data']['secret']);
+			$update = new AutoUpdate(null, null, 300);
+			$update->setBasicAuth($auth_str['data']['key'], $auth_str['data']['secret']);
+			$update->setUpdateUrl(config('auto-update.checkUrl'));
 
-                $free_plugins = SettingModel::where('group', 'free')->where('key', 'plugin')->first();
+			$pluginsInfo = $systemUpgrade->getPluginsInfo($update);
 
-                if (!is_null($free_plugins)) {
-                    Setting::set('free.plugin', unserialize($free_plugins->value));
-                }
-            }
-        }
+			if ($pluginsInfo['localNoAuthPluginsTitle']) {
+				$unauthorized = implode($pluginsInfo['localNoAuthPluginsTitle'], ',');
+			}
 
-        $auth_url = ''; //yzWebFullUrl('setting.key.index', ['page' => 'auth']);
-        $free_url = ''; //yzWebFullUrl('setting.key.index', ['page' => 'free']);
-
-        $type = request()->type;
-        //$page = request()->page ?: 'register';
-
-        $btn = empty($upgrade['key']) || empty($upgrade['secret']) ? 1 : 0;
-        $message = $type == 'create' ? '添加' : '取消';
-
-        if ($requestModel) {
-            //检测数据是否存在
-            $res = $this->isExist($requestModel);
-
-            //var_dump($res);exit();
-            if (!$res['isExists']) {
-                if ($res['message'] == 'amount exceeded') {
-                    $this->errorJson('您已经没有剩余站点数量了，如添加新站点，请取消之前的站点或者联系我们的客服人员！');
-                } else {
-                    $this->errorJson('Key或者密钥出错了！');
-                }
-
-            } else {
-                if ($this->processingKey($requestModel, $type)) {
-                    return $this->successJson("站点{$message}成功", ['url' => $auth_url]);
-                } else {
-                    $this->errorJson("站点{$message}失败");
-                }
-            }
-        }
-
-        $province = Address::getProvince();
+			$pluginManager = app('app\common\services\PluginManager');
+			$plugins = $pluginManager->getPluginsByCategory();
+		}
 
         return view('setting.key.index', [
-            'province' => json_encode(['data' => $province->toArray()]),
+			'domain' => json_encode(['data' => $domain]),
+            'province' => json_encode(['data' => $province]),
             'page' => json_encode(['type' => $page]),
-            'url' => json_encode(['free' => $free_url, 'auth' => $auth_url]),
-            'set' => json_encode(['key' => $upgrade['key'], 'secret' => $upgrade['secret'], 'btn' => $btn]),
+            'set' => json_encode(['key' => $key]),
+			'plugins' => json_encode(['data' => $plugins]),
+			'unauthorized' => json_encode(['data' => $unauthorized])
         ])->render();
     }
 

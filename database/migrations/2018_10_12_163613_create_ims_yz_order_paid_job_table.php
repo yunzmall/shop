@@ -24,6 +24,7 @@ class CreateImsYzOrderPaidJobTable extends Migration
                 $table->integer('deleted_at')->nullable();
             });
 
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE `".app('db')->getTablePrefix()."yz_order_paid_job` comment'订单--支付队列情况'");//表注释
         }
     }
 

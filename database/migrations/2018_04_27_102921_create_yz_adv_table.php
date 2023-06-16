@@ -22,6 +22,7 @@ class CreateYzAdvTable extends Migration
                 $table->integer('updated_at')->nullable();
                 $table->integer('deleted_at')->nullable();
             });
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE " . app('db')->getTablePrefix() . "yz_adv comment '设置-商城广告表'");//表注释
         }
     }
 

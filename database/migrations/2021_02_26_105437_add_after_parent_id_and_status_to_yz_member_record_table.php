@@ -15,13 +15,13 @@ class AddAfterParentIdAndStatusToYzMemberRecordTable extends Migration
     {
         Schema::table('yz_member_record', function (Blueprint $table) {
             Schema::table('yz_member_record', function (Blueprint $table) {
-                if (!Schema::hasColumn('yz_member_record','before_parent_id')) {
+                if (!Schema::hasColumn('yz_member_record', 'after_parent_id')) {
                     $table->integer('after_parent_id')->nullable()->default(0)->comment('修改后父级id');
                 }
-                if (!Schema::hasColumn('yz_member_record','status')) {
+                if (!Schema::hasColumn('yz_member_record', 'status')) {
                     $table->integer('status')->nullable()->default(1)->comment('0修改中，1修改成功，2修改失败');
                 }
-                if (!Schema::hasColumn('yz_member_record','time')) {
+                if (!Schema::hasColumn('yz_member_record', 'time')) {
                     $table->integer('time')->nullable()->default(0)->comment('耗时');
                 }
             });

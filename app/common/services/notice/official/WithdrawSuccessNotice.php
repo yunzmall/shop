@@ -32,6 +32,7 @@ class WithdrawSuccessNotice extends BaseMessageBody
             ['name' => '时间', 'value' => date('Y-m-d H:i:s', time())],
             ['name' => '金额', 'value' => $this->withdrawModel->amounts],
             ['name' => '手续费', 'value' => $this->withdrawModel->actual_poundage],
+            ['name' => '实际打款金额', 'value' => $this->withdrawModel->actual_amounts],
         ];
 
     }

@@ -17,14 +17,15 @@ class MinAppTemplateMessage extends Migration
             Schema::create('yz_mini_app_template_message', function (Blueprint $table) {
                 $table->integer('id', true);
                 $table->integer('uniacid');
-                $table->string('title');
-                $table->string('template_id', 45);
-                $table->text('data', 65535)->nullable();
-                $table->integer('is_default')->nullable();
-                $table->integer('is_open')->default(0);
+                $table->string('title')->comment('模板标题');
+                $table->string('template_id', 45)->comment('微信模板ID');
+                $table->text('data', 65535)->nullable()->comment('模板参数');
+                $table->integer('is_default')->nullable()->comment('是否显示：1是，0否');
+                $table->integer('is_open')->default(0)->comment('是否开启哦：1是，0否');
                 $table->integer('created_at')->nullable();
                 $table->integer('updated_at')->nullable();
             });
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE " . app('db')->getTablePrefix() . "yz_mini_app_template_message comment '微信小程序消息模板表'");//表注释
         }
     }
 

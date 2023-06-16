@@ -23,6 +23,7 @@ class CreateYzGoodsServiceTable extends Migration
                 $table->integer('lower_shelf_time')->nullable();
                 $table->tinyInteger('is_refund')->nullable()->default(1)->comment('是否支持退货 1：是');
             });
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE " . app('db')->getTablePrefix() . "yz_goods_service comment '商品自动上下架设置表'");//表注释
         }
     }
 

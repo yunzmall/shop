@@ -75,4 +75,12 @@ class PointShopDeductionSetting implements DeductionSettingInterface
     {
         return 'GoodsPriceProportion';
     }
+
+    public function getAffectDeductionAmount()
+    {
+        if (\Setting::get('point.set.point_deduction_integer')) {
+            return 'integer';
+        }
+        return false;
+    }
 }

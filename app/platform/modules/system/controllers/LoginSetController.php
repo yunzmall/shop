@@ -9,6 +9,7 @@
 namespace app\platform\modules\system\controllers;
 use app\platform\controllers\BaseController;
 use app\platform\modules\system\models\SystemSetting;
+use app\platform\modules\system\models\WhiteList;
 use app\platform\modules\user\models\AdminUser;
 
 class LoginSetController extends BaseController
@@ -37,9 +38,54 @@ class LoginSetController extends BaseController
         }
 
         if ($loginset) {
-            return $this->successJson('成功', $loginset);
-        } else {
-            return $this->errorJson('没有检测到数据', '');
+            $loginset['white_list_verify'] = $loginset['white_list_verify'] ? : "0";
+        }
+
+        return $this->successJson('成功', $loginset?:[]);
+    }
+
+    public function whiteList()
+    {
+        $data = WhiteList::getWhite(request()->search)->paginate(20);
+        return $this->successJson('成功', $data);
+    }
+
+    public function addWhiteList()
+    {
+        try {
+            $res = WhiteList::addIP(request()->white_list);
+            if (!$res) {
+                throw new \Exception('添加失败');
+            }
+            return $this->successJson('成功');
+        } catch (\Exception $e) {
+            return $this->errorJson($e->getMessage());
+        }
+    }
+
+    public function editWhiteList()
+    {
+        try {
+            $res = WhiteList::editIP(request()->id,request()->edit);
+            if (!$res) {
+                throw new \Exception('编辑失败');
+            }
+            return $this->successJson('成功');
+        } catch (\Exception $e) {
+            return $this->errorJson($e->getMessage());
+        }
+    }
+
+    public function delWhiteList()
+    {
+        try {
+            $res = WhiteList::delIP(request()->id);
+            if (!$res) {
+                throw new \Exception('删除失败或已删除');
+            }
+            return $this->successJson('成功');
+        } catch (\Exception $e) {
+            return $this->errorJson($e->getMessage());
         }
     }
 }

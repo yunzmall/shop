@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2021/2/2
  * Time: 15:33
  */
@@ -15,58 +15,6 @@ use iscms\Alisms\SendsmsPusher;
 
 class AliDayuSms extends Sms
 {
-
-    public function sendCode($mobile, $state = '86')
-    {
-        if ($this->smsSendLimit($mobile)) {
-
-            list($result['template'], $result['params']) = [$this->sms['templateCode'], @explode("\n", $this->sms['product'])];
-
-            $issendsms = $this->_sendCode($mobile, $result);
-
-            if (isset($issendsms->result->success)) {
-                $this->updateSmsSendTotal($mobile);
-                return $this->show_json(1);
-            } else {
-                return $this->show_json(0, $issendsms->msg . '/' . $issendsms->sub_msg);
-            }
-        } else {
-            return $this->show_json(0,  '发送短信数量达到今日上限');
-        }
-
-    }
-
-    public function sendPwd($mobile, $state = '86')
-    {
-        list($result['template'], $result['params']) = [$this->sms['templateCodeForget'], @explode("\n", $this->sms['forget'])];
-
-        $issendsms = $this->_sendCode($mobile, $result);
-
-        if (isset($issendsms->result->success)) {
-            return $this->show_json(1);
-        } else {
-            return $this->show_json(0, $issendsms->msg . '/' . $issendsms->sub_msg);
-        }
-
-    }
-
-    public function sendLog($mobile, $state = '86')
-    {
-        if(empty($this->sms['templateCodeLogin'])){
-            list($result['template'], $result['params']) = [$this->sms['templateCode'], @explode("\n", $this->sms['product'])];
-        }else{
-            list($result['template'], $result['params']) = [$this->sms['templateCodeLogin'], @explode("\n", $this->sms['login'])];
-        }
-
-        $issendsms = $this->_sendCode($mobile, $result);
-
-        if (isset($issendsms->result->success)) {
-            return $this->show_json(1);
-        } else {
-            return $this->show_json(0, $issendsms->msg . '/' . $issendsms->sub_msg);
-        }
-    }
-
     public function sendBalance($mobile, $ext)
     {
         return ;
@@ -82,28 +30,26 @@ class AliDayuSms extends Sms
         return;
     }
 
-    public function sendWithdrawSet($mobile, $state = '86',$key='')
+    public function _sendCode($mobile, $state, $ext = null)
     {
-        if ($this->smsSendLimit($mobile)) {
-
-            list($result['template'], $result['params']) = [$this->sms['templateCode'], @explode("\n", $this->sms['product'])];
-
-            $issendsms = $this->_sendCode($mobile, $result,$key);
-
-            if (isset($issendsms->result->success)) {
-                $this->updateSmsSendTotal($mobile);
-                return $this->show_json(1);
-            } else {
-                return $this->show_json(0, $issendsms->msg . '/' . $issendsms->sub_msg);
-            }
-        } else {
-            return $this->show_json(0,  '发送短信数量达到今日上限');
+        switch ($this->template) {
+            case 'register':
+                list($result['template'], $result['params']) = [$this->sms['templateCode'], @explode("\n", $this->sms['product'])];
+                break;
+            case 'password':
+                list($result['template'], $result['params']) = [$this->sms['templateCodeForget'], @explode("\n", $this->sms['forget'])];
+                break;
+            case 'login':
+                if(empty($this->sms['templateCodeLogin'])){
+                    list($result['template'], $result['params']) = [$this->sms['templateCode'], @explode("\n", $this->sms['product'])];
+                }else{
+                    list($result['template'], $result['params']) = [$this->sms['templateCodeLogin'], @explode("\n", $this->sms['login'])];
+                }
+                break;
+            default:
+                return '短信发送失败：未知短信类型';
         }
-    }
-
-    private function _sendCode($mobile, $result,$key = '')
-    {
-        $code = $this->getCode($mobile,$key);
+        $code = $this->getCode($mobile,$this->key);
 
         if (count($result['params']) > 1) {
             $nparam['code'] = "{$code}";
@@ -130,7 +76,11 @@ class AliDayuSms extends Sms
         ]);
 
         $sms = new SendsmsPusher($top_client);
-        return  $sms->send($mobile, $name, $content, $templateCode);
+        $res = $sms->send($mobile, $name, $content, $templateCode);
+        if (!isset($res->result->success)) {
+            return $res->msg . '/' . $res->sub_msg;
+        }
+        return true;
     }
 
 }

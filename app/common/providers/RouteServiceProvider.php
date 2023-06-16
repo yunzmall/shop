@@ -43,10 +43,38 @@ class RouteServiceProvider extends ServiceProvider
         } else {
             $this->mapWebRoutes();
         }
+		$this->mapBusinessRoutes();
+
+        $this->mapOutsideRoutes();
+	}
+
+    /**
+     * 对外开放API
+     */
+    protected function mapOutsideRoutes()
+    {
+        Route::group([
+            'middleware' => ['web'],
+            'namespace' => 'app\outside',
+        ], function ($router) {
+            require base_path('routes/outside.php');
+        });
+    }
+
+    protected function mapBusinessRoutes()
+    {
+        Route::group([
+            'middleware' => [],
+            'namespace' => 'business',
+//            'namespace' => $this->namespace,
+        ], function ($router) {
+            require base_path('routes/business.php');
+        });
     }
 
     /**
      * Define the "web" routes for the application.
+     *
      *
      * These routes all receive session state, CSRF protection, etc.
      *

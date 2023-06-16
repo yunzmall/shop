@@ -5,7 +5,7 @@ namespace app\common\services\plugin\leasetoy;
 use app\common\components\BaseController;
 
 /**
-* Author: 芸众商城 www.yunzshop.com
+* Author:
 * Date: 2018/3/19
 */
 class LeaseToySet extends BaseController

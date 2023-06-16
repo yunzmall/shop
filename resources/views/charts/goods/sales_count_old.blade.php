@@ -18,12 +18,12 @@
 
                                     <div class='form-input'>
                                         <p class="input-group-addon" >会员ID</p>
-                                        <input class="form-control price" style="width: 135px;" type="text" name="search[member_id]" value="{{ $search['member_id'] or ''}}">
+                                        <input class="form-control price" style="width: 135px;" type="text" name="search[member_id]" value="{{ $search['member_id'] ?? ''}}">
                                     </div>
 
                                     <div class='form-input'>
                                         <p class="input-group-addon" >会员信息</p>
-                                        <input class="form-control price" style="width: 135px;" type="text" name="search[member_info]" value="{{ $search['member_info'] or ''}}">
+                                        <input class="form-control price" style="width: 135px;" type="text" name="search[member_info]" value="{{ $search['member_info'] ?? ''}}">
                                     </div>
 
                                 </div>

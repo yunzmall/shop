@@ -1,13 +1,14 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/3/20
  * Time: 下午5:03
  */
 
 namespace app\frontend\modules\order\services\behavior;
 
+use app\common\exceptions\AppException;
 use app\common\models\Order;
 use app\common\models\order\OrderChangePriceLog;
 use app\common\models\order\OrderGoodsChangePriceLog;
@@ -57,6 +58,23 @@ class OrderChangePrice extends OrderOperation
     }
 
     /**
+     * 设置核销员ID
+     */
+    public function setClerkId($clerk_id)
+    {
+        return $this->orderChangePriceLog->clerk_id = $clerk_id;
+    }
+
+    /**
+     * 设置核销员来源
+     */
+    public function setClerkType($clerk_type)
+    {
+        return $this->orderChangePriceLog->clerk_type = $clerk_type;
+    }
+
+
+    /**
      * 订单改价记录
      */
     private function calculateOrderChangePriceLog()
@@ -66,10 +84,13 @@ class OrderChangePrice extends OrderOperation
             return $orderGoods->orderGoodsChangePriceLog->change_price;
         });
         $orderChangePriceLog->old_price = $this->price;
-        $orderChangePriceLog->new_price = $this->price + $orderChangePriceLog->change_price + $this->getChangeDispatchPrice();
+        $orderChangePriceLog->new_price = max($this->price + $orderChangePriceLog->change_price + $this->getChangeDispatchPrice(),0);
 
-        $orderChangePriceLog->username = \Yunshop::app()->username;
+        $orderChangePriceLog->username = \Yunshop::app()->username ? : '';
+        $orderChangePriceLog->clerk_type = $orderChangePriceLog->clerk_type ? : '';
+        $orderChangePriceLog->clerk_id = $orderChangePriceLog->clerk_id ? : 0;
         $orderChangePriceLog->order_id = $this->id;
+
         //return $orderChangePriceLog;
 
     }
@@ -81,6 +102,9 @@ class OrderChangePrice extends OrderOperation
      */
     public function setDispatchChangePrice($dispatch_price)
     {
+
+        $dispatch_price = $dispatch_price > 0 ?$dispatch_price:0;
+
         return $this->orderChangePriceLog->change_dispatch_price = $dispatch_price - $this->dispatch_price;
     }
 
@@ -100,7 +124,7 @@ class OrderChangePrice extends OrderOperation
      */
     private function getDispatchPrice()
     {
-        return $this->dispatch_price + $this->getDispatchChangePrice();
+        return max($this->dispatch_price + $this->getDispatchChangePrice(),0);
 
     }
 
@@ -130,7 +154,7 @@ class OrderChangePrice extends OrderOperation
     private function getPrice()
     {
 
-        return $this->price + $this->getChangePrice() + $this->getDispatchChangePrice();
+        return max($this->price + $this->getChangePrice() + $this->getDispatchChangePrice(),0);
     }
 
     private function getChangeDispatchPrice()
@@ -160,8 +184,12 @@ class OrderChangePrice extends OrderOperation
         $this->hasManyOrderGoods->map(function ($orderGoods) use ($orderGoodsChangePriceLogs) {
             $orderGoodsChangePriceLog = $orderGoodsChangePriceLogs->where('order_goods_id', $orderGoods->id)->first();
             //实例化改价记录
-            $orderGoodsChangePriceLog->old_price = $orderGoods->price;
-            $orderGoodsChangePriceLog->new_price = $orderGoods->price + $orderGoodsChangePriceLog->change_price;
+            $orderGoodsChangePriceLog->old_price = $orderGoods->payment_amount;
+            if (($orderGoods->payment_amount + $orderGoodsChangePriceLog->change_price) < 0) {
+                $msg = $orderGoods->goods_option_title? '('.$orderGoods->goods_option_title.')':'';
+                throw new AppException(''.$orderGoods->title.$msg.'：改价金额大于实付金额');
+            }
+            $orderGoodsChangePriceLog->new_price = max($orderGoods->payment_amount + $orderGoodsChangePriceLog->change_price, 0);
             $orderGoods->setRelation('orderGoodsChangePriceLog', $orderGoodsChangePriceLog);
 
         });
@@ -176,7 +204,8 @@ class OrderChangePrice extends OrderOperation
         $this->hasManyOrderGoods->map(function ($orderGoods) {
 
             //更新商品信息
-            $orderGoods->price = $orderGoods->orderGoodsChangePriceLog->new_price;
+//            $orderGoods->price = $orderGoods->orderGoodsChangePriceLog->new_price;
+            $orderGoods->payment_amount = $orderGoods->orderGoodsChangePriceLog->new_price; //改价修改商品实付金额
             $orderGoods->change_price += $orderGoods->orderGoodsChangePriceLog->change_price;
         });
     }

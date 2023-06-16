@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 19/03/2017
  * Time: 00:48
  */
@@ -60,7 +60,7 @@ class IndexController extends BaseController
                 }
             }
         }
-        if (app('plugins')->isEnabled('work-wechat')) {
+        if (app('plugins')->isEnabled('work-wechat') && app('plugins')->isEnabled('work-wechat-platform')) {
             if($user['type']==3){
                 //是企业微信管理员，跳转到企业微信管理首页
                 $crop_info = \Yunshop\WorkWechatPlatform\common\models\Crop::getByUid($uid);
@@ -91,9 +91,12 @@ class IndexController extends BaseController
 
         if (is_null($designer)) {
             $designer = (new \app\backend\controllers\PluginsController)->canAccess('decorate');
+            $decorate =  \app\common\services\MenuService::canAccess('decorate');
+        } else {
+            $decorate = yzWebFullUrl($designer);
         }
 
-        return view('index',['designer' => $designer])->render();
+        return view('index',['designer' => $designer,'decorate'=>$decorate])->render();
     }
 
     public function changeField()

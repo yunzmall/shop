@@ -46,6 +46,7 @@ class Goods extends \app\common\models\Goods
 
 
 
+    //todo 为什么要获取单体商品规格？？？
     public function hasOneOptions()
     {
         return $this->hasOne(GoodsOption::class);
@@ -167,5 +168,73 @@ class Goods extends \app\common\models\Goods
                     break;
             }
         }
+    }
+
+    public function getVipLevelStatusAttribute()
+    {
+        $vip_status = [
+            'status'  => 0,
+            'word' => '',
+            'tips' => ''
+        ];
+        if (!app('plugins')->isEnabled('price-authority')) {
+            return $vip_status;
+        }
+        //查询会员等级
+        $level = MemberShopInfo::select('level_id')->where('member_id',\YunShop::app()->getMemberId())->first();
+
+        $set = \Setting::get('plugin.price_authority');
+
+        if (!empty($set['is_jurisdiction']) && $set['is_jurisdiction']){
+
+            $goods = \Yunshop\PriceAuthority\model\Goods::find($this->id);
+
+            if (($goods->plugin_id == 0 || $goods->plugin_id == 92)) {
+                if ($set['supplier_vip_level'] == '' || empty($set['supplier_vip_level'])){
+                    $vip_status = [
+                        'status'  => 0,
+                        'word' => '',
+                        'tips' => ''
+                    ];
+                }else if (!in_array($level->level_id, $set['supplier_vip_level'])) {
+                    $level_name = '';
+                    foreach ($set['supplier_vip_level'] as $item) {
+                        $level = MemberLevel::find($item);
+                        if (!$level) {
+                            $level->level_name = '普通会员';
+                        }
+                        $level_name .= '/' . $level->level_name;
+                    }
+                    $vip_status['status'] = 1;
+                    $vip_status['word'] = $set['supplier_jurisdiction_word'] ?: '无权限';
+                    $vip_status['tips'] = '该商品仅限' . $level_name . '等级购买';
+                }
+            }
+
+            if (($goods->plugin_id == 31 || $goods->plugin_id == 32)){
+
+                if ($set['store_vip_level'] == ''){
+                    $vip_status = [
+                        'status'  => 0,
+                        'word' => '',
+                        'tips' => ''
+                    ];
+                }else if (!in_array($level->level_id, $set['store_vip_level'])){
+                    $level_name = '';
+                    foreach ($set['store_vip_level'] as $item){
+                        $level = MemberLevel::find($item);
+                        if (!$level){
+                            $level->level_name = '普通会员';
+                        }
+                        $level_name .= '/'.$level->level_name ;
+                    }
+                    $vip_status['status'] = 1;
+                    $vip_status['word'] = $set['store_jurisdiction_word'] ?: '无权限';
+                    $vip_status['tips'] = '该商品仅限'.$level_name.'等级购买';
+                }
+            }
+        }
+
+        return ($vip_status);
     }
 }

@@ -17,6 +17,10 @@ use app\common\managers\ModelExpansionManager;
 use app\common\models\BaseModel;
 use app\common\modules\sms\SmsService;
 use app\common\modules\status\StatusContainer;
+use app\common\services\easyWechat\container\PaymentContainer;
+use app\common\services\easyWechat\container\WorkContainer;
+use app\common\services\easyWechat\container\OfficialAccountContainer;
+use app\common\services\member\center\MemberCenterManage;
 use app\frontend\modules\coin\CoinManager;
 use app\frontend\modules\deduction\DeductionManager;
 use app\frontend\modules\goods\services\GoodsDetailManager;
@@ -35,13 +39,18 @@ class ShopProvider extends ServiceProvider
         });
         $this->app->singleton('supervisor', function () {
             $supervisord = SiteSetting::get('supervisor');
-            if ($supervisord['service_type']) {
+            if ($supervisord['service_type'] == 1) {
                 $ip = $supervisord['service'];
+                $host_num = count($supervisord['service']);
+            } elseif ($supervisord['service_type'] == 2) {
+                $ip = ['http://localhost'];
+                $host_num = count($supervisord['service']);
             } else {
                 $ip = $supervisord['address']['ip'] ?: 'http://127.0.0.1';
                 $ip = [$ip];
+                $host_num = 1;
             }
-            return new Supervisor($ip, 9001);
+            return new Supervisor($ip, 9001,$host_num);
         });
         $this->app->singleton('ModelExpansionManager', function () {
             return new ModelExpansionManager();
@@ -53,16 +62,18 @@ class ShopProvider extends ServiceProvider
         $this->app->singleton('DeductionManager', function () {
             return new DeductionManager();
         });
-        $this->app->singleton('PaymentManager', function () {
-            return new PaymentManager();
-        });
         $this->app->singleton('GoodsManager', function () {
             return new GoodsManager();
         });
         $this->app->singleton('OrderManager', function () {
             return new OrderManager();
         });
+        //商品挂件
+        $this->app->singleton('GoodsWidgetContainer', function () {
+            return new  \app\backend\modules\goods\widget\manage\GoodsWidgetContainer();
+        });
 
+        //购物车容器
         $this->app->singleton('CartContainer', function () {
             return new \app\frontend\modules\cart\manager\CartContainer();
         });
@@ -82,13 +93,25 @@ class ShopProvider extends ServiceProvider
             return new SmsService();
         });
 
-        $this->app->singleton('GoodsDetail',function () {
-        	return new GoodsDetailManager();
-		});
+        $this->app->singleton('GoodsDetail', function () {
+			return new GoodsDetailManager();
+        });
+
+        $this->app->singleton('MemberCenter', function () {
+            return new MemberCenterManage();
+        });
+
+        $this->app->singleton('BusinessMsgNotice', function () {
+            return new \business\common\notice\BusinessNoticeManager();
+        });
+
+
+//        $this->app->bind('external_contact', function ($app) {
+//            return new \app\common\services\easyWechat\Client($app);
+//        });
     }
 
     public function boot()
     {
-
     }
 }

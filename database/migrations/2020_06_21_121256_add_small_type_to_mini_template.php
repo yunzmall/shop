@@ -24,7 +24,7 @@ class AddSmallTypeToMiniTemplate extends Migration
                 $table->integer('updated_at')->nullable();
                 $table->integer('deleted_at')->nullable();
             });
-
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE " . app('db')->getTablePrefix() . "yz_mini_template_corresponding comment '微信小程序模板类型与模板中间表'");//表注释
             $time = time();
 
             $uniAccount = \app\common\models\UniAccount::getEnable() ?: [];

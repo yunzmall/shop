@@ -52,49 +52,58 @@
                         <div style="display:inline-block">
                             <i class="iconfont icon-ht_list_line_allmessage" style="padding-right:5px"></i>全部消息
                         </div>
-                        <div class="nav-li-tips" v-if="msgType[0].has_many_log_count>0">[[msgType[0].has_many_log_count]]</div>
+                        <div class="nav-li-tips" v-if="msgType[0] && msgType[0].has_many_log_count>0">[[msgType[0].has_many_log_count]]</div>
                     </div>
                     <div class="nav-li" :class="{'nav-li-selected':nav_index==2}" @click="chooseMenu(2)">
                         <div style="display:inline-block">
                             <i class="iconfont icon-ht_list_line_system" style="padding-right:5px"></i>系统通知
                         </div>
-                        <div class="nav-li-tips" v-if="msgType[1].has_many_log_count>0">[[msgType[1].has_many_log_count]]</div>
+                        <div class="nav-li-tips" v-if="msgType[1] &&msgType[1].has_many_log_count>0">[[msgType[1].has_many_log_count]]</div>
                     </div>
                     <div class="nav-li" :class="{'nav-li-selected':nav_index==3}" @click="chooseMenu(3)">
                         <div style="display:inline-block">
                             <i class="iconfont icon-ht_list_line_apply" style="padding-right:5px"></i>申请通知
                         </div>
-                        <div class="nav-li-tips" v-if="msgType[4].has_many_log_count>0">[[msgType[4].has_many_log_count]]</div>
+                        <div class="nav-li-tips" v-if="msgType[4] && msgType[4].has_many_log_count>0">[[msgType[4].has_many_log_count]]</div>
                     </div>
                     <div class="nav-li" :class="{'nav-li-selected':nav_index==4}" @click="chooseMenu(4)">
                         <div style="display:inline-block">
                             <i class="iconfont icon-ht_list_line_goods" style="padding-right:5px"></i>商品通知
                         </div>
-                        <div class="nav-li-tips" v-if="msgType[5].has_many_log_count>0">[[msgType[5].has_many_log_count]]</div>
+                        <div class="nav-li-tips" v-if="msgType[5] && msgType[5].has_many_log_count>0">[[msgType[5].has_many_log_count]]</div>
                     </div>
                     <div class="nav-li" :class="{'nav-li-selected':nav_index==5}" @click="chooseMenu(5)">
                         <div style="display:inline-block">
                             <i class="iconfont icon-ht_list_line_coupons" style="padding-right:5px"></i>优惠券
                         </div>
-                        <div class="nav-li-tips" v-if="msgType[6].has_many_log_count>0">[[msgType[6].has_many_log_count]]</div>
+                        <div class="nav-li-tips" v-if="msgType[6] && msgType[6].has_many_log_count>0">[[msgType[6].has_many_log_count]]</div>
                     </div>
                     <div class="nav-li" :class="{'nav-li-selected':nav_index==6}" @click="chooseMenu(6)">
                         <div style="display:inline-block">
                             <i class="iconfont icon-ht_list_line_order" style="padding-right:5px"></i>订单通知
                         </div>
-                        <div class="nav-li-tips" v-if="msgType[2].has_many_log_count>0">[[msgType[2].has_many_log_count]]</div>
+                        <div class="nav-li-tips" v-if="msgType[2] && msgType[2].has_many_log_count>0">[[msgType[2].has_many_log_count]]</div>
                     </div>
                     <div class="nav-li" :class="{'nav-li-selected':nav_index==7}" @click="chooseMenu(7)">
                         <div style="display:inline-block">
                             <i class="iconfont icon-ht_list_line_tixian" style="padding-right:5px"></i>提现通知
                         </div>
-                        <div class="nav-li-tips" v-if="msgType[3].has_many_log_count>0">[[msgType[3].has_many_log_count]]</div>
+                        <div class="nav-li-tips" v-if="msgType[3] && msgType[3].has_many_log_count>0">[[msgType[3].has_many_log_count]]</div>
+                    </div>
+                    <div class="nav-li" :class="{'nav-li-selected':nav_index==8}" @click="chooseMenu(8)">
+                        <div style="display:inline-block">
+                            <i class="iconfont icon-ht_list_line_tixian" style="padding-right:5px"></i>退款通知
+                        </div>
+                        <div class="nav-li-tips" v-if="msgType[7] && msgType[7].has_many_log_count>0">[[msgType[7].has_many_log_count]]</div>
                     </div>
                 </div>
                 <div class="message" v-if="view">
                     <div class="message-top">
                         <div class="" style="display:flex;align-items: center;">
-                            <div class="message-top-title">系统消息通知</div>
+                            <div class="message-top-title">
+                                系统消息通知
+                                <span style="color: red;padding-left: 5px"> 只保留近3个月的消息</span>
+                            </div>
                             <div class="message-top-read" @click="readAll">全部标记为已读</div>
                         </div>
                         <div class="search">
@@ -162,6 +171,7 @@
         let apply_url = '{!! yzWebFullUrl('sysMsg.system-msg.apply-message') !!}';
         let stock_url = '{!! yzWebFullUrl('sysMsg.system-msg.stock-message') !!}';
         let coupon_url = '{!! yzWebFullUrl('sysMsg.system-msg.coupon-message') !!}';
+        let refund_url = '{!! yzWebFullUrl('sysMsg.system-msg.refund-message') !!}';
         console.log(all_url)
         var app = new Vue({
             el:"#app",
@@ -244,6 +254,9 @@
                         case 7:
                             this.data_url = withdraw_url;
                             break;
+                        case 8:
+                            this.data_url = refund_url;
+                            break;
                         default:
                             break;
                     }
@@ -277,13 +290,15 @@
                                 if(item.type_id==6){
                                     this.list[index].bgcolor = 'orange'
                                 }
+                                if(item.type_id==7){
+                                    this.list[index].bgcolor = 'orange'
+                                }
                             });
-                            console.log(this.list);
                             this.total = response.data.data.list.total;
                             this.per_page = response.data.data.list.per_page;
                             this.current_page = response.data.data.list.current_page;
                             if(!this.msgType[0].has_many_log_count || this.msgType[0].has_many_log_count==0) {
-                                this.msgType = response.data.data.msgType;
+                                this.msgType = response.data.data.msgType || [{},{},{},{},{},{},{}];
                             }
                         }
                         else {

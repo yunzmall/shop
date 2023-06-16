@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 28/02/2017
  * Time: 17:00
  */
@@ -230,7 +230,8 @@ class Setting extends BaseModel
         //如果存在记录则更新
         $model = static::where('key', $key)
             ->where('group', $group)
-            ->where('uniacid', $uniqueAccountId);
+            ->where('uniacid', $uniqueAccountId)
+            ->orderBy('id', 'desc');
         $model = $model->first();
 
         if (is_null($model)) {

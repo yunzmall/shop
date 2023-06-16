@@ -1,9 +1,9 @@
 <?php
 /**
  * Created by PhpStorm.
- * Name: 芸众商城系统
- * Author: 广州市芸众信息科技有限公司
- * Profile: 广州市芸众信息科技有限公司位于国际商贸中心的广州，专注于移动电子商务生态系统打造，拥有芸众社交电商系统、区块链数字资产管理系统、供应链管理系统、电子合同等产品/服务。官网 ：www.yunzmall.com  www.yunzshop.com
+ *
+ *
+ *
  * Date: 2021/8/2
  * Time: 10:28
  */
@@ -13,6 +13,16 @@ namespace app\common\modules\shop;
 
 class OrderFrontendButtonConfig extends CommonConfig
 {
+    public static $current;
+
+    static public function current()
+    {
+        if (!isset(static::$current)) {
+            static::$current = new static();
+        }
+        return static::$current;
+    }
+
     protected function _getItems()
     {
         $result = [
@@ -23,36 +33,37 @@ class OrderFrontendButtonConfig extends CommonConfig
                 ],
                 'waitSend' => [
                     \app\frontend\modules\order\operations\member\ApplyRefund::class,
-                    \app\frontend\modules\order\operations\member\ContactCustomerService::class,
                     \app\frontend\modules\order\operations\member\Refunding::class,
                     \app\frontend\modules\order\operations\member\Refunded::class,
-                    \app\frontend\modules\order\operations\member\Coupon::class, //分享优惠卷
                     \app\frontend\modules\order\operations\member\ExpeditingDelivery::class, //催发货
+                    \app\frontend\modules\order\operations\member\ContactCustomerService::class,
+                    \app\frontend\modules\order\operations\member\Coupon::class, //分享优惠卷
                 ],
                 'waitReceive' => [
-                    \app\frontend\modules\order\operations\member\ExpressInfo::class,
                     \app\frontend\modules\order\operations\member\Receive::class,
+                    \app\frontend\modules\order\operations\member\ExpressInfo::class,
                     \app\frontend\modules\order\operations\member\ApplyRefund::class,
-                    \app\frontend\modules\order\operations\member\ContactCustomerService::class,
                     \app\frontend\modules\order\operations\member\Refunding::class,
                     \app\frontend\modules\order\operations\member\Refunded::class,
+                    \app\frontend\modules\order\operations\member\ContactCustomerService::class,
                     \app\frontend\modules\order\operations\member\Coupon::class, //分享优惠卷
                 ],
                 'complete' => [
-                    \app\frontend\modules\order\operations\member\ExpressInfo::class,
-                    \app\frontend\modules\order\operations\member\Delete::class,
                     \app\frontend\modules\order\operations\member\ApplyRefund::class,
-                    \app\frontend\modules\order\operations\member\ContactCustomerService::class,
                     \app\frontend\modules\order\operations\member\Refunding::class,
                     \app\frontend\modules\order\operations\member\Refunded::class,
-                    \app\frontend\modules\order\operations\member\CheckInvoice::class,
-                    \app\frontend\modules\order\operations\member\Coupon::class, //分享优惠卷
+                    \app\frontend\modules\order\operations\member\ExpressInfo::class,
                     \app\frontend\modules\order\operations\member\ViewEquity::class, //查看卡券
+                    \app\frontend\modules\order\operations\member\CheckInvoice::class,
+                    \app\frontend\modules\order\operations\member\ContactCustomerService::class,
+                    \app\frontend\modules\order\operations\member\Coupon::class, //分享优惠卷
+                    \app\frontend\modules\order\operations\member\Delete::class,
                 ],
                 'close' => [
                     \app\frontend\modules\order\operations\member\ExpressInfo::class,
-                    \app\frontend\modules\order\operations\member\Delete::class,
                     \app\frontend\modules\order\operations\member\Refunded::class,
+                    \app\frontend\modules\order\operations\member\CloseReason::class,
+                    \app\frontend\modules\order\operations\member\Delete::class,
                 ],
             ],
             'order_frontend_button' => [//插件按钮配置

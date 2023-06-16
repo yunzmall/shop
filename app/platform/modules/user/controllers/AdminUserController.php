@@ -22,6 +22,8 @@ use app\platform\modules\application\models\UniacidApp;
 use app\platform\modules\application\models\AppUser;
 use app\platform\controllers\ResetpwdController;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
+use app\common\helpers\Cache;
 
 class AdminUserController extends BaseController
 {
@@ -307,7 +309,7 @@ class AdminUserController extends BaseController
     public function clerkList()
     {
         $parames = request();
-        $user = AdminUser::where('type', 3)->searchUsers($parames)->with(['hasOneProfile'])->paginate();
+        $user = AdminUser::where('type', 3)->searchUsers($parames)->with(['hasOneProfile'])->orderBy('uid','DESC')->paginate();
         foreach ($user as &$item) {
             $item['status'] == 2 ? $item['state'] = '有效' : null;
             $item['status'] == 3 ? $item['state'] = '已禁用' : null;
@@ -354,7 +356,7 @@ class AdminUserController extends BaseController
             return $this->errorJson(['您输入的手机与登录的账号不符合']);
         }
 
-        request()->username = $user['username'];
+        request()->offsetSet('username', $user['username']);
         return (new ResetpwdController)->SendCode();
     }
 
@@ -455,14 +457,40 @@ class AdminUserController extends BaseController
         if (request()->path() == "admin/user/create") {
             $rules = [
 //                'username' => 'required|regex:/^[\x{4e00}-\x{9fa5}A-Za-z0-9_\-]{3,30}$/u|unique:yz_admin_users',
-                'username' => 'required|unique:yz_admin_users',
-                'mobile' => 'required|regex:/^1[3456789]\d{9}$/|unique:yz_users_profile',
+//                'username' => 'required|unique:yz_admin_users',
+                'username' => [
+                    'required',
+                    Rule::unique('yz_admin_users')->where(function($q){
+                        return $q->whereNull('deleted_at');
+                    })
+                ],
+//                'mobile' => 'required|regex:/^1[3456789]\d{9}$/|unique:yz_users_profile',
+                'mobile' => [
+                    'required',
+                    'regex:/^1[3456789]\d{9}$/',
+                    Rule::unique('yz_users_profile')->where(function($q){
+                        return $q->whereNull('deleted_at');
+                    })
+                ]
             ];
         }else if(request()->path() == "admin/user/edit") {
             $rules = [
 //                'username' => 'required|regex:/^[\x{4e00}-\x{9fa5}A-Za-z0-9_\-]{3,30}$/u|unique:yz_admin_users,username,'.$user['uid'].',uid',
-                'username' => 'required|unique:yz_admin_users,username,'.$user['uid'].',uid',
-                'mobile' => 'required|regex:/^1[3456789]\d{9}$/|unique:yz_users_profile,mobile,'.$user['hasOneProfile']['id'],
+//                'username' => 'required|unique:yz_admin_users,username,'.$user['uid'].',uid',
+                'username' => [
+                    'required',
+                    Rule::unique('yz_admin_users')->where(function($q) use($user){
+                        return $q->whereNull('deleted_at')->where('uid','<>',$user['uid']);
+                    })
+                ],
+//                'mobile' => 'required|regex:/^1[3456789]\d{9}$/|unique:yz_users_profile,mobile,'.$user['hasOneProfile']['id'],
+                'mobile' => [
+                    'required',
+                    'regex:/^1[3456789]\d{9}$/',
+                    Rule::unique('yz_users_profile')->where(function($q) use($user){
+                        return $q->whereNull('deleted_at')->where('id','<>',$user['hasOneProfile']['id']);
+                    })
+                ]
             ];
         }
 

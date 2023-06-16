@@ -8,7 +8,7 @@ use app\platform\modules\application\models\CoreAttach;
 use app\common\services\qcloud\Api;
 use app\common\services\aliyunoss\OssClient;
 use app\common\services\aliyunoss\OSS\Core\OssException;
-use app\common\services\ImageZip;
+use Illuminate\Support\Carbon;
 
 class AllUploadController extends BaseController
 {
@@ -23,136 +23,81 @@ class AllUploadController extends BaseController
 	public function upload()
     {
         $file = request()->file('file');
-        if (count($file) > 6) {
-            return $this->errorJson('文件数量过多, 请选择低于6个文件');
+        if (!$file->isValid()) {
+            return $this->errorJson('上传失败');
         }
-
-        $success = [];
-        if (count($file) > 1 && count($file) < 7) {
-            //多文件上传
-            foreach ($file as $k => $v) {
-                if ($v) {
-                    $url = $this->doUpload($v);
-                    $success[] = $url;
-                }
-            }
-        } else {
-            $success = $this->doUpload($file);
-        }
-
-        return $this->successJson('ok', ['success' => $success, 'fail' => '']);
-    }
-    
-    public function doUpload($file)
-    {
-    	if (!$file->isValid()) {
-            return false;
-        }
-
         if ($file->getClientSize() > 30*1024*1024) {
-            return '上传资源过大';
+            return $this->errorJson('上传图片资源过大');
         }
-         //默认支持的文件格式类型
+        //默认支持的文件格式类型
         $defaultImgType = [
             'jpg', 'bmp', 'eps', 'gif', 'mif', 'miff', 'png', 'tif',
             'tiff', 'svg', 'wmf', 'jpe', 'jpeg', 'dib', 'ico', 'tga', 'cut', 'pic'
         ];
-
         $defaultAudioType = ['avi', 'asf', 'wmv', 'avs', 'flv', 'mkv', 'mov', '3gp', 'mp4',
             'mpg', 'mpeg', 'dat', 'ogm', 'vob', 'rm', 'rmvb', 'ts', 'tp', 'ifo', 'nsv'
         ];
-
         $defaultVideoType = [
             'mp3', 'aac', 'wav', 'wma', 'cda', 'flac', 'm4a', 'mid', 'mka', 'mp2',
             'mpa', 'mpc', 'ape', 'ofr', 'ogg', 'ra', 'wv', 'tta', 'ac3', 'dts'
         ];
-
+        $default_file_mime_type = [
+            'audio/aac', 'video/x-msvideo', 'image/bmp', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'image/gif',
+            'image/vnd.microsoft.icon', 'image/jpeg', 'audio/midi', 'audio/x-midi', 'audio/mpeg', 'video/mpeg', 'image/png', 'application/pdf', 'application/vnd.ms-powerpoint',
+            'application/vnd.openxmlformats-officedocument.presentationml.presentation', 'application/x-rar-compressed', 'application/rtf', 'image/svg+xml', 'image/tiff',
+            'text/plain', 'audio/wav', 'image/webp', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/xml', 'text/xml',
+            'video/3gpp', 'audio/3gpp', 'video/x-ms-asf', 'video/x-ms-wmv', 'video/x-flv', 'video/quicktime', 'video/mp4', 'audio/x-wav', 'audio/x-m4a', 'audio/mid', 'audio/ogg',
+            'audio/x-realaudio', 'application/postscript', 'application/x-msmetafile', 'image/x-icon', 'application/vnd.ms-works', 'application/rar', 'application/zip',
+        ];
         $ext = $file->getClientOriginalExtension();
-
         $originalName = $file->getClientOriginalName();
-
         $realPath = $file->getRealPath();
-
+        $mime_type = $file->getMimeType();
+        if (!in_array($mime_type, $default_file_mime_type)) {
+            return $this->errorJson('文件类型错误上传失败');
+        }
         $merge_ext = array_merge($defaultImgType, $defaultAudioType, $defaultVideoType);
         if (!in_array($ext, $merge_ext)) {
-            return '非规定类型的文件格式';
+            return $this->errorJson('非规定类型的文件格式');
         }
-
         if (in_array($ext, $defaultImgType)) {
             $file_type = 'images';
         } elseif (in_array($ext, $defaultAudioType)) {
             $file_type = 'audios';
         } elseif (in_array($ext, $defaultVideoType)) {
-            $file_type = 'videos'; 
+            $file_type = 'videos';
         }
-
-        $newFileName = $this->getNewFileName($originalName, $ext, $file_type);
-
+        $newFileName = $this->getNewFileName($originalName, $ext);
         $setting = SystemSetting::settingLoad('global', 'system_global');
         $remote = SystemSetting::settingLoad('remote', 'system_remote');
-
         if (in_array($ext, $defaultImgType)) {
             if ($setting['image_extentions'] && !in_array($ext, array_filter($setting['image_extentions'])) ) {
-                return '非规定类型的文件格式';
+                return $this->errorJson('非规定类型的图片格式');
             }
-
             $defaultImgSize = $setting['img_size'] ? $setting['img_size'] * 1024 : 1024*1024*5; //默认大小为5M
-
             if ($file->getClientSize() > $defaultImgSize) {
-                return '文件大小超出规定值';
+                return $this->errorJson('图片文件大小超出规定值');
             }
         }
-
         if (in_array($ext, $defaultAudioType) || in_array($ext, $defaultVideoType)) {
             if ($setting['audio_extentions'] && !in_array($ext, array_filter($setting['audio_extentions'])) ) {
-                return '非规定类型的文件格式';
+                return $this->errorJson('非规定类型的文件格式');
             }
             $defaultAudioSize = $setting['audio_limit'] ? $setting['audio_limit'] * 1024 : 1024*1024*30; //音视频最大 30M
-
             if ($file->getClientSize() > $defaultAudioSize) {
-                    \Log::info('local_audio_video_file_size_is_not_set_size');
-                return '文件大小超出规定值';
+                return $this->errorJson('文件大小超出规定值');
             }
         }
         $file_type = $file_type == 'images' ? 'syst_images' : $file_type;
-
-        //执行本地上传
-        $local_res = \Storage::disk($file_type)->put($newFileName, file_get_contents($realPath));
-        if (!$local_res) {
-            return '本地上传失败';
+        if (!\Storage::disk($file_type)->put($newFileName, file_get_contents($realPath))) {
+            return $this->errorJson('本地上传失败');
         }
-
         $url = \Storage::disk($file_type)->url($newFileName);
-
-        if ($setting['image']['zip_percentage']) {
-            //执行图片压缩
-            $imagezip = new ImageZip();
-            $imagezip->makeThumb(
-                yz_tomedia($url),
-                yz_tomedia($url),
-                $setting['image']['zip_percentage']
-            );
+        if ($remote['type'] != 0) {
+            file_remote_upload($url, true, $remote);
         }
-        
-        if ($setting['thumb_width'] == 1 && $setting['thumb_width']) {
-        	$imagezip = new ImageZip();
-        	$imagezip->makeThumb(
-        		yz_tomedia($url),
-        		yz_tomedia($url),
-        		$setting['thumb_width']
-        	);
-        }
-
-        if ($remote['type'] != 0) { //远程上传
-       		$res = file_remote_upload($url, true, $remote);
-        }
-
-        if (!$res || $local_res) {
-        	//数据添加
-        	$this->getData($originalName, $file_type, $url, $remote['type']);
-       		return yz_tomedia($url);
-        }
-        return $res;
+        $this->getData($originalName, $file_type, $url, $remote['type']);
+        return $this->successJson('ok', ['success' => yz_tomedia($url), 'fail' => '']);
     }
 
     /**
@@ -161,7 +106,7 @@ class AllUploadController extends BaseController
      * @param  string $ext          文件扩展名
      * @return string               新文件名
      */
-    public function getNewFileName($originalName, $ext, $file_type)
+    public function getNewFileName($originalName, $ext)
     {
         return md5($originalName . str_random(6)) . '.' . $ext;
     }
@@ -174,33 +119,29 @@ class AllUploadController extends BaseController
 	//获取本地已上传图片的列表
     public function getLocalList()
     {
-        $core = new CoreAttach();
-
         if (request()->year != '不限') {
             $search['year'] = request()->year;
         }
-
-        if(request()->month != '不限') {
+        if (request()->month != '不限') {
             $search['month'] = request()->month;
         }
-
-        $core = $core->where('uniacid', 0)->where('type', 1)->orderBy('id', 'desc');
-
-        if ($search) {
-            $core = $core->search($search);
+        $uid = \YunShop::app()->uid;
+        $query = CoreAttach::where(['uniacid'=>0,'type'=>1])->orderby('id', 'desc');
+        if ($uid && $uid != 1) {
+            $query->where('uid', $uid);
         }
-
-        $list = $core->paginate()->toArray();
-
+        if ($search['year'] || $search['month']) {
+            $start_time = Carbon::createFromDate($search['year'], $search['month'])->startOfMonth()->timestamp;
+            $end_time = Carbon::createFromDate($search['year'], $search['month'])->endOfMonth()->timestamp;
+            $query->whereBetween('created_at', [$start_time, $end_time]);
+        }
+        $list = $query->paginate()->toArray();
         foreach ($list['data'] as $k => $v) {
-
             if ($v['attachment'] && $v['id']) {
-
                 $data['data'][$k]['id'] = $v['id'];
                 $data['data'][$k]['url'] = yz_tomedia($v['attachment']);
             }
         }
-        
         $data['total'] = $list['total'];
         $data['per_page'] = $list['per_page'];
         $data['last_page'] = $list['last_page'];
@@ -209,68 +150,37 @@ class AllUploadController extends BaseController
         $data['current_page'] = $list['current_page'];
         $data['from'] = $list['from'];
         $data['to'] = $list['to'];
-
         if (!$data['data']) {
             $data['data'] = [];
         }
-
         return $this->successJson('获取成功', $data);
     }
 
     public function delLocalImg()
     {
         $id = request()->id;
-        
         $core = CoreAttach::find($id);
-
         if (!$core) {
             return $this->errorJson('请重新选择');
         }
-        
         $setting = SystemSetting::settingLoad('remote', 'system_remote');
 
-        if ($core['upload_type']== 2) { //oss
-            try {
-                $oss = new OssClient($setting['alioss']['key'], $setting['alioss']['secret'], $setting['alioss']['ossurl']);
-            } catch (OssException $e) {
-                return $this->errorJson($e->getErrorMessage());
+        if ($core['upload_type']) {
+            $remote_url = '';
+            if ($setting['type'] == 2) {
+                $remote_url = $setting['alioss']['url'];
             }
-
-            $ossbucket = rtrim(substr($setting['alioss']['bucket'], 0, strrpos($setting['alioss']['bucket'],'@')), '@');
-            $res = $oss->deleteObject($ossbucket, $core['attachment']); //info['url'] 
-
-            if (!$res['info']['url']) {
-                return $res;
+            if ($setting['type'] == 4) {
+                $remote_url = $setting['cos']['url'];
             }
-
-        } elseif ($core['upload_type'] == 4) { //cos
-            try {
-
-	            $cos = new Api([
-	                'app_id' => $setting['cos']['appid'],
-	                'secret_id' => $setting['cos']['secretid'],
-	                'secret_key' => $setting['cos']['secretkey'],
-	                'region' => $setting['cos']['url']
-	            ]);
-            	
-            	$res = $cos->delFile($setting['cos']['bucket'], $core['attachment']); //[code =0  'message'='SUCCESS']
-            } catch (\Exception $e) {
-            	return $this->errorJson('腾讯云配置错误');
+            if ($remote_url && strexists($core['attachment'], $remote_url)) {
+                $str_len = strlen($remote_url);
+                $core['attachment'] = substr($core['attachment'], $str_len+1);
             }
-
-            if ($res['code'] != 0 || $res['message'] != 'SUCCESS') {
-                //删除失败
-                return $res;
-            }
-
+            $status = file_remote_delete($core['attachment'], $core['upload_type'], $setting);
         } else {
-            //删除文件
-            $res = \app\common\services\Storage::remove(yz_tomedia($core['attachment']));
-            if ($res !== true) {
-                \Log::info('本地图片删除失败', $core['attachment']);
-            }
+            $status = file_delete($core['attachment']);
         }
-
         if ($core->delete()) {
             return $this->successJson('删除成功');
         }
@@ -293,7 +203,6 @@ class AllUploadController extends BaseController
         		$type = 3;
         		break;
         }
-
         $d = [
             'uniacid' => $this->getUniacid(),
             'uid' => \Auth::guard('admin')->user()->uid,
@@ -302,16 +211,13 @@ class AllUploadController extends BaseController
             'attachment' => $newFileName,
             'upload_type' => $save_type
         ];
-
         $core->fill($d);
         $validate = $core->validator();
-
         if (!$validate->fails()) {
             if ($core->save()) {
                 return 1;
             }
         }
-
         return $validate->messages();
     }
 }

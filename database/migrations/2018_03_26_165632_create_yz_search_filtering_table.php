@@ -27,6 +27,9 @@ class CreateYzSearchFilteringTable extends Migration
                 $table->integer('created_at')->nullable();
                 $table->integer('deleted_at')->nullable();
             });
+
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE `".app('db')->getTablePrefix()."yz_search_filtering` comment'商品--商品标签表'");//表注释
+
         }
     }
 

@@ -6,6 +6,9 @@
         .main-panel{
             margin-top:50px;
         }
+        .main-panel #re_content {
+            padding: 10px;
+        }
         .panel{
             margin-bottom:10px!important;
             padding-left: 20px;
@@ -104,7 +107,17 @@
                                 </el-switch>
                             </template>
                         </el-form-item>
-
+                        <el-form-item label="分类绑定规格"  >
+                            <template>
+                                <el-switch
+                                        v-model="form.category_to_option"
+                                        active-value="1"
+                                        inactive-value="0"
+                                >
+                                </el-switch>
+                            </template>
+                            <div class="tip">不同分类绑定的规格前端进入分类页显示对应规格图片，进入详情页默认选中该规格并显示规格图片+其他图片，如果没有绑定规格按照原来展示</div>
+                        </el-form-item>
                     </div>
                     <div style="background: #eff3f6;width:100%;height:15px;"></div>
                     <div class="block">
@@ -165,6 +178,7 @@
                         cat_adv_img:'',
                         cat_adv_url:'',
                         small_cat_adv_url:'',
+                        category_to_option:'0',
                     },
                 }
             },

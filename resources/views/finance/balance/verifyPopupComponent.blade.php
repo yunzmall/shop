@@ -90,11 +90,11 @@
 
 <div class="verify-popup-component" hidden>
   <div class="verify-popup-component-content">
-    <h4>提现打款二次验证</h4>
+    <h4>二次校验</h4>
     <form class="verify-form" action="">
       <div class="verify-form-row">
         <div class="verify-form-col">手机号</div>
-        <div class="verify-form-col"> @if($verify_phone){{ $verify_phone }}@else <a href="{{ yzWebFullUrl('password.setting.index') }}">设置提现手机号</a> @endif</div>
+        <div class="verify-form-col"> @if($verify_phone){{ $verify_phone }}@else <a href="{{ yzWebFullUrl('password.setting.index') }}">设置二次校验手机号</a> @endif</div>
         <div class="verify-form-col">
           @if($verify_phone)
           <button class="btn btn-success" type='button' onclick="getVerifyCode(this)"><span></span>
@@ -140,7 +140,7 @@
 
   function getVerifyCode(buttonEl) {
     if (!verifyPhoneNumber) {
-      alert("还未设置提现验证手机号，请前往资产密码页面设置提现验证手机号码");
+      alert("还未设置二次校验验证手机号，请前往资产密码页面设置二次校验验证手机号码");
       return;
     }
     codePromptEl.innerText = "";

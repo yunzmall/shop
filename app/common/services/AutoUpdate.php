@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 18/04/2017
  * Time: 09:12
  */
@@ -9,13 +9,11 @@
 namespace app\common\services;
 
 
-use app\common\models\Setting;
 use app\frontend\modules\update\models\authModel;
 use Illuminate\Filesystem\Filesystem;
 use Ixudra\Curl\Facades\Curl;
-use \vierbergenlars\SemVer\version;
-use \vierbergenlars\SemVer\expression;
-use \vierbergenlars\SemVer\SemVerException;
+use vierbergenlars\SemVer\version;
+
 /**
  * Auto update class.
  *
@@ -361,7 +359,7 @@ class AutoUpdate
         // Reset previous updates
         $this->_latestVersion = new version('0.0.0');
         $this->_updates = [];
-        $versions = $this->_cache->get('update-versions');
+        $versions = null; // $this->_cache->get('update-versions');
         // Create absolute url to update file
         $updateFile = $this->_updateUrl . '/' . $this->_updateFile;
         if (!empty($this->_branch))
@@ -1148,7 +1146,7 @@ class AutoUpdate
 
         $this->_log->notice('Back Checking for a new update...');
 
-        $versions = $this->_cache->get('update-versions');
+        $versions = null; // $this->_cache->get('update-versions');
         // Create absolute url to update file
         $updateFile = $this->_updateUrl . '/' . $this->_updateFile . '/' . $code;
 
@@ -1190,7 +1188,7 @@ class AutoUpdate
 
         $this->_log->notice('Back Checking for a new download...');
 
-        $versions = $this->_cache->get('update-versions');
+        $versions = null; // $this->_cache->get('update-versions');
         // Create absolute url to update file
         $updateFile = $this->_updateUrl . '/' . $this->_updateFile . '/' . $code;
 
@@ -1298,5 +1296,32 @@ class AutoUpdate
             ->withData($data)
             ->asJsonResponse(true)
             ->get();
+    }
+
+    public function remoteSystemVersion()
+    {
+        $updateFile = $this->_updateUrl . '/' . $this->_updateFile;
+
+        $update = Curl::to($updateFile)
+            ->withHeader(
+                "Authorization: Basic " . base64_encode("{$this->_username}:{$this->_password}")
+            )
+            ->get();
+
+        return $update;
+    }
+
+    public function showLog($page)
+    {
+        $updateFile = $this->_updateUrl . '/' . $this->_updateFile;
+
+        $log = Curl::to($updateFile)
+            ->withHeader(
+                "Authorization: Basic " . base64_encode("{$this->_username}:{$this->_password}")
+            )
+            ->withData(['page' => $page])
+            ->get();
+
+        return $log;
     }
 }

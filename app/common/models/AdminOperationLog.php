@@ -15,6 +15,7 @@ class AdminOperationLog extends BaseModel
 {
     protected $table = 'yz_admin_operation_log';
     public $timestamps = true;
+    protected $guarded = ['id'];
     protected $casts = [
         'after' => 'json',
         'before' => 'json',

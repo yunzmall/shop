@@ -4,33 +4,21 @@ namespace app\frontend\modules\goods\controllers;
 
 use app\backend\modules\goods\models\Brand;
 use app\common\components\ApiController;
-use app\common\components\BaseController;
 use app\common\exceptions\AppException;
-use app\common\exceptions\MemberNotLoginException;
 use app\common\facades\Setting;
 use app\common\models\Category;
-use app\common\models\goods\Privilege;
-use app\common\models\OrderGoods;
+use app\common\models\goods\GoodsFiltering;
+use app\common\models\SearchFiltering;
 use app\framework\Http\Request;
-use app\frontend\models\Member;
 use app\frontend\modules\goods\models\Goods;
-use app\common\models\GoodsSpecItem;
 use app\common\services\goods\SaleGoods;
 use app\common\services\goods\VideoDemandCourseGoods;
-use app\common\models\MemberShopInfo;
-use app\frontend\modules\member\controllers\ServiceController;
-use app\frontend\modules\member\services\MemberService;
+use app\frontend\modules\goods\services\TradeGoodsPointsServer;
 use Illuminate\Support\Facades\DB;
-use Monolog\Handler\IFTTTHandler;
 use Yunshop\Commission\Common\Services\GoodsDetailService;
 use Yunshop\Designer\models\ViewSet;
-use Yunshop\FreightPricing\models\ContentModel;
 use Yunshop\GoodsLink\services\GetGoodsDocService;
-use Yunshop\MarketSub\models\MarketSubGoods;
-use Yunshop\ProductMarket\models\ProductMarketGoodsModel;
 use Yunshop\Room\models\Room;
-use Yunshop\ServiceFee\models\ServiceFeeModel;
-use Yunshop\StoreCashier\common\services\CustomerService;
 use Yunshop\StoreCashier\store\models\StoreGoods;
 use Yunshop\TeamDividend\Common\Services\TeamDividendGoodsDetailService;
 use Yunshop\Commission\models\Agents;
@@ -38,616 +26,68 @@ use Yunshop\Love\Common\Models\GoodsLove;
 use app\frontend\modules\coupon\models\Coupon;
 use app\frontend\modules\coupon\controllers\MemberCouponController;
 use app\common\services\goods\LeaseToyGoods;
-use Yunshop\Supplier\common\models\SupplierGoods;
 use Yunshop\TeamDividend\models\TeamDividendAgencyModel;
 use app\common\models\MemberLevel;
-use app\common\models\MemberGroup;
 use Yunshop\StoreCashier\common\models\StoreSetting;
 use app\frontend\modules\goods\models\Comment;
 use Yunshop\TeamSales\common\services\GoodsListService;
 use Yunshop\Decorate\models\DecorateTempletModel;
-use Yunshop\WxVideoLink\common\model\WxVideoLikeSetModel;
 
-/**
- * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
- * Date: 2017/3/3
- * Time: 22:16
- */
-class GoodsController extends GoodsApiController
+
+class GoodsController extends ApiController
 {
-    protected $publicAction = ['getRecommendGoods'];
-    protected $ignoreAction = ['getRecommendGoods'];
+    protected $publicAction = ['getRecommendGoods','searchGoods'];
+    protected $ignoreAction = ['getRecommendGoods','searchGoods'];
 
-    // 拆分getGoods方法，分离和插件相关的部分，只提取属于商品的信息。和插件相关的部分在getGoods中处理
-    protected function _getGoods($id, $integrated = null)
-    {
-        $goods_model = \app\common\modules\shop\ShopConfig::current()->get('goods.models.commodity_classification');
-        $goods_model = new $goods_model;
-        try {
-            $member = Member::current()->yzMember;
-        } catch (MemberNotLoginException  $e) {
-            if (\YunShop::request()->type == 1) {
-                return;
-            }
+	public function __construct()
+	{
+		parent::__construct();
+		$is_new_goods = 0;
+		if (app('plugins')->isEnabled('decorate') && \Setting::get('plugin.decorate.is_open') == "1") {
+			//商品模版
+			if (!empty(\YunShop::request()->pc) && app('plugins')->isEnabled('pc-terminal')) {
+				$pc_status = \Yunshop\PcTerminal\service\SetService::getPcStatus(); //PC端开启状态
+			}
 
-            throw new MemberNotLoginException($e->getMessage(), $e->getData());
-        }
-
-        $goodsModel = $goods_model->uniacid()
-            ->with([
-                'hasManyParams' => function ($query) {
-                    return $query->select('goods_id', 'title', 'value')->orderby('displayorder', 'asc');
-                },
-                'hasManySpecs' => function ($query) {
-                    return $query->select('id', 'goods_id', 'title', 'description');
-                },
-                'hasManyOptions' => function ($query) {
-                    return $query->select('id', 'goods_id', 'title', 'thumb', 'product_price', 'market_price', 'stock', 'specs', 'weight');
-                },
-                'hasManyDiscount' => function ($query) use ($member) {
-                    return $query->where('level_id', $member->level_id);
-                },
-                'hasOneBrand' => function ($query) {
-                    return $query->select('id', 'logo', 'name', 'desc');
-                },
-                'hasOneShare',
-                'hasOneGoodsDispatch',
-                'hasOnePrivilege',
-                'hasOneSale',
-                'hasOneGoodsCoupon',
-                'hasOneInvitePage',
-                'hasOneGoodsLimitBuy',
-                'hasOneGoodsVideo',
-            ])
-            ->find($id);
-
-        $goodsModel->vip_level_status;
-        if (!$goodsModel) {
-            if (is_null($integrated)) {
-                return $this->errorJson('商品不存在.');
-            } else {
-                return show_json(0, '商品不存在.');
-            }
-        }
-
-        //限时购 todo 后期优化 应该是前端优化
-//        $current_time = time();
-//        if (!is_null($goodsModel->hasOneGoodsLimitBuy)) {
-//            if ($goodsModel->hasOneGoodsLimitBuy->end_time < $current_time && $goodsModel->hasOneGoodsLimitBuy->status == 1) {
-//                $goodsModel->status = 0;
-//                $goodsModel->save();
-//            }
-//        }
-
-        $current_time = time();
-        if (!is_null($goodsModel->hasOneGoodsLimitBuy)) {
-            if ($goodsModel->hasOneGoodsLimitBuy->end_time < $current_time && $goodsModel->hasOneGoodsLimitBuy->status == 1) {
-                if (is_null($integrated)) {
-                    return $this->errorJson('商品限时购已到期.');
-                } else {
-                    return show_json(0, '商品限时购已到期.');
-                }
-            }
-        }
-
-        if (!$goodsModel->status) {
-            if (is_null($integrated)) {
-                return $this->errorJson('商品已下架.');
-            } else {
-                return show_json(0, '商品已下架.');
-            }
-        }
-
-        $goodsModel->is_added = \Setting::get('shop.member.added') ?: 1;
-
-        //商品品牌处理
-        if ($goodsModel->hasOneBrand) {
-            $goodsModel->hasOneBrand->desc = html_entity_decode($goodsModel->hasOneBrand->desc);
-            $goodsModel->hasOneBrand->logo = yz_tomedia($goodsModel->hasOneBrand->logo);
-        }
-
-        //商品规格图片处理
-        if ($goodsModel->hasManyOptions && $goodsModel->hasManyOptions->toArray()) {
-            foreach ($goodsModel->hasManyOptions as &$item) {
-                $item->thumb = replace_yunshop(yz_tomedia($item->thumb));
-            }
-        }
-        $goodsModel->content = html_entity_decode($goodsModel->content);
-        if ($goodsModel->has_option) {
-            $goodsModel->min_price = $goodsModel->hasManyOptions->min("product_price");
-            $goodsModel->max_price = $goodsModel->hasManyOptions->max("product_price");
-            $goodsModel->stock = $goodsModel->hasManyOptions->sum('stock');
-        }
-        foreach ($goodsModel->hasManySpecs as &$spec) {
-            $spec['specitem'] = GoodsSpecItem::select('id', 'title', 'specid', 'thumb')->where('show', 1)->where('specid', $spec['id'])->orderBy('display_order', 'asc')->get();
-            foreach ($spec['specitem'] as &$specitem) {
-                $specitem['thumb'] = yz_tomedia($specitem['thumb']);
-            }
-        }
-
-        $goodsModel->setHidden(
-            [
-                'deleted_at',
-                'created_at',
-                'updated_at',
-                'cost_price',
-                'real_sales',
-                'is_deleted',
-                'reduce_stock_method',
-            ]);
-
-        //商品图片处理
-        if ($goodsModel->thumb) {
-            $goodsModel->thumb = yz_tomedia($goodsModel->thumb);
-        }
-        if ($goodsModel->thumb_url) {
-            $thumb_url = unserialize($goodsModel->thumb_url);
-            foreach ($thumb_url as &$item) {
-                $item = yz_tomedia($item);
-            }
-            $goodsModel->thumb_url = $thumb_url;
-        }
-
-        //商品视频处理
-        if (!is_null($goodsModel->hasOneGoodsVideo) && $goodsModel->hasOneGoodsVideo->goods_video) {
-            $goodsModel->goods_video = yz_tomedia($goodsModel->hasOneGoodsVideo->goods_video);
-            $goodsModel->video_image = $goodsModel->hasOneGoodsVideo->video_image ? yz_tomedia($goodsModel->hasOneGoodsVideo->video_image) : yz_tomedia($goodsModel->thumb);
-        } else {
-            $goodsModel->goods_video = '';
-            $goodsModel->video_image = '';
-        }
-
-        //验证浏览权限
-        $this->validatePrivilege($goodsModel, $member);
-
-        //商品营销 todo 优化新的
-        $goodsModel->goods_sale = $this->getGoodsSaleV2($goodsModel, $member);
-        $goodsModel->love_shoppin_gift = $this->loveShoppingGift($goodsModel);
-
-        //商品会员优惠
-        $goodsModel->member_discount = $this->getDiscount($goodsModel, $member);
-
-        //商品是否开启领优惠卷
-        $goodsModel->availability = $this->couponsMemberLj($member);
-
-
-        // 商品详情挂件
-        if (\app\common\modules\shop\ShopConfig::current()->get('goods_detail')) {
-            foreach (\app\common\modules\shop\ShopConfig::current()->get('goods_detail') as $key_name => $row) {
-                $row_res = $row['class']::{$row['function']}($id, true);
-                if ($row_res) {
-                    $goodsModel->$key_name = $row_res;
-                    //供应商在售商品总数
-                    $class = new $row['class']();
-                    if (method_exists($class, 'getGoodsIdsBySid')) {
-                        $supplier_goods_id = SupplierGoods::getGoodsIdsBySid($goodsModel->supplier->id);
-                        $supplier_goods_count = Goods::select('id')
-                            ->whereIn('id', $supplier_goods_id)
-                            ->where('status', 1)
-                            ->count();
-                        $goodsModel->supplier_goods_count = $supplier_goods_count;
-                    }
-                }
-            }
-        }
-
-
-        if ($goodsModel->hasOneShare) {
-            $goodsModel->hasOneShare->share_thumb = yz_tomedia($goodsModel->hasOneShare->share_thumb);
-        }
-        /*
-        //设置商品相关插件信息
-        $this->setGoodsPluginsRelations($goodsModel);
-        */
-        //该商品下的推广
-        $goodsModel->show_push = $goodsModel->hasOneSale ? SaleGoods::getPushGoods($goodsModel->hasOneSale) : [];
-        //销量等于虚拟销量加真实销量
-//        $goodsModel->show_sales += $goodsModel->virtual_sales;
-
-        $goodsModel->get_comment = $this->getComment($id);
-
-        $goodsModel->favorable_rate = $this->favorableRate($id);
-        return $goodsModel;
-    }
-
-    public function getGoods(Request $request, $integrated = null)
-    {
-        app('db')->cacheSelect = true;
-        $id = intval(\YunShop::request()->id);
-        if (!$id) {
-            if (is_null($integrated)) {
-                return $this->errorJson('请传入正确参数.');
-            } else {
-                return show_json(0, '请传入正确参数.');
-            }
-
-        }
-
-        $goodsModel = $this->_getGoods($id);
-        //设置商品相关插件信息
-        $this->setGoodsPluginsRelations($goodsModel);
-
-        //供应商logo转格式
-        if (!empty($goodsModel->supplier)) {
-            $goodsModel->supplier->logo = yz_tomedia($goodsModel->supplier->logo);
-        }
-        //默认供应商店铺名称
-        if ($goodsModel->supplier->store_name == 'null') {
-            $goodsModel->supplier->store_name = $goodsModel->supplier->user_name;
-        }
-
-        //判断该商品是否是视频插件商品
-        $videoDemand = new VideoDemandCourseGoods();
-        $goodsModel->is_course = $videoDemand->isCourse($id);
-
-        //商城租赁
-        //TODO 租赁插件是否开启 $lease_switch
-        $lease_switch = LeaseToyGoods::whetherEnabled();
-        $this->goods_lease_set($goodsModel, $lease_switch);
-
-        //判断是否酒店商品
-        $goodsModel->is_hotel = $goodsModel->plugin_id == 33 ? 1 : 0;
-        $goodsModel->is_store = $goodsModel->plugin_id == 32 ? 1 : 0;
-
-
-        if (app('plugins')->isEnabled('label')) {
-            $goodsModel->label = '';
-            $pic = Setting::get('plugin.label');
-            if ($pic['is_label']) {
-                $goodsModel->label = $pic;
-            }
-        }
-
-//        $goodsModel->get_comment = $this->getComment($id);
-//
-//        $goodsModel->favorable_rate = $this->favorableRate($id);
-
-        //商品服务费
-        $this->goodsServiceFree($goodsModel);
-
-        $this->goodsProductMarket($goodsModel);
-
-        //优惠券价
-        $coupon = \app\common\models\Coupon::uniacid()->where('use_type', 2)->where('get_type', 1)->get();
-        $goods_coupon = null;
-        if (\Setting::get('shop.coupon.is_show_coupon')) {
-            foreach ($coupon as $key => $value) {
-                if ($value->time_limit == 1) {
-                    if (time() < $value->time_statt || time() > $value->time_end) continue;
-                }
-                if (in_array($goodsModel->id, $value['goods_ids']) || $goodsModel->id == $value['goods_ids']) {
-                    if ($value['coupon_method'] == 1) {
-                        $goods_coupon['deduct_price'] = bcsub($goodsModel->price, $value['deduct'], 2);  //立减折扣//抵扣金额
-                        $goods_coupon['coupon_method'] = $value['coupon_method'];
-                        $goods_coupon['deduct'] = $value['deduct'];
-                        $goods_coupon['discount'] = $value['discount'];
-                    } else if ($value['coupon_method'] == 2) {
-                        $goods_coupon['deduct_price'] = bcmul($goodsModel->price, $value['discount'] / 10, 2); //打折优惠
-                        $goods_coupon['coupon_method'] = $value['coupon_method'];
-                        $goods_coupon['discount'] = $value['discount'];
-                        $goods_coupon['deduct'] = $value['deduct'];
-                    }
-                    if ($goods_coupon['deduct_price'] < 0) {
-                        $goods_coupon['deduct_price'] = 0;
-                    }
-                }
-            }
-        }
-
-        $goodsModel->coupon = $goods_coupon;
-
-
-        if (app('plugins')->isEnabled('team-sales')) {
-            $goodsModel->team_sales_first = GoodsListService::getFirstDividendDetail($goodsModel);
-        }
-
-
-        if (is_null($integrated)) {
-            return $this->successJson('成功', $goodsModel);
-        } else {
-            return show_json(1, $goodsModel);
-        }
-
-    }
+			if (!empty($pc_status)) {
+				$view_set = DecorateTempletModel::getList(['is_default' => 1, 'type' => 6], '*', false);
+				if ($view_set && $view_set->code == 'PCGoods02') {
+					$is_new_goods = 1;
+				}
+			} else {
+				$view_set = DecorateTempletModel::getList(['is_default' => 1, 'type' => 4], '*', false);
+				if ($view_set && $view_set->code == 'goods02') {
+					$is_new_goods = 1;
+				}
+			}
+		}
+		if ($is_new_goods == 1) {
+			$this->publicAction[] = request()->route()->getActionMethod();
+			$this->ignoreAction[] = request()->route()->getActionMethod();
+		}
+	}
 
     public function getGoodsPage()
     {
 
         $goods_id = request()->id;
         //查出商品模型
+        $ims = DB::getTablePrefix();
         $goods_model = app('GoodsDetail')->make('Goods')->find($goods_id);
         if (is_null($goods_model)) {
             return $this->errorJson('商品不存在');
         }
-        //实例化所有商品详情类
-        app('GoodsDetail')->initDetailInstance();
         //设置商品详情主类
         app('GoodsDetail')->setDetailInstance($goods_model);
         //获取商品详情主类
         $detail_service = app('GoodsDetail')->make('GoodsDetailInstance');
         //初始化数据
         $detail_service->init($goods_model);
+
         //获取商品数据
         $detail_service->getData();
+
         return $this->successJson('成功', $detail_service->detail_data);
-    }
-
-    public function oldgetGoodsPage()
-    {
-        //查询加缓存
-        app('db')->cacheSelect = true;
-        $is_new_goods = 0;
-
-        if (app('plugins')->isEnabled('decorate') && \Setting::get('plugin.decorate.is_open') == "1") {
-            //商品模版
-            $pc_status = 0;
-            if (!empty(\YunShop::request()->pc) && app('plugins')->isEnabled('pc-terminal')) {
-                $pc_status = \Yunshop\PcTerminal\service\SetService::getPcStatus(); //PC端开启状态
-            }
-            if (!empty($pc_status)) {
-                $view_set = DecorateTempletModel::getList(['is_default' => 1, 'type' => 6], '*', false);
-                if ($view_set && $view_set->code == 'PCGoods02') {
-                    $is_new_goods = 1;
-                }
-            } else {
-                $view_set = DecorateTempletModel::getList(['is_default' => 1, 'type' => 4], '*', false);
-                if ($view_set && $view_set->code == 'goods02') {
-                    $is_new_goods = 1;
-                }
-            }
-        } elseif (app('plugins')->isEnabled('designer')) {
-            //商品模版
-            $view_set = ViewSet::uniacid()->where('type', 'goods')->first();
-            if (!empty($view_set) && $view_set->names == '02') {
-                $is_new_goods = 1;
-            }
-        }
-
-        //直播插件
-        $this->apiData['is_room'] = (integer)(app('plugins')->isEnabled('room') && Setting::get('plugin.room_set_basic')['is_open_room']);
-
-        //客服设置
-        //1.商城客服设置
-        $shopSet = \Setting::get('shop.shop');
-        $shop_cservice = $shopSet['cservice'] ?: '';
-
-        foreach ((new ServiceController())->index() as $k => $v) {
-            $this->apiData[$k] = $v;
-        }
-        //2.客服插件设置
-        $alonge_cservice = $this->apiData['cservice'];
-
-        if (!is_null(\app\common\modules\shop\ShopConfig::current()->get('customer_service'))) {
-            $class = array_get(\app\common\modules\shop\ShopConfig::current()->get('customer_service'), 'class');
-            $function = array_get(\app\common\modules\shop\ShopConfig::current()->get('customer_service'), 'function');
-            $ret = $class::$function(request()->id, request()->type);
-            if ($ret) {
-                if (is_array($ret)) {
-                    foreach ($ret as $rk => $rv) {
-                        $this->apiData[$rk] = $rv;
-                    }
-                }
-            }
-        }
-
-
-        //3.门店单独客服设置
-        $store_cservice = "";
-        if (class_exists('\Yunshop\StoreCashier\common\services\CustomerService')) {
-            $storeSet = CustomerService::getCservice(request()->id, request()->type);
-            if ($storeSet) {
-                if (is_array($storeSet)) {
-                    foreach ($storeSet as $sk => $sv) {
-                        $this->apiData[$sk] = $sv;
-                    }
-                }
-                //先将门店单独客服设置的cservice取出
-                if ($storeSet['cservice']) {
-                    $store_cservice = $storeSet['cservice'];
-                }
-            }
-
-        }
-
-        $rg_cservice = "";
-        if ($is_new_goods == 1) {
-            $newGoodsController = new NewGoodsController();
-            $request = request();
-            $this->dataIntegrated($newGoodsController->getGoods($request, true), 'get_goods');
-            $this->dataIntegrated($newGoodsController->getGoodsType($request, true), 'goods_type');
-
-            $storeId = $this->apiData['get_goods']->store_goods->store_id;
-
-            //4.人工客服设置
-            if ($storeId) {
-                if (class_exists('\Yunshop\StoreCashier\store\models\StoreService')) {
-                    $storeModel = new \Yunshop\StoreCashier\store\models\StoreService();
-                    $store_service = $storeModel->where("store_id", $storeId)->first();
-                    if ($store_service) {
-                        $rg_cservice = $store_service['service'];
-                    }
-                }
-            }
-
-
-            if ($storeId) {
-                if (class_exists('\Yunshop\StoreCashier\frontend\store\NewGoodsController')) {
-                    if ($this->apiData['goods_type']['store_id']) {
-                        $this->dataIntegrated(\Yunshop\StoreCashier\frontend\store\NewGoodsController::getStoreService($request, true, $this->apiData['goods_type']['store_id']), 'store_service');
-                    }
-                    $this->dataIntegrated(\Yunshop\StoreCashier\frontend\store\NewGoodsController::getInfobyStoreId($request, true, $storeId), 'get_store_Info');
-                    if (MemberService::isLogged()) {
-                        $this->dataIntegrated(\Yunshop\StoreCashier\frontend\shoppingCart\MemberCartController::index($request, true, $storeId), 'member_cart');
-                    }
-                } else {
-                    return $this->errorJson('门店插件未开启');
-                }
-            }
-
-            if ($this->apiData['get_goods']->is_hotel) {
-                if (class_exists('\Yunshop\Hotel\frontend\hotel\NewGoodsController')) {
-                    $this->dataIntegrated(\Yunshop\Hotel\frontend\hotel\NewGoodsController::getGoodsDetailByGoodsId($request, true), 'get_hotel_info');
-                } else {
-                    return $this->errorJson('酒店插件未开启');
-                }
-            }
-
-            if (Setting::get('shop.member')['display_page'] == 1 && Setting::get('shop.member')['level_type'] == 2) {
-                $this->apiData['display_page'] = 1;
-            } else {
-                $this->apiData['display_page'] = 0;
-            }
-
-            $this->dataIntegrated($this->pluginEnabled(), 'pluginEnabled');
-        } else {
-            $request = request();
-            $this->dataIntegrated($this->getGoods($request, true), 'get_goods');
-            $this->dataIntegrated($this->getGoodsType($request, true), 'goods_type');
-            $storeId = $this->apiData['get_goods']->store_goods->store_id;
-
-            //人工客服设置
-            if ($storeId) {
-                if (class_exists('\Yunshop\StoreCashier\store\models\StoreService')) {
-                    $storeModel = new \Yunshop\StoreCashier\store\models\StoreService();
-                    $store_service = $storeModel->where("store_id", $storeId)->first();
-                    if ($store_service) {
-                        $rg_cservice = $store_service['service'];
-                    }
-                }
-            }
-
-            if ($storeId) {
-                if (class_exists('\Yunshop\StoreCashier\frontend\store\GetStoreInfoController')) {
-                    if ($this->apiData['goods_type']['store_id']) {
-                        $this->dataIntegrated(\Yunshop\StoreCashier\frontend\store\StoreController::getStoreService($request, true, $this->apiData['goods_type']['store_id']), 'store_service');
-                    }
-                    $this->dataIntegrated(\Yunshop\StoreCashier\frontend\store\GetStoreInfoController::getInfobyStoreId($request, true, $storeId), 'get_store_Info');
-                    $this->dataIntegrated(\Yunshop\StoreCashier\frontend\shoppingCart\MemberCartController::index($request, true, $storeId), 'member_cart');
-                    if (!is_null($event_arr = \app\common\modules\shop\ShopConfig::current()->get('form_store_member_cart'))) {
-                        foreach ($event_arr as $v) {
-                            $class = array_get($v, 'class');
-                            $function = array_get($v, 'function');
-                            $this->dataIntegrated($class::$function($this->apiData), 'member_cart');
-                        }
-                    }
-                } else {
-                    return $this->errorJson('门店插件未开启');
-                }
-                // todo 门店预约商品信息
-            }
-            if ($this->apiData['get_goods']->is_hotel) {
-                if (class_exists('\Yunshop\Hotel\frontend\hotel\GoodsController')) {
-                    $this->dataIntegrated(\Yunshop\Hotel\frontend\hotel\GoodsController::getGoodsDetailByGoodsId($request, true), 'get_hotel_info');
-                } else {
-                    return $this->errorJson('酒店插件未开启');
-                }
-            }
-
-            if (app('plugins')->isEnabled('guide-page')) {
-                if (class_exists('\Yunshop\GuidePage\frontend\GuidePageController')) {
-                    $this->dataIntegrated(\Yunshop\GuidePage\frontend\GuidePageController::index(), 'get_guidepage_info');
-                } else {
-                    return $this->errorJson('引导页插件未开启');
-                }
-            }
-
-            if (Setting::get('shop.member')['display_page'] == 1 && Setting::get('shop.member')['level_type'] == 2) {
-                $this->apiData['display_page'] = 1;
-            } else {
-                $this->apiData['display_page'] = 0;
-            }
-
-            $this->dataIntegrated(\app\frontend\modules\member\controllers\MemberHistoryController::store($request, true), 'store');
-            $this->dataIntegrated(\app\frontend\modules\member\controllers\MemberFavoriteController::isFavorite($request, true), 'is_favorite');
-
-            $this->dataIntegrated($this->pluginEnabled(), 'pluginEnabled');
-        }
-
-        //满足1.门店独立设置 2.客服插件 3.人工客服 4.商城
-        if ($store_cservice) {
-            $this->apiData['cservice'] = $store_cservice;
-        } else if ($alonge_cservice) {
-            $this->apiData['cservice'] = $alonge_cservice;
-        } else if ($rg_cservice) {
-            $this->apiData['cservice'] = $rg_cservice;
-        } else {
-            $this->apiData['cservice'] = $shop_cservice;
-        }
-
-
-        //自购省
-        if (!is_null(\app\common\modules\shop\ShopConfig::current()->get('selfbuy_discount_show')) && empty($is_new_goods)) {
-            $class = array_get(\app\common\modules\shop\ShopConfig::current()->get('selfbuy_discount_show'), 'class');
-            $function = array_get(\app\common\modules\shop\ShopConfig::current()->get('selfbuy_discount_show'), 'function');
-            if (empty($this->api_data['get_goods']['member_discount'])) {
-                $g = $this->_getGoods($request->id, true);
-                $g = $g ? ['get_goods' => $g->toArray()] : [];
-                $this->dataIntegrated($class::$function($request, $g), 'selfbuy_discount');
-            } else {
-                $this->dataIntegrated($class::$function($request, $this->apiData), 'selfbuy_discount');
-            }
-        }
-
-        $this->apiData["wechatcircle_open"] = 0;
-        if (app('plugins')->isEnabled('wechatcircle_products') && Setting::get("plugin.wechatcircle_products")['is_open'] == 1) {
-            $this->apiData["wechatcircle_open"] = 1;
-        }
-
-        //订单飘窗
-        if (!is_null(\app\common\modules\shop\ShopConfig::current()->get('broadcast_data'))) {
-            $class = array_get(\app\common\modules\shop\ShopConfig::current()->get('broadcast_data'), 'class');
-            $function = array_get(\app\common\modules\shop\ShopConfig::current()->get('broadcast_data'), 'function');
-            $ret = $class::$function();
-            if ($ret) {
-                $this->apiData['broadcast_data'] = $ret;
-            }
-        }
-
-
-        //拓客卡
-        if ($this->apiData['goods_type']['customer_development'] == 1) {
-            if (app('plugins')->isEnabled('customer-development')) {
-                if (!is_null(\app\common\modules\shop\ShopConfig::current()->get('customer_development_goods'))) {
-                    $class = array_get(\app\common\modules\shop\ShopConfig::current()->get('customer_development_goods'), 'class');
-                    $function = array_get(\app\common\modules\shop\ShopConfig::current()->get('customer_development_goods'), 'function');
-                    $this->apiData['customer_development'] = $class::$function(request()->id);
-                }
-            } else {
-                return $this->errorJson('拓客卡插件未开启');
-            }
-        }
-
-        //抽奖数据
-        if (!is_null(\app\common\modules\shop\ShopConfig::current()->get('luck-draw'))) {
-            $class = array_get(\app\common\modules\shop\ShopConfig::current()->get('luck-draw'), 'class');
-            $function = array_get(\app\common\modules\shop\ShopConfig::current()->get('luck-draw'), 'function');
-            $ret = $class::$function($request->id);
-            if ($ret) {
-                $this->apiData['luck_draw'] = $ret;
-            }
-        }
-
-        return $this->successJson('', $this->apiData);
-    }
-
-
-    /**
-     * 判断插件当前是否启用
-     * @return array
-     */
-    protected function pluginEnabled()
-    {
-        $data['package_deliver_enabled'] = app('plugins')->isEnabled('package-deliver') ? 1 : 0;
-        $data['help_center_enabled'] = app('plugins')->isEnabled('help-center') ? 1 : 0;
-
-        if (app('plugins')->isEnabled('wx-video-link')) {
-            $set = WxVideoLikeSetModel::uniacid()->first();
-            $data['wx_video_link'] = $set['is_open'];
-//	        $data['wx_video_link'] = app('plugins')->isEnabled('wx-video-link')?1:0;
-        }
-
-        return show_json(1, $data);
     }
 
     /**
@@ -738,11 +178,7 @@ class GoodsController extends GoodsApiController
      * @param $member
      * @throws \app\common\exceptions\AppException
      */
-    public function validatePrivilege($goodsModel, $member)
-    {
-        Privilege::validatePrivilegeLevel($goodsModel, $member);
-        Privilege::validatePrivilegeGroup($goodsModel, $member);
-    }
+
 
     private function setGoodsPluginsRelations($goods)
     {
@@ -753,16 +189,20 @@ class GoodsController extends GoodsApiController
         });
     }
 
+    protected function getGoodsModel()
+    {
+        $goods_model = \app\common\modules\shop\ShopConfig::current()->get('goods.models.commodity_classification');
+        return new $goods_model;
+    }
+
     public function searchGoods()
     {
-        app('db')->cacheSelect = true;
+        app('db')->cacheSelect = false;
         $requestSearch = \YunShop::request()->search;
-
+        $plugin_id = \YunShop::request()->plugin_id;//搜索特定插件商品
         $order_field = \YunShop::request()->order_field;
-
-        $goods_model = \app\common\modules\shop\ShopConfig::current()->get('goods.models.commodity_classification');
-        $goods_model = new $goods_model;
-        if (!in_array($order_field, ['price', 'show_sales', 'comment_num'])) {
+        $goods_model = $this->getGoodsModel();
+        if (!in_array($order_field, ['price', 'show_sales', 'comment_num', 'min_price', 'max_price'])) {
             $order_field = 'display_order';
         } else {
             if ($order_field == 'show_sales') {
@@ -771,74 +211,97 @@ class GoodsController extends GoodsApiController
             }
         }
         $order_by = (\YunShop::request()->order_by == 'asc') ? 'asc' : 'desc';
-
         if ($requestSearch) {
             $requestSearch = array_filter($requestSearch, function ($item) {
-                return !empty($item) && $item !== 0 && $item !== "undefined";
+                return !empty($item) && $item !== 0  && $item !== "undefined";
             });
-
             $categorySearch = array_filter(\YunShop::request()->category, function ($item) {
                 return !empty($item);
             });
-
             if ($categorySearch) {
                 $requestSearch['category'] = $categorySearch;
             }
         }
-        $build = $goods_model->Search($requestSearch)->selectRaw("thumb,real_sales+virtual_sales total_sales,market_price,price,cost_price,title, " . DB::getTablePrefix() . "yz_goods.id as goods_id")
-            ->where("yz_goods.status", 1)
-            ->whereInPluginIds();
-
-        //todo 为什么要取出id, 这样mysql where in的好长
-        /*$id_arr = collect($list->get())->map(function ($rows) {
-            return $rows['id'];
-        });*/
-
+        //增加默认搜索不隐藏的商品
+        $requestSearch['is_hide'] = 1;
+        $ims = DB::getTablePrefix();
+        $goods_select = $ims . 'yz_goods.has_option,' . $ims . "yz_goods.id,thumb,plugin_id,real_sales+virtual_sales total_sales,market_price,price,min_price,max_price,cost_price,title," . $ims . "yz_goods.stock, " . $ims . "yz_goods.id as goods_id";
+        $option_select = 'goods_id,product_price,market_price,stock,cost_price';
+        $build = $goods_model->SearchList($requestSearch)
+            ->selectRaw($goods_select)
+            ->with(['hasManyOptions' => function ($query) use ($option_select) {
+                $query->selectRaw($option_select);
+            }])
+            ->where("yz_goods.status", 1);
+        if (app('plugins')->isEnabled('good-style')) {
+            $build = $build->with(['goodStyle' => function ($query) {
+                $query->selectRaw('goods_id,current_logo,current_name');
+            }]);
+        }
+        if ($plugin_id) {
+            $build->where('plugin_id', $plugin_id);
+        } else {
+            $build->whereInPluginIds();
+        }
         $list = $build->orderBy($order_field, $order_by)
             ->orderBy('yz_goods.id', 'desc')
             ->paginate(20);
-
-
         if ($list->isEmpty()) {
             return $this->errorJson('没有找到商品.');
         }
-
-
         //TODO 租赁插件是否开启 $lease_switch
         $lease_switch = LeaseToyGoods::whetherEnabled();
-
         //由于之前 foreach 太多了 合在一起
         $list->map(function ($item) use ($lease_switch) {
-
             $item->thumb = yz_tomedia($item->thumb);
             //租赁商品
             $this->goods_lease_set($item, $lease_switch);
+            // 商品标签
+            $this->setGoodsLabel($item);
             $item->id = $item->goods_id;
+            if (Setting::get('goods.profit_show_status')) {
+                if ($item->has_option) {
+                    if ($item->hasManyOptions && $item->hasManyOptions->isNotEmpty()) {
+                        $item->hasManyOptions = $item->hasManyOptions->each(function ($option) {
+                            $option->goods_profit = bcsub($option->product_price, $option->cost_price, 2);
+                            if (bccomp($option->goods_profit, 0, 2) == -1) {
+                                $option->goods_profit = 0;
+                            }
+                        });
+                        $item->min_goods_profit = $item->hasManyOptions->min('goods_profit') ?: 0;
+                    } else {
+                        $item->min_goods_profit = 0;
+                    }
+                } else {
+                    $item->goods_profit = bcsub($item->price, $item->cost_price, 2);
+                    if (bccomp($item->goods_profit, 0, 2) == -1) {
+                        $item->goods_profit = 0;
+                    }
+                    $item->min_goods_profit = $item->goods_profit;
+                }
+            }
             //会员vip价格
             $item->vip_price = $item->vip_price;
             $item->vip_next_price = $item->vip_next_price;
             $item->vip_level_status = $item->vip_level_status;
             $item->price_level = $item->price_level;
             $item->is_open_micro = $item->is_open_micro;
+            $item->goods_points = $this->setGoodPoints($item);
             return $item;
         });
-
         $list = $list->toArray();
-
+        foreach ($list['data'] as &$v){
+            if ($v['has_option'] && $v['has_many_options']){
+                $v['stock'] = array_sum(array_column($v['has_many_options'],'stock'));
+            }
+        }
+        unset($v);
         $category_data = [
             'names' => '01',
             'type' => 'goodsList',
         ];
 
         if (app('plugins')->isEnabled('decorate') && \Setting::get('plugin.decorate.is_open') == 1) {
-
-//            $view_set = \Yunshop\Decorate\models\DecorateTempletModel::uniacid()
-//                ->where('code','goodsList02')
-//                ->where('type',5)
-//                ->where('is_default',1)
-//                ->first();
-//            $category_data = $view_set ? ['names' => '02', 'type' => 'goodsList']: $category_data;
-
             $view_set = \Yunshop\Decorate\models\DecorateTempletModel::uniacid()
                 ->whereIn('code', ['goodsList01', 'goodsList02', 'goodsList03'])
                 ->where('type', 5)
@@ -850,7 +313,6 @@ class GoodsController extends GoodsApiController
                 'goodsList03' => '03',
             ];
             $category_data = $view_set ? ['names' => $tmp[$view_set->code], 'type' => 'goodsList'] : $category_data;
-
             if ($view_set) {
                 $list['data'] = $this->getGoodsCouponSale($list['data']);
                 //团队销售佣金一级分销
@@ -858,16 +320,13 @@ class GoodsController extends GoodsApiController
                     $list['data'] = GoodsListService::getFirstDividend($list['data']);
                 }
             }
-
             if ($category_data['names'] == '03') {
                 if (app('plugins')->isEnabled('love')) {//爱心值天天兑价
                     $list['data'] = \Yunshop\Love\Frontend\Models\GoodsLove::setGoodsLove($list['data']);
                 }
             }
-
         } elseif (app('plugins')->isEnabled('designer')) {
             //商品分类模板
-//            $view_set = ViewSet::uniacid()->where('type', 'goodsList')->first();
             $view_set = ViewSet::uniacid()->where('type', 'goodsList')->select('names', 'type')->first();
             $category_data = $view_set ?: $category_data;
             if (!empty($view_set) && $view_set->names == '02') {
@@ -878,19 +337,25 @@ class GoodsController extends GoodsApiController
                 }
             }
         }
-
         //增加商品链接
         if (app('plugins')->isEnabled('goods-link')) {
             $list['data'] = GetGoodsDocService::getDoc($list['data']);
         }
-
+        //通证价计算
+        if (app('plugins')->isEnabled('pass-price') && \Setting::get('pass-price.set.plugin_enable')) {
+            $list['data'] = \Yunshop\PassPrice\services\PassPriceService::getPass($list['data']);
+        }
         //积分商城
         if (app('plugins')->isEnabled('point-mall')) {
             $list['data'] = \Yunshop\PointMall\api\models\PointMallGoodsModel::setPointGoods($list['data']);
         }
-
         $list['goods_template'] = $category_data;
-
+        $goods_style_set = Setting::get('plugin.good_style');
+        if ($goods_style_set) {
+            $goods_style_set['current_thumb'] = yz_tomedia($goods_style_set['current_thumb']);
+            $goods_style_set['member_thumb'] = yz_tomedia($goods_style_set['member_thumb']);
+        }
+        $list['goods_style_set'] = $goods_style_set;
         return $this->successJson('成功', $list);
     }
 
@@ -973,52 +438,41 @@ class GoodsController extends GoodsApiController
         $goods_model = new $goods_model;
         $brand_id = intval(\YunShop::request()->brand_id);
         $order_field = \YunShop::request()->order_field;
+        $search['keyword'] = \YunShop::request()->keywords;
         if (!in_array($order_field, ['price', 'show_sales', 'comment_num'])) {
             $order_field = 'display_order';
         }
-
         $order_by = (\YunShop::request()->order_by == 'asc') ? 'asc' : 'desc';
-
-
         if (empty($brand_id)) {
             return $this->errorJson('请输入正确的品牌id.');
         }
-
         $brand = Brand::uniacid()->select("name", "logo", "id")->where(['id' => $brand_id])->first();
 
         if (!$brand) {
             return $this->errorJson('没有此品牌.');
         }
-
         $brand->logo = yz_tomedia($brand->logo);
-
-        $goodsList = $goods_model->uniacid()->select('id', 'id as goods_id', 'title', 'thumb', 'price', 'market_price')
+        $build = $goods_model->uniacid()->select('id', 'id as goods_id', 'title', 'thumb', 'price', 'market_price')
             ->where('status', '1')
             ->where('brand_id', $brand_id)
-            ->whereInPluginIds()
-            ->orderBy($order_field, $order_by)
-            ->paginate(20)->toArray();
+            ->search($search)
+            ->whereInPluginIds();
+        if (app('plugins')->isEnabled('good-style')) {
+            $build = $build->with(['goodStyle' => function ($query) {
+                $query->selectRaw('goods_id,current_logo,current_name');
+            }]);
+        }
+        $goodsList = $build->orderBy($order_field, $order_by)->paginate(20)->toArray();
         $goodsList->vip_level_status;
-
         if (empty($goodsList)) {
             return $this->errorJson('此品牌下没有商品.');
         }
-
         $goodsList['data'] = set_medias($goodsList['data'], 'thumb');
-
         $category_data = [
             'names' => '01',
             'type' => 'goodsList',
         ];
         if (app('plugins')->isEnabled('decorate') && \Setting::get('plugin.decorate.is_open') == 1) {
-
-//            $view_set = \Yunshop\Decorate\models\DecorateTempletModel::uniacid()
-//                ->where('code', 'goodsList02')
-//                ->where('type', 5)
-//                ->where('is_default', 1)
-//                ->first();
-//            $category_data = $view_set ? ['names' => '02', 'type' => 'goodsList'] : $category_data;
-//
             $view_set = \Yunshop\Decorate\models\DecorateTempletModel::uniacid()
                 ->whereIn('code', ['goodsList01', 'goodsList02', 'goodsList03'])
                 ->where('type', 5)
@@ -1030,7 +484,6 @@ class GoodsController extends GoodsApiController
                 'goodsList03' => '03',
             ];
             $category_data = $view_set ? ['names' => $tmp[$view_set->code], 'type' => 'goodsList'] : $category_data;
-
             if ($view_set) {
                 $goodsList['data'] = $this->getGoodsCouponSale($goodsList['data']);
                 //团队销售佣金一级分销
@@ -1038,13 +491,11 @@ class GoodsController extends GoodsApiController
                     $goodsList['data'] = GoodsListService::getFirstDividend($goodsList['data']);
                 }
             }
-
             if ($category_data['names'] == '03') {
                 if (app('plugins')->isEnabled('love')) {//爱心值天天兑价
                     $goodsList['data'] = \Yunshop\Love\Frontend\Models\GoodsLove::setGoodsLove($goodsList['data']);
                 }
             }
-
         } elseif (app('plugins')->isEnabled('designer')) {
             //商品分类模板
             // $view_set = ViewSet::uniacid()->where('type', 'goodsList')->first();
@@ -1062,15 +513,18 @@ class GoodsController extends GoodsApiController
         if (app('plugins')->isEnabled('goods-link')) {
             $goodsList['data'] = GetGoodsDocService::getDoc($goodsList['data']);
         }
-
         //积分商城
         if (app('plugins')->isEnabled('point-mall')) {
             $goodsList['data'] = \Yunshop\PointMall\api\models\PointMallGoodsModel::setPointGoods($goodsList['data']);
         }
-
         $goodsList['goods_template'] = $category_data;
+        $goods_style_set = Setting::get('plugin.good_style');
+        if ($goods_style_set) {
+            $goods_style_set['current_thumb'] = yz_tomedia($goods_style_set['current_thumb']);
+            $goods_style_set['member_thumb'] = yz_tomedia($goods_style_set['member_thumb']);
+        }
+        $brand->goods_style_set = $goods_style_set;
         $brand->goods = $goodsList;
-
         return $this->successJson('成功', $brand);
     }
 
@@ -1259,16 +713,17 @@ class GoodsController extends GoodsApiController
         if ($exist_love) {
 
             $love_goods = $this->getLoveSet($goodsModel, $goodsModel->id);
-
             $data['name'] = $love_goods['name'];
+            $deduction_name = \Yunshop\Love\Common\Services\SetService::usableLoveName();
+            $reward_name = \Yunshop\Love\Common\Services\SetService::getRewardLoveName();
             $data['key'] = 'love';
             $data['type'] = 'array';
             if ($love_goods['deduction']) {
-                $data['value'][] = '最高抵扣' . $love_goods['deduction_proportion'] . $data['name'];
+                $data['value'][] = '最高抵扣' . $love_goods['deduction_proportion'] . $deduction_name;
             }
 
             if ($love_goods['award'] && \Setting::get('love.goods_detail_show_love') != 2) {
-                $data['value'][] = '购买赠送' . $love_goods['award_proportion'] . $data['name'];
+                $data['value'][] = '购买赠送' . $love_goods['award_proportion'] . $reward_name;
             }
 
             if (!empty($data['value'])) {
@@ -1674,38 +1129,6 @@ class GoodsController extends GoodsApiController
         return '';
     }
 
-    private function goodsServiceFree(&$goodsModel)
-    {
-        if (app('plugins')->isEnabled('service-fee')) {
-            $serviceFee = Setting::get('plugins.service-fee');
-            if ($serviceFee['service']['open'] == 1) {
-                $serviceFees = ServiceFeeModel::where('goods_id', $goodsModel->id)->first();
-                if ($serviceFees->is_open) {
-                    $fee = ['name' => $serviceFee['service']['name'], 'money' => $serviceFees->fee];
-                    $goodsModel->fee = $fee;
-                }
-            }
-        }
-        return;
-    }
-
-    private function goodsProductMarket(&$goodsModel)
-    {
-        if (app('plugins')->isEnabled('product-market')) {
-            $productMarket = ProductMarketGoodsModel::where('goods_id', $goodsModel->id)->first();
-            if ($productMarket['product']) {
-                $goodsModel->prdocut_market = $productMarket['product'];
-            }
-        }
-        if (app('plugins')->isEnabled('market-sub')) {
-            $productMarket = MarketSubGoods::where('goods_id', $goodsModel->id)->first();
-            if ($productMarket['product']) {
-                $goodsModel->prdocut_market = $productMarket['product'];
-            }
-        }
-        return;
-    }
-
     public function showPush()
     {
         $id = intval(\YunShop::request()->id);
@@ -1780,14 +1203,23 @@ class GoodsController extends GoodsApiController
         foreach ($arrComment['images'] as &$image) {
             $image = yz_tomedia($image);
         }
+
+//        if ($arrComment['append']) {
+//            foreach ($arrComment['append'] as &$comment) {
+//                $comment['images'] = unserialize($comment['images']);
+//                foreach ($comment['images'] as &$image) {
+//                    $image = yz_tomedia($image);
+//                }
+//            }
+//        }
+
         if ($arrComment['append']) {
-            foreach ($arrComment['append'] as &$comment) {
-                $comment['images'] = unserialize($comment['images']);
-                foreach ($comment['images'] as &$image) {
-                    $image = yz_tomedia($image);
-                }
+            $arrComment['append']['images'] = unserialize($arrComment['append']['images']);
+            foreach ($arrComment['append']['images'] as &$image) {
+                $image = yz_tomedia($image);
             }
         }
+
         if ($arrComment['has_many_reply']) {
             foreach ($arrComment['has_many_reply'] as &$comment) {
                 $comment['images'] = unserialize($comment['images']);
@@ -1873,5 +1305,76 @@ class GoodsController extends GoodsApiController
         }
     }
 
+    /**
+     * @description 获取商品积分
+     * @param $goodsModel
+     * @return mixed|string
+     */
+    private function setGoodPoints($goodsModel)
+    {
+        $points = '';
 
+        $tradeGoodsPointsServer = new TradeGoodsPointsServer();
+
+        if ($tradeGoodsPointsServer->close(TradeGoodsPointsServer::SEARCH_PAGE)) {
+            return $points;
+        }
+
+        $tradeGoodsPointsServer->getPointSet($goodsModel);
+        $points = $tradeGoodsPointsServer->finalSetPoint($points);
+
+        return $tradeGoodsPointsServer->getPoint($points, $goodsModel->price, $goodsModel->cost_price);
+    }
+
+    public function getLimitBuyGoods()
+    {
+        $page_size = request()->page_size ? : 20;
+        $goods_model = \app\common\modules\shop\ShopConfig::current()->get('goods.models.commodity_classification');
+        $goods_model = new $goods_model;
+        $goods = $goods_model->uniacid()->select('yz_goods.id','yz_goods.title','yz_goods.thumb','yz_goods.market_price',
+            'yz_goods.show_sales','yz_goods.virtual_sales','yz_goods.price','yz_goods.stock','yz_goods.has_option', 'yz_goods.plugin_id',
+            'yz_goods_limitbuy.start_time','yz_goods_limitbuy.end_time')
+            ->join('yz_goods_limitbuy',function ($join) {
+                $join->on('yz_goods.id','=','yz_goods_limitbuy.goods_id')->where(function ($where) {
+                    return $where->where('yz_goods_limitbuy.status',1)
+                        ->where('yz_goods_limitbuy.start_time' ,'<=',time())
+                        ->where('yz_goods_limitbuy.end_time' ,'>',time());
+                });
+            })
+            ->with(['hasManyOptions' => function($query){
+                $query->select('id', 'goods_id', 'title', 'thumb', 'product_price', 'market_price', 'stock', 'specs', 'weight');
+            }])
+            ->where('yz_goods.status',1)
+            ->orderBy('yz_goods.is_recommand','desc')
+            ->orderBy('yz_goods.display_order','desc')
+            ->orderBy('yz_goods.id', 'desc');
+
+        $goods = $goods->paginate($page_size);
+
+        foreach ($goods as $good) {
+            //前端需要goods_id
+            $good->goods_id = $good->id;
+            $good->buyNum = 0;
+            $good->thumb = yz_tomedia($good->thumb);
+
+            if ($good->has_option) {
+                $good->min_price = $good->hasManyOptions->min("product_price");
+                $good->max_price = $good->hasManyOptions->max("product_price");
+                $good->stock = $good->hasManyOptions->sum('stock');
+            }
+        }
+        return $this->successJson('成功', $goods->toArray());
+    }
+
+    // 获取商品标签
+    private function setGoodsLabel(&$goods)
+    {
+        $goods['label_list'] = array();
+        $filter_ids = GoodsFiltering::where('goods_id',$goods['id'])->get()->pluck('filtering_id')->toArray();
+        if (empty($filter_ids)){
+            return;
+        }
+
+        $goods['label_list'] = SearchFiltering::getAllEnableFiltering()->whereIn('id',$filter_ids)->where('is_front_show',1)->values()->toArray();
+    }
 }

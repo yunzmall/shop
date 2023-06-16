@@ -3,6 +3,7 @@
 namespace app\backend\modules\refund\controllers;
 
 use app\backend\modules\refund\models\RefundApply;
+use app\backend\modules\refund\services\RefundOperationService;
 use app\common\components\BaseController;
 use app\common\events\order\AfterOrderRefundedEvent;
 use app\common\events\order\AfterOrderRefundRejectEvent;
@@ -15,7 +16,7 @@ use app\backend\modules\refund\services\RefundMessageService;
 /**
  * 退款申请操作
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/4/13
  * Time: 下午3:05
  */
@@ -46,21 +47,7 @@ class OperationController extends BaseController
      */
     public function reject(\Illuminate\Http\Request $request)
     {
-        $refundApply = $this->refundApply;
-//        RefundMessageService::rejectMessage($refundApply);
-        DB::transaction(function () use ($refundApply) {
-            $refundApply->reject(\Request::only(['reject_reason']));
-            $refundApply->order->refund_id = 0;
-            $refundApply->order->save();
-            RefundMessageService::rejectMessage($refundApply);//通知买家
-        });
-
-        event(new AfterOrderRefundRejectEvent($refundApply));
-
-        if (app('plugins')->isEnabled('instation-message')) {
-            //开启了站内消息插件
-            event(new \Yunshop\InstationMessage\event\RejectOrderRefundEvent($this->refundApply));
-        }
+        RefundOperationService::refundReject(['refund_id' => request()->input('refund_id')]);
 
         return $this->message('操作成功', '');
     }
@@ -72,12 +59,7 @@ class OperationController extends BaseController
      */
     public function pass(\Illuminate\Http\Request $request)
     {
-        $this->refundApply->pass();
-
-        if (app('plugins')->isEnabled('instation-message')) {
-            //开启了站内消息插件
-            event(new \Yunshop\InstationMessage\event\PassOrderRefundEvent($this->refundApply));
-        }
+        RefundOperationService::refundPass(['refund_id' => request()->input('refund_id')]);
 
         return $this->message('操作成功', '');
     }
@@ -90,26 +72,14 @@ class OperationController extends BaseController
 
     public function resend(\Illuminate\Http\Request $request)
     {
-        $resendExpress = new ResendExpress($request->only('express_code', 'express_company_name', 'express_sn'));
-
-        $this->refundApply->resendExpress()->save($resendExpress);
-        $this->refundApply->resend();
+        RefundOperationService::refundResend(['refund_id' => request()->input('refund_id')]);
         return $this->message('操作成功', '');
 
     }
 
     public function close()
     {
-        $refundApply = $this->refundApply;
-        DB::transaction(function () use ($refundApply) {
-            $refundApply->close();
-            RefundMessageService::passMessage($refundApply);//通知买家
-
-            event(new AfterOrderRefundSuccessEvent($refundApply));
-            if (app('plugins')->isEnabled('instation-message')) {
-                event(new \Yunshop\InstationMessage\event\OrderRefundSuccessEvent($refundApply));
-            }
-        });
+        RefundOperationService::refundClose(['refund_id' => request()->input('refund_id')]);
         return $this->message('操作成功', '');
     }
 
@@ -121,17 +91,7 @@ class OperationController extends BaseController
     public function consensus(\Illuminate\Http\Request $request)
     {
 
-        $refundApply = $this->refundApply;
-        DB::transaction(function () use ($refundApply) {
-            $refundApply->consensus();
-            $refundApply->order->close();
-            RefundMessageService::passMessage($refundApply);//通知买家
-
-            event(new AfterOrderRefundSuccessEvent($refundApply));
-            if (app('plugins')->isEnabled('instation-message')) {
-                event(new \Yunshop\InstationMessage\event\OrderRefundSuccessEvent($refundApply));
-            }
-        });
+        RefundOperationService::refundConsensus(['refund_id' => request()->input('refund_id')]);
         return $this->message('操作成功', '');
     }
 }

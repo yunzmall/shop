@@ -11,7 +11,8 @@ namespace app\backend\modules\sysMsg\controllers;
 
 use app\common\components\BaseController;
 use app\common\models\systemMsg\SysMsgLog;
-use app\common\models\systemMsg\SysMsgType;
+use app\common\services\SystemMsgService;
+use Illuminate\Support\Facades\DB;
 
 class SystemMsgController extends BaseController
 {
@@ -19,19 +20,22 @@ class SystemMsgController extends BaseController
 
     public function __construct()
     {
-        $this->logCount = SysMsgType::withCount(['hasManyLog' => function ($query) {
-            $query->where('is_read', 0)
-            ->where('uniacid',\YunShop::app()->uniacid);
-        }])
-            ->get()
-            ->toArray();
+        $data = SysMsgLog::uniacid()
+            ->select(DB::raw('type_id,COUNT(id) as log_count'))
+            ->where('is_read', 0)
+            ->groupBy('type_id')
+            ->get()->toArray();
+        $data = array_column($data,null,'type_id');
+        $this->logCount = SystemMsgService::$msg_type;
         $total = 0;
-        foreach ($this->logCount as $item) {
-            $total += $item['has_many_log_count'];
+        foreach ($this->logCount as $k => $item) {
+            $this->logCount[$k]['has_many_log_count'] = $data[$item['id']]['log_count'] ? : 0;
+            $total += $this->logCount[$k]['has_many_log_count'];
         }
         $this->logCount[] = [
             'id' => 0,
             'type_name' => '全部消息',
+            'icon_src' => '',
             'has_many_log_count' => $total
         ];
         $this->logCount = array_column($this->logCount, null, 'id');
@@ -45,7 +49,7 @@ class SystemMsgController extends BaseController
         $search = request()->search;
         $pageSize = 10;
         $list = SysMsgLog::getLogList(0, $search)
-            ->with('belongsToType')
+//            ->with('belongsToType')
             ->orderBy('created_at', 'desc')
             ->paginate($pageSize)
             ->toArray();
@@ -91,12 +95,17 @@ class SystemMsgController extends BaseController
         return $this->getList(6);
     }
 
+    public function refundMessage()
+    {
+        return $this->getList(7);
+    }
+
     public function getList($type = 0)
     {
         $search = request()->search;
         $pageSize = 10;
         $list = SysMsgLog::getLogList($type, $search)
-            ->with('belongsToType')
+//            ->with('belongsToType')
             ->orderBy('created_at', 'desc')
             ->paginate($pageSize)
             ->toArray();

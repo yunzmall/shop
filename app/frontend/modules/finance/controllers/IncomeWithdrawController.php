@@ -4,16 +4,27 @@
  * Date:    2017/9/7 下午4:11
  * Email:   livsyitian@163.com
  * QQ:      995265288
- * User:    芸众商城 www.yunzshop.com
+ * User:
  ****************************************************************/
 
 namespace app\frontend\modules\finance\controllers;
 
+use app\backend\modules\withdraw\models\WithdrawRichText;
 use app\common\components\ApiController;
 use app\common\facades\Setting;
 use app\common\models\Income;
+use app\common\models\MemberShopInfo;
 use app\common\services\finance\IncomeService;
+use app\framework\Database\Eloquent\Collection;
 use app\frontend\modules\finance\models\Withdraw;
+use app\frontend\modules\member\models\MemberBankCard;
+use Yunshop\ShopEsignV2\common\models\BaseSetting;
+use Yunshop\ShopEsignV2\common\models\Company;
+use Yunshop\ShopEsignV2\common\models\Scene;
+use Yunshop\ShopEsignV2\common\models\ShopContract;
+use Yunshop\ShopEsignV2\common\services\CommonService;
+use Yunshop\ShopEsignV2\common\services\CreateService;
+use Yunshop\TeamDividend\models\TeamDividendAgencyModel;
 use Yunshop\TeamDividend\services\withdraw\IncomeWithdrawApply;
 use app\common\services\finance\Withdraw as WithdrawService;
 use Yunshop\ShopEsign\common\service\ContractService;
@@ -82,6 +93,7 @@ class IncomeWithdrawController extends ApiController
             'deduction_status' => 0,
         ];
 
+        $all_withdraw_income = 0;
         foreach ($income_config as $key => $income) {
 
             //余额不计算 拍卖预付款不计算
@@ -108,6 +120,7 @@ class IncomeWithdrawController extends ApiController
 
             $data = $this->getItemData($key, $income);
             if ($data['income'] > 0) {
+                $all_withdraw_income += $data['income'];
                 $income_data[] = $data;
             }
             //dd($income_data);
@@ -121,17 +134,97 @@ class IncomeWithdrawController extends ApiController
                 $deductionLove['deduction_value'] = $teamDividendWithdraw->deductionAmount($this->withdraw_amounts);
             }
         }
-
+        $withdraw_rich_text = WithdrawRichText::uniacid()->first() ?: [];
         $data = [
             'data' => $income_data,
-            'setting' => ['balance_special' => $this->getBalanceSpecialSet()],
+            'setting' => [
+                'balance_special' => $this->getBalanceSpecialSet(),
+                'service_switch' => $this->withdraw_set['service_switch'] ?: 0,
+                'withdraw_rich_text' => $withdraw_rich_text,
+                'customer_service' => $this->getCustomerService(),
+            ],
             'special_type' => $this->special_poundage_type,
             'deduction_love' => $deductionLove,
-            'shop_esign' => $shopEsign
+            'shop_esign' => $shopEsign,
+            'all_withdraw_income' => $all_withdraw_income ?: 0.00,
+            'need_sign'  => $this->needSign(),
         ];
         return $this->successJson('获取数据成功!', $data);
     }
 
+    private function needSign()
+    {
+        if (!app('plugins')->isEnabled('shop-esign-v2')) {
+            return false;
+        }
+        $uid = \YunShop::app()->getMemberId();
+        if (CommonService::white($uid)) {
+            return false;
+        }
+        $plugin_set = Setting::get('plugin.shop_esign_v2');
+        $scene_list = new Collection();
+        if ($plugin_set['withdraw_sign_role_type']) {
+            if (!app('plugins')->isEnabled('team-dividend')) {
+                return $this->errorJson('经销商插件未开启');
+            }
+            $level_id = TeamDividendAgencyModel::uniacid()->where('uid', $uid)->value('level');
+            $select_uid = CreateService::selectParent($uid);
+            if ($select_uid) {
+                $cid = Company::uniacid()->where(['uid'=>$select_uid,'status'=>1])->value('cid');
+                $base_open_cid = BaseSetting::uniacid()->where('member_id', $select_uid)->where('status', 1)->value('cid');
+                if ($base_open_cid == $cid) {
+                    $scene_list = Scene::uniacid()->where(['level_id'=>$level_id,'scene_type'=>2,'cid'=>$base_open_cid,'status'=>1])->get();
+                }
+            }
+            if ($scene_list->isEmpty()) {
+                $scene_list = Scene::uniacid()->where(['level_id'=>$level_id,'scene_type'=>2,'cid'=>0,'status'=>1])->get();
+            }
+        }
+        if ($scene_list->isEmpty()) {
+            $scene_id = $plugin_set['withdraw_scene_id'];
+            $scene_list = Scene::where('id', $scene_id)->get();
+        }
+        if ($scene_list->isEmpty()) {
+            return false;
+        }
+        $contract = ShopContract::uniacid()
+            ->where('member_id', \YunShop::app()->getMemberId())
+            ->whereIn('scene_id', $scene_list->pluck('id')->all())
+            ->where('status', 1)
+            ->where('scene_type', 2)
+            ->first();
+        if (!$contract) {
+            return true;
+        }
+        return false;
+    }
+
+    private function getCustomerService()
+    {
+        $plugin_set = array_pluck(Setting::getAllByGroup('customer-service')->toArray(), 'value', 'key');
+        if (app('plugins')->isEnabled('customer-service') && $plugin_set['is_open']) {
+            if (request()->type == 2) {
+                return [
+                    'service' => $plugin_set['mini_link'],
+                    'service_QRcode' => yz_tomedia($plugin_set['mini_QRcode']),
+                    'service_mobile' => $plugin_set['mini_mobile'],
+                    'customer_open' => $plugin_set['mini_open'],
+                ];
+            }
+            return [
+                'service' => $plugin_set['link'],
+                'service_QRcode' => yz_tomedia($plugin_set['QRcode']),
+                'service_mobile' => $plugin_set['mobile'],
+            ];
+        }
+        $shop_set = Setting::get('shop.shop');
+        if (request()->type == 2) {
+            return [
+                'service' => $shop_set['cservice_mini'] ?: '',
+            ];
+        }
+        return ['service' => $shop_set['cservice'] ?: ''];
+    }
 
     public function getMergeServicetax()
     {
@@ -153,7 +246,7 @@ class IncomeWithdrawController extends ApiController
         $poundage_amount = 0; // 总手续费
         $special_poundage_amount = 0; //余额独立手续费
         $special_tax_amount = 0; //余额独立劳务税
-
+        $set = Setting::get('withdraw.commission');
         foreach ($income_data as $k => $v) {
 
             if (!in_array($v['key_name'], $income_type)) {
@@ -163,7 +256,9 @@ class IncomeWithdrawController extends ApiController
 
             $special_tax_amount = bcadd($special_tax_amount, $v['special_service_tax'], 2);
             $special_poundage_amount = bcadd($special_poundage_amount, $v['special_poundage'], 2);
-
+            if ($set['max_roll_out_limit'] && $set['max_roll_out_limit'] > 0) {
+                $v['income'] = isset($v['can_amount']) ? $v['can_amount'] : $v['income'];
+            }
             $sum_amount = bcadd($sum_amount, $v['income'], 2);
             $poundage_amount = bcadd($poundage_amount, $v['poundage'], 2);
 
@@ -380,22 +475,34 @@ class IncomeWithdrawController extends ApiController
     private function getItemData($key, $income)
     {
         $this->withdraw_amounts = $this->getIncomeModel()->where('incometable_type', $income['class'])->sum('amount');
+        $can = $this->incomeIsCanWithdraw();
 
+        if ($income['type'] == 'commission') {
+            $max = $this->getWithdrawLog($income['class']);
+            $commission_is_can_withdraw = $this->commissionIsCanWithdraw($max);
+            if (!$commission_is_can_withdraw['can']) {
+                $can = $commission_is_can_withdraw['can'];
+                $can_amount = 0;
+            } else {
+                $can_amount = $commission_is_can_withdraw['can_amount'];
+            }
+        }
+        $withdraw_amounts = isset($can_amount) && $can_amount >0 ? $can_amount : $this->withdraw_amounts;
         //手续费
-        $poundage = $this->poundageMath($this->withdraw_amounts, $this->poundage_rate);
+        $poundage = $this->poundageMath($withdraw_amounts, $this->poundage_rate);
         if ($this->poundage_type == 1) {
             $poundage = number_format($this->poundage_rate, 2, '.', '');
         }
         //劳务税
         //因为增加阶梯劳务税，这里重新赋值付费比例
-        $this->service_tax_rate = $this->getLastServiceTaxRate($income['type'], $this->withdraw_amounts);
+        $this->service_tax_rate = $this->getLastServiceTaxRate($income['type'], $withdraw_amounts);
         if (array_get($this->withdraw_set, 'service_tax_calculation', 0) == 1) {
-            $service_tax = $this->poundageMath($this->withdraw_amounts, $this->service_tax_rate);
+            $service_tax = $this->poundageMath($withdraw_amounts, $this->service_tax_rate);
         } else {
-            $service_tax = $this->poundageMath($this->withdraw_amounts - $poundage, $this->service_tax_rate);
+            $service_tax = $this->poundageMath($withdraw_amounts - $poundage, $this->service_tax_rate);
         }
         //提现到余额独立手续费
-        $special_poundage = $this->poundageMath($this->withdraw_amounts, $this->special_poundage_rate);
+        $special_poundage = $this->poundageMath($withdraw_amounts, $this->special_poundage_rate);
         if ($this->isUseBalanceSpecialSet()) {
             if ($this->special_poundage_type == 1) {
                 $special_poundage = number_format($this->special_poundage_rate, 2, '.', '');
@@ -403,36 +510,15 @@ class IncomeWithdrawController extends ApiController
         }
         //提现到余额独立劳务税
         if (array_get($this->withdraw_set, 'service_tax_calculation', 0) == 1) {
-            $special_service_tax = $this->poundageMath($this->withdraw_amounts, $this->special_service_tax_rate);
+            $special_service_tax = $this->poundageMath($withdraw_amounts, $this->special_service_tax_rate);
         } else {
-            $special_service_tax = $this->poundageMath(($this->withdraw_amounts - $special_poundage), $this->special_service_tax_rate);
+            $special_service_tax = $this->poundageMath(($withdraw_amounts - $special_poundage), $this->special_service_tax_rate);
         }
 
-        $can = $this->incomeIsCanWithdraw();
 
-        if ($income['type'] == 'commission') {
-            $max = $this->getWithdrawLog($income['class']);
-            if (is_numeric($this->getIncomeAmountMax()) || is_numeric($this->getIncomeTimeMax())) {
-                if (!is_numeric($this->getIncomeAmountMax())) {
-                    if ($max['max_time'] >= $this->getIncomeTimeMax()) {
-                        $can = false;
-                    }
-                } elseif (!is_numeric($this->getIncomeTimeMax())) {
-                    if ($max['max_amount'] + $this->withdraw_amounts > $this->getIncomeAmountMax()) {
-                        $can = false;
-                    }
-                } else {
-                    if ($max['max_time'] >= $this->getIncomeTimeMax()) {
-                        $can = false;
-                    } elseif ($max['max_amount'] + $this->withdraw_amounts > $this->getIncomeAmountMax()) {
-                        $can = false;
-                    }
-                }
-            }
-        }
         $actualAmount = bcsub(bcsub($this->withdraw_amounts, $poundage, 2), $service_tax, 2);
 
-        return [
+        $data = [
             'type' => $income['class'],
             'key_name' => $income['type'],
             'type_name' => $this->getLangTitle($key) ? $this->getLangTitle($key) : $income['title'],
@@ -455,6 +541,12 @@ class IncomeWithdrawController extends ApiController
             'actual_amount' => $actualAmount,
             'income_type' => $this->incomeType($income['type']),
         ];
+        if ($income['type'] == 'commission') {
+            $data['can_all'] = $this->withdraw_amounts > $this->getIncomeAmountMax() && is_numeric($this->getIncomeAmountMax()) && $can == true;
+            $data['can_amount'] = $can_amount;
+            $data['residue_amount'] = bcsub($this->withdraw_amounts, $data['can_amount'], 2);
+        }
+        return $data;
     }
 
 
@@ -475,6 +567,10 @@ class IncomeWithdrawController extends ApiController
                 return 'StoreWithdraw';
             case 'StoreBossWithdraw':
                 return 'StoreBossWithdraw';
+            case 'HotelCashier':
+                return 'HotelCashier';
+            case 'hotel_withdraw':
+                return 'hotel_withdraw';
             default:
                 return 'default';
         }
@@ -518,8 +614,16 @@ class IncomeWithdrawController extends ApiController
     {
         $before_dawn = mktime(0, 0, 0, date("m"), date("d"), date("Y"));
         $now = time();
-        $max_time = Withdraw::where('type', $class)->where('member_id', \YunShop::app()->getMemberId())->whereBetween('created_at', [$before_dawn, $now])->count();
-        $max_amount = Withdraw::where('type', $class)->where('member_id', \YunShop::app()->getMemberId())->whereBetween('created_at', [$before_dawn, $now])->sum('amounts');
+        $max_time = Withdraw::where('type', $class)
+            ->where('member_id', \YunShop::app()->getMemberId())
+            ->whereBetween('created_at', [$before_dawn, $now])
+            ->whereIn('status', [1, 2, 4])
+            ->count();
+        $max_amount = Withdraw::where('type', $class)
+            ->where('member_id', \YunShop::app()->getMemberId())
+            ->whereBetween('created_at', [$before_dawn, $now])
+            ->whereIn('status', [1, 2, 4])
+            ->sum('amounts');
         $max = ['max_time' => $max_time, 'max_amount' => $max_amount];
 
         return $max;
@@ -687,8 +791,20 @@ class IncomeWithdrawController extends ApiController
     public function getIncomeWithdrawMode()
     {
         $incomeWithdrawMode = (new IncomeService())->withdrawButton(request()->income_type);
-
         if ($incomeWithdrawMode) {
+            if ($incomeWithdrawMode['manual']) {
+                $member_id = \YunShop::app()->getMemberId();
+                $yz_member = MemberShopInfo::uniacid()->select(['alipay','wechat'])->where('member_id', $member_id)->first();
+                $member_bank = MemberBankCard::uniacid()->select(['member_name','bank_card'])->where('member_id', $member_id)->first();
+                if ($member_bank->bank_card) {
+                    $member_bank->bank_card = $member_bank->bank_card ? substr_replace($member_bank->bank_card,'******',6,-4): '';
+                }
+                $incomeWithdrawMode['manual']['manual_type'] = $this->withdraw_set['manual_type'];
+                $incomeWithdrawMode['manual']['alipay'] = $yz_member->alipay;
+                $incomeWithdrawMode['manual']['wechat'] = $yz_member->wechat;
+                $incomeWithdrawMode['manual']['member_name'] = $member_bank->member_name;
+                $incomeWithdrawMode['manual']['bank_card'] = $member_bank->bank_card;
+            }
             return $this->successJson('获取数据成功!', $incomeWithdrawMode);
         }
 
@@ -713,4 +829,65 @@ class IncomeWithdrawController extends ApiController
         }
     }
 
+    /**
+     * 分销商能否提现验证
+     * @return array
+     */
+    private function commissionIsCanWithdraw($max)
+    {
+        $set = Setting::get('withdraw.commission');
+        $incomes = $this->getIncomeModel()->where('incometable_type', 'Yunshop\Commission\models\CommissionOrder')->orderBy('amount', 'desc')->get()->toArray();
+        $amount = $this->getToDayAmount();
+        $amount_c = $this->getToDayAmount();
+        $can_amount = 0;
+        $income_ids = [];
+        foreach ($incomes as $item) {
+            if ($amount > $set['max_roll_out_limit']) {
+                break;
+            }
+            $amount_c = bcadd($item['amount'], $amount_c, 2);;
+            if ($amount_c > $set['max_roll_out_limit']) {
+                $amount_c = $amount;
+                continue;
+            }
+            $amount = $amount_c;
+            $can_amount = bcadd($item['amount'], $can_amount, 2);;
+            $income_ids[] = $item['id'];
+        }
+
+        if (is_numeric($this->getIncomeAmountMax()) || is_numeric($this->getIncomeTimeMax())) {
+            if (!is_numeric($this->getIncomeAmountMax())) {
+                if ($max['max_time'] >= $this->getIncomeTimeMax()) {
+                    return ['can' => false];
+                }
+            } elseif (!is_numeric($this->getIncomeTimeMax())) {
+                if (count($income_ids) < 1) {
+                    return ['can' => false];
+                }
+            } else {
+                if ($max['max_time'] >= $this->getIncomeTimeMax()) {
+                    return ['can' => false];
+                } elseif (count($income_ids) < 1) {
+                    return ['can' => false];
+                }
+            }
+            if ($can_amount + $this->getToDayAmount() > $this->getIncomeAmountMax()) {
+                return ['can' => false];
+            }
+        }
+        return ['can' => true, 'can_amount' => $can_amount];
+    }
+
+    private function getToDayAmount()
+    {
+        $before_dawn = mktime(0, 0, 0, date("m"), date("d"), date("Y"));
+        $now = time();
+        $max_amount = Withdraw::where('type', 'Yunshop\Commission\models\CommissionOrder')
+            ->where('member_id', \YunShop::app()->getMemberId())
+            ->whereBetween('created_at', [$before_dawn, $now])
+            ->whereIn('status', [0, 1, 2, 4])
+            ->sum('amounts');
+
+        return $max_amount ?: 0;
+    }
 }

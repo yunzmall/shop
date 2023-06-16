@@ -17,6 +17,7 @@ use app\common\helpers\Client;
 use app\common\helpers\Url;
 use app\common\models\AccountWechats;
 use app\common\models\McMappingFans;
+use Illuminate\Support\Facades\Redis;
 use Yunshop\AggregationCps\models\MemberAggregationAppModel;
 use app\common\models\MemberGroup;
 use app\common\models\Store;
@@ -30,7 +31,9 @@ use app\frontend\modules\member\models\MemberWechatModel;
 use app\frontend\modules\member\models\SubMemberModel;
 use Crypt;
 use Illuminate\Support\Str;
+use Yunshop\AggregationCps\models\MobileLoginRecordModel;
 use Yunshop\AggregationCps\services\CommonService;
+use Yunshop\AggregationCps\services\SettingManageService;
 use Yunshop\Commission\models\Agents;
 
 class MemberCpsAppService extends MemberService
@@ -50,25 +53,41 @@ class MemberCpsAppService extends MemberService
         $code = \YunShop::request()->code;
         $weixin_code = \YunShop::request()->weixin_code;
         $this->uniacid  = \YunShop::app()->uniacid;
-
         $uniacid = \YunShop::app()->uniacid;
+
+        $page = \YunShop::request()->page ?: 0;
+        $data = ['first_login' => 0];
 
         if (\Request::isMethod('post')) {
             if (!app('plugins')->isEnabled('aggregation-cps')) {
                 return show_json(8, "聚合cps插件未开启");
             }
+
             //密码登录
             if (!empty($password)) {
-                MemberService::validate($mobile, $password);
+                // 是否首次登陆
+                if ($this->secondAuth($page, $mobile)) {
+                    $data['first_login'] = 1;
+                }
 
+                MemberService::validate($mobile, $password);
+                $remain_time = $this->getLoginLimit($mobile);
+                if($remain_time){
+                    return show_json(6, "账号锁定中，请".$remain_time."分钟后再登录");
+                }
                 $has_mobile = MemberModel::checkMobile($uniacid, $mobile);
 
                 if (!empty($has_mobile)) {
                     $password = md5($password . $has_mobile->salt);
 
                     $member_info = MemberModel::getUserInfo($uniacid, $mobile, $password)->first();
-                    if(empty($member_info)){
-                        return show_json(6, "手机号或密码错误");
+                    if (!$member_info) {
+                        $error_count = $this->setLoginLimit($mobile);
+                        if ($error_count > 0) {
+                            return show_json(6, "密码错误！你还剩" . $error_count . "次机会");
+                        } else {
+                            return show_json(6, "密码错误次数已达5次，您的账号已锁定，请30分钟之后登录！");
+                        }
                     }
                     $member_info = $member_info->toArray();
                 } else {
@@ -78,10 +97,14 @@ class MemberCpsAppService extends MemberService
             }
             //验证码登录 member.register.alySendCode&mobile=&captcha=&sms_type=1
             if (!empty($code)) {
-                $data = [
-                    'mobile' => $mobile,
-                    'code' => $code,
-                ];
+                // 首次登陆
+                if ($this->secondAuth($page, $mobile)) {
+                    $data['first_login'] = 1;
+                }
+
+                $data['mobile'] = $mobile;
+                $data['code'] = $code;
+
                 self::validate($data);
                 $check_code = MemberService::checkAppCode();
 
@@ -99,6 +122,7 @@ class MemberCpsAppService extends MemberService
                     return show_json(6, "手机号或验证码错误");
                 }
             }
+         
             //微信授权登录
             if ($weixin_code) {
                 $set = \Setting::get('plugin.aggregation-cps');
@@ -124,6 +148,7 @@ class MemberCpsAppService extends MemberService
             }
 
             if (!empty($member_info)) {
+                MemberService::countReset($mobile);
                 $yz_member = MemberShopInfo::getMemberShopInfo($member_info['uid']);
                 if (!empty($yz_member)) {
                     if (!$yz_member->access_token_2) {
@@ -132,8 +157,12 @@ class MemberCpsAppService extends MemberService
                         $yz_member->save();
                     }
                     $set = \Setting::get('plugin.aggregation-cps');
-                    $data['token'] = $yz_member->access_token_2;
-                    $data['uid'] = $yz_member->member_id;
+
+                    if (((!empty($password) || !empty($code)) && !$this->secondAuth($page, $mobile)) || $weixin_code) {
+                        $data['token'] = $yz_member->access_token_2;
+                        $data['uid'] = $yz_member->member_id;
+                    }
+                    
                     $data['shop_name'] = \Setting::get('shop.shop.name') ?: '未设置商城名称';
                     $data['ratio'] = (float)CommonService::getBuyRatio($set);
                     $data['ratio_name'] = CommonService::getBuyName($set);
@@ -146,6 +175,15 @@ class MemberCpsAppService extends MemberService
 
                 } else {
                     return show_json(7, '用户不存在');
+                }
+
+                // 是否首次登陆
+                if ((!empty($password) || !empty($code)) && (($this->secondAuth($page, $mobile) && $page == 2) || !$this->secondAuth($page, $mobile))
+                 && !MobileLoginRecordModel::isExists($mobile)) {
+                    MobileLoginRecordModel::insertData([
+                        'uniacid' => $uniacid,
+                        'mobile' => $mobile
+                    ]);
                 }
 
                 return show_json(1, '', $data);
@@ -285,6 +323,7 @@ class MemberCpsAppService extends MemberService
         //生成分销关系链
         Member::createRealtion($array['member_id']);
         $member = MemberModel::checkMobile($this->uniacid, $data['mobile']);
+        event(new \app\common\events\member\RegisterMember(0, $array['member_id']));
         //dd($array);
         return $member;
     }
@@ -519,4 +558,17 @@ class MemberCpsAppService extends MemberService
         MemberAggregationAppModel::where('id', $fan->id)->update($record);
     }
 
+    public function secondAuth($page, $mobile)
+    {
+        $mobileExists = MobileLoginRecordModel::isExists($mobile);
+
+        $category_setting = SettingManageService::linkCategorySetting();
+        $login_type = $category_setting['login_type'];
+
+        if ($page == 1 && !$mobileExists && $login_type['together']) {
+            return true;
+        }
+
+        return false;
+    }
 }

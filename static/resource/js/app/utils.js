@@ -254,7 +254,7 @@
                 var t = e.requireModules && e.requireModules[0];
                 "ueditor" === t && (requirejs.undef(t), requirejs.config({
                     paths: {
-                        ueditor: "../../components/ueditor/ueditor.all.min"
+                        ueditor: "/static/resource/components/ueditor/ueditors.all.min"
                     },
                     shim: {
                         ueditor: {
@@ -651,10 +651,10 @@
 		opts.type = 'image';
 
 		require(['jquery', 'fileUploader'], function($, fileUploader){
-            fileUploader.fetch_url('/admin/system/upload/fetch');
-            fileUploader.upload_url('/admin/system/upload/upload?upload_type=');
-            fileUploader.image_url('/admin/system/upload/image?local=local&groupid=-999');
-            fileUploader.delet_url('/admin/system/upload/delete');
+			fileUploader.upload_url('/admin/shop?route=upload.upload.jsUpload&upload_type=');
+            fileUploader.fetch_url('/admin/shop?route=upload.upload.fetch');
+            fileUploader.image_url('/admin/shop?route=upload.upload.jsImage');
+            fileUploader.delet_url('/admin/shop?route=upload.upload.delete');
             fileUploader.show(function(images){
 				if(images){
 					if($.isFunction(callback)){

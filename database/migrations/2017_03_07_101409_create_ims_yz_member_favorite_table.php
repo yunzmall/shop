@@ -15,12 +15,13 @@ class CreateImsYzMemberFavoriteTable extends Migration {
         if (!Schema::hasTable('yz_member_favorite')) {
             Schema::create('yz_member_favorite', function (Blueprint $table) {
                 $table->integer('id', true);
-                $table->integer('member_id');
+                $table->integer('member_id')->comment('会员ID');
                 $table->integer('uniacid');
-                $table->integer('goods_id');
+                $table->integer('goods_id')->comment('商品id');
                 $table->integer('created_at');
                 $table->boolean('deleted');
             });
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE `" . app('db')->getTablePrefix() . "yz_member_favorite` comment '会员--会员喜欢的商品'");
         }
 	}
 

@@ -4,13 +4,14 @@
  * Date:    2017/9/20 上午10:10
  * Email:   livsyitian@163.com
  * QQ:      995265288
- * User:    芸众商城 www.yunzshop.com
+ * User:
  ****************************************************************/
 
 namespace app\frontend\modules\member\controllers;
 
 
 use app\common\components\ApiController;
+use app\common\exceptions\ShopException;
 use app\common\facades\Setting;
 use app\common\services\password\PasswordService;
 use app\frontend\models\Member;
@@ -97,17 +98,21 @@ class BalancePasswordController extends ApiController
         $mobile = \YunShop::request()->mobile;
         $state = \YunShop::request()->state ?: '86';
         $sms_type = \YunShop::request()->sms_type;
-
         if (empty($mobile)) {
             return $this->errorJson('请填入手机号');
         }
-
+        try {
+            MemberService::mobileValidate([
+                'mobile' => $mobile,
+                'state' => $state,
+            ]);
+        } catch (ShopException $exception) {
+            return $this->errorJson($exception->getMessage());
+        }
         $sms = app('sms')->sendCode($mobile, $state);
-
         if (0 == $sms['status']) {
             return $this->errorJson($sms['json']);
         }
-
         return $this->successJson();
     }
 

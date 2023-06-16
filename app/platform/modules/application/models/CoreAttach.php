@@ -10,6 +10,7 @@ namespace app\platform\modules\application\models;
 
 use app\common\models\BaseModel;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 
 class CoreAttach extends BaseModel
 {
@@ -60,23 +61,23 @@ class CoreAttach extends BaseModel
                 ] 
             );
         }
-       
-        // dd(
-        //     $keyword['month'], 
-        //     $keyword['year'], 
-        //         //month
-        //     date('Y-m-d H:i:s', mktime(0,0,0, $keyword['month'], 1, date('Y')) ),
+    }
 
-        //     date('Y-m-d H:i:s', mktime(23,59,59, $keyword['month']+1, 0, date('Y')) ), 
-        //         //year
-        //     date('Y-m-d H:i:s', mktime(0,0,0, 1, 1, $keyword['year'])),
-
-        //     date('Y-m-d H:i:s', mktime(23,59,59,12, 31, $keyword['year'])),
-        //         //all
-        //     date('Y-m-d H:i:s', mktime(0,0,0, $keyword['month'], 1, $keyword['year'])),
-            
-        //     date('Y-m-d H:i:s', mktime(23,59,59, $keyword['month']+1, 0, $keyword['year']))
-        // );
+    public static function search($search)
+    {
+        $model = self::uniacid();
+        if ($search['year'] || $search['month']) {
+            $start_time = Carbon::createFromDate($search['year'], $search['month'])->startOfMonth()->timestamp;
+            $end_time = Carbon::createFromDate($search['year'], $search['month'])->endOfMonth()->timestamp;
+            $model->whereBetween('created_at', [$start_time, $end_time]);
+        }
+        if ($search['tag_id'] === '') {
+            $model->where('uid', \YunShop::app()->uid);
+        }
+        if ($search['tag_id'] === 0) {
+            $model->where('tag_id', 0);
+        }
+        return $model;
     }
 
     public function atributeNames()

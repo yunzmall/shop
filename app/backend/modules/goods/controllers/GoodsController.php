@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/2/22
  * Time: 下午1:51
  */
@@ -10,7 +10,9 @@ namespace app\backend\modules\goods\controllers;
 
 use app\backend\modules\goods\models\Brand;
 use app\backend\modules\goods\models\Category;
+use app\backend\modules\goods\models\Dispatch;
 use app\backend\modules\goods\models\Goods;
+use app\backend\modules\goods\models\GoodsDispatch;
 use app\backend\modules\goods\models\GoodsOption;
 use app\backend\modules\goods\models\GoodsSpecItem;
 use app\backend\modules\goods\models\Sale;
@@ -20,27 +22,32 @@ use app\backend\modules\goods\services\EditGoodsService;
 use app\backend\modules\goods\services\GoodsOptionService;
 use app\backend\modules\goods\services\GoodsService;
 use app\backend\modules\uploadVerificate\UploadVerificationBaseController;
-use app\backend\modules\uploadVerificate\UploadVerificationController;
 use app\common\components\BaseController;
 use app\backend\modules\goods\services\CategoryService;
 use app\backend\modules\goods\models\GoodsParam;
 use app\backend\modules\goods\models\GoodsSpec;
 use app\common\components\Widget;
+use app\common\events\goods\GoodsChangeEvent;
 use app\common\helpers\Cache;
 use app\common\helpers\PaginationHelper;
 use app\common\helpers\Url;
 use app\common\models\GoodsCategory;
 use app\common\models\GoodsSmallUrl;
 use app\common\services\SmallQrCode;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\DB;
 use Setting;
 use app\common\services\goods\VideoDemandCourseGoods;
 use app\common\models\Store as StoreCashier;
 use Yunshop\Designer\models\Store;
+use Yunshop\GoodsSource\common\models\GoodsSource;
 use Yunshop\Hotel\common\models\Hotel;
 use Yunshop\LeaseToy\models\LeaseOrderModel;
 use Yunshop\LeaseToy\models\LeaseToyGoodsModel;
+use Yunshop\MemberTags\Common\models\MemberTagsModel;
 use Yunshop\VideoDemand\models\CourseGoodsModel;
 use app\common\helpers\ImageHelper;
+use app\common\models\goods\GoodsService as ServiceProvide;
 
 
 class GoodsController extends UploadVerificationBaseController
@@ -50,10 +57,12 @@ class GoodsController extends UploadVerificationBaseController
     protected $shoppay;
     private $list;
     private $brand;
-    //private $goods;
+
     protected $lang = null;
 
     protected $success_url = 'goods.goods.index';
+
+    protected $widget_url = 'goods.goods.widget-column';
 
 
     public function preAction()
@@ -84,14 +93,20 @@ class GoodsController extends UploadVerificationBaseController
         $this->shopset = Setting::get('shop.category');
     }
 
+
     public function index()
     {
-        return view('goods.index', ['data' => json_encode($this->goodsListData())]);
+        $producerId = intval(request()->producer_id);
+        return view('goods.index', [
+            'data'       => json_encode($this->goodsListData()),
+            'producerId' => json_encode($producerId),
+        ]);
     }
 
 
     public function goodsSearch()
     {
+        $producerId = intval(request()->producer_id);
         //课程商品id集合
         $courseGoods_ids = (new VideoDemandCourseGoods())->courseGoodsIds();
 
@@ -114,7 +129,65 @@ class GoodsController extends UploadVerificationBaseController
             }
         }
 
-        $list = Goods::Search($requestSearch)->pluginIdShow()->with(['hasOneSmallCodeUrl'])->orderBy('yz_goods.display_order', 'desc')->groupBy('yz_goods.id')->orderBy('yz_goods.id', 'desc')->paginate(20);
+        $per_size = request()->input('per_size') ? request()->input('per_size') : 20;
+        $tab_state = request()->input('tab_state');
+        //todo blank 这个插件的代码怎么加到这里？？？
+        if ($producerId && app('plugins')->isEnabled('producer')) {
+            $goodsBuild = Goodsselect(
+                [
+                    'id',
+                    'display_order',
+                    'thumb',
+                    'title',
+                    'has_option',
+                    'price',
+                    'stock',
+                    'real_sales',
+                    'status',
+                    'is_hot',
+                    'is_new',
+                    'is_recommand',
+                    'is_discount',
+                    'cost_price'
+                ]
+            )->Search($requestSearch)->pluginIdShow()->with(['hasOneSmallCodeUrl'])
+                ->whereHas('hasOneProducerGoods', function ($hasOneProducerGoods) use ($producerId) {
+                    $hasOneProducerGoods->where('producer_id', $producerId);
+                });
+        } else {
+            $goodsBuild = Goods::select(
+                [
+                    'yz_goods.id',
+                    'display_order',
+                    'thumb',
+                    'title',
+                    'has_option',
+                    'price',
+                    'stock',
+                    'real_sales',
+                    'status',
+                    'is_hot',
+                    'is_new',
+                    'is_recommand',
+                    'is_discount',
+                    'cost_price'
+                ]
+            )->Search($requestSearch)->pluginIdShow()->with(['hasOneSmallCodeUrl']);
+        }
+        //排序
+        $order_by = request()->input('order_by');
+        if ($order_by) {
+            foreach ($order_by as $by_key => $by_value) {
+                if ($by_value) {
+                    $goodsBuild->orderBy('yz_goods.' . $by_key, $by_value);
+                }
+            }
+        } else {
+            $goodsBuild->orderBy('yz_goods.display_order', 'desc');
+        }
+
+        $list = $goodsBuild->orderBy('yz_goods.id', 'desc')->state($tab_state)->paginate($per_size);
+
 
         foreach ($list as $key => $item) {
             $list[$key]['thumb'] = yz_tomedia($item->thumb);
@@ -129,18 +202,32 @@ class GoodsController extends UploadVerificationBaseController
             } else {
                 $list[$key]['small_link'] = "";
             }
+
+            $cost_ratio = 0;
+            if ($item['cost_price']) {
+                $basic = bcsub($item['price'], $item['cost_price'], 2);
+                $cost_ratio = bcdiv($basic, $item['cost_price'], 4) * 100;
+            }
+            $list[$key]['cost_ratio'] = $cost_ratio . "%";
         }
+
+        $list = $list->toArray();
+
+
+        $list['lower_shelf'] = Goods::Search($requestSearch)->pluginIdShow()->state(0)->count();
+        $list['put_shelf'] = Goods::Search($requestSearch)->pluginIdShow()->state(1)->count();
+        $list['all_goods'] = Goods::Search($requestSearch)->pluginIdShow()->state()->count();
 
         if ($list) {
             return $this->successJson('成功', $list);
         } else {
             return $this->errorJson('找不到数据');
         }
-
     }
 
-    private function goodsListData()
+    protected function goodsListData()
     {
+        $producerId = intval(request()->producer_id);
         //课程商品id集合
         $courseGoods_ids = (new VideoDemandCourseGoods())->courseGoodsIds();
 
@@ -172,30 +259,61 @@ class GoodsController extends UploadVerificationBaseController
                 $requestSearch['category'] = $categorySearch;
             }
         }
-//        $catetory_menus = CategoryService::getCategoryMenu(
-//            [
-//                'catlevel' => $this->shopset['cat_level'],
-//                'ids'   => isset($categorySearch) ? array_values($categorySearch) : [],
-//            ]
-//        );
-
-//        $catetory_menus = CategoryService::getCategoryMultiMenuSearch(
-//            [
-//                'catlevel' => $this->shopset['cat_level'],
-//                'ids'   => isset($categorySearch) ? array_values($categorySearch) : [],
-//            ]
-//        );
-
-        //这里一次查出来太慢改成接口查询
-//        $catetory_menus = [
-//            'catlevel' => $this->shopset['cat_level'],
-//            'ids' => Category::getAllCategoryGroupArray()//CategoryFactory::create('shop'),
-//            //Category::parentGetCategorys()->get()
-//        ];
 
         $category = Category::parentGetCategorys()->get();
 
-        $list = Goods::select(['id', 'display_order', 'thumb', 'title', 'has_option', 'price', 'stock', 'real_sales', 'status', 'is_hot', 'is_new', 'is_recommand', 'is_discount'])->Search($requestSearch)->with(['hasOneSmallCodeUrl'])->pluginIdShow()->orderBy('display_order', 'desc')->orderBy('yz_goods.id', 'desc')->paginate(20);
+        if ($producerId && app('plugins')->isEnabled('producer')) {
+            $list = Goods::select(
+                [
+                    'id',
+                    'display_order',
+                    'thumb',
+                    'title',
+                    'has_option',
+                    'price',
+                    'stock',
+                    'real_sales',
+                    'status',
+                    'is_hot',
+                    'is_new',
+                    'is_recommand',
+                    'is_discount',
+                    'cost_price'
+                ]
+            )->Search($requestSearch)->with(['hasOneSmallCodeUrl'])->pluginIdShow()
+                ->whereHas('hasOneProducerGoods', function ($hasOneProducerGoods) use ($producerId) {
+                    $hasOneProducerGoods->where('producer_id', $producerId);
+                })
+                ->orderBy('display_order', 'desc')
+                ->orderBy('yz_goods.id', 'desc')
+                ->state(1)
+                ->paginate(20);
+        } else {
+            $list = Goods::select(
+                [
+                    'id',
+                    'display_order',
+                    'thumb',
+                    'title',
+                    'has_option',
+                    'price',
+                    'stock',
+                    'real_sales',
+                    'status',
+                    'is_hot',
+                    'is_new',
+                    'is_recommand',
+                    'is_discount',
+                    'cost_price'
+                ]
+            )
+                ->Search($requestSearch)
+                ->with(['hasOneSmallCodeUrl'])
+                ->pluginIdShow()
+                ->state(1)
+                ->orderBy('display_order', 'desc')
+                ->orderBy('yz_goods.id', 'desc')->paginate(20);
+        }
         foreach ($list as $key => $item) {
             $list[$key]['thumb'] = yz_tomedia($item->thumb);
 
@@ -210,37 +328,50 @@ class GoodsController extends UploadVerificationBaseController
             } else {
                 $list[$key]['small_link'] = "";
             }
+
+            $cost_ratio = 0;
+            if ($item['cost_price']) {
+                $basic = bcsub($item['price'], $item['cost_price'], 2);
+                $cost_ratio = bcdiv($basic, $item['cost_price'], 4) * 100;
+            }
+            $list[$key]['cost_ratio'] = $cost_ratio . "%";
         }
-
-        //$pager = PaginationHelper::show($list->total(), $list->currentPage(), $list->perPage());
-
-
-        $edit_url = 'goods.goods.edit';
-        $delete_url = 'goods.goods.destroy';
-        $delete_msg = '确认删除此商品？';
-        $sort_url = 'goods.goods.displayorder';
-
-
+        $source_status = false;
+        $source_is_open = \Setting::get('plugin.goods_source.is_open');
+        if (app('plugins')->isEnabled('goods-source') && (is_null($source_is_open) || $source_is_open)) {
+            $source_status = true;
+        }
+        if ($source_status) {
+            $source_list = GoodsSource::uniacid()->select(['id', 'source_name'])->get();
+        } else {
+            $source_list = new Collection();
+        }
+        //运费数据
+        $dispatchData = $this->getDispatchData();
         $data = [
             'list'              => $list,
-            //课程商品id
             'courseGoods_ids'   => $courseGoods_ids,
-            //'status' => $status,
-//            'brands' => $brands,
             'requestSearch'     => $requestSearch,
-//            'catetory_menus' => $catetory_menus,
             'category'          => $category,
             'cat_level'         => $this->shopset['cat_level'],
             'lang'              => $this->lang,
             'product_attr_list' => $product_attr_list,
             'yz_url'            => 'yzWebUrl',
-            'edit_url'          => $edit_url,
-            'delete_url'        => $delete_url,
-            'delete_msg'        => $delete_msg,
-            'sort_url'          => $sort_url,
             'product_attr'      => $requestSearch['product_attr'],
-            'copy_url'          => 'goods.goods.copy',
+            'edit_url'          => yzWebFullUrl('goods.goods.edit'),
+            'delete_url'        => yzWebFullUrl('goods.goods.destroy'),
+            'sort_url'          => yzWebFullUrl('goods.goods.displayorder'),
+            'copy_url'          => yzWebFullUrl('goods.goods.copy'),
+            'is_source_open'    => $source_status ? 1 : 0,
+            'source_list'       => $source_list,
+            'dispatchTypesSetting' => $dispatchData['dispatchTypesSetting'],
+            'dispatchTemplates' => $dispatchData['dispatchTemplates'],
         ];
+
+        $data['lower_shelf'] = Goods::Search($requestSearch)->pluginIdShow()->state(0)->count();
+        $data['put_shelf'] = Goods::Search($requestSearch)->pluginIdShow()->state(1)->count();
+        $data['all_goods'] = Goods::Search($requestSearch)->pluginIdShow()->state()->count();
+
         return $data;
     }
 
@@ -249,7 +380,6 @@ class GoodsController extends UploadVerificationBaseController
      */
     public function goodsList()
     {
-
         return $this->successJson('成功', $this->goodsListData());
     }
 
@@ -267,48 +397,108 @@ class GoodsController extends UploadVerificationBaseController
         return $this->message('商品复制成功', Url::absoluteWeb($this->success_url));
     }
 
+    public function batchCopy()
+    {
+        $ids = request()->ids;
+        foreach ($ids as $id) {
+            $result = CopyGoodsService::copyGoods($id);
+            if (!$result) {
+                $this->error('商品ID【' . $id . '】不存在.');
+            }
+        }
+        echo json_encode(["result" => 1]);
+    }
+
+    /**
+     * 批量修改运费
+     */
+    public function batchEditDispatch()
+    {
+        if (!$ids = request()->goods_id_arr) {
+            return $this->errorJson('请选择商品');
+        }
+        $dispatchObserverConfig = \app\common\modules\shop\ShopConfig::current()->get('observer.goods.dispatch');
+
+        $class = $dispatchObserverConfig['class'];
+        $function = $dispatchObserverConfig['function_save'];
+        $data = request()->data;
+        if (class_exists($class) && method_exists($class, $function) && is_callable([$class, $function]) && $data) {
+
+            foreach ($ids as $id) {
+                $result = $class::$function($id, $data, 'update');
+                if (!$result) {
+                    $this->error('商品ID【' . $id . '】更新运费失败.');
+                }
+            }
+        }
+
+        return $this->successJson('修改成功');
+    }
+
     public function create()
     {
-        $request = Request();
-        $goods_service = new CreateGoodsService($request);
-        $result = $goods_service->create();
+        if (request()->ajax()) {
+            $request = Request();
 
-        if (isset($goods_service->error)) {
-            $this->error($goods_service->error);
-        }
+            $goods_service = new CreateGoodsService($request);
 
-        if ($result['status'] == 1) {
-            Cache::flush();
-            return $this->message('商品创建成功', Url::absoluteWeb($this->success_url));
-        } else if ($result['status'] == -1) {
-            if (isset($result['msg'])) {
-                $this->error($result['msg']);
+            $result = $goods_service->create();
+            if ($result['status'] == 1) {
+                return $this->successJson('商品创建成功', ['good_id' => $result['good_id']]);
+            } else {
+                return $this->errorJson($result['msg']);
+//                !session()->has('flash_notification.message') && $this->error('商品修改失败');
             }
-
-            !session()->has('flash_notification.message') && $this->error('商品修改失败');
         }
-        return view('goods.goods', [
-            'goods'          => $goods_service->goods_model,
-            'lang'           => $this->lang,
-            'params'         => $goods_service->params->toArray(),
-            'brands'         => $goods_service->brands->toArray(),
-            'allspecs'       => [],
-            'html'           => '',
-            'var'            => \YunShop::app()->get(),
-            'catetory_menus' => $goods_service->catetory_menus,
-            'virtual_types'  => [],
-            'shopset'        => $this->shopset
+
+        return view('goods.vue-goods', [
+            'store_url'   => yzWebFullUrl(request()->input('route')),
+            'widget_url'  => yzWebFullUrl($this->widget_url),
+            'success_url' => yzWebFullUrl($this->success_url),
+            'ckt_url'     => Url::absoluteWeb('plugin.decorate.admin.page.get-list') . '&i=' . \YunShop::app(
+                )->uniacid . '#/picture_design_scene',
+            'is_decorate' => app('plugins')->isEnabled('decorate'),
         ])->render();
     }
 
     public function edit()
     {
+        if (request()->ajax()) {
+            $goods_service = new EditGoodsService(request()->input('id'), \YunShop::request());
 
+            $result = $goods_service->edit();
+            if ($result['status'] == 1) {
+                return $this->successJson('商品修改成功');
+            }
+            return $this->errorJson($result['msg']);
+        }
+
+        return view('goods.vue-goods', [
+            'store_url'   => yzWebFullUrl(request()->input('route'), ['id' => request()->input('id')]),
+            'success_url' => yzWebFullUrl($this->success_url),
+            'goods_id'    => request()->input('id'),
+            'widget_url'  => yzWebFullUrl($this->widget_url, ['id' => request()->input('id')]),
+            'ckt_url'     => Url::absoluteWeb('plugin.decorate.admin.page.get-list') . '&i=' . \YunShop::app(
+                )->uniacid . '#/picture_design_scene',
+            'is_decorate' => app('plugins')->isEnabled('decorate'),
+        ])->render();
+    }
+
+    //商品编辑挂件获取
+    public function widgetColumn()
+    {
+        $data = app('GoodsWidgetContainer')->make('Manager')->handle();
+
+        return $this->successJson('widgetColumn', $data);
+    }
+
+    public function oldPage()
+    {
         //todo 所有操作去service里进行，供应商共用此方法。
         $request = Request();
         $goods_service = new EditGoodsService($request->id, \YunShop::request());
 
-        $result = $goods_service->edit();
+        $result = $goods_service->oldedit();
         if ($goods_service->goods_model->content) {
             $goods_service->goods_model->content = changeUmImgPath($goods_service->goods_model->content);
         }
@@ -316,11 +506,13 @@ class GoodsController extends UploadVerificationBaseController
         if ($result['status'] == 1) {
             Cache::flush();
             return $this->message('商品修改成功', Url::absoluteWeb($this->success_url));
-        } else if ($result['status'] == -1) {
-            if (isset($result['msg'])) {
-                $this->error($result['msg']);
+        } else {
+            if ($result['status'] == -1) {
+                if (isset($result['msg'])) {
+                    $this->error($result['msg']);
+                }
+                !session()->has('flash_notification.message') && $this->error('商品修改失败');
             }
-            !session()->has('flash_notification.message') && $this->error('商品修改失败');
         }
         $list = collect($goods_service->goods_model)->toArray();
         if (!$list['id']) {
@@ -341,12 +533,6 @@ class GoodsController extends UploadVerificationBaseController
             'shopset'        => $this->shopset,
             'type'           => 'edit',
         ])->render();
-    }
-
-    public function qrcode()
-    {
-
-        //$this->error($goods);
     }
 
     public function generateSmallCode()
@@ -373,7 +559,6 @@ class GoodsController extends UploadVerificationBaseController
         $pay_code = $small_qr->getSmallQrCode($small_name, $data);
 
         if ($pay_code['code'] == 0) {
-
             $goodsModel = new GoodsSmallUrl();
 
             $data = [
@@ -395,20 +580,6 @@ class GoodsController extends UploadVerificationBaseController
             return $this->message($pay_code['message'], '', 'error');
         }
     }
-
-    // public function displayorder()
-    // {
-    //     $displayOrders = request()->display_order;
-    //     foreach($displayOrders as $id => $displayOrder){
-    //         $goods = \app\common\models\Goods::find($id);
-    //         $goods->display_order = $displayOrder;
-    //         $goods->save();
-    //     }
-    //     // return $this->message('商品排序成功', Url::absoluteWeb($this->success_url));
-    //     return $this->successJson('排序成功');
-    //     //$this->error($goods);
-    // }
-
 
     public function displayorder()
     {
@@ -433,32 +604,19 @@ class GoodsController extends UploadVerificationBaseController
 
     public function change()
     {
-        //dd(\YunShop::request());
-        $id = request()->id;
+        $goods = \app\common\models\Goods::find(request()->input('id'));
+
         $field = request()->type;
-        $goods = \app\common\models\Goods::find($id);
+        $goods->$field = request()->input('value');
 
-        if ($field == 'price') {
-            $sale = Sale::getList($goods->id);
-            /*
-                        if (!empty($sale->max_point_deduct)
-                            && $sale->max_point_deduct > \YunShop::request()->value) {
-                            echo json_encode(['status' => -1, 'msg' => '积分抵扣金额大于商品价格']);
-                            exit;
-                        }
-            */
-        }
-
-        $goods->$field = request()->value;
+        $goodsModel = clone $goods;
         if ($goods->save()) {
+            event(new GoodsChangeEvent($goodsModel));
             \Artisan::call('config:cache');
             \Cache::flush();
             return $this->successJson('修改成功');
-        } else {
-            return $this->errorJson('修改失败');
         }
-
-        //$this->error($goods);
+        return $this->errorJson('修改失败');
     }
 
     /**
@@ -513,6 +671,37 @@ class GoodsController extends UploadVerificationBaseController
         ]);
     }
 
+    public function batchService()
+    {
+        $ids = request()->ids;
+        $service_form = request()->service_form;
+        if (empty($ids)) {
+            return $this->errorJson('请选择商品');
+        }
+        DB::transaction(function () use ($service_form, $ids) {
+            foreach ($ids as $gid) {
+                $goods_service = ServiceProvide::uniacid()->where('goods_id', $gid)->first();
+                if (!$goods_service) {
+                    $goods_service = new ServiceProvide();
+                    $goods_service->uniacid = \YunShop::app()->uniacid;
+                    $goods_service->goods_id = $gid;
+                }
+                $goods_service->is_automatic = $service_form['is_automatic'];
+                $goods_service->time_type = $service_form['time_type'];
+                $goods_service->on_shelf_time = $service_form['on_shelf_time'];
+                $goods_service->lower_shelf_time = $service_form['lower_shelf_time'];
+                $goods_service->loop_date_start = $service_form['loop_date_start'];
+                $goods_service->loop_date_end = $service_form['loop_date_end'];
+                $goods_service->loop_time_up = $service_form['loop_time_up'];
+                $goods_service->loop_time_down = $service_form['loop_time_down'];
+                $goods_service->auth_refresh_stock = $service_form['auth_refresh_stock'];
+                $goods_service->original_stock = $service_form['original_stock'];
+                $goods_service->save();
+            }
+        });
+        return $this->successJson('编辑成功');
+    }
+
     /**
      * 获取参数模板
      */
@@ -522,7 +711,6 @@ class GoodsController extends UploadVerificationBaseController
         return view('goods.tpl.param', [
             'tag' => $tag,
         ])->render();
-        //include $this->template('web/shop/tpl/param');
     }
 
     /**
@@ -572,7 +760,7 @@ class GoodsController extends UploadVerificationBaseController
     public function getSearchGoods()
     {
         $keyword = \YunShop::request()->keyword;
-        $goods = Goods::select('id', 'title', 'thumb')
+        $goods = \app\common\models\Goods::select('id', 'title', 'thumb')
             ->where('title', 'like', '%' . $keyword . '%')
             ->where('status', 1)
             ->whereInPluginIds()
@@ -580,54 +768,42 @@ class GoodsController extends UploadVerificationBaseController
 
         if (!$goods->isEmpty()) {
             $goods = set_medias($goods->toArray(), array('thumb', 'share_icon'));
-
         }
         return view('goods.query', [
             'goods'    => $goods,
             'exchange' => \YunShop::request()->exchange,
         ])->render();
-
     }
-
 
     public function getSearchGoodsJson()
     {
+        $except_supplier = request()->except_supplier;
         $keyword = request()->keyword;
-        $goods = Goods::select('id', 'title', 'thumb')
+        $query = \app\common\models\Goods::select('id', 'title', 'thumb')
             ->where('title', 'like', '%' . $keyword . '%')
-            ->where('status', 1)
-            ->whereInPluginIds()
-            ->paginate(20);
-
-        if (!$goods->isEmpty()) {
-            $goods->map(function ($q) {
-                return $q->thumb_url = yz_tomedia($q->thumb);
-            });
+            ->where('status', 1);
+        if ($except_supplier) {
+            $except_plugin_id = [92, 101];
+            $query->whereNotIn('plugin_id', $except_plugin_id);
+        } else {
+            $query->whereInPluginIds();
         }
-
-
+        $goods = $query->paginate(20);
+        $goods->map(function ($q) {
+            return $q->thumb_url = yz_tomedia($q->thumb);
+        });
         return $this->successJson('ok', [
             'goods' => $goods,
         ]);
-
     }
 
     public function getSearchGoodsLevel()
     {
         $keyword = \YunShop::request()->keyword;
-
-        $plugin_id = request()->input('plugin_id');
-
         $model = \app\common\models\Goods::select('id', 'title', 'thumb')
             ->where('title', 'like', '%' . $keyword . '%')
             ->where('status', 1);
-
-//        $model->where(function ($where) {
-//            return $where->whereInPluginIds()->orWhereIn('plugin_id', [32, 33]);
-//        });
-
         $goods = $model->get();
-
         if (!$goods->isEmpty()) {
             $goods = set_medias($goods->toArray(), array('thumb', 'share_icon'));
         }
@@ -635,7 +811,6 @@ class GoodsController extends UploadVerificationBaseController
             'goods'    => $goods,
             'exchange' => \YunShop::request()->exchange,
         ])->render();
-
     }
 
     /**
@@ -649,7 +824,6 @@ class GoodsController extends UploadVerificationBaseController
         return view('goods.store', [
             'store' => $store
         ])->render();
-
     }
 
     /**
@@ -677,8 +851,9 @@ class GoodsController extends UploadVerificationBaseController
             return view('goods.hotel', [
                 'hotel' => $hotel
             ])->render();
-
         }
+
+        return;
     }
 
     /**
@@ -692,8 +867,23 @@ class GoodsController extends UploadVerificationBaseController
             $keyword = request()->keyword;
             $hotel = Hotel::getHotelByName($keyword);
             return $this->successJson('ok', $hotel);
-
         }
+        return;
+    }
+
+    /**
+     * 获取搜索会员标签返回数组
+     * @return string
+     * @throws \Throwable
+     */
+    public function getSearchMemberTagsJson()
+    {
+        if (app('plugins')->isEnabled('member-tags')) {
+            $keyword = request()->keyword;
+            $tags = MemberTagsModel::GetTagsByTitle($keyword)->get(['id', 'title'])->toArray();
+            return $this->successJson('ok', $tags);
+        }
+        return;
     }
 
     /**
@@ -710,7 +900,6 @@ class GoodsController extends UploadVerificationBaseController
         return view('goods.dividend_goods_query', [
             'goods' => $goods
         ])->render();
-
     }
 
     public function getSearchGoodsByDividendLevel()
@@ -723,7 +912,6 @@ class GoodsController extends UploadVerificationBaseController
         return view('goods.dividend_goods_query', [
             'goods' => $goods
         ])->render();
-
     }
 
     public function getMyLinkGoods()
@@ -742,7 +930,6 @@ class GoodsController extends UploadVerificationBaseController
                 $goods = set_medias($goods->toArray(), array('thumb', 'share_icon'));
             }
             $goods = collect($goods)->map(function ($item) {
-
                 $url = yzAppFullUrl('goods/' . $item['id']);
 //                if (app('plugins')->isEnabled('store-cashier')) {
 //                    $store_goods = new \Yunshop\StoreCashier\common\models\StoreGoods();
@@ -780,7 +967,6 @@ class GoodsController extends UploadVerificationBaseController
                 $goods = set_medias($goods->toArray(), array('thumb', 'share_icon'));
             }
             $goods = collect($goods)->map(function ($item) {
-
                 $url = '/packageA/detail_v2/detail_v2?id=' . $item['id'];
 
                 return array_add($item, 'url', $url);
@@ -828,7 +1014,7 @@ class GoodsController extends UploadVerificationBaseController
         }
         $zip->extractTo($destination);//将压缩文件解压到指定的目录下
         $zip->close(); //关闭zip文档
-        return ture;
+        return true;
     }
 
     //ajax 异步上传文件
@@ -966,7 +1152,11 @@ class GoodsController extends UploadVerificationBaseController
             ];
         }
         if (is_null($this->list)) {
-            $this->list = array_column(Category::select('id', 'name', 'uniacid', 'level')->where('plugin_id', 0)->get()->toArray(), null, 'name');
+            $this->list = array_column(
+                Category::select('id', 'name', 'uniacid', 'level')->where('plugin_id', 0)->get()->toArray(),
+                null,
+                'name'
+            );
         }
         $result = array();
         if ($this->list[$array['category_name_1']]) {
@@ -1035,7 +1225,11 @@ class GoodsController extends UploadVerificationBaseController
     private function addCategory($array)
     {
         $id = Category::insertGetId($array);
-        $this->list = array_column(Category::select('id', 'name', 'uniacid', 'level')->where('plugin_id', 0)->get()->toArray(), null, 'name');
+        $this->list = array_column(
+            Category::select('id', 'name', 'uniacid', 'level')->where('plugin_id', 0)->get()->toArray(),
+            null,
+            'name'
+        );
         return $id;
     }
 
@@ -1094,9 +1288,32 @@ class GoodsController extends UploadVerificationBaseController
      */
     public function excelImport()
     {
-        $exportData['0'] = ["公众号", "排序", '商品名称', '商品分类一', '商品分类二', '商品品牌', '商品类型', '商品单位',
-            '商品属性', '商品图片', '商品编号', '商品条码', '商品现价', '商品原价', '成本价', '虚拟销量', '减库存方式', '不可退换货',
-            '是否上架', '商品描述', '推荐', '新上', '热卖', '促销', '商品图片'
+        $exportData['0'] = [
+            "公众号",
+            "排序",
+            '商品名称',
+            '商品分类一',
+            '商品分类二',
+            '商品品牌',
+            '商品类型',
+            '商品单位',
+            '商品属性',
+            '商品图片',
+            '商品编号',
+            '商品条码',
+            '商品现价',
+            '商品原价',
+            '成本价',
+            '虚拟销量',
+            '减库存方式',
+            '不可退换货',
+            '是否上架',
+            '商品描述',
+            '推荐',
+            '新上',
+            '热卖',
+            '促销',
+            '商品图片'
         ];
 
         \Excel::create('商品批量导入模板', function ($excel) use ($exportData) {
@@ -1111,5 +1328,24 @@ class GoodsController extends UploadVerificationBaseController
                 $sheet->rows($exportData);
             });
         })->export('xls');
+    }
+
+    /**
+     * 运费数据
+     * @return array
+     */
+    private function getDispatchData()
+    {
+        $dispatchTemplates = Dispatch::select('id','dispatch_name')
+            ->uniacid()
+            ->where(['enabled' => 1 , 'plugin_id' => 0])
+            ->where('is_plugin', 0)
+            ->get()
+            ->toArray();
+
+        return [
+            'dispatchTypesSetting' => (new Goodsdispatch())->dispatchTypesSettingV2(),
+            'dispatchTemplates' => $dispatchTemplates,
+        ];
     }
 }

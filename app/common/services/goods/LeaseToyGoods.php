@@ -8,7 +8,7 @@ use Setting;
 
 /**
 * Create 2018/3/5
-* Author 芸众商城 www.yunzshop.com
+* Author
 */
 class LeaseToyGoods extends BaseController
 {

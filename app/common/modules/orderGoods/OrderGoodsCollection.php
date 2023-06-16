@@ -41,6 +41,17 @@ class OrderGoodsCollection extends Collection
     }
 
     /**
+     * 获取会员价
+     * @return int
+     */
+    public function getVipPrice()
+    {
+        return $this->sum(function (PreOrderGoods $orderGoods) {
+            return $orderGoods->getVipPrice();
+        });
+    }
+
+    /**
      * 获取支付价
      * @return int
      */

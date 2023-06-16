@@ -26,7 +26,7 @@
 
                     <div style="display: flex;flex-direction: row;flex-wrap: wrap">
                         <div style="width: 15%;margin-left: 2%">
-                            <input class="form-control" name="search[realname]" type="text" value="{{ $search['realname'] or ''}}" placeholder="会员ID/会员姓名/昵称/手机号">
+                            <input class="form-control" name="search[realname]" type="text" value="{{ $search['realname'] ?? ''}}" placeholder="会员ID/会员姓名/昵称/手机号">
                         </div>
                         <div  style="width: 15%;margin-left: 2%">
                             <select name="search[level_id]" class="form-control">

@@ -13,6 +13,7 @@ use app\backend\modules\income\Income;
 use app\common\components\ApiController;
 use app\common\exceptions\AppException;
 use app\frontend\modules\finance\services\PluginSettleService;
+use Illuminate\Support\Facades\DB;
 use Yunshop\StoreCashier\common\services\AdvertisementService;
 
 class PluginSettleController extends ApiController
@@ -78,6 +79,18 @@ class PluginSettleController extends ApiController
                         'amount'=>  $value['class']::getNotSettleAmount(\YunShop::app()->getMemberId()),
                         'api'   => 'finance.plugin-settle.plugin-team-dividend',
                         'icon'  => 'income_b',
+                    ];
+                }
+                break;
+            case 'weeklyRewards':
+                $week = array_pluck(\Setting::getAllByGroup('weekly-rewards')->toArray(), 'value', 'key');
+                if ($week['dividend_settle'] || $week['area_settle']) {
+                    $arr =  [
+                        'title' => $value['title'],
+                        'type'  => $value['type'],
+                        'amount'=>  $value['class']::getNotSettleAmount(\YunShop::app()->getMemberId()),
+                        'api'   => 'finance.plugin-settle.plugin-weekly-rewards',
+                        'icon'  => 'income_e',
                     ];
                 }
                 break;
@@ -169,8 +182,25 @@ class PluginSettleController extends ApiController
 
     protected function getShopAdv($income_data)
     {
-
         $adv = Advertisement::getOneData()->first();
+
+        $lat = \YunShop::request()->lat;
+        $lng = \YunShop::request()->lng;
+
+        if ((!empty($lat) && !is_numeric($lat)) || (!empty($lng) && !is_numeric($lng))) {
+            throw new AppException('参数错误');
+        }
+
+        if ($lat && $lng) {
+            $res = Advertisement::uniacid()
+                ->select(DB::raw("id, thumb, adv_url, longitude, latitude,(round(6367000 * 2 * asin(sqrt(pow(sin(((latitude * pi()) / 180 - ({$lat} * pi()) / 180) / 2), 2) + cos(({$lat} * pi()) / 180) * cos((latitude * pi()) / 180) * pow(sin(((longitude * pi()) / 180 - ({$lng} * pi()) / 180) / 2), 2))))) as distance"))
+                ->Status()
+                ->where('area_open',1)
+                ->orderBy('distance', 'asc')
+                ->orderBy('sort_by', 'desc')
+                ->first();
+            if ($res) $adv = $res;
+        }
 
         return [
             'status' => 1,
@@ -205,6 +235,12 @@ class PluginSettleController extends ApiController
 
     //区域分红
     public function pluginAreaDividend()
+    {
+
+    }
+
+    //周度奖励
+    public function pluginWeeklyRewards()
     {
 
     }

@@ -29,6 +29,7 @@ class CreateImsYzOrderStatistics extends Migration
                 $table->integer('updated_at')->nullable();
                 $table->integer('deleted_at')->nullable();
             });
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE " . app('db')->getTablePrefix() . "yz_order_statistics comment '订单--商城订单统计表'");//表注释
         }
     }
 

@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:  
  * Date: 2017/3/17
  * Time: 上午9:47
  */
@@ -291,6 +291,29 @@ abstract class Pay
 
     protected function returnUrl() {}
 
+
+    /**
+     * 统一化支付失败返回数据格式
+     * @param string $msg
+     * @param array $result
+     * @return array
+     */
+    public function fail($msg = '',$result = [])
+    {
+        return ['status' => 0, 'msg' => $msg, 'data' => $result];
+    }
+
+    /**
+     * 统一化支付成功返回数据格式
+     * @param string $msg
+     * @param array $result
+     * @return array
+     */
+    public function success($msg = '',$result = [])
+    {
+        return ['status' => 1, 'msg' => $msg, 'data' => $result];
+    }
+
     /**
      * 支付访问日志
      *
@@ -451,7 +474,7 @@ abstract class Pay
             return self::INVALID_UNIACID_LENGTH;
         }
 
-        return $part1 . substr($part2, 0, 9) . $part3 . substr($part2, 9);;
+        return $part1 . substr($part2, 0, 9) . $part3 . substr($part2, 9);
     }
 
     /**

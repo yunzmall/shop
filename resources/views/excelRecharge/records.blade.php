@@ -2,58 +2,144 @@
 @section('title', '充值记录')
 @section('content')
     <link href="{{static_url('yunshop/balance/balance.css')}}" media="all" rel="stylesheet" type="text/css"/>
-    <div id="member-blade" class="rightlist">
-        <div class="panel panel-info">
-            <div class="panel-heading">
-                <span>当前位置：</span>
-                <a href="{{yzWebUrl('excelRecharge.page.index')}}">
-                    <span>批量充值</span>
-                </a>
-                <span>>></span>
-                <a href="#">
-                    <span>充值记录</span>
-                </a>
-            </div>
-        </div>
-        <div class="clearfix">
-            <div class="panel panel-default">
-                <div class="panel-heading">记录总数：{{ $pageList->total() }}</div>
-                <div class="panel-body">
-                    <table class="table table-hover" style="overflow:visible;">
-                        <thead class="navbar-inner">
-                        <tr>
-                            <th style='width:6%; text-align: center;'>主键ID</th>
-                            <th style='width:12%; text-align: center;'>充值时间</th>
-                            <th style='width:12%; text-align: center;'>充值类型</th>
-                            <th style='width:12%; text-align: center;'>充值数量</th>
-                            <th style='width:12%; text-align: center;'>失败数量</th>
-                            <th style='width:12%; text-align: center;'>充值总额</th>
-                            <th style='width:12%; text-align: center;'>成功总额</th>
-                            <th style='width:12%; text-align: center;'>操作</th>
-                        </tr>
-                        </thead>
-                        <tbody>
-                        @foreach($pageList as $list)
-                            <tr>
-                                <td style="text-align: center;">{{ $list->id }}</td>
-                                <td style="text-align: center;">{{ $list->created_at }}</td>
-                                <td style="text-align: center;">{{ $list->sourceName }}</td>
-                                <td style="text-align: center;">{{ $list->total }}</td>
-                                <td style="text-align: center;">{{ $list->failure }}</td>
-                                <td style="text-align: center;">{{ $list->amount }}</td>
-                                <td style="text-align: center;">{{ $list->success }}</td>
-                                <td style="overflow:visible; text-align: center;">
-                                    <a class='btn btn-default' href="{{ yzWebUrl('excelRecharge.detail.index', array('recharge_id' => $list->id)) }}" style="margin-bottom: 2px">详细记录</a>
-                                </td>
-                            </tr>
-                        @endforeach
-                        </tbody>
-                    </table>
-
-                    {!! $page !!}
-
+    <link rel="stylesheet" type="text/css" href="{{static_url('yunshop/goods/vue-goods1.css')}}"/>
+    <style>
+        .content {
+            background: #eff3f6;
+            padding: 10px !important;
+        }
+    </style>
+    <div id="app" v-cloak class="main">
+        <div class="block">
+            <div class="vue-main">
+                <div class="vue-main-form">
+                    <div class="vue-main-title" style="margin-bottom:20px">
+                        <div class="vue-main-title-left"></div>
+                        <div class="vue-main-title-content">
+                            充值记录
+                            <span style="margin-left:20px;font-size: 10px;font-weight: 0;color: #9b9da4">
+                               记录：[[total]]
+                            </span>
+                        </div>
+                    </div>
+                    <el-table :data="list.data" style="width: 100%">
+                        <el-table-column label="主键ID" align="center" prop="" width="auto">
+                            <template slot-scope="scope">
+                                [[scope.row.id]]
+                            </template>
+                        </el-table-column>
+                        <el-table-column label="充值时间" align="center" prop="" width="auto">
+                            <template slot-scope="scope">
+                                [[scope.row.created_at]]
+                            </template>
+                        </el-table-column>
+                        <el-table-column label="充值类型" align="center" prop="" width="auto">
+                            <template slot-scope="scope">
+                                [[scope.row.sourceName]]
+                            </template>
+                        </el-table-column>
+                        <el-table-column label="充值数量" align="center" prop="" width="auto">
+                            <template slot-scope="scope">
+                                [[scope.row.total]]
+                            </template>
+                        </el-table-column>
+                        <el-table-column label="失败数量" align="center" prop="" width="auto">
+                            <template slot-scope="scope">
+                                [[scope.row.failure]]
+                            </template>
+                        </el-table-column>
+                        <el-table-column label="充值总额" align="center" prop="" width="auto">
+                            <template slot-scope="scope">
+                                [[scope.row.amount]]
+                            </template>
+                        </el-table-column>
+                        <el-table-column label="成功金额" align="center" prop="" width="auto">
+                            <template slot-scope="scope">
+                                [[scope.row.success]]
+                            </template>
+                        </el-table-column>
+                        <el-table-column label="操作" align="center" prop="" width="auto">
+                            <template slot-scope="scope">
+                                <el-button @click="navDetail(scope.row.id)">详细记录</el-button>
+                            </template>
+                        </el-table-column>
+                    </el-table>
                 </div>
             </div>
         </div>
+        <!-- 分页 -->
+        <div class="vue-page">
+            <el-row>
+                <el-col align="right">
+                    <el-pagination layout="prev, pager, next,jumper" @current-change="search" :total="total"
+                                   :page-size="per_page" :current-page="current_page" background
+                    ></el-pagination>
+                </el-col>
+            </el-row>
+        </div>
+    </div>
+
+    <script>
+        var vm = new Vue({
+            el: '#app',
+            // 防止后端冲突,修改ma语法符号
+            delimiters: ['[[', ']]'],
+            data() {
+                return {
+                    list: {},
+                    total: 0,
+                    per_page: 0,
+                    current_page: 0,
+                    pageSize: 0,
+                }
+            },
+            created() {
+                this.getData(1)
+            },
+            //定义全局的方法
+            beforeCreate() {
+            },
+            filters: {},
+            methods: {
+                getData(page) {
+                    let loading = this.$loading({
+                        target: document.querySelector(".content"),
+                        background: 'rgba(0, 0, 0, 0)'
+                    });
+                    this.$http.post('{!! yzWebFullUrl('excelRecharge.records.index') !!}', {
+                        page: page
+                    }).then(function (response) {
+                        if (response.data.result) {
+                            this.list = response.data.data.pageList
+                            this.total = response.data.data.pageList.total
+                            this.per_page = response.data.data.pageList.per_page
+                            this.current_page = response.data.data.pageList.current_page
+                            loading.close();
+                        } else {
+                            this.$message({
+                                message: response.data.msg,
+                                type: 'error'
+                            });
+                        }
+
+                        loading.close();
+                    }, function (response) {
+                        this.$message({
+                            message: response.data.msg,
+                            type: 'error'
+                        });
+                        loading.close();
+                    });
+                },
+                search(page) {
+                    this.getData(page)
+                },
+                navDetail(id) {
+                    let url = '{!! yzWebFullUrl('excelRecharge.detail.index') !!}';
+                    window.open(url + "&recharge_id=" + id)
+                }
+            },
+        })
+    </script>
 
 @endsection

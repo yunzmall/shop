@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:  
  * Date: 2017/4/12
  * Time: 下午1:38
  */
@@ -20,6 +20,7 @@ class SysMsgLog extends BaseModel
 {
     protected $table = 'yz_sys_msg_log';
     protected $guarded = [];
+    protected $appends = ['belongs_to_type'];
 
     public function setRedirectParamAttribute($value)
     {
@@ -36,13 +37,18 @@ class SysMsgLog extends BaseModel
         return SystemMsgService::$url[$value]?yzWebUrl(SystemMsgService::$url[$value],$this->redirect_param):$value;
     }
 
-    /**
-     * 获取该消息所属的消息类型。
-     */
-    public function belongsToType()
+    public function getBelongsToTypeAttribute()
     {
-        return $this->belongsTo('app\common\models\systemMsg\SysMsgType','type_id');
+        return collect(SystemMsgService::$msg_type)->where('id',$this->type_id)->first();
     }
+
+//    /**
+//     * 获取该消息所属的消息类型。
+//     */
+//    public function belongsToType()
+//    {
+//        return $this->belongsTo('app\common\models\systemMsg\SysMsgType','type_id');
+//    }
 
     public static function getLogList($type_id = 0,$search = [])
     {

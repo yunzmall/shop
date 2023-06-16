@@ -113,4 +113,22 @@ trait PriceNodeTrait
         }
         return $this->getPriceAfter($nodeKey);
     }
+
+    /**
+     * 验证某个节点是否已存在
+     * @param $key
+     * @return bool true 存在  false 不存在
+     */
+    public function verifyPriceNodes($key)
+    {
+        // 找到对应的节点
+        $priceNode = $this->getPriceNodes()->first(function (PriceNode $priceNode) use ($key) {
+            return $priceNode->getKey() == $key;
+        });
+        if (!$priceNode) {
+           return false;
+        }
+
+        return true;
+    }
 }

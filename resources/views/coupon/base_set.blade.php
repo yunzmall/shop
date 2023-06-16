@@ -19,6 +19,7 @@
                     <el-tab-pane label="分享领取记录" name="4"></el-tab-pane>
                     <el-tab-pane label="使用记录" name="5"></el-tab-pane>
                     <el-tab-pane label="领券中心幻灯片" name="6"></el-tab-pane>
+                    <el-tab-pane label="会员优惠券" name="7"></el-tab-pane>
                 </el-tabs>
             </div>
             <el-form ref="form" :model="form" :rules="rules" label-width="15%">
@@ -37,6 +38,20 @@
                             <el-radio v-model="form.transfer" label="0">关闭</el-radio>
                             <el-radio v-model="form.transfer" label="1">开启</el-radio>
                             <div class="tip">优惠券转让：会员之间可以转让自己拥有的优惠券。</div>
+                        </el-form-item>
+                        <el-form-item label="领券中心显示" prop="center_show">
+                            <el-radio v-model="form.center_show" label="0">关闭</el-radio>
+                            <el-radio v-model="form.center_show" label="1">开启</el-radio>
+                            <div class="tip">关闭后前端我的优惠券页面隐藏领券中心入口。</div>
+                        </el-form-item>
+                        <el-form-item label="转让数量" prop="transfer_num">
+                            <el-radio v-model="form.transfer_num" label="0">关闭</el-radio>
+                            <el-radio v-model="form.transfer_num" label="1">开启</el-radio>
+                            <div class="tip">转让数量：开启后转让可以设置转让数量。</div>
+                        </el-form-item>
+                        <el-form-item label="转让先转" prop="transfer_choice" v-show="form.transfer_num==1">
+                            <el-radio v-model="form.transfer_choice" label="0">快到期优惠券</el-radio>
+                            <el-radio v-model="form.transfer_choice" label="1">最新日期优惠券</el-radio>
                         </el-form-item>
                         <el-form-item label="抵扣奖励积分" prop="award_point">
                             <el-radio v-model="form.award_point" label="0">关闭</el-radio>
@@ -149,6 +164,9 @@
                     form:{
                         is_singleton:'0',
                         transfer:'0',
+                        transfer_num:'0',
+                        center_show:'1',
+                        transfer_choice:'0',
                         award_point: "0",
                         order_close_return:"0",
                         exchange_center:"0",
@@ -213,6 +231,9 @@
                     else if(val.name == 6) {
                         window.location.href = `{!! yzWebFullUrl('coupon.slide-show') !!}`;
                     }
+                    else if(val.name == 7) {
+                        window.location.href = `{!! yzWebFullUrl('coupon.member-coupon.index') !!}`;
+                    }
                     
                 },
                 getData() {
@@ -224,6 +245,9 @@
 
                                 this.form.is_singleton = response.data.data.coupon && response.data.data.coupon.is_singleton?response.data.data.coupon.is_singleton:'0';
                                 this.form.transfer = response.data.data.coupon && response.data.data.coupon.transfer?response.data.data.coupon.transfer:'0';
+                                this.form.transfer_num = response.data.data.coupon && response.data.data.coupon.transfer_num?response.data.data.coupon.transfer_num:'0';
+                                this.form.center_show = response.data.data.coupon && response.data.data.coupon.center_show?response.data.data.coupon.center_show:'1';
+                                this.form.transfer_choice = response.data.data.coupon && response.data.data.coupon.transfer_choice?response.data.data.coupon.transfer_choice:'0';
                                 this.form.award_point = response.data.data.coupon && response.data.data.coupon.award_point?response.data.data.coupon.award_point:'0';
                                 this.form.order_close_return = response.data.data.coupon && response.data.data.coupon.order_close_return?response.data.data.coupon.order_close_return:'0';
                                 this.form.exchange_center = response.data.data.coupon && response.data.data.coupon.exchange_center?response.data.data.coupon.exchange_center:'0';
@@ -294,6 +318,9 @@
                     let json = {
                         is_singleton:this.form.is_singleton,
                         transfer:this.form.transfer,
+                        transfer_num:this.form.transfer_num,
+                        center_show:this.form.center_show,
+                        transfer_choice:this.form.transfer_choice,
                         award_point:this.form.award_point,
                         order_close_return:this.form.order_close_return,
                         exchange_center:this.form.exchange_center,

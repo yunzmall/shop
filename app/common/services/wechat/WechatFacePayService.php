@@ -1,6 +1,6 @@
 <?php
 /**
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2019/6/3
  * Time: 下午3:10
  */

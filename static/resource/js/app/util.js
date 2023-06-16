@@ -155,15 +155,16 @@
                     width: 0,
                     fileSizeLimit: 1024 * t.image_limit
                 };
+				let rand_str = getRandom();
                 if (a.registerUI("myinsertimage",
                     function(e, t) {
                         e.registerCommand(t, {
                             execCommand: function() {
-                                r.upload_url('./index.php?c=site&a=entry&m=yun_shop&do=shop&route=upload.upload.upload&upload_type=');
-                                r.image_url('./index.php?c=site&a=entry&m=yun_shop&do=shop&route=upload.upload.getImage&local=local&group_id=-999');
-                                r.fetch_url('./index.php?c=site&a=entry&m=yun_shop&do=shop&route=upload.upload.fetch');
-                                r.delet_url('./index.php?c=site&a=entry&m=yun_shop&do=shop&route=upload.upload.delete');
-                                r.video_url('./index.php?c=site&a=entry&m=yun_shop&do=shop&route=upload.upload.getVideo&local=local&type=video&pagesize=5');
+                                r.upload_url(`./index.php?c=site&a=entry&m=yun_shop&do=${rand_str}&route=upload.upload.upload&upload_type=`);
+                                r.image_url(`./index.php?c=site&a=entry&m=yun_shop&do=${rand_str}&route=upload.upload.getImage&local=local&group_id=-999`);
+                                r.fetch_url(`./index.php?c=site&a=entry&m=yun_shop&do=${rand_str}&route=upload.upload.fetch`);
+                                r.delet_url(`./index.php?c=site&a=entry&m=yun_shop&do=${rand_str}&route=upload.upload.delete`);
+                                r.video_url(`./index.php?c=site&a=entry&m=yun_shop&do=${rand_str}&route=upload.upload.getVideo&local=local&type=video&pagesize=5`);
                                 r.show(function(t) {
                                         if (0 != t.length) if (1 == t.length) e.execCommand("insertimage", {
                                             src: t[0].url,
@@ -650,11 +651,13 @@
 		opts = $.extend({}, opts, options);
 		opts.type = 'image';
 
+		let rand_str = getRandom();
+
 		require(['jquery', 'fileUploader'], function($, fileUploader){
-            fileUploader.upload_url('./index.php?c=site&a=entry&m=yun_shop&do=shop&route=upload.upload.upload&upload_type=');
-            fileUploader.image_url('./index.php?c=site&a=entry&m=yun_shop&do=shop&route=upload.upload.getImage&local=local&group_id=-999');
-            fileUploader.fetch_url('./index.php?c=site&a=entry&m=yun_shop&do=shop&route=upload.upload.fetch');
-            fileUploader.delet_url('./index.php?c=site&a=entry&m=yun_shop&do=shop&route=upload.upload.delete');
+            fileUploader.upload_url(`./index.php?c=site&a=entry&m=yun_shop&do=${rand_str}&route=upload.upload.jsUpload&upload_type=`);
+			fileUploader.fetch_url(`./index.php?c=site&a=entry&m=yun_shop&do=${rand_str}&route=upload.upload.fetch`);
+            fileUploader.image_url(`./index.php?c=site&a=entry&m=yun_shop&do=${rand_str}&route=upload.upload.jsImage`);
+            fileUploader.delet_url(`./index.php?c=site&a=entry&m=yun_shop&do=${rand_str}&route=upload.upload.delete`);
 			fileUploader.show(function(images){
 				if(images){
 					if($.isFunction(callback)){
@@ -664,6 +667,14 @@
 			}, opts);
         });
 	}; // end of image
+
+	getRandom = function() {
+		let str = '';
+		for (let i = 0; i < 3; i++) {
+			str = `${str}${Math.round(Math.random()*10)}` ;
+		}
+		return str;
+	};
 
 	util.wechat_image = function(val, callback, options) {
 		var opts = {
@@ -721,17 +732,18 @@
             dest_dir: "",
             needType: 2
         };
+        let rand_str = getRandom();
         e && (n.path = e),
         !i && o && (i = o),
             n = $.extend({},
                 n, i),
             require(["fileUploader"],
                 function(e) {
-                    e.upload_url('./index.php?c=site&a=entry&m=yun_shop&do=shop&route=upload.upload.upload&upload_type=');
-                    e.image_url('./index.php?c=site&a=entry&m=yun_shop&do=shop&route=upload.upload.getImage&local=local&group_id=-999');
-                    e.fetch_url('./index.php?c=site&a=entry&m=yun_shop&do=shop&route=upload.upload.fetch');
-                    e.delet_url('./index.php?c=site&a=entry&m=yun_shop&do=shop&route=upload.upload.delete');
-                    e.video_url('./index.php?c=site&a=entry&m=yun_shop&do=shop&route=upload.upload.getVideo&local=local&type=video&pagesize=5');
+                    e.upload_url(`./index.php?c=site&a=entry&m=yun_shop&do=${rand_str}&route=upload.upload.upload&upload_type=`);
+                    e.image_url(`./index.php?c=site&a=entry&m=yun_shop&do=${rand_str}&route=upload.upload.getImage&local=local&group_id=-999`);
+                    e.fetch_url(`./index.php?c=site&a=entry&m=yun_shop&do=${rand_str}&route=upload.upload.fetch`);
+                    e.delet_url(`./index.php?c=site&a=entry&m=yun_shop&do=${rand_str}&route=upload.upload.delete`);
+                    e.video_url(`./index.php?c=site&a=entry&m=yun_shop&do=${rand_str}&route=upload.upload.getVideo&local=local&type=video&pagesize=5`);
                     e.show(function(e) {
                             e && $.isFunction(t) && t(e)
                         },

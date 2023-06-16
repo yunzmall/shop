@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/3/25
  * Time: 下午5:14
  */
@@ -82,6 +82,10 @@ abstract class CouponPrice
      */
     protected function getOrderGoodsCollectionUnusedEnoughMoney()
     {
+
+        //todo 这里为什么要累加已使用优惠券使用条件的金额，再拿订单商品优惠券节点前金额减去。
+        //理解为：防止优惠券选择优先问题，原因是会员可以先用使用条件较大的优惠券再用小的
+        //判断一张优惠券是否可以都需要先减去已使用优惠券条件金额，再去对比是否满足
         $enough = $this->coupon->getOrderGoodsInScope()->sum(function ($orderGoods) {
             if (!isset($orderGoods->coupons)) {
                 return 0;

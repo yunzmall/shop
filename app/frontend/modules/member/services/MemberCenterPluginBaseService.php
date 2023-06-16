@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/4/1
  * Time: 下午4:37
  */
@@ -34,5 +34,14 @@ abstract class MemberCenterPluginBaseService
             return null;
         }
         return Cache::get($key);
+    }
+
+    public function getShowVipPrice()
+    {
+        $set = \Setting::get('plugin.member-price.is_open_micro');
+        if (!app('plugins')->isEnabled('member-price') || $set != 1) {
+            return true;
+        }
+        return false;
     }
 }

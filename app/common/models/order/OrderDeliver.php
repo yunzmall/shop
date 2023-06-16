@@ -1,6 +1,6 @@
 <?php
 /**
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2019-11-19
  * Time: 17:10
  */
@@ -9,6 +9,7 @@ namespace app\common\models\order;
 
 
 use app\common\models\BaseModel;
+use app\common\models\OrderAddress;
 use Yunshop\PackageDeliver\model\Deliver;
 use Yunshop\PackageDeliver\model\DeliverClerk;
 
@@ -28,4 +29,10 @@ class OrderDeliver extends BaseModel
     {
         return $this->hasOne(DeliverClerk::class, 'id', 'clerk_id');
     }
+
+    public function hasOneOrderAddress()
+    {
+        return $this->hasOne(OrderAddress::class, 'order_id', "order_id");
+    }
+
 }

@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:  
  * Date: 2017/4/1
  * Time: 下午4:37
  */
@@ -74,30 +74,35 @@ class MemberCenterLimitBuyGoods extends MemberCenterPluginBaseService
             });
         }
 
-        $goods = $goods->paginate($size)->toArray();
-        foreach ($goods['data'] as &$item) {
-            $item['name'] = $item['title'];
-            $item['img']  = yz_tomedia($item['thumb']);
-            $item['stock_status'] = 0;
-            $item['vip_next_price'] = $item['next_level_price'];
-            $item['price_level'] = $item['vip_next_price']?1:0;
-            $item['sales'] =  $item['show_sales'] + $item['virtual_sales'];
-            if ($item['has_option']) {
-                $minMarketPrice = collect($item['has_many_options'])->sortBy('market_price')->first()['market_price']?:0;
-                $minPrice = collect($item['has_many_options'])->sortBy('product_price')->first()['product_price']?:0;
-                $maxMarketPrice = collect($item['has_many_options'])->sortByDesc('market_price')->first()['market_price']?:0;
-                $maxPrice = collect($item['has_many_options'])->sortByDesc('product_price')->first()['product_price']?:0;
+        $goods = $goods->paginate($size);
+        foreach ($goods as &$good) {
+            $good['name'] = $good->title;
+            $good['img']  = yz_tomedia($good->thumb);
+            $good['stock_status'] = 0;
+            $good['price_level'] = $good->vip_next_price?1:0;
+            $good['sales'] = $good->show_sales + $good->virtual_sales;
+            $good['vip_level_status'] = $good->vip_level_status;
+            if ($good->has_option) {
+                $minMarketPrice = $good->hasManyOptions->sortBy('market_price')->first()['market_price']?:0;
+                $minPrice = $good->hasManyOptions->sortBy('product_price')->first()['product_price']?:0;
+                $maxMarketPrice = $good->hasManyOptions->sortByDesc('market_price')->first()['market_price']?:0;
+                $maxPrice = $good->hasManyOptions->sortByDesc('product_price')->first()['product_price']?:0;
                 if ($minMarketPrice == $maxMarketPrice) {
-                    $item['priceold'] = $minMarketPrice;
+                    $good['priceold'] = $minMarketPrice;
                 }
-                $item['priceold'] = ($minMarketPrice == $maxMarketPrice)?$minMarketPrice:($minMarketPrice.'-'.$maxMarketPrice);
-                $item['pricenow'] = ($minPrice == $maxPrice)?$minPrice:($minPrice.'-'.$maxPrice);
+                $good['priceold'] = ($minMarketPrice == $maxMarketPrice)?$minMarketPrice:($minMarketPrice.'-'.$maxMarketPrice);
+                $good['pricenow'] = ($minPrice == $maxPrice)?$minPrice:($minPrice.'-'.$maxPrice);
             } else {
-                $item['priceold'] = $item['market_price'];
-                $item['pricenow'] = $item['price'];
+                $good['priceold'] = $good->market_price;
+                $good['pricenow'] = $good->price;
             }
-            unset($item['has_many_options'],$item['has_many_goods_discount']);
         }
+        $goods = $goods->toArray();
+        foreach ($goods['data'] as &$item) {
+            $item['vip_next_price'] = $item['next_level_price'];
+            $item['notshow'] = $this->getShowVipPrice();
+        }
+        unset($item);
         return $goods;
     }
 }

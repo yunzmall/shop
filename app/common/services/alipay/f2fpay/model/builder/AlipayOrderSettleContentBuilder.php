@@ -14,6 +14,7 @@ class AlipayOrderSettleContentBuilder extends ContentBuilder
     private $outRequestNo;
     private $tradeNo;
     private $grantType;
+    private $extendParams;
 
     private $bizParas = array();
 
@@ -67,6 +68,16 @@ class AlipayOrderSettleContentBuilder extends ContentBuilder
     public function getTradeNo()
     {
         return $this->tradeNo;
+    }
+    public function setExtendParams($extendParams)
+    {
+        $this->extendParams = $extendParams;
+        $this->bizParas['extend_params'] = $extendParams;
+    }
+
+    public function getExtendParams()
+    {
+        return $this->extendParams;
     }
 
     public function setRoyaltyParameters($royaltyParameters)

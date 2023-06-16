@@ -1,6 +1,6 @@
 <?php
 /**
- * Author: 芸众商城 www.yunzshop.com
+ * Author:  
  * Date: 2017/12/8
  * Time: 上午11:54
  */
@@ -29,7 +29,7 @@ class MemberLevel extends \app\common\models\MemberLevel
             $content = 'balance_recharge';
         }
 
-        $data = self::select('id', 'level_name', 'discount', 'freight_reduction', $content, 'description')
+        $data = self::select('id', 'level_name', 'discount', 'freight_reduction', $content, 'description','validity')
             ->uniacid()
             ->orderBy('level')
             ->get()->toArray();
@@ -45,7 +45,7 @@ class MemberLevel extends \app\common\models\MemberLevel
     public function getLevelGoods()
     {
 
-        $data = self::select('id', 'level_name','goods_id', 'discount', 'freight_reduction', 'description')->uniacid()->orderBy('level')->get()->toArray();
+        $data = self::select('id', 'level_name','goods_id', 'discount', 'freight_reduction', 'description','validity')->uniacid()->orderBy('level')->get()->toArray();
 
         foreach ($data as $k => $v) {
             
@@ -62,6 +62,7 @@ class MemberLevel extends \app\common\models\MemberLevel
                     $data[$k]['goods'][$key]['title'] = $goods['title'];
                 }
             }
+            $data[$k]['goods'] = $data[$k]['goods'] ?: null;
         }
         return $data;
     }

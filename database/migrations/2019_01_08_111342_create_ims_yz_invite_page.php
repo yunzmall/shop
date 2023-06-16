@@ -24,6 +24,7 @@ class CreateImsYzInvitePage extends Migration
                 $table->integer('updated_at')->nullable();
                 $table->integer('deleted_at')->nullable();
             });
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE " . app('db')->getTablePrefix() . "yz_invite_page comment '商品邀请页面开启记录表'");//表注释
         }
     }
 

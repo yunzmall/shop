@@ -4,6 +4,7 @@
 namespace app\frontend\modules\member\services;
 
 
+use app\common\events\member\RegisterByMobile;
 use app\common\models\MemberShopInfo;
 use app\frontend\models\Member;
 use app\frontend\modules\member\models\MemberModel;
@@ -42,8 +43,9 @@ class SmsCodeService extends MemberService
                 $memberInfo = $this->register($data);
             }
             if (!empty($memberInfo)) {
-                $memberInfo = $memberInfo->toArray();
-                $this->save($memberInfo, $this->uniacid);
+                $password = $memberInfo['password'];
+				$memberInfo = $memberInfo->toArray();
+                $this->save(array_add($memberInfo,'password',$password), $this->uniacid);
                 $yz_member = MemberShopInfo::getMemberShopInfo($memberInfo['uid']);
                 if (!empty($yz_member)) {
                     $yz_member = $yz_member->toArray();
@@ -130,20 +132,8 @@ class SmsCodeService extends MemberService
         //生成分销关系链
         Member::createRealtion($member_id);
         $member = MemberModel::checkMobile($this->uniacid, $data['mobile']);
-        if ($data['type'] == 7) {
-            $data = [
-                'uniacid' => $this->uniacid,
-                'member_id' => $member_id,
-                'openid' => $data['mobile'],
-                'nickname' => $data['mobile'],
-                'gender' => 0,
-                'avatar' => $head_img,
-                'province' => '',
-                'city' => '',
-                'country' => '',
-                'uuid' => $data['uuid']
-            ];
-            MemberWechatModel::insertData($data);
+        if ($member && $member->mobile) {
+            event(new RegisterByMobile($member));
         }
         return $member;
     }

@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/4/7
  * Time: 下午3:08
  */
@@ -12,13 +12,16 @@ use app\common\events\withdraw\BalanceWithdrawSuccessEvent;
 use app\common\events\withdraw\WithdrawPayedEvent;
 use app\common\models\Income;
 use app\common\models\Withdraw as WithdrawModel;
+use app\common\services\income\WithdrawIncomeService;
 
 class Withdraw
 {
 
-    public static function getWithdrawServicetaxPercent($amount)
+    public static function getWithdrawServicetaxPercent($amount,$withdraw = null)
     {
-
+        if ($withdraw && in_array($withdraw->type,\app\common\models\Withdraw::$noDeductionServicetax)) {//不扣除劳务税的提现类型
+            return ['servicetax_amount' => 0, 'servicetax_percent' => 0];
+        }
         $withdraw_set = \Setting::get('withdraw.income');
         $percent = 0;
 
@@ -67,7 +70,7 @@ class Withdraw
     public static function otherWithdrawSuccess($withdrawId)
     {
         $withdraw = WithdrawModel::getWithdrawById($withdrawId)->first();
-        if ($withdraw->status != '1') {
+        if ($withdraw->status != '1' && $withdraw->status != 4) {
             return false;
         }
         $withdraw->pay_status = 1;
@@ -84,7 +87,7 @@ class Withdraw
             'status' => 2,
             'arrival_at' => time(),
         ];
-        \Log::info('修改提现记录状态', print_r($updatedData, true));
+        \Log::debug('修改提现记录状态', [$withdrawId,$updatedData]);
         return WithdrawModel::updatedWithdrawStatus($withdrawId, $updatedData);
     }
 
@@ -110,7 +113,8 @@ class Withdraw
                 'status' => 1,
                 'arrival_at' => time(),
             ];
-            \Log::info('修改提现记录状态', print_r($updatedData, true));
+            WithdrawIncomeService::delete($withdraw);
+            \Log::debug('修改提现记录状态', [$withdrawId,$updatedData]);
             return WithdrawModel::updatedWithdrawStatus($withdrawId, $updatedData);
         }
     }

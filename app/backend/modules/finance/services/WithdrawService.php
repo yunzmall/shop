@@ -12,7 +12,7 @@ use app\common\services\PayFactory;
 
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/3/31
  * Time: 下午3:13
  */
@@ -127,5 +127,35 @@ class WithdrawService extends Withdraw
     public static function convergePayMent($withdraw, $remark)
     {
         return  PayFactory::create(PayFactory::PAY_WECHAT_HJ)->doWithdraw($withdraw->member_id, $withdraw->withdraw_sn, $withdraw->actual_amounts, $remark);
+    }
+
+    public static function highLightWithdrawPay($withdraw)
+    {
+        return  PayFactory::create(PayFactory::HIGH_LIGHT)->doWithdraw($withdraw->member_id, $withdraw->withdraw_sn, $withdraw->actual_amounts,'',$withdraw->pay_way);
+    }
+
+    public static function workerWithdrawPay($withdraw)
+    {
+        return  PayFactory::create(PayFactory::WORK_WITHDRAW_PAY)->doWithdraw($withdraw->member_id, $withdraw->withdraw_sn, $withdraw->actual_amounts,'',$withdraw->pay_way);
+    }
+
+    public static function eplusWithdrawPay($withdraw)
+    {
+        return PayFactory::create(PayFactory::EPLUS_MINI_PAY)->doWithdraw($withdraw->member_id, $withdraw->withdraw_sn, $withdraw->actual_amounts, '', $withdraw->pay_way);
+    }
+
+    public static function silverPointWithdrawPayment($withdraw)
+    {
+        return PayFactory::create(PayFactory::SILVER_POINT_PAYMENT)->doWithdraw($withdraw->member_id, $withdraw->withdraw_sn, $withdraw->actual_amounts, '', $withdraw->pay_way);
+    }
+
+    public static function jianzhimaoBankPayment($withdraw)
+    {
+        return PayFactory::create(PayFactory::JIANZHIMAO_BANK)->doWithdraw($withdraw->member_id, $withdraw->withdraw_sn, $withdraw->actual_amounts, '', $withdraw->pay_way);
+    }
+
+    public static function taxWithdrawBankPayment($withdraw)
+    {
+        return PayFactory::create(PayFactory::TAX_WITHDRAW_BANK)->doWithdraw($withdraw->member_id, $withdraw->withdraw_sn, $withdraw->actual_amounts, '', $withdraw->pay_way);
     }
 }

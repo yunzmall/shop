@@ -1626,6 +1626,7 @@ CREATE TABLE IF NOT EXISTS ". tablename('yz_point_log')." (
   `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
   `uniacid` int(11) NOT NULL DEFAULT '0',
   `member_id` int(11) NOT NULL DEFAULT '0',
+  `order_goods_id` int(11) NOT NULL DEFAULT '0',
   `point` decimal(10,2) NOT NULL DEFAULT '0.00',
   `point_income_type` tinyint(2) NOT NULL DEFAULT '0',
   `point_mode` tinyint(5) NOT NULL DEFAULT '0',

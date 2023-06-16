@@ -16,7 +16,7 @@ class AddIsMemberDeletedToYzMemberCoupon extends Migration
         if (Schema::hasTable('yz_member_coupon')) {
             if (!Schema::hasColumn('yz_member_coupon', 'is_member_deleted')) {
                 Schema::table('yz_member_coupon', function (Blueprint $table) {
-                    $table->tinyInteger('is_member_deleted')->unsigned()->default(0);
+                    $table->tinyInteger('is_member_deleted')->unsigned()->default(0)->comment('会员已删除');
                 });
             }
         }

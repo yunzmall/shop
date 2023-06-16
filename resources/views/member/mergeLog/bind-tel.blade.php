@@ -7,7 +7,7 @@
                 <ul class="add-shopnav">
                     <li class="active">
                         <a href="{{yzWebFullUrl('member.merge-log.authMerge')}}">
-                            自动合并记录
+                            自动合并ssss记录
                         </a>
                     </li>
                     <li class="active">
@@ -30,11 +30,11 @@
                                 <div class='input-group'>
                                     <div class='form-input'>
                                         <p class="input-group-addon" >合并前会员ID</p>
-                                        <input class="form-control price" style="width: 45%;" type="text" name="search[member_id]" value="{{ $search['member_id'] or ''}}">
+                                        <input class="form-control price" style="width: 45%;" type="text" name="search[member_id]" value="{{ $search['member_id'] ?? ''}}">
                                     </div>
                                     <div class='form-input'>
                                         <p class="input-group-addon" >合并后会员ID</p>
-                                        <input class="form-control price" style="width: 30%;" type="text" name="search[mark_member_id]" value="{{ $search['mark_member_id'] or ''}}">
+                                        <input class="form-control price" style="width: 30%;" type="text" name="search[mark_member_id]" value="{{ $search['mark_member_id'] ?? ''}}">
                                     </div>
                                 </div>
                             </div>

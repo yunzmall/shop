@@ -34,6 +34,7 @@ class CreateYzOperationLogTable extends Migration
                 $table->integer('updated_at')->nullable();
                 $table->integer('deleted_at')->nullable();
             });
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE " . app('db')->getTablePrefix() . "yz_operation_log comment '操作员操作记录表'");//表注释
         }
     }
 

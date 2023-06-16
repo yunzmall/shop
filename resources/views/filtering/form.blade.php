@@ -26,9 +26,13 @@
                         <el-form-item label="名称" prop="name">
                             <el-input  v-model="form.name" style="width:70%;"></el-input>
                         </el-form-item>
-                        <el-form-item label="是否显示" prop="is_show" v-if="parent_id==0">
-                            <el-radio v-model.number="form.is_show" :label="1">不显示</el-radio>
-                            <el-radio v-model.number="form.is_show" :label="0">显示</el-radio>
+                        <el-form-item label="是否启用" prop="is_show" v-if="parent_id==0">
+                            <el-radio v-model.number="form.is_show" :label="1">不启用</el-radio>
+                            <el-radio v-model.number="form.is_show" :label="0">启用</el-radio>
+                        </el-form-item>
+                        <el-form-item label="前端是否显示" prop="is_front_show" v-else>
+                            <el-radio v-model.number="form.is_front_show" :label="0">不显示</el-radio>
+                            <el-radio v-model.number="form.is_front_show" :label="1">显示</el-radio>
                         </el-form-item>
                     </el-form>
                 </div>
@@ -112,6 +116,7 @@
                         filter:{
                             name:this.form.name,
                             is_show:this.form.is_show || 0,
+                            is_front_show:this.form.is_front_show || 0
                         }
                     }
                     if(this.id!=0) {

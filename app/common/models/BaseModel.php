@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 24/02/2017
  * Time: 16:36
  */
@@ -206,7 +206,8 @@ class BaseModel extends Model
         if (!isset($uid)) {
             $uid = \YunShop::app()->getMemberId();
         }
-        return $query->where($this->getTable() . '.uid', $uid);
+        $function = is_array($uid) ? 'whereIn' : 'where';
+        return $query->$function($this->getTable() . '.uid', $uid);
     }
 
     public function scopeMine(Builder $query)

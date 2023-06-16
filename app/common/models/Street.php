@@ -5,7 +5,7 @@ namespace app\common\models;
 
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/2/27
  * Time: 上午9:11
  */
@@ -31,6 +31,11 @@ class Street extends BaseModel
     public function isLeaf()
     {
         return true;
+    }
+
+    public function hasOneParent()
+    {
+        return $this->hasOne(Address::class, 'id', 'parentid');
     }
 
 }

@@ -27,7 +27,7 @@
                     <div class="card-content" style="padding-bottom: 35px;">
                         <button class="btn btn-default"><a href="{{yzWebUrl('goods.goods.index')}}">发布商品</a></button>
                         @if($designer != "index.index")
-                            <button class="btn btn-default"><a href="{{yzWebUrl($designer)}}">店铺装修</a></button>
+                            <button class="btn btn-default"><a href="{{$decorate}}">店铺装修</a></button>
                         {{--<button class="btn btn-default"><a href="{{yzWebUrl('plugin.designer.admin.list.index')}}">店铺装修</a></button>--}}
                         @endif
                         <button class="btn btn-default"><a href="{{yzWebUrl('order.list.index')}}">查看订单</a></button>

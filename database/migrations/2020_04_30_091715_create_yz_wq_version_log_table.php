@@ -20,6 +20,8 @@ class CreateYzWqVersionLogTable extends Migration
                 $table->integer('created_at')->nullable();
                 $table->integer('updated_at')->nullable();
             });
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE " . app('db')->getTablePrefix()
+                . "yz_wq_version_log comment '微擎--版本记录表'");//表注释
         }
     }
 

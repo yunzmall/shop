@@ -6,7 +6,7 @@
             </a>
             &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
         </li>
-        <li class="active">
+        <li>
             <a href="{{ yzWebFullUrl('member.member-cancel.verify') }}">
                 账号注销申请审核
             </a>

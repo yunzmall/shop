@@ -4,6 +4,7 @@ namespace app\backend\modules\upload\controllers;
 
 use app\backend\modules\upload\models\CoreAttach;
 use app\common\components\BaseController;
+use app\common\exceptions\ShopException;
 use app\common\services\ImageZip;
 use app\common\services\upload\UploadService;
 use app\platform\modules\application\models\CoreAttachTags;
@@ -11,13 +12,14 @@ use app\platform\modules\system\models\SystemSetting;
 use getID3;
 class UploadV3Controller extends BaseController
 {
+    protected $isPublic = true;
     protected $uniacid;
-    protected $common;
+    protected $set;
 
     public function __construct()
     {
         $this->uniacid = \YunShop::app()->uniacid ?: 0;
-        $this->common = $this->common();
+        $this->set = UploadService::getSetting();
     }
 
     public function upload()
@@ -26,10 +28,10 @@ class UploadV3Controller extends BaseController
         $type = request()->upload_type;
         $tagId = request()->tag_id;
         if (!$file) {
-            return $this->errorJson('请传入正确参数.');
+            return $this->errorJson('文件上传失败.');
         }
         if (!$file->isValid()) {
-            return $this->errorJson('上传失败.');
+            return $this->errorJson('文件上传失败.');
         }
         // 获取文件相关信息
         $originalName = $file->getClientOriginalName(); // 文件原名
@@ -37,17 +39,23 @@ class UploadV3Controller extends BaseController
         $ext = $file->getClientOriginalExtension(); //文件后缀
         $uploadService = new UploadService();
         $upload_setting = $uploadService->getSetting();
+        $auth_uid = \YunShop::app()->uid?:1;
+        global $_W;
         if ($type == 'image') {
-            $upload_res = $uploadService->upload($file, $type);
+            try {
+                $upload_res = $uploadService->upload($file, $type);
+            } catch (ShopException $exception) {
+                return $this->errorJson($exception->getMessage());
+            }
             if (config('app.framework') == 'platform') {
                 $data = [
                     'uniacid' => $this->uniacid,
-                    'uid' => \YunShop::app()->uid,
+                    'uid' => $auth_uid,
                     'filename' => safe_gpc_html(htmlspecialchars_decode($originalName, ENT_QUOTES)),
                     'attachment' => $upload_res['relative_path'],
                     'type' => 1,
                     'module_upload_dir' => '',
-                    'group_id' => intval($this->uniacid),
+                    'group_id' => (int)$this->uniacid,
                     'upload_type' => $upload_setting['remote']['type'],
                     'tag_id' => $tagId
                 ];
@@ -55,7 +63,7 @@ class UploadV3Controller extends BaseController
             } else {
                 $data = [
                     'uniacid' => $this->uniacid,
-                    'uid' => \YunShop::app()->uid,
+                    'uid' => isset($_W['uid']) ? $_W['uid'] : 1,
                     'filename' => safe_gpc_html(htmlspecialchars_decode($originalName, ENT_QUOTES)),
                     'attachment' => $upload_res['relative_path'],
                     'type' => 1,
@@ -74,23 +82,27 @@ class UploadV3Controller extends BaseController
                 'url' => $upload_res['absolute_path'],
                 'is_image' => 1,
                 'filesize' => 'null',
-                'group_id' => intval($this->uniacid),
+                'group_id' => (int)$this->uniacid,
                 'state' => 'SUCCESS'
             ]);
         } elseif ($type == 'video') {
-            $upload_res = $uploadService->upload($file, $type, 'videos');
+            try {
+                $upload_res = $uploadService->upload($file, $type, 'videos');
+            } catch (ShopException $exception) {
+                return $this->errorJson($exception->getMessage());
+            }
             if (config('app.framework') == 'platform') {
                 $getID3 = new getID3();
                 $ThisFileInfo = $getID3->analyze($realPath); //分析文件，$path为音频文件的地址
                 $timeline = $ThisFileInfo['playtime_seconds']; //这个获得的便是音频文件的时长
                 $data = [
                     'uniacid' => $this->uniacid,
-                    'uid' => \YunShop::app()->uid,
+                    'uid' => $auth_uid,
                     'filename' => safe_gpc_html(htmlspecialchars_decode($originalName, ENT_QUOTES)),
                     'attachment' => $upload_res['relative_path'],
                     'type' => 3,
                     'module_upload_dir' => '',
-                    'group_id' => intval($this->uniacid),
+                    'group_id' => (int)$this->uniacid,
                     'upload_type' => $upload_setting['remote']['type'],
                     'tag_id' => $tagId,
                     'timeline' => $timeline
@@ -104,7 +116,7 @@ class UploadV3Controller extends BaseController
                     'url' => $upload_res['absolute_path'],
                     'is_image' => 0,
                     'filesize' => 'null',
-                    'group_id' => intval($this->uniacid),
+                    'group_id' => (int)$this->uniacid,
                     'timeline' => $timeline
                 ]);
             } else {
@@ -113,7 +125,7 @@ class UploadV3Controller extends BaseController
                 $timeline=$ThisFileInfo['playtime_seconds']; //这个获得的便是音频文件的时长
                 $data = [
                     'uniacid' => $this->uniacid,
-                    'uid' => \YunShop::app()->uid,
+                    'uid' => isset($_W['uid']) ? $_W['uid'] : 1,
                     'filename' => safe_gpc_html(htmlspecialchars_decode($originalName, ENT_QUOTES)),
                     'attachment' => $upload_res['relative_path'],
                     'type' => 3,
@@ -124,8 +136,6 @@ class UploadV3Controller extends BaseController
                     'timeline' => $timeline
                 ];
                 CoreAttach::create($data);
-
-                //todo 音频没有使用新组件，应该是返回页面
                 return $this->successJson('上传成功', [
                     'name' => $originalName,
                     'ext' => $ext,
@@ -134,35 +144,27 @@ class UploadV3Controller extends BaseController
                     'url' => $upload_res['absolute_path'],
                     'is_image' => 0,
                     'filesize' => 'null',
-                    'group_id' => intval($this->uniacid)
+                    'group_id' => (int)$this->uniacid,
                 ]);
-//                $info = array(
-//                    'name' => $originalName,
-//                    'ext' => $ext,
-//                    'filename' => $newOriginalName,
-//                    'attachment' => $url,
-//                    'url' => yz_tomedia($url),
-//                    'is_image' => 0,
-//                    'filesize' => 'null',
-//                );
-//
-//                $info['state'] = 'SUCCESS';
-//                die(json_encode($info));
             }
         } elseif ($type == 'audio') {
-            $upload_res = $uploadService->upload($file, $type, 'audios');
+            try {
+                $upload_res = $uploadService->upload($file, $type, 'audios');
+            } catch (ShopException $exception) {
+                return $this->errorJson($exception->getMessage());
+            }
             if (config('app.framework') == 'platform') {
                 $getID3 = new getID3();
                 $ThisFileInfo = $getID3->analyze($realPath); //分析文件，$path为音频文件的地址
                 $timeline = $ThisFileInfo['playtime_seconds']; //这个获得的便是音频文件的时长
                 $data = [
                     'uniacid' => $this->uniacid,
-                    'uid' => \YunShop::app()->uid,
+                    'uid' => $auth_uid,
                     'filename' => safe_gpc_html(htmlspecialchars_decode($originalName, ENT_QUOTES)),
                     'attachment' => $upload_res['relative_path'],
                     'type' => 2,
                     'module_upload_dir' => '',
-                    'group_id' => intval($this->uniacid),
+                    'group_id' => (int)$this->uniacid,
                     'upload_type' => $upload_setting['remote']['type'],
                     'tag_id' => $tagId,
                     'timeline' => $timeline
@@ -176,7 +178,7 @@ class UploadV3Controller extends BaseController
                     'url' => $upload_res['absolute_path'],
                     'is_image' => 0,
                     'filesize' => 'null',
-                    'group_id' => intval($this->uniacid),
+                    'group_id' => (int)$this->uniacid,
                     'timeline' => $timeline
                 ]);
             } else {
@@ -185,7 +187,7 @@ class UploadV3Controller extends BaseController
                 $timeline = $ThisFileInfo['playtime_seconds']; //这个获得的便是音频文件的时长
                 $data = [
                     'uniacid' => $this->uniacid,
-                    'uid' => \YunShop::app()->uid,
+                    'uid' => isset($_W['uid']) ? $_W['uid'] : 1,
                     'filename' => safe_gpc_html(htmlspecialchars_decode($originalName, ENT_QUOTES)),
                     'attachment' => $upload_res['relative_path'],
                     'type' => 2,
@@ -196,8 +198,6 @@ class UploadV3Controller extends BaseController
                     'timeline' => $timeline
                 ];
                 CoreAttach::create($data);
-
-                //todo 音频没有使用新组件，应该是返回页面
                 return $this->successJson('上传成功', [
                     'name' => $originalName,
                     'ext' => $ext,
@@ -206,21 +206,25 @@ class UploadV3Controller extends BaseController
                     'url' => $upload_res['absolute_path'],
                     'is_image' => 0,
                     'filesize' => 'null',
-                    'group_id' => intval($this->uniacid)
+                    'group_id' => (int)$this->uniacid,
                 ]);
-//                $info = array(
-//                    'name' => $originalName,
-//                    'ext' => $ext,
-//                    'filename' => $newOriginalName,
-//                    'attachment' => $url,
-//                    'url' => yz_tomedia($url),
-//                    'is_image' => 0,
-//                    'filesize' => 'null',
-//                );
-//
-//                $info['state'] = 'SUCCESS';
-//                die(json_encode($info));
             }
+        } elseif ($type == 'file') {
+            try {
+                $upload_res = $uploadService->upload($file, $type, 'files');
+            } catch (ShopException $exception) {
+                return $this->errorJson($exception->getMessage());
+            }
+            return $this->successJson('上传成功', [
+                'name' => $originalName,
+                'ext' => $ext,
+                'filename' => $upload_res['file_name'],
+                'attachment' => $upload_res['relative_path'],
+                'url' => $upload_res['absolute_path'],
+                'is_image' => 0,
+                'filesize' => 'null',
+                'group_id' => (int)$this->uniacid,
+            ]);
         }
         return true;
     }
@@ -260,7 +264,7 @@ class UploadV3Controller extends BaseController
         }
         $url = \Storage::disk('image')->url($newOriginalName);
         if (config('app.framework') == 'platform') {
-            $remote = SystemSetting::settingLoad('remote', 'system_remote');
+            $remote = $this->set['remote'];
             $data = [
                 'uniacid' => $this->uniacid,
                 'uid' => \YunShop::app()->uid,
@@ -284,17 +288,10 @@ class UploadV3Controller extends BaseController
         } else {
             //全局配置
             global $_W;
-            //公众号独立配置信息 优先使用公众号独立配置
-            $uni_setting = app('WqUniSetting')->get()->toArray();
-            if (!empty($uni_setting['remote']) && iunserializer($uni_setting['remote'])['type'] != 0) {
-                $setting['remote'] = iunserializer($uni_setting['remote']);
-                $remote = $setting['remote'];
-            } else {
-                $remote = $_W['setting']['remote'];
-            }
+            $remote = $this->set['remote'];
             $data = [
                 'uniacid' => $this->uniacid,
-                'uid' => \YunShop::app()->uid,
+                'uid' => isset($_W['uid']) ? $_W['uid'] : 1,
                 'filename' => $newOriginalName,
                 'attachment' => $url,
                 'type' => 1,
@@ -331,7 +328,7 @@ class UploadV3Controller extends BaseController
         $month = intval(request()->month);
         $pageSize = request()->pageSize;
         $core_attach = new CoreAttach;
-        $core_attach = $core_attach->where('uniacid', $this->uniacid)->where('module_upload_dir', $this->common['module_upload_dir']);
+        $core_attach = $core_attach->where('uniacid', $this->uniacid);
         $tagId = request()->tag_id;
         if (is_numeric($tagId)) {
             if ($tagId === 0) {
@@ -342,8 +339,9 @@ class UploadV3Controller extends BaseController
                 $core_attach = $core_attach->where('tag_id', $tagId);
             }
         }
+        global $_W;
         if (\YunShop::app()->isfounder !== true) {
-            $core_attach = $core_attach->where('uid', \YunShop::app()->uid);
+            $core_attach = $core_attach->where('uid', $_W['uid']?:1);
         }
         if ($year || $month) {
             $start_time = $month ? strtotime("{$year}-{$month}-01") : strtotime("{$year}-1-01");
@@ -351,17 +349,15 @@ class UploadV3Controller extends BaseController
             $core_attach = $core_attach->where('createtime', '>=', $start_time)->where('createtime', '<=', $end_time);
         }
         $core_attach = $core_attach->select('id','attachment')->where('type', 1);
-        $core_attach = $core_attach->orderby('createtime', 'desc');
+        $core_attach = $core_attach->orderby('createtime', 'desc')->orderby('id', 'desc');
         $core_attach->search(request()->date);
-        $core_attach = $core_attach->paginate($pageSize)->toArray();
-        foreach ($core_attach['data'] as &$meterial) {
-            if ($this->common['islocal']) {
-                $meterial['url'] = yz_tomedia($meterial['attachment']);
-                unset($meterial['uid']);
-            } else {
-                $meterial['attach'] = yz_tomedia($meterial['attachment'], true);
-                $meterial['url'] = $meterial['attach'];
-            }
+        $core_attach = $core_attach->paginate($pageSize);
+        if (!empty($core_attach)) {
+            $core_attach = $core_attach->toArray();
+        }
+        foreach ($core_attach['data'] as &$attach) {
+            $attach['attach'] = yz_tomedia($attach['attachment']);
+            $attach['url'] = $attach['attach'];
         }
         return $core_attach;
     }
@@ -371,7 +367,6 @@ class UploadV3Controller extends BaseController
         $year = request()->year;
         $month = intval(request()->month);
         $page = max(1, intval(request()->page));
-        $groupid = intval(request()->group_id);
         $page_size = 33;
         if ($page <= 1) {
             $page = 0;
@@ -380,15 +375,10 @@ class UploadV3Controller extends BaseController
             $offset = ($page-1)*$page_size;
         }
         $core_attach = new CoreAttach;
-        $core_attach = $core_attach->where('uniacid', $this->uniacid)->where('module_upload_dir', $this->common['module_upload_dir']);
-        if (!$this->uniacid) {
-            $core_attach = $core_attach->where('uid', \YunShop::app()->uid);
-        }
-        if ($groupid > 0) {
-            $core_attach = $core_attach->where('group_id', $groupid);
-        }
-        if ($groupid == 0) {
-            $core_attach = $core_attach->where('group_id', -1);
+        $core_attach = $core_attach->where('uniacid', $this->uniacid);
+        global $_W;
+        if (\YunShop::app()->isfounder !== true) {
+            $core_attach = $core_attach->where('uid', $_W['uid']?:1);
         }
         if ($year || $month) {
             $start_time = $month ? strtotime("{$year}-{$month}-01") : strtotime("{$year}-1-01");
@@ -400,14 +390,9 @@ class UploadV3Controller extends BaseController
         $core_attach = $core_attach->orderby('createtime', 'desc');
         $count = $core_attach->count();
         $core_attach = $core_attach->offset($offset)->limit($page_size)->get();
-        foreach ($core_attach as &$meterial) {
-            if ($this->common['islocal']) {
-                $meterial['url'] = yz_tomedia($meterial['attachment']);
-                unset($meterial['uid']);
-            } else {
-                $meterial['attach'] = yz_tomedia($meterial['attachment'], true);
-                $meterial['url'] = $meterial['attach'];
-            }
+        foreach ($core_attach as &$attach) {
+            $attach['attach'] = yz_tomedia($attach['attachment']);
+            $attach['url'] = $attach['attach'];
         }
         $pager = pagination($count, $page, $page_size,'',$context = array('before' => 5, 'after' => 4, 'isajax' => '1'));
         $result = array('items' => $core_attach, 'pager' => $pager);
@@ -418,11 +403,7 @@ class UploadV3Controller extends BaseController
     {
         $core_attach = new \app\platform\modules\application\models\CoreAttach();
         $pageSize = request()->pageSize;
-        $core_attach = $core_attach->search(request()->date)
-                                    ->where('uniacid', $this->uniacid)
-                                    ->where('module_upload_dir', $this->common['module_upload_dir'])
-                                    ->where('type', 1);
-
+        $core_attach = $core_attach->search(request()->date)->where('uniacid', $this->uniacid)->where('type', 1);
         if ($tagId = request()->tag_id AND is_numeric($tagId)) {
             if ($tagId === 0) {
                 $core_attach = $core_attach->where(function($query) {
@@ -432,84 +413,37 @@ class UploadV3Controller extends BaseController
                 $core_attach = $core_attach->where('tag_id', $tagId);
             }
         }
-
         if (\YunShop::app()->isfounder !== true) {
             $core_attach = $core_attach->where('uid', \YunShop::app()->uid);
         }
-
-        //type = 1 图片
         $core_attach = $core_attach->select('id','attachment','filename')
-                                    ->orderby('created_at', 'desc')
-                                    ->paginate($pageSize);
-
-        foreach ($core_attach as &$meterial) {
-            $meterial['url'] = yz_tomedia($meterial['attachment']);
-            unset($meterial['uid']);
+            ->orderby('created_at', 'desc')
+            ->orderby('id', 'desc')
+            ->paginate($pageSize);
+        foreach ($core_attach as &$attach) {
+            $attach['url'] = yz_tomedia($attach['attachment']);
         }
-        return $core_attach->toArray();
+        return $core_attach;
     }
 
     public function getVideo()
     {
+        $date = request()->date;
+        $tag_id = request()->tag_id;
+        $page_size = request()->pageSize;
+        $search = ['year'=>$date['year'],'month'=>$date['month'],'tag_id'=>$tag_id];
         if (config('app.framework') == 'platform') {
-            $core_attach = new \app\platform\modules\application\models\CoreAttach();
-            if (request()->year != '不限') {
-                $search['year'] = request()->year;
-            }
-            if(request()->month != '不限') {
-                $search['month'] = request()->month;
-            }
-            $pageSize = request()->pageSize;
-            $core_attach = $core_attach->search($search);
-            $core_attach = $core_attach->where('uniacid', $this->uniacid)->where('module_upload_dir', $this->common['module_upload_dir']);
-            $tagTitle = '';
-            if ($tagId = request()->tag_id AND !empty($tagId)) {
-                $core_attach->where('tag_id', $tagId);
-                $tag = CoreAttachTags::find($tagId);
-                $tagTitle = $tag?$tag->title:'';
-            }
-            if ($tagTitle != '未分组') {
-                $core_attach = $core_attach->where('uid', \YunShop::app()->uid);
-            }
-            //type = 3 视频
-            $core_attach = $core_attach->where('type', 3);
-            $core_attach = $core_attach->orderby('created_at', 'desc')->paginate($pageSize);
-            foreach ($core_attach as &$meterial) {
-                $meterial['url'] = yz_tomedia($meterial['attachment']);
-                unset($meterial['uid']);
-            }
-            return $this->successJson('ok', $core_attach);
+            $core_attach = \app\platform\modules\application\models\CoreAttach::search($search);
+            $core_attach = $core_attach->orderby('created_at', 'desc');
         } else {
-            $core_attach = new CoreAttach();
-            $page_index = max(1, request()->page);
-            $page_size = 5;
-            if ($page_index<=1) {
-                $page_index = 0;
-                $offset = ($page_index)*$page_size;
-            } else {
-                $offset = ($page_index-1)*$page_size;
-            }
-            if (!$this->uniacid) {
-                $core_attach = $core_attach->where('uid', \YunShop::app()->uid);
-            }
-            $total = $core_attach->count();
-            $core_attach = $core_attach
-                ->where('type', 3)
-                ->where('uniacid', $this->uniacid)
-                ->where('module_upload_dir', $this->common['module_upload_dir'])
-                ->orderby('createtime', 'desc')
-                ->offset($offset)
-                ->limit(24)
-                ->get();
-            foreach ($core_attach as &$meterial) {
-                $meterial['url'] = yz_tomedia($meterial['attachment']);
-                unset($meterial['uid']);
-            }
-            $pager = pagination($total, 1, 24, '', $context = array('before' => 5, 'after' => 4, 'isajax' => '1'));
-            $result = array('items' => $core_attach, 'pager' => $pager);
-            iajax(0, $result);
+            $core_attach = CoreAttach::search($search);
+            $core_attach = $core_attach->orderby('createtime', 'desc');
         }
-        return true;
+        $core_attach = $core_attach->where('type', 3)->paginate($page_size);
+        foreach ($core_attach as &$attach) {
+            $attach['url'] = yz_tomedia($attach['attachment']);
+        }
+        return $this->successJson('ok', $core_attach);
     }
 
     public function getAudio()
@@ -523,8 +457,7 @@ class UploadV3Controller extends BaseController
                 $search['month'] = request()->month;
             }
             $pageSize = request()->pageSize;
-            $core_attach = $core_attach->search($search);
-            $core_attach = $core_attach->where('uniacid', $this->uniacid)->where('module_upload_dir', $this->common['module_upload_dir']);
+            $core_attach = $core_attach->search($search)->where('uniacid', $this->uniacid);
             $tagTitle = '';
             if ($tagId = request()->tag_id AND !empty($tagId)) {
                 $core_attach->where('tag_id', $tagId);
@@ -537,36 +470,37 @@ class UploadV3Controller extends BaseController
             //type = 2 音频
             $core_attach = $core_attach->where('type', 2);
             $core_attach = $core_attach->orderby('created_at', 'desc')->paginate($pageSize);
-            foreach ($core_attach as &$meterial) {
-                $meterial['url'] = yz_tomedia($meterial['attachment']);
-                unset($meterial['uid']);
+            foreach ($core_attach as &$attach) {
+                $attach['url'] = yz_tomedia($attach['attachment']);
             }
             return $this->successJson('ok', $core_attach);
         } else {
             $core_attach = new CoreAttach();
             $page_index = max(1, request()->page);
             $page_size = 5;
-            if ($page_index<=1) {
+            if ($page_index <= 1) {
                 $page_index = 0;
-                $offset = ($page_index)*$page_size;
+                $offset = $page_index * $page_size;
             } else {
-                $offset = ($page_index-1)*$page_size;
+                $offset = ($page_index - 1) * $page_size;
             }
+            $core_attach = $core_attach->where(['type'=>2,'uniacid'=>$this->uniacid]);
             if (!$this->uniacid) {
                 $core_attach = $core_attach->where('uid', \YunShop::app()->uid);
             }
             $total = $core_attach->count();
-            $core_attach = $core_attach
-                ->where('type', 2)
-                ->where('uniacid', $this->uniacid)
-                ->where('module_upload_dir', $this->common['module_upload_dir'])
-                ->orderby('createtime', 'desc')
-                ->offset($offset)
-                ->limit(24)
-                ->get();
-            foreach ($core_attach as &$meterial) {
-                $meterial['url'] = yz_tomedia($meterial['attachment']);
-                unset($meterial['uid']);
+            if (request()->platform_type == '1') {
+                $search['year'] = request()->year;
+                $search['month'] = request()->month;
+                $list = $core_attach->search($search)->orderby('createtime', 'desc')->paginate(8);
+                $list->map(function ($l) {
+                    $l->url = yz_tomedia($l->attachment);
+                });
+                return $this->successJson('ok', $list);
+            }
+            $core_attach = $core_attach->orderby('createtime', 'desc')->offset($offset)->limit(24)->get();
+            foreach ($core_attach as &$attach) {
+                $attach['url'] = yz_tomedia($attach['attachment']);
             }
             $pager = pagination($total, 1, 24, '', $context = array('before' => 5, 'after' => 4, 'isajax' => '1'));
             $result = array('items' => $core_attach, 'pager' => $pager);
@@ -577,43 +511,27 @@ class UploadV3Controller extends BaseController
 
     public function delete()
     {
-        $uid = \YunShop::app()->uid;
         $id = request()->id;
         if (!is_array($id)) {
             $id = array(intval($id));
         }
         $id = safe_gpc_array($id);
         if (config('app.framework') == 'platform') {
-            $remote = SystemSetting::settingLoad('remote', 'system_remote');
-            $core_attach = \app\platform\modules\application\models\CoreAttach::where('id', $id);
-            if (!$this->uniacid) {
-                $core_attach = $core_attach->where('uid', $uid);
-            } else {
-                $core_attach = $core_attach->where('uniacid', $this->uniacid);
-            }
-            $core_attach = $core_attach->first();
+            $core_attach = \app\platform\modules\application\models\CoreAttach::find($id);
             if ($core_attach['upload_type']) {
-                $status = file_remote_delete($core_attach['attachment'], $core_attach['upload_type'], $remote);
+                $status = file_remote_delete($core_attach['attachment'], $core_attach['upload_type'], $this->set['remote']);
             } else {
                 $status = file_delete($core_attach['attachment']);
             }
             if (is_error($status)) {
                 return $this->errorJson($status['message']);
             }
-
-            if ($core_attach->delete()) {
-                return $this->successJson('删除成功');
-            } else {
+            if (!$core_attach->delete()) {
                 return $this->errorJson('删除数据表数据失败');
             }
+            return $this->successJson('删除成功');
         } else {
-            $core_attach = CoreAttach::where('id', $id);
-            if (!$this->uniacid) {
-                $core_attach = $core_attach->where('uid', $uid);
-            } else {
-                $core_attach = $core_attach->where('uniacid', $this->uniacid);
-            }
-            $core_attach = $core_attach->first();
+            $core_attach = CoreAttach::find($id);
             if ($core_attach['upload_type']) {
                 $status = file_remote_delete($core_attach['attachment']);
             } else {
@@ -622,53 +540,10 @@ class UploadV3Controller extends BaseController
             if (is_error($status)) {
                 return $this->errorJson($status['message']);
             }
-            if ($core_attach->delete()) {
-                return $this->successJson('删除成功');
-            } else {
+            if (!$core_attach->delete()) {
                 return $this->errorJson('删除数据表数据失败');
             }
+            return $this->successJson('删除成功');
         }
-    }
-
-    public function common()
-    {
-        $dest_dir = request()->dest_dir;
-        $type = in_array(request()->upload_type, array('image','audio','video')) ? request()->upload_type : 'image';
-        $option = array_elements(array('uploadtype', 'global', 'dest_dir'), $_POST);
-        $option['width'] = intval($option['width']);
-        $option['global'] = request()->global;
-        if (preg_match('/^[a-zA-Z0-9_\/]{0,50}$/', $dest_dir, $out)) {
-            $dest_dir = trim($dest_dir, '/');
-            $pieces = explode('/', $dest_dir);
-            if(count($pieces) > 3){
-                $dest_dir = '';
-            }
-        } else {
-            $dest_dir = '';
-        }
-        $module_upload_dir = '';
-        if ($dest_dir != '') {
-            $module_upload_dir = sha1($dest_dir);
-        }
-        if ($option['global']) {
-            $folder = "{$type}s/global/";
-            if ($dest_dir) {
-                $folder .= '' . $dest_dir . '/';
-            }
-        } else {
-            $folder = "{$type}s/{$this->uniacid}";
-            if (!$dest_dir) {
-                $folder .= '/' . date('Y/m/');
-            } else {
-                $folder .= '/' . $dest_dir . '/';
-            }
-        }
-        return [
-            'dest_dir' => $dest_dir,
-            'module_upload_dir' => $module_upload_dir,
-            'type' => $type,
-            'options' => $option,
-            'folder' => $folder,
-        ];
     }
 }

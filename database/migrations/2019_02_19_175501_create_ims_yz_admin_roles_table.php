@@ -20,6 +20,7 @@ class CreateImsYzAdminRolesTable extends Migration
                 $table->string('description')->comment('备注');
                 $table->timestamps();
             });
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE " . app('db')->getTablePrefix() . "yz_admin_roles comment '角色管理-角色表'");//表注释
         }
     }
 

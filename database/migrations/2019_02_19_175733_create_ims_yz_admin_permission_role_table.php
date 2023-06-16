@@ -18,6 +18,7 @@ class CreateImsYzAdminPermissionRoleTable extends Migration
                 $table->integer('permission_id');
                 $table->integer('role_id');
             });
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE " . app('db')->getTablePrefix() . "yz_admin_permission_role comment '角色管理-角色与权限中间表'");//表注释
         }
     }
 

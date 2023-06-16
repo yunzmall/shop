@@ -5,6 +5,9 @@
          .main-panel{
             margin-top:50px;
         }
+        .main-panel #re_content {
+            padding: 10px;
+        }
         .panel{
             margin-bottom:10px!important;
             padding-left: 20px;

@@ -8,7 +8,7 @@
                 @if(isset($value['menu']) && $value['menu'] == 1 && can($key))
                     @if(isset($value['child']) && array_child_kv_exists($value['child'],'menu',1))
                         <li class="{{in_array($key,\app\backend\modules\menu\Menu::current()->getCurrentItems()) ? 'active' : ''}}">
-                            <a href="{{isset($value['url']) ? yzWebFullUrl($value['url']):''}}{{$value['url_params'] or ''}}">
+                            <a href="{{isset($value['url']) ? yzWebFullUrl($value['url']):''}}{{$value['url_params'] ?? ''}}">
                                 <i class="fa {{array_get($value,'icon','fa-circle-o') ?: 'fa-circle-o'}}"></i>
                                 {{--<span class="pull-right-container">--}}
                                 {{--<i class="fa fa-angle-left pull-right"></i>--}}
@@ -19,9 +19,9 @@
                         </li>
                     @elseif($value['menu'] == 1)
                         <li class="{{in_array($key,\app\backend\modules\menu\Menu::current()->getCurrentItems()) ? 'active' : ''}}">
-                            <a href="{{isset($value['url']) ? yzWebFullUrl($value['url']):''}}{{$value['url_params'] or ''}}">
+                            <a href="{{isset($value['url']) ? yzWebFullUrl($value['url']):''}}{{$value['url_params'] ?? ''}}">
                                 <i class="fa {{array_get($value,'icon','fa-circle-o') ?: 'fa-circle-o'}}"></i>
-                                <p>{{$value['name'] or ''}}
+                                <p>{{$value['name'] ?? ''}}
                                     @if(isset($value['bubble']) && $value['bubble'] >= 1)
                                     <span style="
                                       display: inline-block;
@@ -38,7 +38,7 @@
                                       text-overflow: ellipsis;
                                       overflow: hidden;
                                       white-space: nowrap;
-                                      width: 47px;
+                                      /*width: 47px;*/
                                     ">{{$value['bubble']}}</span>
                                     @endif
                                 </p>

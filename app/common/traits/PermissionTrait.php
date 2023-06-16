@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 08/03/2017
  * Time: 09:39
  */
@@ -64,7 +64,7 @@ trait PermissionTrait
         $noPermissions = [];
         if ($menus) {
             foreach ($menus as $key => $m) {
-                if (!(isset($m['permit']) && $m['permit'] === true)) {
+                if (!(isset($m['permit']) && $m['permit'] === 1)) {
                     $noPermissions[] = $key;
                 }
                 if(isset($m['child']) && $m['child']){

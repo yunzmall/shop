@@ -21,5 +21,5 @@ use app\common\models\BaseModel;
  */
 class GoodsMemberDiscountLog extends BaseModel
 {
-    protected $guarded = ['id'];
+    protected $guarded = [];
 }

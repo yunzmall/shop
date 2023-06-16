@@ -11,7 +11,7 @@ use app\common\models\QrCode;
 
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/3/3
  * Time: 22:16
  */
@@ -61,14 +61,17 @@ class IndexController extends BaseController
             $server = $wechatApp->server;
             try {
                 $message = $server->getMessage();// 异常代码
+
+                $plugin = $this->checkPlugin($message);
+                event(new \app\common\events\WechatMessage($wechatApp,$server,$message,$plugin));
+
                 if (\Setting::get('plugin.wechat.is_open')) {//公众号开启，才进行事件触发
-                    $plugin = $this->checkPlugin($message);
-                    event(new \app\common\events\WechatMessage($wechatApp,$server,$message,$plugin));
+//                    event(new \app\common\events\WechatMessage($wechatApp,$server,$message,$plugin));
                     if($message['Event']=="subscribe" && app('plugins')->isEnabled('pet')){
                         event(new \app\common\events\PetWeChatEvent($_GET));
                     }
                 }
-
+                return 'success';
             } catch (\Exception $exception) {
                 \Log::debug('----------公众号异常---------',$exception->getMessage());
             }

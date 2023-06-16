@@ -19,12 +19,14 @@ class OrderReceivedNotice extends BaseMessageBody
 {
 
     public $orderModel;
+    protected $orderStatus;//订单状态
 
     use OrderNoticeData,OfficialNoticeTemplate,BackstageNoticeMember;
 
-    public function __construct($order)
+    public function __construct($order, $status)
     {
         $this->orderModel = $order;
+        $this->orderStatus = $status;
     }
 
     public function organizeData()
@@ -49,6 +51,15 @@ class OrderReceivedNotice extends BaseMessageBody
         $this->getTemplate('seller_order_finish');
         $this->getBackMember();
         $this->organizeData();
+
+        // 卖家收货消息验证
+        if(
+            (empty(\Setting::get('shop.notice')['notice_enable']['created']) && $this->orderStatus == 1) ||
+            (empty(\Setting::get('shop.notice')['notice_enable']['paid']) && $this->orderStatus == 2) ||
+            (empty(\Setting::get('shop.notice')['notice_enable']['received']) && $this->orderStatus == 3)
+        ){
+            return;
+        }
 
         \Log::debug("新版公众号消息-卖家收货1",$this->template_id);
         \Log::debug("新版公众号消息-卖家收货2",$this->openids);

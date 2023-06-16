@@ -2,7 +2,7 @@
 
 namespace app\frontend\modules\coupon\listeners;
 
-use app\common\events\order\CouponExpireEvent;
+use app\common\events\coupon\CouponExpireEvent;
 use app\common\facades\Setting;
 use app\common\models\Coupon;
 use app\common\models\Member;
@@ -11,7 +11,7 @@ use app\common\models\notice\MessageTemp;
 use app\common\models\UniAccount;
 
 /**
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/7/12
  * Time: 下午4:28
  */
@@ -32,8 +32,11 @@ class CouponExpireNotice
             $this->uniacid = $u->uniacid;
             $this->set = Setting::get('shop.coupon');
             $this->setLog = Setting::get('shop.coupon_log');
+            $temp_id = $this->set['expire'];
+            if (!$temp_id) {
+                return;
+            }
             $this->sendExpireNotice();
-
         }
     }
 
@@ -48,12 +51,16 @@ class CouponExpireNotice
         $this->setLog['current_d'] = date('d');
         Setting::set('shop.coupon_log', $this->setLog);
 
-        $memberCoupons = MemberCoupon::getExpireCoupon($this->set)->get();
+        $memberCoupons = MemberCoupon::getExpireCoupon()
+            ->select(['yz_member_coupon.*'])
+            ->join('yz_coupon',function ($join){
+                $join->on('yz_member_coupon.coupon_id', '=', 'yz_coupon.id')
+                    ->where('time_limit','!=',0)->where('time_days','!=',0);
+            })
+            ->with('belongsToCoupon')
+            ->get();
 
         foreach ($memberCoupons as $memberCoupon) {
-            if ($memberCoupon->time_end == '不限时间') {
-                continue;
-            }
             $present = time();
             $end = strtotime(date('Y-m-d H:i:s', strtotime($memberCoupon->time_end) - $this->set['delayed'] * 86400));
             if ($present < $end || strtotime($memberCoupon->time_end) < $present) {

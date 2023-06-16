@@ -8,17 +8,19 @@ use app\backend\modules\goods\models\Goods;
 use app\backend\modules\uploadVerificate\UploadVerificationBaseController;
 use app\common\components\BaseController;
 use app\common\helpers\PaginationHelper;
+use app\common\models\goods\GoodsService;
 use app\common\models\GoodsCategory;
 use app\common\models\Member;
 use app\common\models\Order;
 use app\common\helpers\Url;
+use Illuminate\Support\Facades\DB;
 use phpDocumentor\Reflection\DocBlock\Description;
 use Setting;
 use app\backend\modules\filtering\models\Filtering;
 
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/2/22
  * Time: 下午1:51
  */
@@ -30,14 +32,15 @@ class CategoryController extends UploadVerificationBaseController
      */
     public function index()
     {
+        $thirdShow = \Setting::get('shop.category.cat_level') == 3 ? true : false;  //根据后台设置显示两级还是三级分类
         if(request()->ajax()){
             $keyword = request()->keyword;
             if($keyword){
                 $category_data = Categorys::searchCategory($keyword);
-                return $this->successJson('', $category_data);
+//                return $this->successJson('', $category_data);
+                return $this->successJson('', array('data' => $category_data ,'thirdShow' => $thirdShow));
             }
             $category_data = Categorys::getCategoryData();
-            $thirdShow = \Setting::get('shop.category.cat_level') == 3 ? true : false;  //根据后台设置显示两级还是三级分类
             return $this->successJson('', array('data' => $category_data ,'thirdShow' => $thirdShow));
         }
         return view('goods.category.list');
@@ -91,7 +94,7 @@ class CategoryController extends UploadVerificationBaseController
             return $this->errorJson('分类异常');
         }
 
-        if(!$goods_ids = \app\common\models\Goods::uniacid()->where('plugin_id',0)->whereIn('id',$request->goods_id_arr)->pluck('id')){
+        if(!$goods_ids = \app\common\models\Goods::uniacid()->whereIn('plugin_id',[0,44,120])->whereIn('id',$request->goods_id_arr)->pluck('id')){
             return $this->errorJson('选择商品不存在或非商城商品');
         }
         $category_goods_ids = GoodsCategory::whereIn('goods_id',$goods_ids)->pluck('goods_id');
@@ -294,6 +297,38 @@ class CategoryController extends UploadVerificationBaseController
         }
     }
 
+    /**
+     * 批量删除分类
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function batchDeleteCategory()
+    {
+        $ids = request()->ids;
+        if(empty($ids)){
+            return $this->errorJson('请选择要删除的分类');
+        }
+        $category = Category::uniacid()->select('id')->whereIn('id', $ids)->get();
+        if (!$category) {
+            return $this->errorJson('无此分类或已经删除');
+        }
+
+        foreach($category as $categoryID){
+            //查询是否有商品分类关联表 find_in_set
+            $good_ids = GoodsCategory::whereRaw('FIND_IN_SET(?,category_ids)', $categoryID->id)
+                ->pluck('goods_id')
+                ->toArray();
+            //查询是否有商品
+            $goods = Goods::whereIn('id', $good_ids)->first();
+            if (!empty($goods)) {
+                return $this->errorJson('分类下存在商品,不允许删除');
+            }
+        }
+        foreach ($ids as $id) {
+            $goods = Category::destroy($id);
+        }
+        return $this->successJson('删除分类成功');
+    }
+
 
     /**
      * 获取搜索分类
@@ -352,7 +387,8 @@ class CategoryController extends UploadVerificationBaseController
     {
         $level = request()->level;
         $parent_id = request()->parent_id;
-        $categorys = Category::parentIdGetCategorys($level,$parent_id,0)->get()->toArray();
+        $plugin_id = request()->input('plugin_id', 0);
+        $categorys = Category::parentIdGetCategorys($level,$parent_id,$plugin_id)->get()->toArray();
         return $this->successJson('ok',$categorys);
     }
 
@@ -381,4 +417,40 @@ class CategoryController extends UploadVerificationBaseController
         }
         return $this->errorJson('修改失败, 请检查参数');
     }
+
+    public function batchService()
+    {
+        $ids = request()->ids;
+        if (empty($ids)) {
+            return $this->errorJson('请选取分类');
+        }
+        $service_form = request()->service_form;
+        $good_ids = GoodsCategory::whereIn('category_id', $ids)->pluck('goods_id')->unique()->all();
+        if (empty($good_ids)) {
+            return $this->errorJson('分类下商品为空');
+        }
+        DB::transaction(function () use ($service_form, $good_ids) {
+            foreach ($good_ids as $gid) {
+                $goods_service = GoodsService::uniacid()->where('goods_id', $gid)->first();
+                if (!$goods_service) {
+                    $goods_service = new GoodsService();
+                    $goods_service->uniacid = \YunShop::app()->uniacid;
+                    $goods_service->goods_id = $gid;
+                }
+                $goods_service->is_automatic = $service_form['is_automatic'];
+                $goods_service->time_type = $service_form['time_type'];
+                $goods_service->on_shelf_time = $service_form['on_shelf_time'];
+                $goods_service->lower_shelf_time = $service_form['lower_shelf_time'];
+                $goods_service->loop_date_start = $service_form['loop_date_start'];
+                $goods_service->loop_date_end = $service_form['loop_date_end'];
+                $goods_service->loop_time_up = $service_form['loop_date_end'];
+                $goods_service->loop_time_down = $service_form['loop_time_down'];
+                $goods_service->auth_refresh_stock = $service_form['auth_refresh_stock'];
+                $goods_service->original_stock = $service_form['original_stock'];
+                $goods_service->save();
+            }
+        });
+        return $this->successJson("批量设置成功");
+    }
+
 }

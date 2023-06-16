@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/3/7
  * Time: 下午2:59
  */
@@ -11,12 +11,16 @@ namespace app\backend\modules\order\models;
 use app\backend\modules\member\models\MemberParent;
 use app\backend\modules\order\services\OrderService;
 use app\common\models\ExpeditingDelivery;
+use app\common\models\Member;
 use app\common\models\order\FirstOrder;
 use app\common\models\order\OrderDeliver;
 use Illuminate\Database\Eloquent\Builder;
 use \Illuminate\Support\Facades\DB;
 use app\common\models\PayTypeGroup;
 use app\common\models\MemberCertified;
+use Yunshop\PackageDelivery\models\DeliveryOrder;
+use Yunshop\StoreCashier\common\models\SelfDelivery;
+use Yunshop\StoreCashier\common\models\StoreDelivery;
 
 /**
  * Class Order
@@ -55,6 +59,20 @@ class Order extends \app\common\models\Order
     public function orderDeliver()
     {
         return $this->hasOne(OrderDeliver::class, 'order_id', 'id');
+    }
+    public function deliveryOrder()
+    {
+        return $this->hasOne(DeliveryOrder::class, 'order_id', 'id');
+    }
+
+    public function selfDelivery()
+    {
+        return $this->hasOne(SelfDelivery::class, 'order_id', 'id');
+    }
+
+    public function StoreDelivery()
+    {
+        return $this->hasOne(StoreDelivery::class, 'order_id', 'id');
     }
 
     public function scopeExportOrders(Order $query, $search)
@@ -141,18 +159,17 @@ class Order extends \app\common\models\Order
                     if (isset($value)) {
                         return $order_builder->where($field, $value);
                     } else {
-//                        return $order_builder->where(function ($query) use ($params) {
-//                            $query->orWhere('yz_order.order_sn', $params['ambiguous']['string']);
-//                            $query->orWhereHas('hasOneOrderPay', function ($query) use ($params) {
-//                                $query->where('pay_sn', $params['ambiguous']['string']);
-//                            });
+//                        return $order_builder->addSelect('yz_order.*')->leftjoin('yz_order_pay', 'yz_order_pay.id', '=', 'yz_order.order_pay_id')->where(function ($query) use ($params) {
+//                                $query->orWhere('yz_order.order_sn', 'like', "%{$params['ambiguous']['string']}%")
+//                                    ->orWhere('yz_order_pay.pay_sn', 'like', "%{$params['ambiguous']['string']}%");
 //                        });
 
-                        return $order_builder->addSelect('yz_order.*')->leftjoin('yz_order_pay', 'yz_order_pay.id', '=', 'yz_order.order_pay_id')->where(function ($query) use ($params) {
-                                $query->orWhere('yz_order.order_sn', 'like', "%{$params['ambiguous']['string']}%")
-                                    ->orWhere('yz_order_pay.pay_sn', 'like', "%{$params['ambiguous']['string']}%");
-                        });
-
+                        if (strpos($params['ambiguous']['string'],'PN') === 0) {
+                            return $order_builder->addSelect('yz_order.*')->leftjoin('yz_order_pay', 'yz_order_pay.id', '=', 'yz_order.order_pay_id')
+                                ->where('yz_order_pay.pay_sn', $params['ambiguous']['string']);
+                        } else {
+                            return $order_builder->addSelect('yz_order.*')->where('yz_order.order_sn', $params['ambiguous']['string']);
+                        }
 
                     }
                 });
@@ -166,13 +183,21 @@ class Order extends \app\common\models\Order
                     if (isset($value)) {
                         return $order_builder->where($field, $value);
                     } else {
-                        return $order_builder->join('mc_members', function ($join)  use ($params) {
-                            $join->on('mc_members.uid', '=', 'yz_order.uid')->where(function ($where) use ($params) {
-                                return $where->whereRaw('LOCATE(?, realname)', [$params['ambiguous']['string']])
-                                    ->orWhereRaw('LOCATE(?, mobile)', [$params['ambiguous']['string']])
-                                    ->orWhereRaw('LOCATE(?, nickname)', [$params['ambiguous']['string']]);
-                            });
-                        });
+                        //todo wherein这个可能有个数限制，用连表模糊匹配查询又用不了索引，导致有数据多的客户老是查询超时，先优化成这个样子，少用全表扫描的查询！
+                        $memberIds = Member::uniacid()
+                            ->whereRaw('LOCATE(?, realname)', [$params['ambiguous']['string']])
+                            ->orWhereRaw('LOCATE(?, mobile)', [$params['ambiguous']['string']])
+                            ->orWhereRaw('LOCATE(?, nickname)', [$params['ambiguous']['string']])
+                            ->pluck('uid')->all();
+                        return $order_builder->whereIn('uid',($memberIds?:[0]));
+
+//                        return $order_builder->join('mc_members', function ($join)  use ($params) {
+//                            $join->on('mc_members.uid', '=', 'yz_order.uid')->where(function ($where) use ($params) {
+//                                return $where->whereRaw('LOCATE(?, realname)', [$params['ambiguous']['string']])
+//                                    ->orWhereRaw('LOCATE(?, mobile)', [$params['ambiguous']['string']])
+//                                    ->orWhereRaw('LOCATE(?, nickname)', [$params['ambiguous']['string']]);
+//                            });
+//                        });
 
 
 //                        return $order_builder->whereHas('belongsToMember', function ($query) use ($params) {
@@ -282,7 +307,7 @@ class Order extends \app\common\models\Order
 
     public static function getOrderDetailById($order_id)
     {
-        return self::orders()->with(['deductions','coupons','discounts','orderFees', 'orderServiceFees','orderPays'=> function ($query) {
+        return self::orders()->with(['deductions','coupons','discounts','orderFees', 'orderInvoice', 'orderServiceFees','orderPays'=> function ($query) {
             $query->with('payType');
         },'hasOnePayType','hasOneExpeditingDelivery'])->find($order_id);
     }

@@ -57,7 +57,11 @@ class Income
         ];
         $plugins = app('plugins')->getEnabledPlugins('*');
         foreach ($plugins as $plugin) {
-            $result = array_merge($result, $plugin->app()->getIncomeItems());
+            $plugin_income_items = $plugin->app()->getIncomeItems();
+            if (!$plugin_income_items) {
+                $plugin_income_items = [];
+            }
+            $result = array_merge($result, $plugin_income_items);
         }
         return $result;
     }

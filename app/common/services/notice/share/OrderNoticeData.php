@@ -21,6 +21,7 @@ Trait OrderNoticeData
     public $goodsId;//商品ID
     public $goodsTitle='';//商品标题
     public $goodsNum;//商品购买数量
+    public $packageGoodsTitle='';// 包裹商品标题
 
     public function processData($order)
     {
@@ -58,11 +59,28 @@ Trait OrderNoticeData
 
                 $this->goodsTitle .= $vv['title'];
                 if ($vv['goods_option_title']) {
-                    $this->goodsTitle .= '[' . $vv['goods_option_title'] . '],';
+                    $this->goodsTitle .= '[' . $vv['goods_option_title'] . ']';
                 }
+                $this->goodsTitle .= '*' . $vv['total'] . ',';
                 $this->goodsNum += $vv['total'];
             }
             $this->goodsTitle = rtrim($this->goodsTitle,',');
+        }
+
+        //订单包裹商品数据整理
+        if($this->order['expressmany']->count()){
+            $packageList=$this->order['expressmany']->last()['hasManyOrderPackage'];
+            $this->timeData['package_send_time']=$this->order['expressmany']->last()['created_at']->toDateTimeString();
+            if($packageList->count()>0){
+                foreach($packageList as $key=>$val){
+                    $this->packageGoodsTitle .= ($val['orderGoods']->title);
+                    if ($val['orderGoods']->goods_option_title) {
+                        $this->packageGoodsTitle .= '[' . $val['orderGoods']->goods_option_title . ']';
+                    }
+                    $this->packageGoodsTitle .= '*' . $val['total'] . ',';
+                }
+            }
+            $this->packageGoodsTitle=rtrim($this->packageGoodsTitle,',');
         }
     }
 }

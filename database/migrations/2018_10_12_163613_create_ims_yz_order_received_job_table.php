@@ -25,6 +25,8 @@ class CreateImsYzOrderReceivedJobTable extends Migration
             });
 
         }
+        \Illuminate\Support\Facades\DB::statement("ALTER TABLE `".app('db')->getTablePrefix()."yz_order_received_job` comment'订单--完成队列情况'");//表注释
+
     }
 
 

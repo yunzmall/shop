@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/3/9
  * Time: 下午5:26
  */
@@ -14,7 +14,9 @@ use app\common\facades\SiteSetting;
 use app\common\helpers\Cache;
 use app\common\helpers\Url;
 use app\common\facades\Setting;
+use app\host\HostManager;
 use Illuminate\Support\Facades\Redis;
+use Predis\Connection\ConnectionException;
 
 
 class SupervisordController extends BaseController
@@ -39,9 +41,10 @@ class SupervisordController extends BaseController
         //$allProcessInfo = $supervisor->stopProcess("dev1-worker:dev1-worker_01");
         //$allProcessInfo = $supervisor->readLog(0);
         //$allProcessInfo = $supervisor->logMessage();
-
         //dd($allProcessInfo);
+        $supervisord = SiteSetting::get('supervisor');
         return view('supervisor.index', [
+            'service_type' => $supervisord['service_type'] ?: 0
         ])->render();
 
     }
@@ -58,8 +61,8 @@ class SupervisordController extends BaseController
             return $this->successJson("设置保存成功", Url::absoluteWeb('supervisord.supervisord.store'));
         }
         $supervisord = SiteSetting::get('supervisor');
-
-        $supervisord['address']['ip'] ?: SiteSetting::set('supervisor', $supervisord['address']['ip'] = 'http://127.0.0.1');
+        $data['address']['ip'] = 'http://127.0.0.1';
+        $supervisord['address']['ip'] ?: SiteSetting::set('supervisor', $data);
         return view('supervisor.store', [
             'setting' => json_encode($supervisord)
         ])->render();
@@ -77,9 +80,18 @@ class SupervisordController extends BaseController
                 // echo $val;
             }
         }
+        $current_time = time();
+        $queue_hearteat = [
+            'daemon' => $this->daemonStatus(),
+            'cron' => \app\backend\modules\survey\models\CronHeartbeat::getLog($current_time),
+            'job' => \app\backend\modules\survey\models\JobHeartbeat::getLog($current_time),
+            'redis' => $this->getRedisStatus()
+        ];
         return json_encode([
             'process' => $allProcessInfo,
-            'state'   => $state
+            'state' => $state,
+            'queue_hearteat' => $queue_hearteat,
+            'queue_hearteat_icon' => 'icon-fontclass-deng',
         ]);
     }
 
@@ -139,6 +151,7 @@ class SupervisordController extends BaseController
 
     public function startAll()
     {
+        (new HostManager())->restart();
         $result = $this->supervisor->startAllProcesses();
         return json_encode($result);
 
@@ -146,8 +159,55 @@ class SupervisordController extends BaseController
 
     public function restart()
     {
+        (new HostManager())->restart();
         $result = $this->supervisor->restart();
         return json_encode($result);
     }
 
-}
+    private function daemonStatus()
+    {
+        $all_status = app('supervisor')->getState();
+        $queue_status = 'green';
+        $msg = '正常';
+        $title = '';
+        if (!function_exists('stream_socket_server')) {
+            return array('queue_status' => 'yellow', 'msg' => '请解禁stream_socket_server函数');
+        }
+        foreach ($all_status as $hostname => $status) {
+            $code = '正常';
+            if ($status->val['statecode'] != 1) {
+                $queue_status = 'not_running';
+                $msg = $code = '异常';
+            }
+            $title .= '服务器' . $hostname . "：$code\r\n";
+        }
+        if (count($all_status) == 1) {
+            $title = $msg;
+        }
+        return array('queue_status' => $queue_status, 'msg' => $msg, 'title' => $title);
+    }
+
+    /**
+     * @return array
+     *   uninstall redis未安装
+     *   unexecute redis未执行
+     */
+    private function getRedisStatus()
+    {
+        try {
+            if (!class_exists('Redis') || !class_exists('Predis\Client')) {
+                return array('queue_status' => 'uninstall', 'msg' => 'Redis组件未安装');
+            }
+            $ping = \Illuminate\Support\Facades\Redis::ping();
+            $res = strpos($ping, 'PONG') || $ping == true;
+            if ($res !== false) {
+                return array('queue_status' => 'green', 'msg' => '正常');
+            } else {
+                return array('queue_status' => 'unconnection', 'msg' => 'ping失败');
+            }
+        } catch (ConnectionException $exception) {
+            return array('queue_status' => 'unconnection', 'msg' => '连接失败');
+        } catch (\Exception $exception) {
+            return array('queue_status' => 'unexecute', 'msg' => '无法使用');
+        }
+    }}

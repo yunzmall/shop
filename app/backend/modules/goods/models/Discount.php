@@ -2,7 +2,7 @@
 /**
  * 商品折扣关联表数据操作
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/2/28
  * Time: 上午11:01
  */
@@ -56,41 +56,7 @@ class Discount extends \app\common\models\goods\Discount
             return self::addByGoodsId($discount_data);
         }
 
-    }
-
-    public static function relationValidator($goodsId, $data, $operate)
-    {
-        $model = new static;
-        $flag = false;
-        if ($data) {
-            $discount_data = [];
-            $result = [];
-            if (!empty($data['discount_value'])) {
-                foreach ($data['discount_value'] as $key => $value) {
-                    $discount_data = [
-                        'level_discount_type' => !empty($data['level_discount_type']) ? $data['level_discount_type'] : '1',
-                        'discount_method' => !empty($data['discount_method']) ? $data['discount_method'] : '1',
-                        'level_id' => $key,
-                        'discount_value' => !empty($value) ? $value : '0',
-                        'goods_id' => $goodsId
-                    ];
-                    $validator = $model->validator($discount_data);
-                    if($validator->fails())
-                    {
-                        $result[] = false;
-                        $model->error($validator->messages());
-                    }
-                }
-                if (!in_array(false, $result)) {
-                    $flag = true;
-                }
-            }else{
-                $flag = true;
-            }
-        }else{
-            $flag = true;
-        }
-        return $flag;
+        return true;
     }
 
     public static function addByGoodsId($discount_data)

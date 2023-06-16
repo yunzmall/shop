@@ -13,6 +13,7 @@ use app\common\components\ApiController;
 use app\common\helpers\Client;
 use app\frontend\models\Member;
 use app\common\helpers\Cache;
+use Illuminate\Support\Facades\Redis;
 
 class MemberQrCodeController extends ApiController
 {
@@ -30,14 +31,16 @@ class MemberQrCodeController extends ApiController
         $bt = 326422624364;//fangbaocheng
         $time = time();
         $hash = hash('ripemd128', $uid . $top . md5($bt + $time));
-        $code = substr($hash,  0,  8) . substr($hash,  8,  4) . substr($hash, 12,  4) .
+        $code = $uid.'uu'.substr($hash,  0,  8) . substr($hash,  8,  4) . substr($hash, 12,  4) .
             substr($hash, 16,  2);
         $data = [
             'uid' => $uid,
             'time' => $time,
-            'code' => $code
+            'code' => $code,
+            'img' => 'data:image/png;base64,' . base64_encode(\QrCode::format('png')->size(200)->generate($code)),
         ];
-        \Cache::put('member_pay_id_'.$uid, $data, 1);
+        Redis::setex('member_pay_id_'.$uid , 60, $code);
+        Cache::put('member_pay_id_'.$uid, $data, 1);
 
         return $this->successJson('获取成功',$data);
     }

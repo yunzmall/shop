@@ -28,7 +28,7 @@ class OrderCouponSend
         foreach ($uniAccount as $u) {
             Setting::$uniqueAccountId = \YunShop::app()->uniacid = $u->uniacid;
             $this->orderCouponSend();
-
+            $this->orderPaidCouponSend();
         }
     }
 
@@ -42,12 +42,29 @@ class OrderCouponSend
                 }) ;
             })
             ->get();
-        if($records->isEmpty())
-        {
+        if($records->isEmpty()) {
             return;
         }
-        foreach ($records as $record)
-        {
+        foreach ($records as $record) {
+            $numReason = $record->num_reason?$record->num_reason.'||':'';
+            (new CronSendService($record,$numReason,1))->sendCoupon();
+        }
+    }
+
+    public function orderPaidCouponSend()
+    {
+        $records = OrderGoodsCoupon::uniacid()
+            ->where(['send_type'=>OrderGoodsCoupon::ORDER_PAID_TYPE,'status'=>OrderGoodsCoupon::WAIT_STATUS])
+            ->whereHas('hasOneOrderGoods',function ($query){
+                $query->whereHas('hasOneOrder',function ($q){
+                    $q->whereIn('status',[Order::WAIT_SEND,Order::WAIT_RECEIVE,Order::COMPLETE]);
+                }) ;
+            })
+            ->get();
+        if($records->isEmpty()) {
+            return;
+        }
+        foreach ($records as $record) {
             $numReason = $record->num_reason?$record->num_reason.'||':'';
             (new CronSendService($record,$numReason,1))->sendCoupon();
         }

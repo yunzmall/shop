@@ -9,7 +9,7 @@ class Withdraw extends \app\common\models\Withdraw
 {
     public $Incomes;
 
-    protected $appends = ['incomes'];
+    protected $appends = ['incomes', 'pay_way_name'];
 
     public static function getWithdrawLog($status)
     {
@@ -26,7 +26,7 @@ class Withdraw extends \app\common\models\Withdraw
 
     public static function getWithdrawInfoById($id)
     {
-        $withdrawModel = self::select('id', 'withdraw_sn', 'pay_way', 'type', 'type_id', 'type_name', 'amounts', 'poundage', 'status', 'created_at', 'actual_amounts', 'actual_poundage','actual_servicetax');
+        $withdrawModel = self::select('id', 'withdraw_sn', 'pay_way', 'type', 'type_id', 'type_name', 'amounts', 'poundage', 'status', 'created_at', 'actual_amounts', 'actual_poundage','actual_servicetax','servicetax');
         $withdrawModel->uniacid();
         $withdrawModel->where('id', $id);
 
@@ -45,7 +45,10 @@ class Withdraw extends \app\common\models\Withdraw
                         ->select('id', 'incometable_type','incometable_id')
                         ->get();
                     foreach ($incomes as $key => $income) {
-                        $this->Incomes[$key] = $income->incometable->toArray();
+                        $relation=$income->incometable;
+                        if($relation){
+                            $this->Incomes[$key] = $relation->toArray();
+                        }
                     }
                 }
             }

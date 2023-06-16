@@ -32,19 +32,20 @@ class YqLogistics implements Logistics
         $this->app_secret = trim($data['YQ']['appSecret']);
     }
 
-    public function getTraces($comCode, $expressSn, $orderSn,$order_id){
+    public function getTraces($comCode, $expressSn, $orderSn,$phoneLastFour){
+
         $pa = json_encode([
             'number'=> $expressSn,
             'company_code'=> $comCode,
         ]);
         if ($comCode == 'SF'){
-            $mobile = $this->getMobile($order_id);
             $pa = json_encode([
-                'number'=> trim($expressSn).':'.trim($mobile),
+                'number'=> trim($expressSn).':'.trim($phoneLastFour),
                 'company_code'=> $comCode,
             ]);
         }
         $array = $this->http_post_data($pa, $this->generateHeader(),$this->reqURL);
+
         $json_string = $array[1];
         $res = json_decode($json_string,true);
         $result = $this->format($res['data']);

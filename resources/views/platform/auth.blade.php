@@ -5,7 +5,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="shortcut icon" href="/favicon.ico">
-    <title> 密码找回工具 - 广州市芸众信息科技有限公司 - 商城系统 -  Powered by Yunzhong </title>
+    <title> 密码找回工具 </title>
     <link href="/static/resource/css/bootstrap.min.css" rel="stylesheet">
     <link href="/static/resource/css/font-awesome.min.css" rel="stylesheet">
     <link href="/static/resource/css/common.css" rel="stylesheet">

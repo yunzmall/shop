@@ -22,6 +22,7 @@ class CreateYzGoodsSmallCodeUrl extends Migration
                 $table->integer('created_at')->nullable();
                 $table->integer('updated_at')->nullable();
             });
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE " . app('db')->getTablePrefix() . "yz_goods_small_code_url comment '商品小程序二维码记录表'");//表注释
         }
     }
 

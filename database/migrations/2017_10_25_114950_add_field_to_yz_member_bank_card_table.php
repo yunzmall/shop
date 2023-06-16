@@ -16,20 +16,20 @@ class AddFieldToYzMemberBankCardTable extends Migration
         if (\Schema::hasTable('yz_member_bank_card')) {
 
             if (!Schema::hasColumn('yz_member_bank_card', 'bank_province')) {
-                Schema::table('yz_member_bank_card', function ($table) {
-                    $table->string('bank_province','45');
+                Schema::table('yz_member_bank_card', function (Blueprint $table) {
+                    $table->string('bank_province','45')->comment('开户省');
                 });
             }
 
             if (!Schema::hasColumn('yz_member_bank_card', 'bank_city')) {
-                Schema::table('yz_member_bank_card', function ($table) {
-                    $table->string('bank_city','45');
+                Schema::table('yz_member_bank_card', function (Blueprint $table) {
+                    $table->string('bank_city','45')->comment('开户城市');
                 });
             }
 
             if (!Schema::hasColumn('yz_member_bank_card', 'bank_branch')) {
-                Schema::table('yz_member_bank_card', function ($table) {
-                    $table->string('bank_branch','45');
+                Schema::table('yz_member_bank_card', function (Blueprint $table) {
+                    $table->string('bank_branch','45')->comment('开户支行');
                 });
             }
 

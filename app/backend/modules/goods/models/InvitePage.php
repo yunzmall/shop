@@ -21,7 +21,11 @@ class InvitePage extends \app\common\models\goods\InvitePage
             return false;
         }
 
-        if ($operate == 'deleted') {
+        if (!$data) {
+            return false;
+        }
+
+       if ($operate == 'deleted') {
             //\app\common\models\goods\InvitePage::getDataByGoodsId($goods_id)->delete();
             $goods_delete = \app\common\models\goods\InvitePage::getDataByGoodsId($goods_id);
             if ($goods_delete){

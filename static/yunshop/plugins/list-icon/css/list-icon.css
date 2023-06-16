@@ -156,6 +156,25 @@
     background-image: url('../img/industry/jd_supply.png');
 }
 
+.yz_supply {
+    background-image: url('../img/industry/yz_supply.png');
+}
+
+.yz_supply_camilo_resources {
+    background-image: url('../img/industry/yz_supply_camilo_resources.png');
+}
+.yz_supply_cake {
+    background-image: url('../img/industry/yz_supply_cake.png');
+}
+
+.travel_around {
+    background-image: url('../img/industry/travel_around.png');
+}
+
+.project_template {
+    background-image: url('../img/industry/project_template.png');
+}
+
 
 
 
@@ -270,6 +289,19 @@
 .team_management {
     background-image: url('../img/marketing/team_management.png');
 }
+
+.forwarding-treasure {
+    background-image: url('../img/marketing/forwarding-treasure.png');
+}
+
+.kart {
+    background-image: url('../img/marketing/kart.png');
+}
+
+.wx-article {
+    background-image: url('../img/marketing/wx-article.png');
+}
+
 
 .app_set {
     background-image: url('../img/tool/app_set.png');
@@ -481,4 +513,30 @@
     background-image: url('../img/marketing/share-reward.png');
 }
 
-
+.batch-maintenance-goods  {
+    background-image: url('../img/marketing/link_tool.png');
+}
+.batch-maintenance-goods  {
+    background-image: url('../img/marketing/wx_video_link.png');
+}
+.batch-maintenance-goods  {
+    background-image: url('../img/marketing/agency-statistics.png');
+}
+.batch-maintenance-goods  {
+    background-image: url('../img/marketing/consumer-reward.png');
+}
+.xfpay{
+    background-image: url('../img/tool/xfpay.png');
+}
+.web-design{
+    background-image: url('../img/tool/web-design.png');
+}
+.sandpay{
+    background-image: url('../img/tool/sandpay.png');
+}
+.flyers-advertise{
+    background-image: url('../img/tool/flyers-advertise.png');
+}
+.lakala_pay{
+    background-image: url('../img/tool/lakala_pay.png');
+}

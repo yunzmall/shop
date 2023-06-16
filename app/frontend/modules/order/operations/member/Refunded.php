@@ -10,6 +10,7 @@ namespace app\frontend\modules\order\operations\member;
 
 
 use app\frontend\modules\order\operations\OrderOperation;
+use app\frontend\modules\refund\models\RefundApply;
 
 class Refunded extends OrderOperation
 {
@@ -24,6 +25,11 @@ class Refunded extends OrderOperation
     }
     public function getName()
     {
+        if ($this->order->hasOneRefundApply &&
+            $this->order->hasOneRefundApply->refund_type == RefundApply::REFUND_TYPE_EXCHANGE_GOODS) {
+            return '已换货';
+        }
+
         return '已退款';
     }
     public function enable()

@@ -68,7 +68,7 @@ class GoodsLog extends OperationBase
             if ($model->isDirty($key)) {
 
                  $this->modify_fields[$key]['old_content'] = $model->getOriginal($key);
-                 $this->modify_fields[$key]['new_content'] = $model->{$key};
+                 $this->modify_fields[$key]['new_content'] = $model->getDirty()[$key];
             }
         }
 

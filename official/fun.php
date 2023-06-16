@@ -213,7 +213,7 @@ function getOfficial($name)
 
     $result = $official->fetch();
 
-    $result['thumb'] = empty($result['thumb']) ? "" : yz_tomedia($result['thumb']);
+    $result['thumb'] = empty($result['thumb']) ? "" : yz_fun_tomedia($result['thumb']);
 
     return $result;
 }
@@ -250,7 +250,7 @@ function getCommonArticle($uniacid,$cate=0)
     if ($web_rel) {
         foreach ($web_rel as $key=>$value) {
             $web_rel[$key]['web_url'] = $_SERVER['REQUEST_SCHEME'] . '://' .$_SERVER['HTTP_HOST']."/officialwebsite.php?page_name=resource_detail&article=".$value['id'];
-            $web_rel[$key]['thumb'] = empty($value['thumb']) ? "" : yz_tomedia($value['thumb']);
+            $web_rel[$key]['thumb'] = empty($value['thumb']) ? "" : yz_fun_tomedia($value['thumb']);
         }
     }
     $connect3 = null;
@@ -279,7 +279,7 @@ function getReadVolumeArticle($uniacid)
     if ($home_data) {
         foreach ($home_data as $key=>$value) {
             $home_data[$key]['web_url'] = $_SERVER['REQUEST_SCHEME'] . '://' .$_SERVER['HTTP_HOST']."/officialwebsite.php?page_name=resource_detail&article=".$value['id'];
-            $home_data[$key]['thumb'] = empty($value['thumb']) ? "" : yz_tomedia($value['thumb']);
+            $home_data[$key]['thumb'] = empty($value['thumb']) ? "" : yz_fun_tomedia($value['thumb']);
         }
     }
 
@@ -319,7 +319,7 @@ function getPageCate($uniacid,$cate=0)
 
     if ($article_cate_data) {
         $article_cate_data['cate_url'] = $_SERVER['REQUEST_SCHEME'] . '://' .$_SERVER['HTTP_HOST']."/officialwebsite.php?page_name=resource_page&cate=".$article_cate_data['id'];
-        $article_cate_data['cate_img'] = empty($article_cate_data['cate_img']) ? "" : yz_tomedia($article_cate_data['cate_img']);
+        $article_cate_data['cate_img'] = empty($article_cate_data['cate_img']) ? "" : yz_fun_tomedia($article_cate_data['cate_img']);
     }
     $connect5 = null;
 
@@ -380,8 +380,8 @@ function getDetailArticle($article_id)
 
     $rel = $res->fetch();
     $rel['off_url'] = $_SERVER['REQUEST_SCHEME'] . '://' .$_SERVER['HTTP_HOST']."/officialwebsite.php?page_name=resource_page";
-    $rel['thumb'] = empty($rel['thumb']) ? "" : yz_tomedia($rel['thumb']);
-    $rel['cate_img'] = empty($rel['cate_img']) ? "" : yz_tomedia($rel['cate_img']);
+    $rel['thumb'] = empty($rel['thumb']) ? "" : yz_fun_tomedia($rel['thumb']);
+    $rel['cate_img'] = empty($rel['cate_img']) ? "" : yz_fun_tomedia($rel['cate_img']);
     $connect1 = null;
 
     return $rel;
@@ -407,18 +407,58 @@ function getShopData()
     return $shop_data;
 }
 
-function yz_tomedia($src)
+function yz_fun_tomedia($src)
 {
+    if (strexists($src, 'http://') || strexists($src, 'https://')) {
+        return $src;
+    }
+    $data = getPei();
+    $host = $data['host'];
+    $port = $data['port'];
+    $database = $data['database'];
+    $username = $data['username'];
+    $pass = $data['pass'];
+    $table_pre = $data['tablepre'];
+
+    $sql = "select * from {$table_pre}yz_system_setting where `key` = 'remote'";
+    $connect_ = new \PDO("mysql:host=".$host.";dbname=".$database.";port=".$port,$username,$pass);
+    $connect_->prepare('set names utf8mb4')->execute();
+    $system_set = $connect_->query($sql);
+    $remote_setting = $system_set->fetch();
+    $remote_value = $remote_setting['value'];
+    if ($remote_value) {
+        $remote_value = unserialize($remote_value);
+        $upload_type = $remote_value['type'];
+        if ($upload_type) {
+            switch ($upload_type) {
+                case 1 :
+                    $attach_url_remote = $remote_value['ftp']['url'];
+                    break;
+                case 2 :
+                    $attach_url_remote = $remote_value['alioss']['url'];
+                    break;
+                case 3 :
+                    $attach_url_remote = $remote_value['qiniu']['url'];
+                    break;
+                case 4 :
+                    $attach_url_remote = $remote_value['cos']['url'];
+                    break;
+            }
+            return $attach_url_remote . '/' . $src;
+        }
+    }
     $HttpHost = $_SERVER['REQUEST_SCHEME'] . '://' .$_SERVER['HTTP_HOST'];
-
     $attachment = '/static/';
-
     //判断是否是本地不带域名图片地址
     if ((strpos($src, 'http://') === false) && (strpos($src, 'https://') === false)) {
         return $HttpHost. $attachment . 'upload/' . $src;
     }
-
     return $src;
+}
+
+function strexists($string, $find)
+{
+    return !(strpos($string, $find) === false);
 }
 
 function getUrlAddress()

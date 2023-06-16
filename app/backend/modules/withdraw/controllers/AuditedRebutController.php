@@ -11,6 +11,7 @@ namespace app\backend\modules\withdraw\controllers;
 
 use app\backend\models\Withdraw;
 use app\backend\modules\income\models\Income;
+use app\common\events\withdraw\WithdrawRebutAuditEvent;
 use app\common\exceptions\ShopException;
 use app\common\services\income\WithdrawIncomeApplyService;
 use Illuminate\Support\Facades\DB;
@@ -24,10 +25,8 @@ class AuditedRebutController extends PreController
     public function index()
     {
         $result = $this->auditedRebut();
-        if ($result == true) {
-            return $this->message('驳回成功', yzWebUrl("withdraw.detail.index", ['id' => $this->withdrawModel->id]));
-        }
-        return $this->message('驳回失败，请刷新重试', yzWebUrl("withdraw.detail.index", ['id' => $this->withdrawModel->id]), 'error');
+
+        return $result == true ? $this->successJson('驳回成功') : $this->errorJson('驳回失败，请刷新重试');
     }
 
     public function validatorWithdrawModel($withdrawModel)
@@ -71,6 +70,7 @@ class AuditedRebutController extends PreController
     {
         $this->withdrawModel->status = Withdraw::STATUS_REBUT;
         $this->withdrawModel->arrival_at = time();
+        $this->withdrawModel->reject_reason = request()->reject_reason ? : '';
 
         return $this->withdrawModel->save();
     }
@@ -88,6 +88,9 @@ class AuditedRebutController extends PreController
             {
                 WithdrawHandleService::handle('reject',$income_ids,$this->withdrawModel);
             }
+
+            //后台审核执行驳回事件
+            event(new WithdrawRebutAuditEvent($this->withdrawModel,$income_ids));
 
             return Income::whereIn('id', $income_ids)->where('pay_status', Income::PAY_STATUS_WAIT)->update(['status' => Income::STATUS_INITIAL, 'pay_status' => Income::PAY_STATUS_REJECT]);
         }

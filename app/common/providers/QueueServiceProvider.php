@@ -5,6 +5,7 @@ namespace app\common\providers;
 
 
 use app\framework\Queue\Worker;
+use Illuminate\Contracts\Debug\ExceptionHandler;
 
 class QueueServiceProvider extends \Illuminate\Queue\QueueServiceProvider
 {
@@ -16,10 +17,15 @@ class QueueServiceProvider extends \Illuminate\Queue\QueueServiceProvider
      */
     protected function registerWorker()
     {
-        $this->app->singleton('queue.worker', function ($app) {
-            return new Worker(
-                $app['queue'], $app['events'],
-                $app['Illuminate\Contracts\Debug\ExceptionHandler']
+        $this->app->singleton('queue.worker', function () {
+			$isDownForMaintenance = function () {
+				return $this->app->isDownForMaintenance();
+			};
+        	return new Worker(
+        		$this->app['queue'],
+                $this->app['events'],
+                $this->app[ExceptionHandler::class],
+                $isDownForMaintenance
             );
         });
     }

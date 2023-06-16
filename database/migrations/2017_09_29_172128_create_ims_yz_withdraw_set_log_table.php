@@ -23,6 +23,8 @@ class CreateImsYzWithdrawSetLogTable extends Migration {
                 $table->string('remark', 200)->nullable()->default('')->comment('备注');
                 $table->integer('created_at')->nullable()->comment('创建时间');
             });
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE " . app('db')->getTablePrefix()
+                . "yz_withdraw_set_log comment '财务--余额提现手续费日志表'");//表注释
         }
 	}
 

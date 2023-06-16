@@ -31,7 +31,7 @@ class BalanceShopDeductionSetting implements DeductionSettingInterface
 
     public function isMinDisable()
     {
-        return !\Setting::get('finance.balance.balance_deduct');
+        return true;
     }
 
     /**
@@ -40,7 +40,7 @@ class BalanceShopDeductionSetting implements DeductionSettingInterface
      */
     public function isDispatchDisable()
     {
-        return !\Setting::get('finance.balance.balance_deduct');
+        return true;
     }
 
     public function getMaxFixedAmount()
@@ -48,13 +48,15 @@ class BalanceShopDeductionSetting implements DeductionSettingInterface
         return false;
     }
 
-    /**
-     *
-     * @return mixed
-     */
     public function getMaxPriceProportion()
     {
         return \Setting::get('finance.balance.money_max')?:false;
+    }
+
+
+    public function getMaxDeductionType()
+    {
+        return 'GoodsPriceProportion';
     }
 
     public function getDeductionAmountType()
@@ -64,7 +66,7 @@ class BalanceShopDeductionSetting implements DeductionSettingInterface
 
     public function getMinDeductionType()
     {
-        return 'GoodsPriceProportion';
+        return false;
     }
 
     public function getMinFixedAmount()
@@ -77,8 +79,9 @@ class BalanceShopDeductionSetting implements DeductionSettingInterface
         return \Setting::get('finance.balance.money_min')?:false;
     }
 
-    public function getMaxDeductionType()
+
+    public function getAffectDeductionAmount()
     {
-        return 'GoodsPriceProportion';
+        return false;
     }
 }

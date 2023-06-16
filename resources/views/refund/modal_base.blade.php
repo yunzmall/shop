@@ -45,10 +45,16 @@
                             <div class="col-sm-9 col-xs-12">
                                 <select class="form-control tpl-category-parent" id="raid" name="refund_address"
                                         style="width: 200px;">
-                                    <option value="0">默认地址</option>
-                                    @foreach(\app\common\models\goods\ReturnAddress::uniacid()->where('plugins_id', 0)->where('is_default', 0)->select('id','address_name')->get() as $v)
-                                        <option value="{{$v['id']}}" > {{$v['address_name']}}</option>
-                                    @endforeach
+                                    @if ($order['supplier_id'])
+                                        @foreach(\app\common\models\goods\ReturnAddress::where('supplier_id', $order['supplier_id'])->select('id','address_name')->orderBy('is_default', 'desc')->get() as $v)
+                                            <option value="{{$v['id']}}" > {{$v['address_name']}}</option>
+                                        @endforeach
+                                    @else
+                                        <option value="0">默认地址</option>
+                                        @foreach(\app\common\models\goods\ReturnAddress::uniacid()->where('plugins_id', 0)->where('is_default', 0)->select('id','address_name')->get() as $v)
+                                            <option value="{{$v['id']}}" > {{$v['address_name']}}</option>
+                                        @endforeach
+                                    @endif
                                 </select>
                             </div>
                         </div>

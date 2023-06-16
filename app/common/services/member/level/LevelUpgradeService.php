@@ -1,6 +1,6 @@
 <?php
 /**
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/5/25
  * Time: 下午4:55
  */
@@ -25,6 +25,7 @@ use Yunshop\UniversalCard\models\ConsumeCoupon;
 use Yunshop\UniversalCard\models\ConsumeCouponLog;
 use Yunshop\UniversalCard\models\UniversalCardLevel;
 use Yunshop\UniversalCard\services\MsgSendService;
+use Exception;
 
 class LevelUpgradeService
 {
@@ -46,6 +47,39 @@ class LevelUpgradeService
             return $this->upgrade($result);
         }
         return '';
+    }
+
+
+    /*
+     * 插件奖励会员等级升级
+     * 插件:企业微信好友分裂、
+     * member_id:升级的会员id
+     * after_level 要升级到的会员等级，yz_member_level表模型
+     */
+    public function pluginUpgrade($member_id, $after_level)
+    {
+        try {
+            \Log::debug('会员等级升级-插件升级开始' . $member_id, $after_level);
+            if (!$this->memberModel = MemberShopInfo::ofMemberId($member_id)->withLevel()->first()) {
+                throw new Exception('会员不存在');
+            }
+            $this->check(0, $after_level);
+            $member_level_weight = intval($this->memberModel->level->level) ?: 0;
+            $this->validity['is_goods'] = 1;
+            $this->validity['goods_total'] = 1;
+            if ($after_level->level > $member_level_weight){
+                $this->validity['upgrade'] = 1;
+                $this->validity['superposition'] = 1;
+            }
+            $this->setValidity($after_level->level > $member_level_weight);
+            if ($this->validity['upgrade'] && $this->upgrade($after_level->id) !== true) {
+                throw new Exception('未知原因');
+            }
+            \Log::debug('会员等级升级-插件升级结束' . $member_id, $after_level);
+            return ['result' => 1, 'msg' => '成功', 'data' => []];
+        } catch (Exception $e) {
+            return ['result' => 0, 'msg' => '会员等级升级失败:' . $e->getMessage(), 'data' => []];
+        }
     }
 
     public function checkUpgrade(AfterOrderReceivedEvent $event)
@@ -173,36 +207,42 @@ class LevelUpgradeService
         }
     }
 
-    private function check($status)
+    private function check($status,$new_level = null)
     {
         $set = \Setting::get('shop.member');
                 \Log::info('---==等级设置信息==----', [unserialize($set), json_decode($set, true)]);
-        //获取可升级的最高等级
-        switch ($set['level_type']) {
-            case 0:
-                $this->new_level = $this->checkOrderMoney();
-                break;
-            case 1:
-                $this->new_level = $this->checkOrderCount();
-                break;
-            case 2:
-                if ($status == 1) {
-                    if ($set['level_after']) {
-                        $this->new_level = $this->checkGoodsId();
+
+        if (!$new_level) {
+            //获取可升级的最高等级
+            switch ($set['level_type']) {
+                case 0:
+                    $this->new_level = $this->checkOrderMoney();
+                    break;
+                case 1:
+                    $this->new_level = $this->checkOrderCount();
+                    break;
+                case 2:
+                    if ($status == 1) {
+                        if ($set['level_after']) {
+                            $this->new_level = $this->checkGoodsId();
+                        }
+                    } else {
+                        if (!$set['level_after']) {
+                            $this->new_level = $this->checkGoodsId();
+                        }
                     }
-                } else {
-                    if(!$set['level_after']) {
-                        $this->new_level = $this->checkGoodsId();
-                    }
-                }
-                break;
-            case 3:
-                // 此方法不返回新等级,升级单独处理
-                $this->new_level = $this->checkTeamPerformance();
-                break;
-            default:
-                $level = '';
+                    break;
+                case 3:
+                    // 此方法不返回新等级,升级单独处理
+                    $this->new_level = $this->checkTeamPerformance();
+                    break;
+                default:
+                    $level = '';
+            }
+        } else {
+            $this->new_level = $new_level;
         }
+
         \Log::debug('判断是否升级',$this->new_level);
         //比对当前等级权重，判断是否升级
         if ($this->new_level) {
@@ -316,6 +356,12 @@ class LevelUpgradeService
                     if ($memberModel->save()) {
                         //会员等级升级触发事件
                         event(new MemberLevelUpgradeEvent($memberModel,false));
+                        $pluginLevel=[
+                            'member_id'=>$memberModel->member_id,
+                            'level_id'=>$memberModel->level_id,
+                            'plugin_type' => 1
+                        ];
+                        event(new \app\common\events\PluginLevelEvent($pluginLevel));
                         $this->notice($level);
                     }
                 }

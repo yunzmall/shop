@@ -71,6 +71,8 @@
 
                     <template >
                         <el-table
+                                v-loading="loading"
+                                element-loading-text="加载中"
                                 :data="tableData"
 
                                 style="width: 100%">
@@ -137,7 +139,7 @@
                         </el-table>
                     </template>
                     <el-row style="background-color:#fff;">
-                        <el-col :span="24" align="center" migra style="padding:15px 5% 15px 0" v-loading="loading">
+                        <el-col :span="24" align="center" migra style="padding:15px 5% 15px 0">
                             <el-pagination background  @current-change="currentChange"
                                            :page-size="page_size"
                                            layout="prev, pager, next"
@@ -203,6 +205,7 @@
                 );
             },
             getData(){
+                this.loading = true
                 this.$http.post('{!! yzWebFullUrl('setting.operation-log.index') !!}').then(function (response){
                     if (response.data.result) {
                         let datas = response.data.data.list;

@@ -50,36 +50,70 @@
                 <el-form ref="form" :model="form" label-width="18%">
                     <div class="block">
                         <div class="title"><span style="width: 4px;height: 18px;background-color: #29ba9c;margin-right:15px;display:inline-block;"></span><b>自动关闭未付款订单</b></div>
-                        <el-form-item label="自动关闭未付款订单天数">
-                            <el-input v-model="form.close_order_days"  style="width:70%;"></el-input>
+                        <el-form-item label="自动关闭未付款订单时间">
+                            <el-input v-model="form.close_order_days" style="width:70%;"></el-input>
+                            <el-select v-model="form.close_order_time_type" placeholder="请选择">
+                                <el-option
+                                        v-for="item in order_time_opt"
+                                        :key="item.value"
+                                        :label="item.label"
+                                        :value="item.value"
+                                >
+                                </el-option>
+                            </el-select>
                             <div style="padding:5px;background-color: #f6f7f9;width:60%;margin-top:5px;">
-                                <div style="line-height:20px!important;font-size: 12px;">1.订单下单未付款，n天后自动关闭，0/空为不自动关闭</div>
+                                <div style="line-height:20px!important;font-size: 12px;" v-if="form.close_order_time_type==1">1.订单下单未付款，n分钟后自动关闭，0/空为不自动关闭</div>
+                                <div style="line-height:20px!important;font-size: 12px;" v-else>1.订单下单未付款，n天后自动关闭，0/空为不自动关闭</div>
                                 <div style="line-height:20px!important;font-size: 12px;">2.退换货处理中的订单不能自动关闭</div>
                             </div>
                         </el-form-item>
-                        <el-form-item label="自动关闭未付款订单执行间隔时间">
-                            <el-input v-model="form.close_order_time"  style="width:70%;"></el-input>
-                            <span style="margin-left:10px;">分钟</span>
-                            <div style="font-size: 12px;">执行自动关闭未付款订单操作的间隔时间，如果为空默认为 5分钟 执行一次关闭到期未付款订单</div>
-                        </el-form-item>
-                </el-form>
+                        {{--<el-form-item label="自动关闭未付款订单执行间隔时间">--}}
+                            {{--<el-input v-model="form.close_order_time"  style="width:70%;"></el-input>--}}
+                            {{--<span style="margin-left:10px;">分钟</span>--}}
+                            {{--<div style="font-size: 12px;">执行自动关闭未付款订单操作的间隔时间，如果为空默认为 5分钟 执行一次关闭到期未付款订单</div>--}}
+                        {{--</el-form-item>--}}
+            </div>
+            <div style="background: #eff3f6;width:100%;height:15px;"></div>
+            <div class="block">
+                <div class="title">
+                    <span style="width: 4px;height: 18px;background-color: #29ba9c;margin-right:15px;display:inline-block;"></span>
+                    <b>自动发货</b>
+                </div>
+                <el-form-item label="自动发货时间">
+                    <el-input v-model="form.send"  style="width:70%;"></el-input>
+                    <span style="margin-left:10px;">分钟</span>
+                    <div style="padding:5px;background-color: #f6f7f9;width:70%;margin-top:5px;">
+                        <div style="line-height:20px!important;font-size: 12px;">1.订单付款后,N分钟后订单状态自动变更为待收货 0/空为不自动发货</div>
+                        <div style="line-height:20px!important;font-size: 12px;">2.退换货处理中的订单不能自动发货</div>
+                        <div style="line-height:20px!important;font-size: 12px;">3.自动发货只会改变订单状态，不会自动填写物流单号，支持平台自营订单、供应商商品</div>
+                    </div>
+                </el-form-item>
             </div>
             <div style="background: #eff3f6;width:100%;height:15px;"></div>
             <div class="block">
                 <div class="title"><span style="width: 4px;height: 18px;background-color: #29ba9c;margin-right:15px;display:inline-block;"></span><b>自动收货</b></div>
-                <el-form-item label="自动收货天数">
-                    <el-input v-model="form.receive"  style="width:70%;"></el-input>
+                <el-form-item label="自动收货时间">
+                    <el-input v-model="form.receive" style="width:70%;"></el-input>
+                    <el-select v-model="form.receive_time_type" placeholder="请选择">
+                        <el-option
+                                v-for="item in order_time_opt"
+                                :key="item.value"
+                                :label="item.label"
+                                :value="item.value"
+                        >
+                        </el-option>
+                    </el-select>
                     <div style="padding:5px;background-color: #f6f7f9;width:60%;margin-top:5px;">
-                        <div style="line-height:20px!important;font-size: 12px;">1.订单发货后，用户收货的天数，如果在期间未确认收货，系统自动完成收货, 0/空为不自动收货</div>
+                        <div style="line-height:20px!important;font-size: 12px;">1.订单发货后，用户收货的时间，如果在期间未确认收货，系统自动完成收货, 0/空为不自动收货</div>
                         <div style="line-height:20px!important;font-size: 12px;">2.退换货处理中的订单不能自动收货</div>
                         <div style="line-height:20px!important;font-size: 12px;">3.配送方式为自提,酒店入住,配送站送货,司机配送,自提点的配送类型不支持自动收货</div>
                     </div>
                 </el-form-item>
-                <el-form-item label="自动收货执行间隔时间">
-                    <el-input v-model="form.receive_time"  style="width:70%;"></el-input>
-                    <span style="margin-left:10px;">分钟</span>
-                    <div style="font-size: 12px;">执行自动收货操作的间隔时间，如果为空默认为 5分钟 执行一次自动收货</div>
-                </el-form-item>
+                {{--<el-form-item label="自动收货执行间隔时间">--}}
+                    {{--<el-input v-model="form.receive_time"  style="width:70%;"></el-input>--}}
+                    {{--<span style="margin-left:10px;">分钟</span>--}}
+                    {{--<div style="font-size: 12px;">执行自动收货操作的间隔时间，如果为空默认为 5分钟 执行一次自动收货</div>--}}
+                {{--</el-form-item>--}}
             </div>
             <div style="background: #eff3f6;width:100%;height:15px;"></div>
             <div class="block">
@@ -94,7 +128,32 @@
                         >
                         </el-switch>
                     </template>
-                    <div style="font-size: 12px;">开关判断前端退款按钮是否显示</div>
+                    <div style="font-size: 12px;">全局控制，关闭后前端所有订单都不行显示申请售后按钮</div>
+                </el-form-item>
+
+                <el-form-item label="发货后禁止退款">
+                    <template>
+                        <el-switch v-model="form.send_refund_status" active-value="1" inactive-value="0"></el-switch>
+                    </template>
+                    <div style="font-size: 12px;">开启后订单在待收货状态前端不能申请售后</div>
+                </el-form-item>
+                <el-form-item label="发货后禁止退款时间">
+                    <el-input v-model="form.send_refund_time" style="width:70%;">
+                        <template slot="append">分钟</template>
+                    </el-input>
+                    <div style="font-size: 12px;">设置0/空为发货后禁止退款</div>
+                </el-form-item>
+
+                <el-form-item label="前端合并支付">
+                    <template>
+                        <el-switch
+                                v-model="form.consolidated_payment"
+                                active-value="1"
+                                inactive-value="0"
+                        >
+                        </el-switch>
+                    </template>
+                    <div style="font-size: 12px;">默认开启</div>
                 </el-form-item>
                 <!-- <el-form-item label="快递配送">
                 <template>
@@ -108,7 +167,7 @@
                 </el-form-item> -->
                 <el-form-item label="完成订单多少天内可申请退款">
                     <el-input v-model="form.refund_days"  style="width:70%;"></el-input>
-                    <div style="font-size: 12px;">订单完成后 ，用户在x天内可以发起退款申请，设置0天不允许完成订单退款</div>
+                    <div style="font-size: 12px;">订单完成后 ，用户在x天内可以发起退款申请，设置0或为空不允许完成订单退款</div>
                 </el-form-item>
                 <el-form-item label="公众号支付后跳转链接">
                     <el-input v-model="form.redirect_url"  style="width:70%;"></el-input><el-button @click="show=true" style="margin-left:10px;">选择链接</el-button>
@@ -145,6 +204,16 @@
                         </el-switch>
                     </template>
                 </el-form-item>
+                <el-form-item label="乡镇及街道地址必填">
+                    <template>
+                        <el-switch
+                                v-model="form.is_must_street"
+                                active-value="1"
+                                inactive-value="0"
+                        >
+                        </el-switch>
+                    </template>
+                </el-form-item>
                 <el-form-item label="地址是否需要区域">
                     <template>
                         <el-switch
@@ -154,6 +223,28 @@
                         >
                         </el-switch>
                     </template>
+                </el-form-item>
+                <el-form-item label="区域是否隐藏" v-show="form.is_region == 1">
+                    <template>
+                        <el-switch
+                                v-model="form.region_hide"
+                                active-value="1"
+                                inactive-value="0"
+                        >
+                        </el-switch>
+                    </template>
+                    <div>当地址选择不需要区域时，才可选择隐藏，不然保存地址会报错</div>
+                </el-form-item>
+                <el-form-item label="下单是否需要配送时间">
+                    <template>
+                        <el-switch
+                                v-model="form.delivery_time"
+                                active-value="1"
+                                inactive-value="0"
+                        >
+                        </el-switch>
+                    </template>
+                    <div>开启后下单会显示配送日期和时间的填写框</div>
                 </el-form-item>
             </div>
             <div style="background: #eff3f6;width:100%;height:15px;"></div>
@@ -228,6 +319,7 @@
                     pro:false ,//是否开启小程序弹窗
                     form:{
                         refund_status:'0',
+                        consolidated_payment: '1',
                         // is_dispatch:'1',
                         redirect_url:'',
                         min_redirect_url:'',
@@ -238,15 +330,30 @@
                         is_bind:'0',
                         close_order_days:'',
                         close_order_time:'',
+                        send:'',
                         receive:'',
                         receive_time:'',
                         share_chain_pay_open:'0',
+                        send_refund_status:'0',
+                        send_refund_time:'0',
+                        close_order_time_type:0,
+                        receive_time_type:0,
                         pay_content:'',
                         invoice:{
                             electron: 0,
                             papery : 0
-                        }
+                        },
                     },
+                    order_time_opt:[
+                        {
+                            label:'天',
+                            value:0,
+                        },
+                        {
+                            label:'分钟',
+                            value:1,
+                        }
+                    ],
                 }
             },
             mounted () {

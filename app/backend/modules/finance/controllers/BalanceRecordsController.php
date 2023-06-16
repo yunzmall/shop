@@ -4,7 +4,7 @@
  * Date:    2017/7/11 下午9:25
  * Email:   livsyitian@163.com
  * QQ:      995265288
- * User:    芸众商城 www.yunzshop.com
+ * User:
  ****************************************************************/
 
 namespace app\backend\modules\finance\controllers;
@@ -12,9 +12,11 @@ namespace app\backend\modules\finance\controllers;
 
 use app\backend\modules\finance\models\Balance;
 use app\common\components\BaseController;
+use app\common\exceptions\ShopException;
 use app\common\facades\Setting;
 use app\common\helpers\PaginationHelper;
 use app\common\services\credit\ConstService;
+use app\common\services\ExportService;
 use app\common\services\member\group\GroupService;
 use app\common\services\member\level\LevelService;
 
@@ -24,65 +26,73 @@ class BalanceRecordsController extends BaseController
 
     public function index()
     {
-        $records = Balance::records()->where('change_money', '!=', 0);
-        $search = $this->getPostSearch();
-        if ($search) {
-//            dd($search);
-            $records = $records->search($search)->searchMember($search);
+        $source_name = $this->getServiceType();
+        $source_name_show = [];
+        foreach ($source_name as $key => $item) {
+            array_push($source_name_show, [
+                'id' => $key,
+                'value' => $item,
+            ]);
         }
-
-        $pageList = $records->orderBy('created_at','desc')->paginate(static::PAGE_SIZE);
-        $page = PaginationHelper::show($pageList->total(),$pageList->currentPage(),$pageList->perPage());
-
-        return view('finance.balance.balanceRecords',[
-            'pageList'          => $pageList,
-            'page'              => $page,
-            'search'            => $search,
-            'shopSet'           => $this->getShopSet(),
-            'sourceName'        => $this->getServiceType(),
-            'memberLevels'      => $this->getMemberList(),
-            'memberGroups'      => $this->getMemberGroup(),
+        return view('finance.balance.balanceRecords', [
+            'head_img' => yz_tomedia($this->getShopSet()['headimg']),
+            'source_name' => json_encode($source_name_show),
+            'member_levels' => json_encode($this->getMemberList()),
+            'member_groups' => json_encode($this->getMemberGroup()),
         ])->render();
+    }
 
+    public function search()
+    {
+        $records = Balance::records();
+        $search = $this->getPostSearch();
+        if (request()->ajax()) {
+            $records = $records->search($search);
+            if ($search['member']||$search['member_level']||$search['member_group']) {
+                $records = $records->searchMember($search);
+            }
+        }
+        $amount = $records->sum('change_money');
+        $pageList = $records->orderBy('yz_balance.id', 'desc')->paginate(static::PAGE_SIZE);
+        return $this->successJson('ok', [
+            'list' => $pageList,
+            'amount' => $amount,
+        ]);
     }
 
     public function export()
     {
         $file_name = date('Ymdhis', time()) . '余额明细导出';
-
         $search = $this->getPostSearch();
-        $list = Balance::records()->search($search)->searchMember($search)->get();
-
-        $export_data[0] = ['时间', '会员ID', '会员姓名', '会员手机号', '会员等级', '会员分组', '订单号', '业务类型', '收入／支出','变动前余额','变动余额', '变动后余额','备注'];
-
+        $list = Balance::records()->search($search)->searchMember($search);
+        if($list->count()>100000){
+            throw new ShopException('导出数据条数超过最大导出上限100000条,请调整导出时间区间!');
+        }
+        $export_page = request()->export_page ? request()->export_page : 1;
+        $export_model = new ExportService($list, $export_page);
+        $export_data[0] = ['时间', '会员ID', '会员姓名', '会员手机号', '会员等级', '会员分组', '订单号', '业务类型', '收入／支出', '变动前余额', '变动余额', '变动后余额', '备注'];
         $shopSet = $this->getShopSet();
-
-
+        $list = $list->get();
         foreach ($list as $key => $item) {
-
             if ($item->member) {
-                $member_id          = $item->member->uid;
-                $member_name        = $item->member->realname ?: $item->member->nickname;
-                $member_mobile      = $item->member->mobile;
-                $member_level       = $shopSet['level_name'];
-                $member_group       = '无分组';
-
+                $member_id = $item->member->uid;
+                $member_name = $item->member->realname ?: $item->member->nickname;
+                $member_mobile = $item->member->mobile;
+                $member_level = $shopSet['level_name'];
+                $member_group = '无分组';
                 if ($item->member->yzMember->group) {
-                    $member_group       = $item->member->yzMember->group->group_name ?: '无分组';
+                    $member_group = $item->member->yzMember->group->group_name ?: '无分组';
                 }
                 if ($item->member->yzMember->level) {
-                    $member_level       = $item->member->yzMember->level->level_name ?: $shopSet['level_name'];
+                    $member_level = $item->member->yzMember->level->level_name ?: $shopSet['level_name'];
                 }
-
-
             } else {
-                $member_id          = '';
-                $member_name        = '';
-                $member_mobile      = '';
-                $member_level       = $shopSet['level_name'];
-                $member_group       = '无分组';
+                $member_id = '';
+                $member_name = '';
+                $member_mobile = '';
+                $member_level = $shopSet['level_name'];
+                $member_group = '无分组';
             }
-
             $export_data[$key + 1] = [
                 $item->created_at,
                 $member_id,
@@ -99,24 +109,26 @@ class BalanceRecordsController extends BaseController
                 $item->remark
             ];
         }
-        \Excel::create($file_name, function ($excel) use ($export_data) {
-            // Set the title
-            $excel->setTitle('Office 2005 XLSX Document');
-
-            // Chain the setters
-            $excel->setCreator('芸众商城')
-                ->setLastModifiedBy("芸众商城")
-                ->setSubject("Office 2005 XLSX Test Document")
-                ->setDescription("Test document for Office 2005 XLSX, generated using PHP classes.")
-                ->setKeywords("office 2005 openxml php")
-                ->setCategory("report file");
-
-            $excel->sheet('info', function ($sheet) use ($export_data) {
-                $sheet->rows($export_data);
-            });
-
-
-        })->export('xls');
+        $export_model->export($file_name, $export_data, 'finance.balance-records.index');
+        // 商城更新，无法使用
+//        \Excel::create($file_name, function ($excel) use ($export_data) {
+//            // Set the title
+//            $excel->setTitle('Office 2005 XLSX Document');
+//
+//            // Chain the setters
+//            $excel->setCreator('芸众商城')
+//                ->setLastModifiedBy("芸众商城")
+//                ->setSubject("Office 2005 XLSX Test Document")
+//                ->setDescription("Test document for Office 2005 XLSX, generated using PHP classes.")
+//                ->setKeywords("office 2005 openxml php")
+//                ->setCategory("report file");
+//
+//            $excel->sheet('info', function ($sheet) use ($export_data) {
+//                $sheet->rows($export_data);
+//            });
+//
+//
+//        })->export('xls');
     }
 
     private function getPostSearch()
@@ -143,8 +155,4 @@ class BalanceRecordsController extends BaseController
     {
         return GroupService::getMemberGroupList();
     }
-
-
-
-
 }

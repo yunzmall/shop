@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/3/1
  * Time: 09:41
  */
@@ -26,4 +26,10 @@ class GoodsSpecItem extends \app\common\models\BaseModel
     {
         return $this->hasMany('app\common\models\GoodsOption');
     }
+
+    public function hasOneSpec()
+    {
+        return $this->hasOne(GoodsSpec::class, 'id', 'specid');
+    }
+
 }

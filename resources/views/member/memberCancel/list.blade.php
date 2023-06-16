@@ -2,10 +2,26 @@
 @section('title', '账号注册管理审核')
 @section('content')
     <style>
+        .panel-info {
+            margin: 6px 0;
+        }
+        .add-shopnav {
+            padding: 5px;
+        }
+        .add-shopnav li.active a{
+            padding: 4px 12px;
+            letter-spacing: 2px;
+            font-size: 14px;
+            border-radius: 5px!important;
+        }
+        .tips {
+            color: red;
+            margin-bottom:20px;
+        }
         .panel{
-            margin-bottom:10px!important;
+            margin-bottom: 20px!important;
             border-radius: 10px;
-            padding-left: 20px;
+            padding-left: 5px;
         }
         .panel .active a {
             background-color: #29ba9c!important;
@@ -18,7 +34,7 @@
         }
         .content{
             background: #eff3f6;
-            padding: 10px!important;
+            padding: 15px!important;
         }
         .con{
             padding-bottom:20px;
@@ -36,7 +52,7 @@
         }
         .con .setting .block .title{
             font-size:18px;
-            margin-bottom:32px;
+            margin-bottom:20px;
             display:flex;
             align-items:center;
             justify-content:space-between;
@@ -74,10 +90,22 @@
         }
     </style>
     <div id='re_content' >
-        @include('member.memberCancel.tab')
-        <div>
-            <span>注：账号注销后，会员个人信息（包含昵称，姓名，手机号，收获信息，会员资料等），商城等级，个人资产（包含金额，积分等），优惠券，插件分红等将失效，且不能恢复，若会员存在交易中订单，暂不能进行审核，交易完成后可进行审核。</span>
+    <div class="panel panel-info">
+            <ul class="add-shopnav">
+                <li>
+                    <a href="{{ yzWebFullUrl('member.member-cancel.index') }}">
+                        账号注销设置
+                    </a>
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                </li>
+                <li class="active">
+                    <a href="{{ yzWebFullUrl('member.member-cancel.verify') }}">
+                        账号注销申请审核
+                    </a>
+                </li>
+            </ul>
         </div>
+
         <div class="con">
             <div class="setting">
                 <div class="block">
@@ -85,6 +113,9 @@
                         <div style="display:flex;align-items:center;">
                             <span style="width: 4px;height: 18px;background-color: #29ba9c;margin-right:15px;display:inline-block;"></span><b>账号注销申请审核</b>
                         </div>
+                    </div>
+                    <div class="tips">
+                        <span>注：账号注销后，会员个人信息（包含昵称，姓名，手机号，收获信息，会员资料等），商城等级，个人资产（包含金额，积分等），优惠券，插件分红等将失效，且不能恢复，若会员存在交易中订单，暂不能进行审核，交易完成后可进行审核。</span>
                     </div>
                     <el-input v-model="search_form.member_id" style="width:15%;margin-right:16px;" placeholder="会员ID"></el-input>
                     <el-input v-model="search_form.member" style="width:15%;margin-right:16px;" placeholder="昵称/姓名/手机号"></el-input>
@@ -106,7 +137,7 @@
                     </template>
                     <el-button type="primary" @click="search">搜索</el-button>
                 </div>
-                <div style="background: #eff3f6;width:100%;height:15px;"></div>
+                <div style="background: #eff3f6;width:100%;height:20px;"></div>
                 <div class="block">
                     <div class="title">
                         <div style="display:flex;align-items:center;">
@@ -168,7 +199,9 @@
                     page_total:0,
                     page_size:0,
                     current_page:0,
-                    search_form:{},
+                    search_form:{
+                        member_id:'{!! $_REQUEST['member_id'] ? :"" !!}'
+                    },
                     real_search_form:{},
                     options: [
                         {

@@ -2,9 +2,15 @@
 
 namespace app\platform\modules\application\controllers;
 
+use app\common\events\DeleteAccountEvent;
+use app\common\facades\Setting;
+use app\common\models\Option;
 use app\platform\controllers\BaseController;
 use app\platform\modules\application\models\UniacidApp;
 use app\common\helpers\Cache;
+use app\platform\modules\pluginsSetMeal\models\PluginsMealModel;
+use app\platform\modules\pluginsSetMeal\models\pluginsMealPlatform;
+use app\platform\modules\system\models\SystemSetting;
 use app\platform\modules\user\models\AdminUser;
 use app\platform\modules\application\models\AppUser;
 use Illuminate\Support\Facades\DB;
@@ -16,7 +22,7 @@ use app\backend\modules\member\models\MemberShopInfo;
 use app\backend\modules\member\models\MemberUnique;
 use app\backend\modules\goods\models\Goods;
 use app\backend\modules\order\models\Order;
-use Yunshop\Wechat\common\model\Menu;
+use app\backend\modules\menu\Menu;
 use app\common\modules\wechat\models\Rule;
 use app\common\modules\wechat\models\RuleKeyword;
 use Illuminate\Foundation\Bus\DispatchesJobs;
@@ -32,62 +38,57 @@ class ApplicationController extends BaseController
     public function index()
     {
         $search = request()->search;
-
         $app = new UniacidApp();
-
         $ids = self::checkRole();
-
         if (\Auth::guard('admin')->user()->uid != 1) {
-
             if (!is_array($ids)) {
-
                 return $this->errorJson($ids);
             }
-
-            $list = $app->select('id', 'name', 'img', 'validity_time', 'status', 'is_top')->whereIn('id', $ids)->where('status', 1)->search($search)->orderBy('is_top', 'desc')->orderBy('topped_at', 'desc')->orderBy('id', 'desc')->paginate()->toArray();
-
+            $list = $app->select('id', 'name', 'img', 'validity_time', 'status', 'is_top')
+                ->whereIn('id', $ids)->where('status', 1)
+                ->search($search)
+                ->orderBy('is_top', 'desc')
+                ->orderBy('topped_at', 'desc')
+                ->orderBy('id', 'desc')
+                ->paginate()
+                ->toArray();
         } else {
-            $list = $app->select('id', 'name', 'img', 'validity_time', 'status', 'admin_is_top as is_top')->where('status', 1)->search($search)->orderBy('admin_is_top', 'desc')->orderBy('admin_topped_at', 'desc')->orderBy('id', 'desc')->paginate()->toArray();
+            $list = $app->select('id', 'name', 'img', 'validity_time', 'status', 'admin_is_top as is_top')
+                ->where('status', 1)
+                ->search($search)
+                ->orderBy('admin_is_top', 'desc')
+                ->orderBy('admin_topped_at', 'desc')
+                ->orderBy('id', 'desc')
+                ->paginate()
+                ->toArray();
         }
-
-        foreach ($list['data'] as $key => $value) {
-
+        foreach ($list['data'] as $key => &$value) {
+            $value['img'] = yz_tomedia($value['img']);
             if ($value['validity_time'] == 0) {
-
                 $list['data'][$key]['validity_time'] = intval($value['validity_time']);
-
             } else {
-
                 //到期前一周的时间  当前+1 直到 +7 小于等于 $value['validity_time']
                 $week = date('W');
-
                 $nowstamp = mktime(0, 0, 0, date('m'), date('d'), date('Y'));
-
                 $time_week = date('W', $value['validity_time']);
-
                 if ((date('W', strtotime('+1 week')) == $time_week) || (date('W') == $time_week && $value['validity_time'] >= $nowstamp)) {
-
                     $list['data'][$key]['is_expire'] = 1;  //到期前一周
                 }
-
                 if ($value['validity_time'] != 0 && $value['validity_time'] < $nowstamp) {
-
                     $list['data'][$key]['is_expire'] = 2;  //已经到期
                 }
-
                 if ($value['validity_time'] === 0 || (date('W', strtotime('+1 week') - $time_week > 1) && $value['validity_time'] > $nowstamp)) {
                     $list['data'][$key]['is_expire'] = 0;
                 }
-
                 $list['data'][$key]['validity_time'] = date('Y-m-d', $value['validity_time']);
             }
         }
-
         return $this->successJson('获取成功', $list);
     }
 
     public static function checkRole()
     {
+        $ids = [];
         $uid = \Auth::guard('admin')->user()->uid;
 
         $user = AdminUser::find($uid);
@@ -142,17 +143,33 @@ class ApplicationController extends BaseController
 
         $num = UniacidApp::withTrashed()->where('creator', $uid)->count();
 
-        $realnum = AdminUser::find($uid)->application_number;
+        $adminUser = AdminUser::find($uid);
 
-        if ($uid != 1 && $num >= $realnum) {
+        if ($uid != 1 && $num >= $adminUser->application_number) {
             return $this->errorJson('您无权限添加平台');
+        }
+
+        $set = SystemSetting::settingLoad('basicsetting', 'basic_setting');
+
+        if (!empty($set) and $set['type'] != 0) {
+            if ($set['type'] == 1 and request()->input('validity_time') > $adminUser->endtime and $adminUser->endtime != 0) {
+                return $this->errorJson('平台期限不能超过管理员有效期');
+            }elseif ($set['type'] == 2 and request()->input('validity_time') > strtotime("+ {$set['endtime']} day") and $adminUser->endtime != 0){
+                return $this->errorJson('平台期限不能超过指定效期');
+            }
         }
 
         if (!request()->input()) {
             return $this->errorJson('请输入参数');
         }
+        $platform = [
+            'img' => request()->input('img'),
+            'name' => request()->input('name'),
+            'validity_time' => request()->input('validity_time')
+        ];
 
-        $data = $this->fillData(request()->input());
+
+        $data = $this->fillData($platform);
 
         $id = $app->insertGetId($data);
 
@@ -171,9 +188,24 @@ class ApplicationController extends BaseController
             if (!$up) {
                 \Log::info('平台添加修改uniacid字段失败, id为', $id);
             }
-            //更新缓存
 
-            return $this->successJson('添加成功');
+            //添加商城key
+            Setting::$uniqueAccountId = $id;
+            $upgrade = Setting::get('shop.key');
+
+            if (empty($upgrade['key']) && empty($upgrade['secret'])) {
+                $platformShopValue = Setting::getNotUniacid('platform_shop.key');
+
+                Setting::set('shop.key', $platformShopValue);
+
+                \Cache::forget('app_auth' . $id);
+            }
+
+            //更新缓存
+            if ($this->enabledPlugins($id,request()->input('plugins_meal_id'))){
+                return $this->successJson('添加成功,套餐启动成功');
+            }
+            return $this->successJson('添加成功,套餐启动失败');
 
         } else {
 
@@ -213,14 +245,136 @@ class ApplicationController extends BaseController
                 if ($app->where('id', $id)->update($data)) {
                     //更新缓存
                     // Cache::put($this->key . ':' . $id, $app->find($id), $data['validity_time']);
-
-                    return $this->successJson('修改成功');
+                    if($this->enabledPlugins($id,request()->input('plugins_meal_id'))){
+                        return $this->successJson('修改成功');
+                    }
+                    return $this->successJson('修改成功 ,但套餐使用失败');
                 } else {
 
                     return $this->errorJson('修改失败');
                 }
             }
         }
+    }
+
+    private function enabledPlugins($uniacid, $plugins_meal_id)
+    {
+        if (empty($uniacid) or empty($plugins_meal_id)) {
+            return false;
+        }
+        $pluginsMeal = (new PluginsMealModel())->getPluginsMealList($plugins_meal_id);
+        $pluginsList = Option::where('uniacid', $uniacid)->pluck('option_name')->toArray();
+
+        if (!$pluginsMeal) {
+            return false;
+        }
+        Menu::flush();
+        $plugins = array_keys(app('plugins')->getPlugins()->toArray());
+        \Setting::$uniqueAccountId = $uniacid;
+        \YunShop::app()->uniacid = $uniacid;
+        $pluginManager = app('app\common\services\PluginManager');
+        $afterPluginsCheck = ['store-alone-temp']; //todo 某些插件可能需要启动别的先驱插件才能启动，暂时它放在这处理
+        $afterPluginsList = []; //后启动插件数组
+        try {
+            $pluginsMealPlatform = PluginsMealPlatform::where('uniacid', $uniacid)->first();
+            if ($pluginsMealPlatform->plugins_meal_id == $plugins_meal_id) {
+                return true;
+            }
+            if (!$pluginsMealPlatform ) {
+                if ($pluginsList) {
+                    $pluginManager->disableMeal($uniacid);//关闭所有插件
+                    foreach ($pluginsList as $plugin) {
+                        $pluginManager->dispatchEvent($plugin);
+                    }
+                }
+                foreach ($pluginsMeal[0]['plugins'] as $plugin) {
+                    if (in_array($plugin, $plugins)) {
+                        if (in_array($plugin, $afterPluginsCheck)) {
+                            $afterPluginsList[] = $plugin;
+                            continue;
+                        }
+                        $pluginManager->enableMeal($plugin);  //启用插件套餐
+                    }
+                }
+                if (!empty($afterPluginsList)) {
+                    \Artisan::call('config:cache');  //todo 必须刷新缓存，否则无法启动
+                    \Cache::flush();
+                    foreach ($afterPluginsList as $item) {
+                        $pluginManager->enableMeal($item);  //启用插件套餐
+                    }
+                }
+                (new pluginsMealPlatform())->create([
+                    'uniacid' => $uniacid,
+                    'plugins_meal_id' => $plugins_meal_id
+                ]);
+            } else {
+                $pluginManager->disableMeal($uniacid);//关闭所有插件
+                foreach ($pluginsList as $plugin) {
+                    $pluginManager->dispatchEvent($plugin);
+                }
+                foreach ($pluginsMeal[0]['plugins'] as $plugin) {
+                    $plugin = str_replace('_', '-', $plugin);
+                    if (in_array($plugin, $plugins)) {
+                        if (in_array($plugin, $afterPluginsCheck)) {
+                            $afterPluginsList[] = $plugin;
+                            continue;
+                        }
+                        $pluginManager->enableMeal($plugin);  //启用插件套餐
+                    }
+                }
+                if (!empty($afterPluginsList)) {
+                    \Artisan::call('config:cache');  //todo 必须刷新缓存，否则无法启动
+                    \Cache::flush();
+                    foreach ($afterPluginsList as $item) {
+                        $pluginManager->enableMeal($item);  //启用插件套餐
+                    }
+                }
+                PluginsMealPlatform::where('uniacid', $uniacid)->update(['plugins_meal_id' => $plugins_meal_id]);
+            }
+
+            \Artisan::call('config:cache');
+            \Cache::flush();
+
+            return true;
+
+        } catch (\Exception $e) {
+            \Artisan::call('config:cache');
+            \Cache::flush();
+            return false;
+        }
+    }
+
+    public function getMessage()
+    {
+        if (\YunShop::app()->uid == 1){
+            $plugin = PluginsMealModel::orderBy('order_by','desc')->get()->toArray();
+        }else {
+            $plugin = PluginsMealModel::where('state',1)->orderBy('order_by','desc')->get()->toArray();
+        }
+
+        $uid = \Auth::guard('admin')->user()->uid;
+        $adminUser = AdminUser::find($uid);
+
+        $set = SystemSetting::settingLoad('basicsetting', 'basic_setting');
+        $data['type'] = $set['type'];
+
+
+        switch ($set['type']){
+            case 0:
+                $data['validity_time'] = 0;
+                break;
+            case 1:
+                $data['validity_time'] = $adminUser->endtime;
+                break;
+            case 2:
+                $data['validity_time'] = strtotime("+ {$set['endtime']} day");
+                break;
+
+        }
+
+        $data['plugin'] = $plugin;
+
+        return $this->successJson('ok', $data);
     }
 
     public function getApp()
@@ -232,6 +386,14 @@ class ApplicationController extends BaseController
         $info = $app->find($id);
 
         $info['isfounder'] = intval(\YunShop::app()->isfounder);
+
+        $info['plugins_meal_id'] = pluginsMealPlatform::where('uniacid', $id)->first()->plugins_meal_id;
+
+        if (\YunShop::app()->uid == 1) {
+            $info['plugin'] = PluginsMealModel::orderBy('order_by', 'desc')->get()->toArray();
+        } else {
+            $info['plugin'] = PluginsMealModel::where('state', 1)->orderBy('order_by', 'desc')->get()->toArray();
+        }
 
         if (!$id || !$info) {
             return $this->errorJson('获取失败');
@@ -270,7 +432,9 @@ class ApplicationController extends BaseController
     public function forceDel($info)
     {
         $uniacid = $info->uniacid;
-        $delmember = DB::transaction(function () use ($uniacid) {
+        \YunShop::app()->uniacid = $uniacid;
+        event(new DeleteAccountEvent($uniacid));
+        DB::transaction(function () use ($uniacid) {
             if (!empty($uniacid)) {
                 //删除yz_uniacid_app
                 UniacidApp::where('uniacid',$uniacid)->forceDelete();
@@ -296,7 +460,7 @@ class ApplicationController extends BaseController
                 RuleKeyword::where('uniacid',$uniacid)->forceDelete();
                 //删除yz_wechat_menu
                 if(app('plugins')->isEnabled('wechat')){
-                    Menu::where('uniacid',$uniacid)->forceDelete();
+                    \Yunshop\Wechat\common\model\Menu::where('uniacid',$uniacid)->forceDelete();
                 }
 
                 $tables = DB::select("SELECT DISTINCT TABLE_NAME FROM information_schema.COLUMNS WHERE COLUMN_NAME = 'uniacid'");
@@ -306,11 +470,8 @@ class ApplicationController extends BaseController
                 }
             }
         });
-        if ($delmember) {
-            \Log::info('------删除平台关联会员数据------', $uniacid);
-        } else {
-            return $this->errorJson('删除失败');
-        }
+
+        \Log::info('------删除平台关联会员数据------', [$uniacid, \Auth::guard('admin')->user()]);
     }
 
     //启用禁用或恢复应用
@@ -402,9 +563,9 @@ class ApplicationController extends BaseController
             'title' => $data['title'] ?: '',
             'description' => $data['description'] ?: '',
             'status' => $data['status'] ?: 1,
-            'creator' => \Auth::guard('admin')->user()->uid,
             'version' => $data['version'] ?: 0.00,
             'validity_time' => $data['validity_time'] ?: 0,
+            'creator' => \Auth::guard('admin')->user()->uid,
         ];
     }
 
@@ -439,6 +600,29 @@ class ApplicationController extends BaseController
             return $this->successJson('操作成功');
         } else {
             return $this->errorJson('操作失败');
+        }
+    }
+    public function basicSettings()
+    {
+        if (request()->isMethod("GET"))
+        {
+            $set = SystemSetting::settingLoad('basicsetting', 'basic_setting');
+
+            if (empty($set)) {
+                $set['type'] = 0;
+            }
+
+            return $this->successJson('ok', $set);
+        }
+
+        $data = request()->input('term_of_validity');
+        if ($data) {
+            $site = SystemSetting::settingSave($data, 'basicsetting', 'basic_setting');
+            if ($site) {
+                return $this->successJson('成功', '');
+            } else {
+                return $this->errorJson('失败', '');
+            }
         }
     }
 }

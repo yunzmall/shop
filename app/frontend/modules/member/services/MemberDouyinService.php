@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 19/11/4
  * Time: 上午11:20
  */
@@ -35,7 +35,7 @@ class MemberDouyinService extends MemberService
             return show_json(0,'未开启头条小程序');
         }
 
-        $para = \YunShop::request();
+        $para = request()->all();
 
         $data = array(
             'appid' => $min_set['key'],

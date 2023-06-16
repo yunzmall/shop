@@ -1,9 +1,9 @@
 <?php
 /**
  * Created by PhpStorm.
- * Name: 芸众商城系统
- * Author: 广州市芸众信息科技有限公司
- * Profile: 广州市芸众信息科技有限公司位于国际商贸中心的广州，专注于移动电子商务生态系统打造，拥有芸众社交电商系统、区块链数字资产管理系统、供应链管理系统、电子合同等产品/服务。官网 ：www.yunzmall.com  www.yunzshop.com
+ * 
+ * 
+ *
  * Date: 2021/6/2
  * Time: 9:58
  */
@@ -44,8 +44,13 @@ class DispatchTypeController extends ApiController
         $enableDispatchType =  DispatchType::getAllEnableDispatchType();
 
         //todo 虚拟订单不需要配送方式
+        //todo 分时预约商品不需要配送方式，但它是实体商品，目前放这里处理
         $need_address = $groupCollection->contains(function (DispatchTypeOrder $order) {
-            return $order->isVirtual() === false;
+            if ($order->plugin_id != 130) {
+                return $order->isVirtual() === false;
+            } else {
+                return $order->plugin_id != 130;
+            }
         });
 
         if (!$need_address) {
@@ -56,10 +61,19 @@ class DispatchTypeController extends ApiController
 
             $dispatchTypeManager = new DispatchTypeMenuService($enableDispatchType, $item);
             $dispatchTypes = $dispatchTypeManager->getOrderDispatchType();
-            $parameter = $dispatchTypes->map(function (DispatchTypeMenu $dispatchType) {
+            $parameter = $dispatchTypes->map(function (DispatchTypeMenu $dispatchType) use ($item) {
+                $name = $dispatchType->getName();
+                switch ($dispatchType->getId()) {
+                    case DispatchType::STORE_PACKAGE_DELIVER :
+                        $name = $dispatchType->getStoreDeliverName(request('store_id'));
+                        break;
+                    case DispatchType::EXPRESS :
+                        $name = \Setting::get('shop.lang.zh_cn.order.express')?:'快递';
+                        break;
+                }
                 return [
                     'dispatch_type_id' => $dispatchType->getId(),
-                    'name' => $dispatchType->getName(),
+                    'name' => $name,
                 ];
             })->values();
             if ($parameter->isNotEmpty()) {
@@ -100,12 +114,10 @@ class DispatchTypeController extends ApiController
     protected function getMemberCart()
     {
         $model = request()->input('model');
-        
         $memberCart = \app\common\modules\shop\ShopConfig::current()->get('shop-foundation.member-cart.models')[$model];
         if (!$memberCart) {
             $memberCart = \app\common\modules\shop\ShopConfig::current()->get('shop-foundation.member-cart.models.shop');
         }
-
         return $memberCart;
     }
 
@@ -114,7 +126,6 @@ class DispatchTypeController extends ApiController
         $cart_ids = request()->input('cart_ids');
 
         $goods_id = intval(request()->input('goods_id'));
-
 
         if ($goods_id) {
             return [$goods_id];
@@ -127,8 +138,18 @@ class DispatchTypeController extends ApiController
         if ($cart_ids) {
 
             $memberCart = $this->getMemberCart();
-            $goods_ids =  $memberCart::whereIn('id', $cart_ids)->pluck('goods_id')->toArray();
+
+            //优化允许配置购物车类自定义条件和使用参数，使用匿名函数
+            if ($memberCart instanceof \Closure) {
+                $goods_ids = call_user_func($memberCart,request())->whereIn('id', $cart_ids)->pluck('goods_id')->toArray();
+            } else {
+                $goods_ids =  $memberCart::whereIn('id', $cart_ids)->pluck('goods_id')->toArray();
+            }
+            return $goods_ids;
         }
+
+        $goods_ids = json_decode(request()->input('goods_ids'), true);
+
         return $goods_ids;
     }
 
@@ -137,8 +158,7 @@ class DispatchTypeController extends ApiController
 
         $goods_ids = $this->getParam();
 
-        $goodsList = Goods::
-            whereIn('id',$goods_ids)
+        $goodsList = Goods::whereIn('id',$goods_ids)
             ->select(['id','id as goods_id', 'uniacid', 'brand_id', 'type', 'status', 'title', 'thumb', 'sku', 'market_price', 'price', 'cost_price', 'stock', 'reduce_stock_method', 'show_sales', 'real_sales', 'weight', 'has_option', 'is_deleted', 'comment_num', 'is_plugin', 'plugin_id', 'virtual_sales', 'no_refund', 'need_address', 'type2'])
             ->get();
 
@@ -167,8 +187,7 @@ class DispatchTypeController extends ApiController
 
         $member = Member::current();
 
-        $goodsList = Goods::
-        whereIn('id',$goods_ids)
+        $goodsList = Goods::whereIn('id',$goods_ids)
             ->select(['id','id as goods_id', 'uniacid', 'brand_id', 'type', 'status', 'title', 'thumb', 'sku', 'market_price', 'price', 'cost_price', 'stock', 'reduce_stock_method', 'show_sales', 'real_sales', 'weight', 'has_option', 'is_deleted', 'comment_num', 'is_plugin', 'plugin_id', 'virtual_sales', 'no_refund', 'need_address', 'type2'])
             ->get();
 

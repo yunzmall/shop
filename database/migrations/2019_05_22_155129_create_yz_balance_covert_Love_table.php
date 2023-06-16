@@ -27,7 +27,7 @@ class CreateYzBalanceCovertLoveTable extends Migration
                 $table->integer('updated_at')->nullable();
                 $table->integer('deleted_at')->nullable();
             });
-
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE " . app('db')->getTablePrefix() . "yz_balance_covert_love comment '财务--余额转换爱心值log表'");//表注释
         }
     }
 

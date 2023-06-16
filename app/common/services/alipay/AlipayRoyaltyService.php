@@ -86,11 +86,13 @@ class AlipayRoyaltyService
 //                'desc' => '分账给服务商',
             ]
         ];
+        $extendParams = ['royalty_finish' => true];
         $orderSettleRequestBuilder = new AlipayOrderSettleContentBuilder();
         $orderSettleRequestBuilder->setAppAuthToken($app_auth_token);
         $orderSettleRequestBuilder->setOutRequestNo($out_request_no);
         $orderSettleRequestBuilder->setTradeNo($trade_no);
         $orderSettleRequestBuilder->setRoyaltyParameters($receiver_list);
+        $orderSettleRequestBuilder->setExtendParams($extendParams);
         $req = new AlipayTradeService($config);
         $barPayResult = (array)$req->tradeOrderSettle($orderSettleRequestBuilder);
 
@@ -121,6 +123,55 @@ class AlipayRoyaltyService
 
 
         $create_data = array_merge($data,$receiver_list[0]);
+        AlipayOrderSettleLog::create($create_data);
+        return $barPayResult;
+    }
+
+    /**
+     * @param $order_id
+     * @param $trade_no
+     * @return mixed
+     * @throws ShopException
+     * @throws \Exception
+     * @throws \app\common\exceptions\AppException
+     */
+    public static function orderRoyaltyFinish($trade_no, $order_id)
+    {
+        $out_request_no = createNo('AOS', true);
+        $alipay_config = new AlipayConfig();
+        $config = $alipay_config->getConfig();
+        $app_auth_token = $alipay_config->getAuthToken();
+        $extendParams = ['royalty_finish' => true];
+        $orderSettleRequestBuilder = new AlipayOrderSettleContentBuilder();
+        $orderSettleRequestBuilder->setAppAuthToken($app_auth_token);
+        $orderSettleRequestBuilder->setOutRequestNo($out_request_no);
+        $orderSettleRequestBuilder->setTradeNo($trade_no);
+        $orderSettleRequestBuilder->setExtendParams($extendParams);
+        $req = new AlipayTradeService($config);
+        $barPayResult = (array)$req->tradeOrderSettle($orderSettleRequestBuilder);
+
+        \Log::debug('完结分账回调', $barPayResult);
+        $data = [
+            'app_id' => $config['app_id'],
+            'uniacid' => \YunShop::app()->uniacid,
+            'order_id' => $order_id,
+            'app_auth_token' => $app_auth_token,
+            'out_request_no' => $out_request_no,
+            'trade_no' => $trade_no,
+        ];
+
+        if ($barPayResult['code'] == '10000') {
+            $data['status'] = 1;
+            $data['message'] = $barPayResult['msg'];
+        } else {
+            $data['status'] = -1;
+            $data['message'] = $barPayResult['sub_msg'];
+        }
+
+
+        $create_data = $data;
+        $create_data['amount'] = 0;
+        $create_data['royalty_type'] = '完结分账';
         AlipayOrderSettleLog::create($create_data);
         return $barPayResult;
     }

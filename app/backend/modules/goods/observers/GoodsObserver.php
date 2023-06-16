@@ -15,7 +15,7 @@ use Illuminate\Database\Eloquent\Model;
 
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/2/28
  * Time: 上午11:24
  */
@@ -54,16 +54,18 @@ class GoodsObserver extends \app\common\observers\BaseObserver
 
     public function updated(Model $model)
     {
-
-        (new \app\common\services\operation\GoodsLog($model, 'update'));
-
         $this->pluginObserver('observer.goods', $model, 'updated');
     }
 
     public function deleted(Model $model)
     {
-        $this->pluginObserver('observer.goods', $model, 'deleted');
-        MemberFavorite::where('goods_id', $model->id)->delete();
+        try {
+            $this->pluginObserver('observer.goods', $model, 'deleted');
+            MemberFavorite::where('goods_id', $model->id)->delete();
+        } catch (\Exception $e) {
+            \Log::debug('goods-deleted-error:'. $e->getMessage(), [$e->getFile() , $e->getLine()]);
+        }
+
 
     }
 

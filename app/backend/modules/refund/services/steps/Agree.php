@@ -18,13 +18,14 @@ class Agree  extends BaseStepFactory
     {
         switch ($this->model->status) {
             case RefundApply::COMPLETE:
-               $name = '售后(退款完成)';
+               $name = $this->model->refund_type == RefundApply::REFUND_TYPE_EXCHANGE_GOODS ?
+                       '售后(换货完成)':'售后(退款完成)';
                 break;
             case RefundApply::CONSENSUS:
                 $name = '售后(手动退款)';
                 break;
             case RefundApply::CLOSE:
-                $name = '售后(换货关闭)';
+                $name = '售后(关闭)';
                 break;
             default:
                 $name = '售后完成';

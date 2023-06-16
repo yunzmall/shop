@@ -79,19 +79,20 @@ class AttachmentController extends BaseController
     {
         $alioss = request()->alioss;
         $cos = request()->cos;
-
-        if ($alioss || $cos) {
+        $obs = request()->obs;
+        if ($alioss || $cos || $obs) {
+            $validate = false;
             if ($alioss['key']) {
                 $validate  = $this->validate($this->rules(1), $alioss, $this->message());
-            } else {
+            } elseif($cos['key']) {
                 $validate  = $this->validate($this->rules(2), $cos, $this->message());
+            } elseif ($obs['key']) {
+                $validate  = $this->validate($this->rules(3), $obs, $this->message());
             }
             if ($validate) {
                 return $validate;
             }
-
-            $attach = Attachment::saveRemote($alioss, $cos, $this->remote);
-
+            $attach = Attachment::saveRemote($alioss, $cos, $obs, $this->remote);
             if ($attach['result']) {
                 Cache::flush();
                 return $this->successJson('成功');
@@ -99,9 +100,7 @@ class AttachmentController extends BaseController
                 return $this->errorJson($attach['msg']);
             }
         }
-
         $this->remote['alioss']['internal'] ? $this->remote['alioss']['internal'] = intval($this->remote['alioss']['internal']) : null;
-
         switch($this->remote['cos']['local']) {
             case 'ap-nanjing':
                 $this->remote['cos']['local'] = '南京';
@@ -134,7 +133,11 @@ class AttachmentController extends BaseController
                 $this->remote['cos']['local'] = '深圳金融';
                 break;
         }
-        
+
+        unset($this->remote['alioss']['secret']);
+        unset($this->remote['cos']['secretkey']);
+        unset($this->remote['obs']['secret']);
+
         return $this->successJson('成功', $this->remote);
     }
 
@@ -176,7 +179,6 @@ class AttachmentController extends BaseController
                 'audio_limit' => 'required',
             ];
         }
-
         if ($param == 1) {
             $rules = [
                 'key' => 'required',
@@ -189,8 +191,14 @@ class AttachmentController extends BaseController
                 'secretkey' => 'required',
                 'bucket' => 'required',
             ];
+        } elseif ($param == 3) {
+            $rules = [
+                'key' => 'required',
+                'secret' => 'required',
+                'endpoint' => 'required',
+                'bucket' => 'required',
+            ];
         }
-
         return $rules;
     }
 
@@ -211,7 +219,8 @@ class AttachmentController extends BaseController
             'appid' => '请填写APPID',
             'secretid' => '请填写SECRETID',
             'secretkey' => '请填写SECRETKEY',
-            'bucket' => '请填写BUCKET'
+            'bucket' => '请填写BUCKET',
+            'endpoint' => '请填写Endpoint',
         ];
     }
 
@@ -224,12 +233,14 @@ class AttachmentController extends BaseController
     {
         $key = request()->key;
         $secret = request()->secret;
-
+        $is_auth = request()->is_auth;//判断是否加载完请求
+        if ($is_auth) {
+            $secret = $this->remote['alioss']['secret'];
+        }
         $buckets = attachment_alioss_buctkets($key, $secret);
         if (is_error($buckets)) {
             return $this->errorJson($buckets['message']);
         }
-
         $bucket_datacenter = attachment_alioss_datacenters();
         $bucket = array();
         foreach ($buckets as $key => $value) {
@@ -237,7 +248,6 @@ class AttachmentController extends BaseController
             $value['value'] = $key. '@@'. $value['location'];
             $bucket[] = $value;
         }
-
         return $this->successJson('成功', $bucket);
     }
 
@@ -269,7 +279,7 @@ class AttachmentController extends BaseController
         } else {
             $url = 'http://'.$bucket.'.'.$buckets[$bucket]['location'].'.aliyuncs.com/';
         }
-        $filename = 'icon.jpg';
+        $filename = 'logo.png';
         $response = \Curl::to($url. '/'.$filename)->get();
         if (!$response) {
             return $this->errorJson('配置失败，阿里云访问url错误');
@@ -339,7 +349,7 @@ class AttachmentController extends BaseController
             return $this->errorJson('配置失败，请检查配置' . $auth['message']);
         }
 
-        $filename = 'icon.jpg';
+        $filename = 'logo.png';
         $response = \Curl::to($cos['url']. '/'. $filename)->get();
         if (!$response) {
             return $this->errorJson('配置失败，腾讯cos访问url错误');
@@ -350,6 +360,39 @@ class AttachmentController extends BaseController
             return $this->successJson('配置成功', request()->cos);
         } else {
             return $this->errorJson('配置失败，腾讯cos访问url错误');
+        }
+    }
+
+    /**
+     * 测试腾讯云配置是否成功
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function obs()
+    {
+        $obs = request()->obs;
+        $key = trim($obs['key']);
+        $secret = strexists($obs['secret'], '*') ? $this->remote['cos']['secret'] : trim($obs['secret']);
+        $bucket = trim($obs['bucket']);
+        $endpoint = trim($obs['endpoint']);
+        if (!$obs['url']) {
+            $obs['url'] = sprintf('https://%s.%s', $obs['bucket'], $obs['endpoint']);
+        }
+        $obs['url'] = rtrim($obs['url'], '/');
+        $auth = attachment_obs_auth($key, $secret, $endpoint, $bucket);
+        if (is_error($auth)) {
+            return $this->errorJson('配置失败，请检查配置' . $auth['message']);
+        }
+        $filename = '/static/logo.png';
+        $response = \Curl::to($obs['url']. '/'. $filename)->get();
+        if (!$response) {
+            return $this->errorJson('配置失败，华为云obs访问url错误');
+        }
+        $image = getimagesizefromstring($response);
+        if ($image && strexists($image['mime'], 'image')) {
+            return $this->successJson('配置成功', request()->obs);
+        } else {
+            return $this->errorJson('配置失败，华为云obs访问url错误');
         }
     }
 
@@ -366,6 +409,7 @@ class AttachmentController extends BaseController
                 $res = SystemSetting::settingSave($data, 'sms', 'system_sms');
 
                 if ($res) {
+                    Cache::flush();//清除缓存
                     return $this->successJson('短信设置成功');
                 } else {
                     return $this->errorJson('短信设置失败');

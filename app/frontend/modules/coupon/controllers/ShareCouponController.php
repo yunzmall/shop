@@ -147,7 +147,7 @@ class ShareCouponController extends ApiController
             $data['time_start'] = substr($data['time_start'], 0, 10); //为了和前面保持一致
             $data['time_end'] = substr($data['time_end'], 0, 10); //为了和前面保持一致
         } else {
-            $data['time_start'] = '优惠卷已经失效了'; //为了和前面保持一致
+            $data['time_start'] = '优惠券已经失效了'; //为了和前面保持一致
             $data['time_end'] = '';
         }
 
@@ -220,7 +220,7 @@ class ShareCouponController extends ApiController
 
 
         if ($share_model->isEmpty()) {
-            throw new AppException('无分享优惠卷');
+            throw new AppException('无分享优惠券');
         }
 
         $set = \Setting::get('coupon.shopping_share');

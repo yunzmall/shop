@@ -1,6 +1,6 @@
 <?php
 /**
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2018/3/30
  */
 namespace app\frontend\modules\goods\controllers;
@@ -13,7 +13,10 @@ use app\common\models\Category;
 
 class FilteringController extends ApiController
 {
+    protected $publicAction = ['index'];
     
+    protected $ignoreAction = ['index'];
+
     public function index()
     {
         app('db')->cacheSelect = true;
@@ -29,7 +32,7 @@ class FilteringController extends ApiController
 
 
         foreach ($filtering as $key => &$value) {
-            $value['value'] = SearchFiltering::select('id', 'parent_id', 'name')->getFilterGroup($value->id)->get()->toArray();
+            $value['value'] = SearchFiltering::select('id', 'parent_id', 'name')->where('is_front_show',1)->getFilterGroup($value->id)->get()->toArray();
         }
         return $this->successJson('获取过滤数据', $filtering->toArray());
     }

@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/2/28
  * Time: 上午11:07
  * comment:订单关闭类
@@ -20,11 +20,27 @@ class OrderForceClose extends ChangeStatusOperation
     protected $name = '关闭';
     protected $time_field = 'cancel_time';
     protected $past_tense_class_name = 'OrderCanceled';
+
+    public $params = [];
     /**
      * @return \app\common\events\order\CreatedOrderEvent
      */
     protected function getBeforeEvent()
     {
         return new BeforeOrderCloseEvent($this);
+    }
+
+    /**
+     * @return bool|void
+     */
+    protected function updateTable()
+    {
+        $data = $this->params ? $this->params : request()->input();
+
+
+        if (!empty($data['reson'])) {
+            $this->close_reason = $data['reson'];
+        }
+        parent::updateTable();
     }
 }

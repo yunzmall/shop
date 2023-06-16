@@ -4,17 +4,17 @@
  * Date:    2017/11/14 上午9:58
  * Email:   livsyitian@163.com
  * QQ:      995265288
- * User:    芸众商城 www.yunzshop.com
+ * User:
  ****************************************************************/
 
 namespace app\backend\modules\finance\controllers;
 
 
 use app\backend\modules\finance\models\Withdraw;
+use app\backend\modules\withdraw\models\WithdrawRichText;
 use app\common\components\BaseController;
 use app\common\facades\Setting;
 use app\common\helpers\Url;
-use app\common\models\notice\MessageTemp;
 
 class WithdrawSetController extends BaseController
 {
@@ -42,17 +42,15 @@ class WithdrawSetController extends BaseController
                             $item['servicetax'][$k] = array_filter($v);
                         }
                         $item['servicetax'] = array_filter($item['servicetax']);
+                        WithdrawRichText::createOrUpdate($item['withdraw_rich_text']);
                     }
-
                     Setting::set('withdraw.' . $key, $item);
-
                 }
                 return $this->message('设置保存成功', Url::absoluteWeb('finance.withdraw-set.see'));
             }
         }
-
         return view('finance.withdraw.withdraw-set', [
-            'set' => $set
+            'set' => $set,
         ])->render();
     }
 

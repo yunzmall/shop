@@ -1,6 +1,6 @@
 <?php
 /**
- * 芸众商城模块定义
+模块定义
  *
  * @author YunZhong
  * @url http://www.yunzshop.com/

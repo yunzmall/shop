@@ -24,6 +24,7 @@ class CreateYzAppUserTable extends Migration
                 $table->integer('updated_at')->nullable();
                 $table->integer('deleted_at')->nullable();
             });
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE " . app('db')->getTablePrefix() . "yz_app_user comment '店铺用户--角色表'");//表注释
         }
     }
 

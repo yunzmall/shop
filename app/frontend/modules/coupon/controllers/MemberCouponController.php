@@ -13,8 +13,10 @@ use app\frontend\models\Member;
 use app\frontend\modules\coupon\models\Coupon;
 use app\frontend\modules\coupon\models\MemberCoupon;
 use app\common\models\MemberShopInfo;
+use app\frontend\modules\coupon\services\CouponConditionService;
 use Carbon\Carbon;
 use Yunshop\Hotel\common\models\CouponHotel;
+use Yunshop\Integral\Common\Services\SetService;
 use Yunshop\StoreCashier\common\models\Store;
 
 
@@ -46,15 +48,15 @@ class MemberCouponController extends ApiController
         $coupons = [];
         switch ($status) {
             case self::NOT_USED:
-                $coupons = self::getAvailableCoupons($uid, $now);
-                $search_array = array_merge(Coupon::$typeComment,[ Coupon::TYPE_OVERDUE =>'快过期']);
+                $coupons = self::getAvailableCouponsV3($uid, $now);
+                $search_array = array_merge(Coupon::$typeComment, [Coupon::TYPE_OVERDUE => '快过期']);
                 break;
             case self::OVERDUE:
-                $coupons = self::getOverdueCoupons($uid, $now);
+                $coupons = self::getOverdueCouponsV3($uid, $now);
                 $search_array = Coupon::$typeComment;
                 break;
             case self::IS_USED:
-                $coupons = self::getUsedCoupons($uid);
+                $coupons = self::getUsedCouponsV3($uid);
                 $search_array = Coupon::$typeComment;
                 break;
         }
@@ -62,6 +64,7 @@ class MemberCouponController extends ApiController
         $data = [
             'set' => [
                 'transfer' => Setting::get('coupon.transfer') ? true : false,
+                'center_show' => !is_numeric(Setting::get('coupon.center_show')) || Setting::get('coupon.center_show') == 1,
             ],
             'data' => $coupons,
             'search_array' => $this->getSearchArray($search_array)
@@ -69,19 +72,18 @@ class MemberCouponController extends ApiController
         if (app('plugins')->isEnabled('share-coupons')) {
             $set = \Setting::get('share-coupons.is_open');
             if ($set == 1) {
-                $data = array_merge($data,['share_coupon' => true]);
+                $data = array_merge($data, ['share_coupon' => true]);
             }
         }
         if (app('plugins')->isEnabled('write-off-coupons')) {
             $set = \Setting::get('write-off-coupons.is_open');
             if ($set == 1) {
-                $data = array_merge($data,['write_off_coupon' => true]);
+                $data = array_merge($data, ['write_off_coupon' => true]);
             }
         }
         $coupon_set = \Setting::getByGroup('coupon');
-        if($coupon_set['coupon_show'] == 1)
-        {
-            $data = array_merge($data,['combine_show' => true]);
+        if ($coupon_set['coupon_show'] == 1) {
+            $data = array_merge($data, ['combine_show' => true]);
         };
         return $this->successJson('ok', $data);
     }
@@ -102,34 +104,71 @@ class MemberCouponController extends ApiController
         }
 
         //添加 "是否可用" & "是否已经使用" & "是否过期" 的标识
-        $now = strtotime('now');
-        foreach ($coupons['data'] as $k => $v) {
-            if ($v['used'] == MemberCoupon::USED) { //已使用
-                $coupons['data'][$k]['api_status'] = self::IS_USED;
-            } elseif ($v['used'] == MemberCoupon::NOT_USED) { //未使用
-                if ($v['belongs_to_coupon']['time_limit'] == Coupon::COUPON_SINCE_RECEIVE) { //时间限制类型是"领取后几天有效"
-                    $end = strtotime($v['get_time']) + $v['belongs_to_coupon']['time_days'] * 3600;
-                    if ($now < $end) { //优惠券在有效期内
-                        $coupons['data'][$k]['api_status'] = self::NOT_USED;
-                        $coupons['data'][$k]['start'] = substr($v['get_time'], 0, 10); //前端需要起止时间
-                        $coupons['data'][$k]['end'] = date('Y-m-d', $end); //前端需要起止时间
-                    } else { //优惠券在有效期外
-                        $coupons['data'][$k]['api_status'] = self::OVERDUE;
-                    }
-                } elseif ($v['belongs_to_coupon']['time_limit'] == Coupon::COUPON_DATE_TIME_RANGE) { //时间限制类型是"时间范围"
-                    if (($now > $v['belongs_to_coupon']['time_end'])) { //优惠券在有效期外
-                        $coupons['data'][$k]['api_status'] = self::OVERDUE;
-                        $coupons['data'][$k]['start'] = $coupons['data'][$k]['time_start']; //为了和前面保持一致
-                        $coupons['data'][$k]['end'] = $coupons['data'][$k]['time_end']; //为了和前面保持一致
-                    } else { //优惠券在有效期内
-                        $coupons['data'][$k]['api_status'] = self::NOT_USED;
-                    }
-                }
-            } else {
-                $coupons['data'][$k]['api_availability'] = self::IS_AVAILABLE;
-            }
+//        $now = strtotime('now');
+        foreach ($coupons['data'] as $k => &$v) {
+            $v = $this->getTimeLimit($v);
+//            if ($v['used'] == MemberCoupon::USED) { //已使用
+//                $coupons['data'][$k]['api_status'] = self::IS_USED;
+//            } elseif ($v['used'] == MemberCoupon::NOT_USED) { //未使用
+//                if ($v['belongs_to_coupon']['time_limit'] == Coupon::COUPON_SINCE_RECEIVE) { //时间限制类型是"领取后几天有效"
+//                    $end = strtotime($v['get_time']) + $v['belongs_to_coupon']['time_days'] * 3600;
+//                    if ($now < $end) { //优惠券在有效期内
+//                        $coupons['data'][$k]['api_status'] = self::NOT_USED;
+//                        $coupons['data'][$k]['start'] = substr($v['get_time'], 0, 10); //前端需要起止时间
+//                        $coupons['data'][$k]['end'] = date('Y-m-d', $end); //前端需要起止时间
+//                    } else { //优惠券在有效期外
+//                        $coupons['data'][$k]['api_status'] = self::OVERDUE;
+//                    }
+//                } elseif ($v['belongs_to_coupon']['time_limit'] == Coupon::COUPON_DATE_TIME_RANGE) { //时间限制类型是"时间范围"
+//                    if (($now > $v['belongs_to_coupon']['time_end'])) { //优惠券在有效期外
+//                        $coupons['data'][$k]['api_status'] = self::OVERDUE;
+//                        $coupons['data'][$k]['start'] = $coupons['data'][$k]['time_start']; //为了和前面保持一致
+//                        $coupons['data'][$k]['end'] = $coupons['data'][$k]['time_end']; //为了和前面保持一致
+//                    } else { //优惠券在有效期内
+//                        $coupons['data'][$k]['api_status'] = self::NOT_USED;
+//                    }
+//                }
+//            } else {
+//                $coupons['data'][$k]['api_availability'] = self::IS_AVAILABLE;
+//            }
         }
         return $this->successJson('ok', $coupons);
+    }
+
+
+    /**
+     * @param $v
+     * @return mixed
+     * 获取优惠券有效时间
+     */
+    protected function getTimeLimit($v)
+    {
+        $now = strtotime('now');
+        if ($v['used'] == MemberCoupon::USED) { //已使用
+            $v['api_status'] = self::IS_USED;
+        } elseif ($v['used'] == MemberCoupon::NOT_USED) { //未使用
+            if ($v['belongs_to_coupon']['time_limit'] == Coupon::COUPON_SINCE_RECEIVE) { //时间限制类型是"领取后几天有效"
+                $end = strtotime($v['get_time']) + $v['belongs_to_coupon']['time_days'] * 3600;
+                if ($now < $end) { //优惠券在有效期内
+                    $v['api_status'] = self::NOT_USED;
+                    $v['start'] = substr($v['get_time'], 0, 10); //前端需要起止时间
+                    $v['end'] = date('Y-m-d', $end); //前端需要起止时间
+                } else { //优惠券在有效期外
+                    $v['api_status'] = self::OVERDUE;
+                }
+            } elseif ($v['belongs_to_coupon']['time_limit'] == Coupon::COUPON_DATE_TIME_RANGE) { //时间限制类型是"时间范围"
+                if (($now > $v['belongs_to_coupon']['time_end'])) { //优惠券在有效期外
+                    $v['api_status'] = self::OVERDUE;
+                    $v['start'] = $v['time_start']; //为了和前面保持一致
+                    $v['end'] = $v['time_end']; //为了和前面保持一致
+                } else { //优惠券在有效期内
+                    $v['api_status'] = self::NOT_USED;
+                }
+            }
+        } else {
+            $v['api_availability'] = self::IS_AVAILABLE;
+        }
+        return $v;
     }
 
     /**
@@ -148,38 +187,42 @@ class MemberCouponController extends ApiController
         $memberLevel = $member->level_id;
 
         $now = strtotime('now');
-        $coupons = Coupon::centerCouponsForMember($uid, $memberLevel, null, $now,\YunShop::request()->coupon_type?:'')
+        $coupons = Coupon::centerCouponsForMember($uid, $memberLevel, null, $now, \YunShop::request()->coupon_type ?: '')
             ->orderBy('yz_coupon.display_order', 'desc')
             ->orderBy('yz_coupon.updated_at', 'desc');
-        if ($coupons->get()->isEmpty()) {
-            return $this->errorJson('没有找到记录', []);
-        }
         $coupons = $coupons->paginate($pageSize)->toArray();
 
+        foreach ($coupons['data'] as &$item) {
+            $item['has_many_member_coupon_count'] = MemberCoupon::uniacid()->select('uid')->where('coupon_id', $item['id'])->distinct()->get()->count();
+        }
         //添加"是否可领取" & "是否已抢光" & "是否已领取"的标识
         $couponsData = self::getCouponData($coupons, $memberLevel);
 
         $slideShows = CouponSlideShow::uniacid()
-            ->where('is_show',1)
-            ->orderBy('sort','asc')
-            ->orderBy('id','asc')
+            ->where('is_show', 1)
+            ->orderBy('sort', 'asc')
+            ->orderBy('id', 'asc')
             ->limit(10)
             ->get();
+
+        if (app('plugins')->isEnabled('integral')) {
+            $integral_plugin_name = SetService::getIntegralName();
+        }
 
         $data = [
             'data' => $couponsData,
             'search_array' => $this->getSearchArray(Coupon::$typeComment),//Coupon::$typeComment
-            'slide_shows' => $slideShows
+            'slide_shows' => $slideShows,
+            'integral_plugin_name' => $integral_plugin_name ?? '消费积分',//消费积分自定义名称
         ];
 
         //领券中心表单
         if (!is_null(\app\common\modules\shop\ShopConfig::current()->get('coupon_form'))) {
-            $class    = array_get(\app\common\modules\shop\ShopConfig::current()->get('coupon_form'), 'class');
+            $class = array_get(\app\common\modules\shop\ShopConfig::current()->get('coupon_form'), 'class');
             $function = array_get(\app\common\modules\shop\ShopConfig::current()->get('coupon_form'), 'function');
             $form = $class::$function($uid);
-            if($form && $form != -1)
-            {
-                $data = array_merge($data,['coupon_form' => $form]);
+            if ($form && $form != -1) {
+                $data = array_merge($data, ['coupon_form' => $form]);
             }
         }
 
@@ -195,10 +238,10 @@ class MemberCouponController extends ApiController
         $uid = \YunShop::app()->getMemberId();
         $member = MemberShopInfo::getMemberShopInfo($uid);
         if (empty($member)) {
-            if(is_null($integrated)){
+            if (is_null($integrated)) {
                 return $this->errorJson('没有找到该用户', []);
-            }else{
-                return show_json(0,'没有找到该用户');
+            } else {
+                return show_json(0, '没有找到该用户');
             }
         }
         $memberLevel = $member->level_id;
@@ -208,10 +251,10 @@ class MemberCouponController extends ApiController
             ->orderBy('display_order', 'desc')
             ->orderBy('updated_at', 'desc');
         if ($coupons->get()->isEmpty()) {
-            if(is_null($integrated)){
+            if (is_null($integrated)) {
                 return $this->errorJson('没有找到记录', []);
-            }else{
-                return show_json(0,'没有找到记录');
+            } else {
+                return show_json(0, '没有找到记录');
             }
         }
         $coupons_data['data'] = $coupons->get()->toArray();
@@ -221,7 +264,7 @@ class MemberCouponController extends ApiController
             $coupons_data['data'][$k]['coupon_id'] = $coupons_data['data'][$k]['id'];
             if (($v['total'] != self::NO_LIMIT) && ($v['has_many_member_coupon_count'] >= $v['total'])) {
                 $coupons_data['data'][$k]['api_availability'] = self::EXHAUST;
-            } elseif ($v['member_got_count'] > 0) {
+            } elseif ($v['get_max'] > 0 && $v['member_got_count'] >= $v['get_max']) {
                 $coupons_data['data'][$k]['api_availability'] = self::ALREADY_GOT;
             } else {
                 $coupons_data['data'][$k]['api_availability'] = self::IS_AVAILABLE;
@@ -236,7 +279,7 @@ class MemberCouponController extends ApiController
             } elseif ($v['get_max'] == self::NO_LIMIT) {
                 $coupons_data['data'][$k]['api_remaining'] = -1;
             }
-           
+
             //添加优惠券使用范围描述
             switch ($v['use_type']) {
                 case Coupon::COUPON_SHOP_USE:
@@ -264,21 +307,21 @@ class MemberCouponController extends ApiController
                         if ($use_condition['is_all_store'] == 1) {
                             $coupons_data['data'][$k]['api_limit'] .= "全部门店";
                         } else {
-                            $coupons_data['data'][$k]['api_limit'] .= '门店:'.implode(',', Store::uniacid()->whereIn('id', $use_condition['store_ids'])->pluck('store_name')->all());
+                            $coupons_data['data'][$k]['api_limit'] .= '门店:' . implode(',', Store::uniacid()->whereIn('id', $use_condition['store_ids'])->pluck('store_name')->all());
                         }
                     }
                     if ($use_condition['is_all_good'] == 1) {
                         $coupons_data['data'][$k]['api_limit'] .= "平台自营商品";
                     } else {
-                        $coupons_data['data'][$k]['api_limit'] .= '商品:'.implode(',', Goods::uniacid()->whereIn('id', $use_condition['good_ids'])->pluck('title')->all());
+                        $coupons_data['data'][$k]['api_limit'] .= '商品:' . implode(',', Goods::uniacid()->whereIn('id', $use_condition['good_ids'])->pluck('title')->all());
                     }
                     break;
             }
         }
-        if(is_null($integrated)){
+        if (is_null($integrated)) {
             return $this->successJson('ok', $coupons_data);
-        }else{
-            return show_json(1,$coupons_data);
+        } else {
+            return show_json(1, $coupons_data);
         }
     }
 
@@ -288,7 +331,7 @@ class MemberCouponController extends ApiController
         foreach ($coupons['data'] as $k => $v) {
             if (($v['total'] != self::NO_LIMIT) && ($v['has_many_member_coupon_count'] >= $v['total'])) {
                 $coupons['data'][$k]['api_availability'] = self::EXHAUST;
-            } elseif ($v['member_got_count'] > 0) {
+            } elseif ($v['get_max'] > 0 && $v['member_got_count'] >= $v['get_max']) {
                 $coupons['data'][$k]['api_availability'] = self::ALREADY_GOT;
             } else {
                 $coupons['data'][$k]['api_availability'] = self::IS_AVAILABLE;
@@ -331,13 +374,13 @@ class MemberCouponController extends ApiController
                         if ($use_condition['is_all_store'] == 1) {
                             $coupons_data['data'][$k]['api_limit'] .= "全部门店";
                         } else {
-                            $coupons_data['data'][$k]['api_limit'] .= '门店:'.implode(',', Store::uniacid()->whereIn('id', $use_condition['store_ids'])->pluck('store_name')->all());
+                            $coupons_data['data'][$k]['api_limit'] .= '门店:' . implode(',', Store::uniacid()->whereIn('id', $use_condition['store_ids'])->pluck('store_name')->all());
                         }
                     }
                     if ($use_condition['is_all_good'] == 1) {
                         $coupons_data['data'][$k]['api_limit'] .= "平台自营商品";
                     } else {
-                        $coupons_data['data'][$k]['api_limit'] .= '商品:'.implode(',', Goods::uniacid()->whereIn('id', $use_condition['good_ids'])->pluck('title')->all());
+                        $coupons_data['data'][$k]['api_limit'] .= '商品:' . implode(',', Goods::uniacid()->whereIn('id', $use_condition['good_ids'])->pluck('title')->all());
                     }
                     break;
             }
@@ -372,45 +415,77 @@ class MemberCouponController extends ApiController
     }
 
     //用户所拥有的可使用的优惠券
+    public static function getAvailableCouponsV3($uid, $time)
+    {
+        $coupons = MemberCoupon::getCouponsOfMember($uid, \YunShop::request()->coupon_type ?: '')
+            ->where('used', '=', 0)
+            ->where('is_member_deleted', 0)
+            ->where('is_expired', 0)
+            ->paginate()->toArray();
+        $availableCoupons = array();
+        foreach ($coupons['data'] as $k => &$coupon) {
+            if (app('plugins')->isEnabled('hotel')) {
+                if ($coupon['belongs_to_coupon']['use_type'] == Coupon::COUPON_ONE_HOTEL_USE) {
+                    $find = CouponHotel::where('coupon_id', $coupon['belongs_to_coupon']['id'])->first();
+                    $coupon['belongs_to_coupon']['hotel_ids'] = $find->hotel_id;
+                } elseif ($coupon['belongs_to_coupon']['use_type'] == Coupon::COUPON_MORE_HOTEL_USE) {
+                    $finds = CouponHotel::where('coupon_id', $coupon['belongs_to_coupon']['id'])->get();
+                    $findsArr = [];
+                    foreach ($finds as $find_v) {
+                        $findsArr[] = $find_v->hotel_id;
+                    }
+                    $coupon['belongs_to_coupon']['hotel_ids'] = $findsArr;
+                }
+            }
+            if ($coupon['time_end'] != '不限时间') {
+                $coupon['time_end'] = $coupon['timestamp_end'];
+            }
+            $usageLimit = array('api_limit' => self::usageLimitDescription($coupon['belongs_to_coupon'])); //增加属性 - 优惠券的适用范围
+            $availableCoupons[] = array_merge($coupon, $usageLimit);
+        }
+        $coupon_set = \Setting::getByGroup('coupon');
+        if ($coupon_set['coupon_show'] == 1) {
+            $coupons['data'] = self::handleAvailableCoupons($availableCoupons);
+            return $coupons;//多张折叠
+        }
+        $coupons['data'] = $availableCoupons;
+        return $coupons;
+    }
+
+
+    //用户所拥有的可使用的优惠券
     public static function getAvailableCoupons($uid, $time)
     {
-        $coupons = MemberCoupon::getCouponsOfMember($uid,\YunShop::request()->coupon_type?:'')->where('used', '=', 0)->where('is_member_deleted', 0)->where('is_expired', 0)->get()->toArray();
-
+        $coupons = MemberCoupon::getCouponsOfMember($uid, \YunShop::request()->coupon_type ?: '')
+            ->where('used', '=', 0)
+            ->where('is_member_deleted', 0)
+            ->where('is_expired', 0)
+            ->get()->toArray();
         $availableCoupons = array();
-       // $overDueCoupons = array();//快过期的券
-
         foreach ($coupons as $k => $v) {
-//            $coupons[$k]['belongs_to_coupon']['deduct'] = intval($coupons[$k]['belongs_to_coupon']['deduct']);
-//            $coupons[$k]['belongs_to_coupon']['discount'] = intval($coupons[$k]['belongs_to_coupon']['discount']);
-
-            if(app('plugins')->isEnabled('hotel')){
-                if($v['belongs_to_coupon']['use_type'] == Coupon::COUPON_ONE_HOTEL_USE){
-                    $find = CouponHotel::where('coupon_id',$v['belongs_to_coupon']['id'])->first();
+            if (app('plugins')->isEnabled('hotel')) {
+                if ($v['belongs_to_coupon']['use_type'] == Coupon::COUPON_ONE_HOTEL_USE) {
+                    $find = CouponHotel::where('coupon_id', $v['belongs_to_coupon']['id'])->first();
                     $coupons[$k]['belongs_to_coupon']['hotel_ids'] = $find->hotel_id;
-                }elseif ($v['belongs_to_coupon']['use_type'] == Coupon::COUPON_MORE_HOTEL_USE){
-                    $finds = CouponHotel::where('coupon_id',$v['belongs_to_coupon']['id'])->get();
+                } elseif ($v['belongs_to_coupon']['use_type'] == Coupon::COUPON_MORE_HOTEL_USE) {
+                    $finds = CouponHotel::where('coupon_id', $v['belongs_to_coupon']['id'])->get();
                     $findsArr = [];
-                    foreach ($finds as $find_v){
+                    foreach ($finds as $find_v) {
                         $findsArr[] = $find_v->hotel_id;
                     }
                     $coupons[$k]['belongs_to_coupon']['hotel_ids'] = $findsArr;
                 }
             }
-            if($v['time_end'] != '不限时间')
-            {
-                $coupons[$k]['time_end'] = $v['time_end'].' 23:59:59';
+            if ($v['time_end'] != '不限时间') {
+                $coupons[$k]['time_end'] = $v['timestamp_end'];
             }
             $usageLimit = array('api_limit' => self::usageLimitDescription($v['belongs_to_coupon'])); //增加属性 - 优惠券的适用范围
             $availableCoupons[] = array_merge($coupons[$k], $usageLimit);
-            
         }
-
         $coupon_set = \Setting::getByGroup('coupon');
-        if($coupon_set['coupon_show'] == 1)
-        {
+        if ($coupon_set['coupon_show'] == 1) {
             return self::handleAvailableCoupons($availableCoupons);//多张折叠
-        };
-
+        }
         return $availableCoupons;
     }
 
@@ -418,40 +493,67 @@ class MemberCouponController extends ApiController
     {
         $newArr = [];
         $arr = [];
-        foreach ($coupons as $v)
-        {
-            if($v['belongs_to_coupon']['time_limit'] == Coupon::COUPON_DATE_TIME_RANGE)
-            {
-                if($newArr[$v['belongs_to_coupon']['id']])
-                {
+        foreach ($coupons as $v) {
+            if ($v['belongs_to_coupon']['time_limit'] == Coupon::COUPON_DATE_TIME_RANGE) {
+                if ($newArr[$v['belongs_to_coupon']['id']]) {
                     $newArr[$v['belongs_to_coupon']['id']] += 1;
-                }else{
+                } else {
                     $newArr[$v['belongs_to_coupon']['id']] = 1;
                 }
             }
         }
         $combineArr = [];
         $markArr = [];
-        foreach ($coupons as $v)
-        {
-            if($v['belongs_to_coupon']['time_limit'] == Coupon::COUPON_DATE_TIME_RANGE)
-            {
-                if(!in_array($v['belongs_to_coupon']['id'],$markArr))
-                {
-                    $combineArr[] = array_merge($v, ['combine'=>true,'num'=>$newArr[$v['belongs_to_coupon']['id']]]);
+        foreach ($coupons as $v) {
+            if ($v['belongs_to_coupon']['time_limit'] == Coupon::COUPON_DATE_TIME_RANGE) {
+                if (!in_array($v['belongs_to_coupon']['id'], $markArr)) {
+                    $combineArr[] = array_merge($v, ['combine' => true, 'num' => $newArr[$v['belongs_to_coupon']['id']]]);
                 }
                 $markArr[] = $v['belongs_to_coupon']['id'];
-            }else{
-                $combineArr[] = array_merge($v, ['combine'=>false,'num'=>1]);
+            } else {
+                $combineArr[] = array_merge($v, ['combine' => false, 'num' => 1]);
             }
         }
         return $combineArr;
     }
 
     //用户所拥有的已过期的优惠券
+    public static function getOverdueCouponsV3($uid, $time)
+    {
+        $coupons = MemberCoupon::getCouponsOfMember($uid, \YunShop::request()->coupon_type ?: '')->where('used', '=', 0)->where('is_member_deleted', 0)->where('is_expired', 1)->paginate()->toArray();
+
+        $overdueCoupons = array();
+        //获取已经过期的优惠券
+        foreach ($coupons['data'] as $k => &$coupon) {
+//            $coupons[$k]['belongs_to_coupon']['deduct'] = intval($coupons[$k]['belongs_to_coupon']['deduct']);
+//            $coupons[$k]['belongs_to_coupon']['discount'] = intval($coupons[$k]['belongs_to_coupon']['discount']);
+
+            if (app('plugins')->isEnabled('hotel')) {
+                if ($coupon['belongs_to_coupon']['use_type'] == Coupon::COUPON_ONE_HOTEL_USE) {
+                    $find = CouponHotel::where('coupon_id', $coupon['belongs_to_coupon']['id'])->first();
+                    $coupon['belongs_to_coupon']['hotel_ids'] = $find->hotel_id;
+                } elseif ($coupon['belongs_to_coupon']['use_type'] == Coupon::COUPON_MORE_HOTEL_USE) {
+                    $finds = CouponHotel::where('coupon_id', $coupon['belongs_to_coupon']['id'])->get();
+                    $findsArr = [];
+                    foreach ($finds as $find_v) {
+                        $findsArr[] = $find_v->hotel_id;
+                    }
+                    $coupon['belongs_to_coupon']['hotel_ids'] = $findsArr;
+                }
+            }
+
+            $usageLimit = array('api_limit' => self::usageLimitDescription($coupon['belongs_to_coupon']));
+            $overdueCoupons[] = array_merge($coupon, $usageLimit);
+        }
+        $coupons['data'] = $overdueCoupons;
+        return $coupons;
+    }
+
+
+    //用户所拥有的已过期的优惠券
     public static function getOverdueCoupons($uid, $time)
     {
-        $coupons = MemberCoupon::getCouponsOfMember($uid,\YunShop::request()->coupon_type?:'')->where('used', '=', 0)->where('is_member_deleted', 0)->where('is_expired', 1)->get()->toArray();
+        $coupons = MemberCoupon::getCouponsOfMember($uid, \YunShop::request()->coupon_type ?: '')->where('used', '=', 0)->where('is_member_deleted', 0)->where('is_expired', 1)->get()->toArray();
 
         $overdueCoupons = array();
         //获取已经过期的优惠券
@@ -459,14 +561,14 @@ class MemberCouponController extends ApiController
 //            $coupons[$k]['belongs_to_coupon']['deduct'] = intval($coupons[$k]['belongs_to_coupon']['deduct']);
 //            $coupons[$k]['belongs_to_coupon']['discount'] = intval($coupons[$k]['belongs_to_coupon']['discount']);
 
-            if(app('plugins')->isEnabled('hotel')){
-                if($v['belongs_to_coupon']['use_type'] == Coupon::COUPON_ONE_HOTEL_USE){
-                    $find = CouponHotel::where('coupon_id',$v['belongs_to_coupon']['id'])->first();
+            if (app('plugins')->isEnabled('hotel')) {
+                if ($v['belongs_to_coupon']['use_type'] == Coupon::COUPON_ONE_HOTEL_USE) {
+                    $find = CouponHotel::where('coupon_id', $v['belongs_to_coupon']['id'])->first();
                     $coupons[$k]['belongs_to_coupon']['hotel_ids'] = $find->hotel_id;
-                }elseif ($v['belongs_to_coupon']['use_type'] == Coupon::COUPON_MORE_HOTEL_USE){
-                    $finds = CouponHotel::where('coupon_id',$v['belongs_to_coupon']['id'])->get();
+                } elseif ($v['belongs_to_coupon']['use_type'] == Coupon::COUPON_MORE_HOTEL_USE) {
+                    $finds = CouponHotel::where('coupon_id', $v['belongs_to_coupon']['id'])->get();
                     $findsArr = [];
-                    foreach ($finds as $find_v){
+                    foreach ($finds as $find_v) {
                         $findsArr[] = $find_v->hotel_id;
                     }
                     $coupons[$k]['belongs_to_coupon']['hotel_ids'] = $findsArr;
@@ -479,23 +581,54 @@ class MemberCouponController extends ApiController
         return $overdueCoupons;
     }
 
+
+    //用户所拥有的已使用的优惠券
+    public static function getUsedCouponsV3($uid)
+    {
+        $coupons = MemberCoupon::getCouponsOfMember($uid, \YunShop::request()->coupon_type ?: '')->where('used', '=', 1)->where('is_member_deleted', 0)->paginate()->toArray();
+        $usedCoupons = array();
+        //增加属性 - 优惠券的适用范围
+        foreach ($coupons['data'] as $k => &$coupon) {
+//            $coupons[$k]['belongs_to_coupon']['deduct'] = intval($coupons[$k]['belongs_to_coupon']['deduct']);
+//            $coupons[$k]['belongs_to_coupon']['discount'] = intval($coupons[$k]['belongs_to_coupon']['discount']);
+            if (app('plugins')->isEnabled('hotel')) {
+                if ($coupon['belongs_to_coupon']['use_type'] == Coupon::COUPON_ONE_HOTEL_USE) {
+                    $find = CouponHotel::where('coupon_id', $coupon['belongs_to_coupon']['id'])->first();
+                    $coupon['belongs_to_coupon']['hotel_ids'] = $find->hotel_id;
+                } elseif ($coupon['belongs_to_coupon']['use_type'] == Coupon::COUPON_MORE_HOTEL_USE) {
+                    $finds = CouponHotel::where('coupon_id', $coupon['belongs_to_coupon']['id'])->get();
+                    $findsArr = [];
+                    foreach ($finds as $find_v) {
+                        $findsArr[] = $find_v->hotel_id;
+                    }
+                    $coupon['belongs_to_coupon']['hotel_ids'] = $findsArr;
+                }
+            }
+            $usageLimit = array('api_limit' => self::usageLimitDescription($coupon['belongs_to_coupon']));
+            $usedCoupons[] = array_merge($coupon, $usageLimit);
+        }
+        $coupons['data'] = $usedCoupons;
+        return $coupons;
+    }
+
+
     //用户所拥有的已使用的优惠券
     public static function getUsedCoupons($uid)
     {
-        $coupons = MemberCoupon::getCouponsOfMember($uid,\YunShop::request()->coupon_type?:'')->where('used', '=', 1)->where('is_member_deleted', 0)->get()->toArray();
+        $coupons = MemberCoupon::getCouponsOfMember($uid, \YunShop::request()->coupon_type ?: '')->where('used', '=', 1)->where('is_member_deleted', 0)->get()->toArray();
         $usedCoupons = array();
         //增加属性 - 优惠券的适用范围
         foreach ($coupons as $k => $v) {
 //            $coupons[$k]['belongs_to_coupon']['deduct'] = intval($coupons[$k]['belongs_to_coupon']['deduct']);
 //            $coupons[$k]['belongs_to_coupon']['discount'] = intval($coupons[$k]['belongs_to_coupon']['discount']);
-            if(app('plugins')->isEnabled('hotel')){
-                if($v['belongs_to_coupon']['use_type'] == Coupon::COUPON_ONE_HOTEL_USE){
-                    $find = CouponHotel::where('coupon_id',$v['belongs_to_coupon']['id'])->first();
+            if (app('plugins')->isEnabled('hotel')) {
+                if ($v['belongs_to_coupon']['use_type'] == Coupon::COUPON_ONE_HOTEL_USE) {
+                    $find = CouponHotel::where('coupon_id', $v['belongs_to_coupon']['id'])->first();
                     $coupons[$k]['belongs_to_coupon']['hotel_ids'] = $find->hotel_id;
-                }elseif ($v['belongs_to_coupon']['use_type'] == Coupon::COUPON_MORE_HOTEL_USE){
-                    $finds = CouponHotel::where('coupon_id',$v['belongs_to_coupon']['id'])->get();
+                } elseif ($v['belongs_to_coupon']['use_type'] == Coupon::COUPON_MORE_HOTEL_USE) {
+                    $finds = CouponHotel::where('coupon_id', $v['belongs_to_coupon']['id'])->get();
                     $findsArr = [];
-                    foreach ($finds as $find_v){
+                    foreach ($finds as $find_v) {
                         $findsArr[] = $find_v->hotel_id;
                     }
                     $coupons[$k]['belongs_to_coupon']['hotel_ids'] = $findsArr;
@@ -506,6 +639,7 @@ class MemberCouponController extends ApiController
         }
         return $usedCoupons;
     }
+
 
     /**
      * @param $couponInArrayFormat array
@@ -540,8 +674,8 @@ class MemberCouponController extends ApiController
                 break;
             case Coupon::COUPON_ONE_HOTEL_USE:
                 $res = '适用于酒店 :';
-                if(app('plugins')->isEnabled('hotel')){
-                    $coupon_hotel = CouponHotel::where('coupon_id',$couponInArrayFormat['id'])->with(['hotel' => function ($query){
+                if (app('plugins')->isEnabled('hotel')) {
+                    $coupon_hotel = CouponHotel::where('coupon_id', $couponInArrayFormat['id'])->with(['hotel' => function ($query) {
                         $query->select('hotel_name');
                     }])->first();
                     $res .= $coupon_hotel->hotel->hotel_name;
@@ -550,12 +684,12 @@ class MemberCouponController extends ApiController
                 break;
             case Coupon::COUPON_MORE_HOTEL_USE:
                 $res = '适用于下列酒店: ';
-                if(app('plugins')->isEnabled('hotel')){
+                if (app('plugins')->isEnabled('hotel')) {
                     $hotel_arr = [];
-                    $coupon_hotels = CouponHotel::where('coupon_id',$couponInArrayFormat['id'])->with(['hotel' => function ($query){
+                    $coupon_hotels = CouponHotel::where('coupon_id', $couponInArrayFormat['id'])->with(['hotel' => function ($query) {
                         $query->select('hotel_name');
                     }])->get();
-                    foreach ($coupon_hotels as $v){
+                    foreach ($coupon_hotels as $v) {
                         $hotel_arr[] = $v->hotel->hotel_name;
                     }
                     $res .= implode(',', $hotel_arr);
@@ -577,13 +711,13 @@ class MemberCouponController extends ApiController
                     if ($use_condition['is_all_store'] == 1) {
                         $res .= "全部门店、";
                     } else {
-                        $res .= '门店:'.implode(',', Store::uniacid()->whereIn('id', $use_condition['store_ids'])->pluck('store_name')->all()).'、';
+                        $res .= '门店:' . implode(',', Store::uniacid()->whereIn('id', $use_condition['store_ids'])->pluck('store_name')->all()) . '、';
                     }
                 }
                 if ($use_condition['is_all_good'] == 1) {
                     $res .= "平台自营商品";
                 } else {
-                    $res .= '商品:'.implode(',', Goods::uniacid()->whereIn('id', $use_condition['good_ids'])->pluck('title')->all());
+                    $res .= '商品:' . implode(',', Goods::uniacid()->whereIn('id', $use_condition['good_ids'])->pluck('title')->all());
                 }
                 return $res;
                 break;
@@ -628,18 +762,22 @@ class MemberCouponController extends ApiController
         $memberId = \YunShop::app()->getMemberId();
 
         $couponId = request('coupon_id');
+        $total = request('exchange_total') ?: 1;
         /**
          * @var $couponModel Coupon
          */
         $couponModel = Coupon::find($couponId);
 
         $memberCoupon = (new PreMemberCoupon);
-        $memberCoupon->init(Member::current(), $couponModel);
+        $memberCoupon->init(Member::current(), $couponModel, $total);
         $memberCoupon->generate();
 
         $member = Member::current()->yzMember;
         //按前端要求, 需要返回和 couponsForMember() 方法完全一致的数据
         $coupon = Coupon::centerCouponsForMember($memberId, $member->level_id, $couponId)->get()->toArray();
+        foreach ($coupon as &$item) {
+            $item['has_many_member_coupon_count'] = MemberCoupon::uniacid()->select('uid')->where('coupon_id', $item['id'])->distinct()->get()->count();
+        }
         $res = self::getCouponData(['data' => $coupon], $member->level_id);
         $res['data'][0]['coupon_id'] = $res['data'][0]['id'];
         return $this->successJson('ok', $res['data'][0]);
@@ -652,7 +790,7 @@ class MemberCouponController extends ApiController
     {
         $coupon_id = $id = \YunShop::request()->coupon_id;
         $coupon = \app\common\models\Coupon::getCouponById($coupon_id);
-        if($coupon['use_type'] == !2){
+        if ($coupon['use_type'] == !2 && !\request()->bind_coupon_sn) {
             throw new AppException('优惠券类型错误');
         }
         //优惠券标识
@@ -665,30 +803,41 @@ class MemberCouponController extends ApiController
         }
 
         $coupon['goods'] = Goods::getGoodsByIds($coupon['goods_ids']);
-        foreach ($coupon['goods'] as  &$value){
+        foreach ($coupon['goods'] as &$value) {
             $value['thumb'] = replace_yunshop(yz_tomedia($value['thumb']));
-            if($coupon['coupon_method'] == 1){
+            if ($coupon['coupon_method'] == 1) {
                 $value['deduct_price'] = $value['price'] - $coupon['deduct'];
-                $value['deduct_price'] = $value['deduct_price']>=0?$value['deduct_price']:0;
-            }elseif($coupon['coupon_method'] == 2){
-                $value['deduct_price'] = $value['price'] * $coupon['discount']/10;
+                $value['deduct_price'] = $value['deduct_price'] >= 0 ? $value['deduct_price'] : 0;
+            } elseif ($coupon['coupon_method'] == 2) {
+                $value['deduct_price'] = $value['price'] * $coupon['discount'] / 10;
             }
         }
         $shop = \Setting::get('shop.shop');
         $coupon['icon'] = replace_yunshop(yz_tomedia($shop['logo']));  //商城logo
         $coupon['description'] = htmlspecialchars_decode(\Setting::getByGroup('coupon')['description']); //领券说明
-        if($coupon['time_limit'] != 1)
-        {
-            $coupon['time_start'] = date('Y-m-d H:i:s',time());
-            if($coupon['time_days'] == 0)
-            {
-                $times = 86400*36500;
-                $coupon['time_end'] = date('Y-m-d H:i:s',time()+$times);
-            }else{
-                $times = 86400*$coupon['time_days'];
-                $coupon['time_end'] = date('Y-m-d H:i:s',time()+$times);
+        if (!$coupon['description']) {
+            $coupon['description'] = $coupon->content;
+        }
+        if ($coupon['time_limit'] != 1) {
+            $coupon['time_start'] = date('Y-m-d H:i:s', time());
+            if ($coupon['time_days'] == 0) {
+                $times = 86400 * 36500;
+                $coupon['time_end'] = date('Y-m-d H:i:s', time() + $times);
+            } else {
+                $times = 86400 * $coupon['time_days'];
+                $coupon['time_end'] = date('Y-m-d H:i:s', time() + $times);
             }
         }
+        $coupon['bind_coupon_wait_get'] = 0;
+        if (\request()->bind_coupon_sn && app('plugins')->isEnabled('bind-coupon')) {
+            $bind_coupon = \Yunshop\BindCoupon\models\BindCouponLog::uniacid()
+                ->where('coupon_sn', \request()->bind_coupon_sn)->first();
+            if (!$bind_coupon) {
+                return $this->errorJson('绑定优惠券不存在');
+            }
+            $coupon['bind_coupon_wait_get'] = $bind_coupon->status == 0 ? 1 : -1;
+        }
+
         return $this->successJson('', $coupon);
 
     }
@@ -696,37 +845,70 @@ class MemberCouponController extends ApiController
     public function getDetail()
     {
         $id = \YunShop::request()->record_id;
-        $record = MemberCoupon::uniacid()->with(['member','belongsToCommonCoupon' => function ($query) {
-        return $query->select(['id', 'name', 'coupon_method', 'deduct', 'discount', 'enough', 'use_type', 'category_ids', 'categorynames',
-            'goods_ids', 'goods_names', 'storeids', 'storenames', 'time_limit', 'time_days', 'time_start', 'time_end', 'total',
-            'money', 'credit', 'plugin_id']);
-    }])->find($id);
-        if(!$record){
+        $record = MemberCoupon::uniacid()->with(['member', 'belongsToCommonCoupon' => function ($query) {
+            return $query->select(['id', 'name', 'coupon_method', 'deduct', 'discount', 'enough', 'use_type', 'category_ids', 'categorynames',
+                'goods_ids', 'goods_names', 'storeids', 'storenames', 'time_limit', 'time_days', 'time_start', 'time_end', 'total',
+                'money', 'credit', 'plugin_id', 'content', 'is_complex']);
+        }])->find($id);
+        if (!$record) {
             throw new AppException('无此条记录');
         }
         $coupon_set = \Setting::getByGroup('coupon');
-        if($coupon_set['is_singleton'] == 1)
-        {
+        if ($coupon_set['is_singleton'] == 1) {
             $rule = '每个订单仅限使用一张优惠券，不可与其它优惠券叠加使用';
-        }else{
-            if($record->belongsToCommonCoupon->is_complex == 1)
-            {
-                $rule = '若订单满足优惠券使用条件，优惠券可多张叠加使用';
-            }else{
+        }
+        if ($coupon_set['is_singleton'] == 0) {
+            if ($record->belongsToCommonCoupon->is_complex == 0) {
                 $rule = '每个订单本张优惠券仅限使用一张，若还满足其他优惠券使用条件，可叠加使用';
+            } else {
+                $rule = '每个订单本张优惠券可使用多张，若还满足其他优惠券使用条件，可叠加使用';
             }
         }
 
-
+        $coupons_num = MemberCoupon::uniacid()
+            ->where(['used' => 0, 'is_member_deleted' => 0, 'is_expired' => 0, 'uid' => $record->uid, 'coupon_id' => $record->coupon_id])
+            ->count();
 
         $data = [
-          'img_url' => $record->member->avatar_image?:'',
+            'img_url' => $record->member->avatar_image ?: '',
             'rule' => $rule,
             'coupon' => $record->belongsToCommonCoupon,
-
+            'is_complex' => $record->belongsToCommonCoupon->is_complex,
+            'multiple_use' => ['is_open' => $coupon_set['transfer_num'] == 1 ? true : false, 'nums' => $coupons_num]
         ];
-        $data["coupon_fee_plugin"]=\app\common\modules\shop\ShopConfig::current()
+        $data["coupon_fee_plugin"] = \app\common\modules\shop\ShopConfig::current()
             ->get('couponFee_plugin');
+        if (app('plugins')->isEnabled('share-coupons')) {
+            $data['share_coupon'] = \Setting::get('share-coupons.is_open') == 1 ? true : false;
+        }
+        if (app('plugins')->isEnabled('write-off-coupons')) {
+            $data['write_off_coupon'] = \Setting::get('write-off-coupons.is_open') == 1 ? true : false;
+        }
+        $data = array_merge($data, [
+            'transfer' => Setting::get('coupon.transfer') ? true : false,
+            'combine_show' => $coupon_set['coupon_show'] == 1 ? true : false,
+        ]);
+        $member_coupon = $record ? $record->toArray() : [];
+        if ($member_coupon) {
+            $data['coupon'] = $data['coupon'] ? $data['coupon']->toArray() : [];
+            if ($data['coupon']) {
+                $data['coupon']['time_start'] = $member_coupon['time_start'];
+                $data['coupon']['time_end'] = $member_coupon['time_end'];
+            }
+        }
+
+        $data['bind_coupon_url'] = '';
+        if (app('plugins')->isEnabled('bind-coupon') && $data['coupon']['id'] && ($coupons_num > 0)) {
+            if ($bind_coupon = \Yunshop\BindCoupon\models\BindCoupon::uniacid()
+                ->where('coupon_id', $data['coupon']['id'])
+                ->where('status', 0)
+                ->whereHas('hasOneCoupon', function ($query) {
+                    $query->where('time_limit', 0)->orWhere('time_end', '>', time());
+                })->first()) {
+                $data['bind_coupon_url'] = \Yunshop\BindCoupon\services\SettingService::shareUrl($bind_coupon->id, \YunShop::app()->getMemberId());
+            }
+        }
+
         return $this->successJson('ok', $data);
     }
 
@@ -740,4 +922,22 @@ class MemberCouponController extends ApiController
         }
         return $arr;
     }
+
+    /**
+     * 获取优惠卷的指定的商品和门店
+     * @param CouponConditionService $conditionService
+     * @return array
+     * @throws AppException
+     */
+    public function getStoreAndGoods(CouponConditionService $conditionService)
+    {
+        $this->validate([
+            'coupon_id' => 'required|integer|exists:app\frontend\modules\coupon\models\Coupon,id',
+        ]);
+        $coupon_id = request()->coupon_id;
+        $coupon = Coupon::select(['storeids', 'use_type', 'use_conditions', 'plugin_id'])->find($coupon_id);
+        $condition_list = $conditionService->getCondition($coupon);
+        return $this->successJson('成功', $condition_list);
+    }
+
 }

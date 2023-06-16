@@ -26,6 +26,8 @@ class CreateImsYzGoodsCouponQueueTable extends Migration {
                 $table->integer('updated_at')->nullable();
                 $table->integer('deleted_at')->nullable();
             });
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE " . app('db')->getTablePrefix() . "yz_goods_coupon_queue comment '优惠券--商品优惠券队列'");//表注释
+
         }
 	}
 

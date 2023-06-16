@@ -1,9 +1,9 @@
 <?php
 /**
  * Created by PhpStorm.
- * Name: 芸众商城系统
- * Author: 广州市芸众信息科技有限公司
- * Profile: 广州市芸众信息科技有限公司位于国际商贸中心的广州，专注于移动电子商务生态系统打造，拥有芸众社交电商系统、区块链数字资产管理系统、供应链管理系统、电子合同等产品/服务。官网 ：www.yunzmall.com  www.yunzshop.com
+ *
+ *
+ *
  * Date: 2021/7/29
  * Time: 10:24
  */
@@ -78,8 +78,47 @@ class ExtensionCenterService
     public static function getIncomePage()
     {
         $power = self::power();
+        $relation_set = \Setting::get('member.relation');
+        $extension_set = \Setting::get('popularize.mini');
+        $jump_link = '';
+        $small_jump_link = '';
+        $small_extension_link = '';
+        if ($relation_set['is_jump'] && !empty($relation_set['jump_link'])) {
+            if (!self::isAgent()) {
+                $jump_link = $relation_set['jump_link'];
+                $small_jump_link = $relation_set['small_jump_link'];
+                $small_extension_link = $extension_set['small_extension_link'];
+            }
+        }
+
+
+        //提现额度
+        $withdraw_limit = [
+            'is_show' => false
+        ];
+
+        if(app('plugins')->isEnabled('withdrawal-limit')) {
+            $limit_set = array_pluck(\Setting::getAllByGroup('withdrawal-limit')->toArray(), 'value', 'key');
+            if($limit_set['is_open'] == 1 && $limit_set['is_show'] == 1) {
+                $memberModel = \Yunshop\WithdrawalLimit\Common\models\MemberWithdrawalLimit::uniacid()->where('member_id',self::$memberId)->first();
+                if($memberModel){
+                    $limit = $memberModel->total_amount;
+                }else{
+                    $limit = 0;
+                }
+                $withdraw_limit = [
+                    'is_show' => true,
+                    'amount' => $limit
+                ];
+            }
+        }
+
+
         return [
             'set' => self::getSet(),
+            'jump_link' => $jump_link,
+            'small_jump_link' => $small_jump_link,
+            'small_extension_link' => $small_extension_link,
             'button_enabled' => self::buttonEnabled(),
             'button' => self::button(),
             'info' => self::userInfo(),
@@ -92,6 +131,8 @@ class ExtensionCenterService
             'plugin_data' => self::pluginData(),
             'extension_order' => self::extensionOrder(),
             'service' => self::getService(),
+            'withdraw_limit' => $withdraw_limit,
+            'member_auth_pop_switch' => Setting::get('plugin.min_app.member_auth_pop_switch') ? 1 : 0,
         ];
     }
 
@@ -234,6 +275,7 @@ class ExtensionCenterService
             'nickname' => $memberModel->nickname,
             'member_id' => $memberModel->uid,
             'autoWithdraw' => $autoWithdraw,
+            'has_avatar' => $memberModel->has_avatar,
         ];
     }
 
@@ -266,6 +308,19 @@ class ExtensionCenterService
         return array_values(array_filter(array_unique($identity)));
     }
 
+    public static function popularizeSet($type)
+    {
+        $type = PortType::determineType($type);
+
+        if ($type) {
+            $info = \Setting::get('popularize.'.$type);
+            if (isset($info['plugin_mark'])) {
+                return $info['plugin_mark'];
+            }
+        }
+
+        return array();
+    }
 
     /**
      * 权限
@@ -284,7 +339,7 @@ class ExtensionCenterService
             $total_income = self::getTotalIncome();
 
             //是否显示推广插件入口
-            $popularize_set = PortType::popularizeSet(self::$request['type']);
+            $popularize_set = self::popularizeSet(self::$request['type']);
             $available = [];
             $unavailable = [];
             foreach ($config as $key => $item) {
@@ -295,7 +350,7 @@ class ExtensionCenterService
                 }
 
                 //不显示
-                if (in_array($incomeFactory->getAppUrl(), $popularize_set)) {
+                if (in_array($incomeFactory->getMark(), $popularize_set)) {
                     continue;
                 }
 
@@ -322,22 +377,20 @@ class ExtensionCenterService
             list($start,$end) = self::timeSolt(self::$request['income_statistic_type']);
         }
 
-        $incomeConfig = \app\backend\modules\income\Income::current()->getItems();
-        $incomeConfig = collect($incomeConfig)->pluck('class')->toArray();
         //收入统计
         $total_amount = Income::uniacid()
-            ->where('member_id',self::$memberId)
-            ->whereIn('incometable_type', $incomeConfig);
+            ->where('member_id',self::$memberId);
+//            ->whereIn('incometable_type', $incomeConfig);
         if (!empty($start) && !empty($end)) {
             $total_amount = $total_amount->whereBetween('created_at',[$start,$end]);
         }
         $total_amount = $total_amount->sum('amount');
 
         $income  = Income::uniacid()
-            ->select(DB::raw('SUM(IF(status=0,amount,0)) as un_withdraw,SUM(IF(status=1,amount,0)) as withdraw,'
+            ->select(DB::raw('SUM(IF(status=1,amount,0)) as withdraw,'
                 .'SUM(IF(status=1 and pay_status IN(0,1),amount,0)) as withdrawing'))
             ->where('member_id',self::$memberId)
-            ->whereIn('incometable_type', $incomeConfig)
+//            ->whereIn('incometable_type', $incomeConfig)
             ->first();
 
         //粉丝统计
@@ -351,6 +404,23 @@ class ExtensionCenterService
             $first_fans = $first_fans->whereBetween('child_time',[$start,$end]);
         }
         $first_fans = $first_fans->count();
+
+        $un_withdraw = 0;
+        $income_config = \app\backend\modules\income\Income::current()->getItems();
+        foreach ($income_config as $item) {
+            //余额不计算 拍卖预付款不计算
+            if ($item['type'] == 'balance' || $item['type'] == 'auction_prepayment') {
+                continue;
+            }
+
+            $incomeAmount = Income::uniacid()->canWithdraw()
+                ->where('member_id', self::$memberId)
+                ->where('incometable_type', $item['class'])
+                ->sum('amount');
+            if ($incomeAmount > 0) {
+                $un_withdraw += $incomeAmount;
+            }
+        }
 
         return [
             [
@@ -369,7 +439,7 @@ class ExtensionCenterService
                 'title' => '未提现收入',
                 'url' => 'withdrawal',
                 'mini_url' => '/packageA/member/withdrawal/withdrawal',
-                'value' => $income && $income->un_withdraw ? $income->un_withdraw : 0],
+                'value' => sprintf("%01.2f", $un_withdraw)],
             [
                 'title' => '提现中收入',
                 'url' => 'presentationRecord',
@@ -470,7 +540,7 @@ class ExtensionCenterService
         $fans = MemberShopInfo::uniacid()
             ->select(DB::raw('COUNT(*) as new_fans,FROM_UNIXTIME(child_time,"%Y%m%d") as time_str'))
             ->where('parent_id',self::$memberId)
-            ->where('child_time','>',0)
+//            ->where('child_time','>',0)
             ->groupBy('time_str')
             ->get();
 
@@ -608,7 +678,7 @@ class ExtensionCenterService
             ->join('mc_members',function ($join) {
                 $join->on('mc_members.uid','yz_member.member_id');
             })
-            ->where('parent_id',self::$memberId)
+            ->where('yz_member.parent_id',self::$memberId)
 //            ->where('child_time','>',1)//直推
             ->orderBy('child_time','desc')
             ->paginate(6)->toArray();
@@ -747,7 +817,11 @@ class ExtensionCenterService
     {
         //1.商城客服设置
         $shopSet = Setting::get('shop.shop');
-        $shop_cservice= $shopSet['cservice']?:'';
+        $cservice = $shopSet['cservice'];
+        if (request()->type == 2) {
+            $cservice = $shopSet['cservice_mini'];
+        }
+        $shop_cservice = !empty($cservice) ? $cservice : '';
 
         //2.客服插件设置
         if (app('plugins')->isEnabled('customer-service')) {
@@ -755,13 +829,14 @@ class ExtensionCenterService
             if ($set['is_open'] == 1) {
                 if (request()->type == 2) {
                     $arr = [
+                        'cservice'=>$set['mini_link']?:$shop_cservice,
                         'customer_open'=>$set['mini_open'],
                         'service_QRcode' => yz_tomedia($set['mini_QRcode']),
                         'service_mobile' => $set['mini_mobile']
                     ];
                 }else{
                     $arr = [
-                        'cservice'=>$set['link'],
+                        'cservice'=>$set['link']?:$shop_cservice,
                         'service_QRcode' => yz_tomedia($set['QRcode']),
                         'service_mobile' => $set['mobile']
                     ];

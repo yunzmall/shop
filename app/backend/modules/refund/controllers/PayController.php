@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/4/21
  * Time: 下午6:16
  */
@@ -10,6 +10,7 @@ namespace app\backend\modules\refund\controllers;
 
 use app\common\components\BaseController;
 use app\common\events\order\AfterOrderRefundSuccessEvent;
+use app\common\exceptions\AppException;
 use app\common\exceptions\ShopException;
 use app\common\modules\refund\services\RefundService;
 use app\backend\modules\refund\services\RefundMessageService;
@@ -24,14 +25,41 @@ class PayController extends BaseController
     public function preAction()
     {
         parent::preAction();
-        $request = \Request::capture();
+
         $this->validate([
             'refund_id' => 'required',
         ]);
-        $this->refundApply = RefundApply::find($request->input('refund_id'));
+
+        $this->refundApply = RefundApply::find(request()->input('refund_id'));
         if (!isset($this->refundApply)) {
             throw new AdminException('退款记录不存在');
         }
+    }
+
+    public function api()
+    {
+
+        $request = request()->input();
+
+        try {
+            $result = \Illuminate\Support\Facades\DB::transaction(function () use ($request) {
+                $result = (new RefundService)->pay($request['refund_id']);
+                if (!$result) {
+                    throw new AppException('操作失败');
+                }
+
+                return $result;
+            });
+        } catch (\Exception $e) {
+            \Log::debug('<------售后退款失败------:'.$e->getMessage());
+            throw new AppException($e->getMessage());
+        }
+
+
+
+
+        return $this->successJson('退款成功');
+
     }
 
     /**
@@ -44,17 +72,29 @@ class PayController extends BaseController
         $this->validate([
             'refund_id' => 'required'
         ]);
-        /**
-         * @var $this ->refundApply RefundApply
-         */
-        $result = \Illuminate\Support\Facades\DB::transaction(function () use ($request) {
-            $result = (new RefundService)->pay($request['refund_id']);
-            if (!$result) {
-                throw new ShopException('操作失败');
-            }
 
-            return $result;
-        });
+
+        $restrictAccess = \app\common\services\RequestTokenService::limitRepeat('agree_refund_'. $request['refund_id']);
+
+        if (!$restrictAccess) {
+            throw new ShopException('短时间内重复操作，请等待10秒后再操作');
+        }
+
+        try {
+            /**
+             * @var $this ->refundApply RefundApply
+             */
+            $result = \Illuminate\Support\Facades\DB::transaction(function () use ($request) {
+                $result = (new RefundService)->pay($request['refund_id']);
+                if (!$result) {
+                    throw new ShopException('操作失败');
+                }
+                return $result;
+            });
+        } catch (\Exception $e) {
+            \Log::debug('<------售后退款失败------:'.$e->getMessage());
+            throw new ShopException($e->getMessage());
+        }
 
         if (is_string($result)) {
             redirect($result)->send();
@@ -64,12 +104,12 @@ class PayController extends BaseController
            echo $this->formPost($result);exit();
         }
 
-        RefundMessageService::passMessage($this->refundApply);//通知买家
-
-        event(new  AfterOrderRefundSuccessEvent($this->refundApply));
-        if (app('plugins')->isEnabled('instation-message')) {
-            event(new \Yunshop\InstationMessage\event\OrderRefundSuccessEvent($this->refundApply));
-        }
+//        RefundMessageService::passMessage($this->refundApply);//通知买家
+//
+//        event(new  AfterOrderRefundSuccessEvent($this->refundApply));
+//        if (app('plugins')->isEnabled('instation-message')) {
+//            event(new \Yunshop\InstationMessage\event\OrderRefundSuccessEvent($this->refundApply));
+//        }
         return $this->message('操作成功');
 
     }

@@ -48,21 +48,7 @@ class Worker extends \Workerman\Worker
     {
         Redis::unlock('WorkerStarting');
     }
-    /**
-     * Log.
-     *
-     * @param string $msg
-     * @return void
-     */
-    public static function log($msg)
-    {
-        $msg = $msg . "\n";
-        if (!static::$daemonize) {
-            static::safeEcho($msg);
-        }
-        \file_put_contents((string)static::$logFile, \date('Y-m-d H:i:s') . ' ' . 'pid:'
-            . (static::$_OS === \OS_TYPE_LINUX ? \posix_getpid() : 1) . ' ' . $msg, \FILE_APPEND);
-    }
+
     /**
      * Init.
      *
@@ -108,5 +94,20 @@ class Worker extends \Workerman\Worker
 
         // Timer init.
         Timer::init();
+    }
+
+    /**
+     * @param string $msg
+     */
+    public static function log($msg)
+    {
+        $msg = $msg . "\n";
+        if (!static::$daemonize) {
+            static::safeEcho($msg);
+        }
+        //todo 取消写入日志，不断重试写入导致磁盘满空间
+//        \file_put_contents((string)static::$logFile, \date('Y-m-d H:i:s') . ' ' . 'pid:'
+//            . (static::$_OS === \OS_TYPE_LINUX ? \posix_getpid() : 1) . ' ' . $msg, \FILE_APPEND | \LOCK_EX);
+
     }
 }

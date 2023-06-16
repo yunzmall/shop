@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/5/15
  * Time: 上午8:56
  */
@@ -16,11 +16,11 @@ use Illuminate\Support\Facades\DB;
 
 abstract class Credit
 {
+    public $source;
+
     protected $data = [];
 
     protected $type = ConstService::TYPE_INCOME;
-
-    protected $source;
 
     protected $change_value;
 
@@ -492,6 +492,188 @@ abstract class Credit
         return $this->addition($data);
     }
 
+  /**
+     * 拼团成团奖-上级奖励
+     * @param array $data
+     * @return string
+     */
+    public function FightGroupsOperatorsParentReward(array $data)
+    {
+        $this->source = ConstService::FIGHT_GROUPS_OPERATORS_SETTLE_REWARD;
+        return $this->addition($data);
+    }
+
+   /**
+     * 爱心值转余额
+     * @param array $data
+     * @return string
+     */
+    public function LoveToBalance(array $data)
+    {
+        $this->source = ConstService::LOVE_TO_BALANCE;
+        return $this->addition($data);
+    }
+
+    /**
+     * 珍惠拼 - 易货
+     * @param array $data
+     * @return string
+     */
+    public function zhpBarterReward(array $data)
+    {
+        $this->source = ConstService::ZHP_BARTER;
+        return $this->addition($data);
+    }
+
+   /**
+     * 群拓客奖励-进群奖励
+     * @param array $data
+     * @return bool|string
+     */
+    public function groupChatActivity(array $data)
+    {
+        $this->source = ConstService::GROUP_CHAT_ACTIVITY;
+        return $this->addition($data);
+    }
+
+   /* 企业微信好友裂变活动奖励
+     * @param array $data
+     * @return string
+     */
+    public function CustomerIncreaseAward(array $data)
+    {
+        $this->source = ConstService::CUSTOMER_INCREASE_REWARD;
+        return $this->addition($data);
+    }
+
+    /**
+     * 每日红包转入
+     * @param array $data
+     * @return string
+     */
+    public function RedPacketReward(array $data)
+    {
+        $this->source = ConstService::RED_PACKET_REWARD;
+        return $this->addition($data);
+    }
+
+    /**
+     * 珍惠拼-统一时间奖励
+     * @param array $data
+     * @return string
+     */
+    public function ZhpUnifyReward(array $data)
+    {
+        $this->source = ConstService::ZHP_UNIFY_REWARD;
+        return $this->addition($data);
+    }
+
+    /**
+     * ywm-拼团成功奖励
+     * @param array $data
+     * @return string
+     */
+    public function YwmFightGroupsSuccessReward(array $data)
+    {
+        $this->source = ConstService::YWM_FIGHT_GROUPS_SUCCESS_REWARD;
+        return $this->addition($data);
+    }
+
+    /**
+     * 直播-拼手气红包发放接口
+     * @param array $data
+     * @return string
+     */
+    public function roomRedPackSend(array $data)
+    {
+        $this->source = ConstService::ROOM_REDPACK_SEND;
+        return $this->subtraction($data);
+    }
+
+    /**
+     * 直播-拼手气红包领取接口
+     * @param array $data
+     * @return string
+     */
+    public function roomRedPackReceive(array $data)
+    {
+        $this->source = ConstService::ROOM_REDPACK_RECEIVE;
+        return $this->addition($data);
+    }
+
+    /**
+     * 直播-拼手气红包退还接口
+     * @param array $data
+     * @return string
+     */
+    public function roomRedPackRefund(array $data)
+    {
+        $this->source = ConstService::ROOM_REDPACK_REFUND;
+        return $this->addition($data);
+    }
+
+    /*
+     * 新客裂变奖励
+     * @param array $data
+     * @return string
+     */
+    public function newcomerFissionReward(array $data)
+    {
+        $this->source = ConstService::NEWCOMER_FISSION_REWARD;
+        return $this->addition($data);
+    }
+
+    /*
+   * 存货服务奖励
+   * @param array $data
+   * @return string
+   */
+    public function stockServiceReward(array $data)
+    {
+        $this->source = ConstService::STOCK_SERVICE_BACK;
+        return $this->addition($data);
+    }
+
+    /**
+     * 手签协议奖励
+     * @param array $data
+     * @return string
+     */
+    public function handSignProtocolReward(array $data)
+    {
+        $this->source = ConstService::HAND_SIGN_PROTOCOL;
+        return $this->addition($data);
+    }
+
+    /**
+     * 活动排行榜额度不足扣除
+     * @param array $data
+     * @return string
+     */
+    public function activityRankingQuotaDissatisfy(array $data)
+    {
+        $this->source = ConstService::ACTIVITY_RANKING_QUOTA_DISSATISFY;
+        return $this->subtraction($data);
+    }
+
+    /**
+     * 会员合并转入
+     * @param array $data
+     * @return string
+     */
+    public function memberMerge(array $data)
+    {
+        $this->source = ConstService::MEMBER_MERGE;
+        return $this->addition($data);
+    }
+
+    public function loveRechargeGive(array $data)
+    {
+        $this->source = ConstService::LOVE_LOCK_RECHARGE_GIVE;
+
+        return $this->addition($data);
+    }
+
     //加法
     protected function addition($data)
     {
@@ -582,6 +764,17 @@ abstract class Credit
         return $this->subtraction($data);
     }
 
+    /**
+     * 企业微信好友分裂活动奖励
+     * @param array $data
+     * @return string
+     */
+    public function customerIncreaseReward(array $data)
+    {
+        $this->source = ConstService::CUSTOMER_INCREASE_REWARD;
+        return $this->addition($data);
+    }
+
     protected function result()
     {
         if (!(double)$this->data['change_value']) return true;
@@ -614,5 +807,16 @@ abstract class Credit
             throw new ShopException("数据写入错误：CREDIT_UPDATE");
         }
         return true;
+    }
+
+    /**
+     * 拓客活动余额奖励
+     * @param array $data
+     * @return string
+     */
+    public function activityRewardBalance(array $data)
+    {
+        $this->source = $data['source'];
+        return $this->addition($data);
     }
 }

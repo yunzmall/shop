@@ -41,10 +41,6 @@ class DetailController extends BaseController
         ])->render();
     }
 
-    public function allCashierPayTypes()
-    {
-        new OrderPay(['amount', 100]);
-    }
 
     public function usablePayTypes()
     {

@@ -321,8 +321,10 @@ class Captcha
                 'key'       => $hash
             ]);
         }
-
-
+        //app图形验证码存储
+        if (request()->type == 14 || request()->type == 15) {
+            Cache::put('sensitive_' . $hash, $this->sensitive, 10);
+        }
         return [
         	'value'     => $bag,
 	        'sensitive' => $this->sensitive,
@@ -434,21 +436,27 @@ class Captcha
 	 */
 	public function check($value)
 	{
-		if ( ! Session::get('captcha'))
-		{
-			return false;
-		}
+        if (request()->type == 14 || request()->type == 15) {
+            $key = request()->key;
+            if (!Cache::has('sensitive_' . $key)) {
+                return false;
+            }
+            $sensitive = Cache::get('sensitive_' . $key);
+            Cache::forget('sensitive_' . $key);
+        } else {
+            if (!Session::get('captcha')) {
+                return false;
+            }
 
-		$key = Session::get('captcha.key');
-		$sensitive = Session::get('captcha.sensitive');
+            $key = Session::get('captcha.key');
+            $sensitive = Session::get('captcha.sensitive');
 
-		if ( ! $sensitive)
-		{
-			$value = $this->str->lower($value);
+            Session::clear('captcha');
+        }
+        if (!$sensitive) {
+            $value = $this->str->lower($value);
 
-		}
-
-		Session::clear('captcha');
+        }
 
 		return $this->hasher->check($value, $key);
 	}

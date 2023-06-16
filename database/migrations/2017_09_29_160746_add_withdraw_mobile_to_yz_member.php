@@ -16,8 +16,8 @@ class AddWithdrawMobileToYzMember extends Migration
         if (\Schema::hasTable('yz_member')) {
 
             if (!Schema::hasColumn('yz_member', 'withdraw_mobile')) {
-                Schema::table('yz_member', function ($table) {
-                    $table->string('withdraw_mobile','11')->nullable()->default('');
+                Schema::table('yz_member', function (Blueprint $table) {
+                    $table->string('withdraw_mobile','11')->nullable()->default('')->comment('提现手机号');
                 });
             }
         }

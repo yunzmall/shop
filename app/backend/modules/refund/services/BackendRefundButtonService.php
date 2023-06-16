@@ -73,6 +73,7 @@ class BackendRefundButtonService
             RefundApply::REFUND_TYPE_EXCHANGE_GOODS => [
                 \app\backend\modules\refund\services\button\Reject::class,
                 \app\backend\modules\refund\services\button\Pass::class,
+                \app\backend\modules\refund\services\button\BatchResend::class,
                 \app\backend\modules\refund\services\button\Resend::class,
                 \app\backend\modules\refund\services\button\Close::class,
             ],

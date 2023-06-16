@@ -32,7 +32,7 @@ class MemberChangeLog extends BaseModel
 
     public static function searchLog($search)
     {
-        $model = self::uniacid();
+        $model = self::select(['id', 'member_id', 'member_id_after', 'created_at'])->uniacid();
 
         if ($search['member_id']) {
             $model->where('member_id', $search['member_id']);

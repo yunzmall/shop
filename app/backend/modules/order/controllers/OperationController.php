@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/3/3
  * Time: 下午2:30
  */
@@ -134,13 +134,23 @@ class OperationController extends BaseController
      */
     public function manualRefund()
     {
+        $restrictAccess = \app\common\services\RequestTokenService::limitRepeat('manual_refund_'. $this->param['order_id']);
+
+        if (!$restrictAccess) {
+            throw new AppException('短时间内重复操作，请等待10秒后再操作');
+        }
+
         if ($this->order->isPending()) {
             throw new AppException("订单已锁定,无法继续操作");
         }
-        $result = $this->order->refund();
-        if (isset($result['url'])) {
-            return redirect($result['url'])->send();
+        if ($this->order->hasOneRefundApply && $this->order->hasOneRefundApply->isRefunding()) {
+            throw new AppException('订单有售后待处理,无法继续操作');
         }
+//        $result = $this->order->refund();
+        \app\backend\modules\refund\services\RefundOperationService::orderCloseAndRefund($this->order);
+
+        \app\common\models\order\ManualRefundLog::saveLog($this->order->id);
+
 
         return $this->message('操作成功');
     }

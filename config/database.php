@@ -13,11 +13,13 @@ $default_slave_username = '';
 $default_slave_password = '';
 $default_slave_port = '';
 
+$redis_client = 'predis';
 $redis_host = '127.0.0.1';
 $redis_password = NULL;
 $redis_port = '6379';
 $redis_database = '0';
 $redis_cache_database = '1';
+$redis_persistent = 0;
 
 $mongo_host = '127.0.0.1';
 $mongo_username = '';
@@ -39,6 +41,11 @@ if (env('APP_Framework', false) != 'platform') {
         include base_path('database/redis.php');
 
         if (!empty($redis)) {
+//			if (class_exists('Redis')) {
+//				$redis_client = 'phpredis';
+//				$redis_persistent = 1;
+//			}
+
             $redis_host = $redis['host'] ?: $redis_host;
             $redis_password = $redis['password'] ?: $redis_password;
             $redis_port = $redis['port'] ?: $redis_port;
@@ -240,19 +247,21 @@ return [
 
     'redis' => [
 
-        'client' => 'predis',
+        'client' => env('REDIS_CLIENT', $redis_client),
 
         'default' => [
             'host' => env('REDIS_HOST', $redis_host),
             'password' => env('REDIS_PASSWORD', $redis_password),
             'port' => env('REDIS_PORT', $redis_port),
-            'database' => env('REDIS_DEFAULT_DATABASE', $redis_database)
+            'database' => env('REDIS_DEFAULT_DATABASE', $redis_database),
+			'persistent' => env('REDIS_PERSISTENT', $redis_persistent),
         ],
         'cache' => [
             'host' => env('REDIS_HOST', $redis_host),
             'password' => env('REDIS_PASSWORD', $redis_password),
             'port' => env('REDIS_PORT', $redis_port),
-            'database' => env('REDIS_CACHE_DATABASE', $redis_cache_database)
+            'database' => env('REDIS_CACHE_DATABASE', $redis_cache_database),
+			'persistent' => env('REDIS_PERSISTENT', $redis_persistent),
         ]
     ],
 

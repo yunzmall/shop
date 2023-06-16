@@ -11,7 +11,13 @@ namespace app\frontend\modules\order\models;
 
 use app\common\events\order\BeforeOrderCreateEvent;
 use app\common\exceptions\AppException;
+use app\frontend\modules\orderGoods\models\PreOrderGoodsCollection;
 
+/**
+ * Trait PreOrderTrait
+ * @package app\frontend\modules\order\models
+ * @property PreOrderGoodsCollection orderGoods
+ */
 trait PreOrderTrait
 {
     /**
@@ -57,6 +63,21 @@ trait PreOrderTrait
     {
         return $this->goods_price = $this->orderGoods->getPrice();
     }
+
+    /**
+     * 统计订单商品会员价金额
+     * @return int
+     */
+    public function getVipOrderGoodsPrice()
+    {
+        //订单禁用优惠返回，商品现价
+        if ($this->isDiscountDisable()) {
+            return $this->orderGoods->getPrice();
+        }
+
+        return $this->orderGoods->getVipPrice();
+    }
+
 
     /**
      * 统计订单商品原价

@@ -24,10 +24,8 @@ class PayController extends PreController
         \Log::debug('提现记录打款接口++++++++++++++++++++');
 
         $result = (new PayedService($this->withdrawModel))->withdrawPay();
-        if ($result == true) {
-            return $this->message('打款成功', yzWebUrl("withdraw.detail.index", ['id' => $this->withdrawModel->id]));
-        }
-        return $this->message('打款失败，请刷新重试', yzWebUrl("withdraw.detail.index", ['id' => $this->withdrawModel->id]), 'error');
+
+        return $result == true ? $this->successJson('打款成功') : $this->errorJson('打款失败，请刷新重试');
     }
 
 

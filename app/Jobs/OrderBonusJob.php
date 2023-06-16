@@ -1,6 +1,6 @@
 <?php
 /**
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2018/9/19
  * Time: 下午3:37
  */
@@ -19,7 +19,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
-class OrderBonusJob implements  ShouldQueue
+class OrderBonusJob implements ShouldQueue
 {
     use InteractsWithQueue, Queueable, SerializesModels;
 
@@ -58,7 +58,7 @@ class OrderBonusJob implements  ShouldQueue
         }
         $build = DB::table($this->tableName)
             ->select()
-            ->where($this->foreignKey, $this->orderModel[$this->localKey]);
+            ->where($this->foreignKey, (string)$this->orderModel[$this->localKey]);
 
         //分红条件
         if ($this->condition) {
@@ -76,21 +76,21 @@ class OrderBonusJob implements  ShouldQueue
         if ($this->totalDividend) {
             $undividend = $this->totalDividend - $sum;
         }
-        \Log::info($this->code.'分红插入表');
+        \Log::info($this->code . '分红插入表');
 
         // 存入订单插件分红记录表
         $model = OrderPluginBonus::addRow([
-            'order_id'      => $this->orderModel->id,
-            'uniacid'       => $this->orderModel->uniacid,
-            'table_name'    => $this->tableName,
-            'ids'           => $ids,
-            'code'          => $this->code,
-            'amount'        => $sum,
-            'undividend'    => $undividend,
-            'status'        => 0,
-            'price'         => $this->orderModel->price,
-            'member_id'     => $this->orderModel->uid,
-            'order_sn'      => $this->orderModel->order_sn,
+            'order_id' => $this->orderModel->id,
+            'uniacid' => $this->orderModel->uniacid,
+            'table_name' => $this->tableName,
+            'ids' => $ids,
+            'code' => $this->code,
+            'amount' => $sum,
+            'undividend' => $undividend,
+            'status' => 0,
+            'price' => $this->orderModel->price,
+            'member_id' => $this->orderModel->uid,
+            'order_sn' => $this->orderModel->order_sn,
         ]);
 
 
@@ -106,11 +106,11 @@ class OrderBonusJob implements  ShouldQueue
     public function addCount($sum, $undividend)
     {
 //        $count = 1;
-        $field = str_replace('-','_',$this->code);
+        $field = str_replace('-', '_', $this->code);
         $order_income = OrderIncomeCount::where('order_id', $this->orderModel->id)->first();
 
         if (!$order_income) {
-            \Log::debug('订单分红统计，缺少订单ID'.$this->orderModel->id.'的数据');
+            \Log::debug('订单分红统计，缺少订单ID' . $this->orderModel->id . '的数据');
             $order_income = (new OrderCountContentJob($this->orderModel))->handle();
         }
         $order_income->$field = $sum;

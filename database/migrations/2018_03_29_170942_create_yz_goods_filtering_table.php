@@ -20,6 +20,8 @@ class CreateYzGoodsFilteringTable extends Migration
                 $table->integer('filtering_id')->nullable()->default(0)->comment('过滤id');
             });
 
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE `".app('db')->getTablePrefix()."yz_goods_filtering` comment'商品--标签关联表'");//表注释
+
         }
     }
 

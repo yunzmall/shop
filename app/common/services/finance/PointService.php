@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/4/10
  * Time: 下午5:49
  */
@@ -10,6 +10,7 @@ namespace app\common\services\finance;
 
 
 use app\backend\modules\member\models\Member;
+use app\common\events\finance\PointChangeCreatingEvent;
 use app\common\events\member\MemberPointChangeEvent;
 use app\common\events\MessageEvent;
 use app\common\exceptions\ShopException;
@@ -276,8 +277,17 @@ class PointService
     const POINT_MODE_ZHP_LOST = 84;
     const POINT_MODE_ZHP_LOST_ATTACHED = "珍惠拼";
 
+    const POINT_MODE_TEAM_DIVIDEND = 85;
+    const POINT_MODE_TEAM_DIVIDEND_ATTACHED = "经销商提成";
+
     const CPS_SUB_PLATFORM = 86;
     const CPS_SUB_PLATFORM_ATTACHED = "芸CPS奖励";
+
+    const CPS_CANCAL = 87;
+    const CPS_CANCAL_ATTACHED = "CPS退款扣除积分";
+
+    const POINT_MODE_COUPON_STORE_REWARD = 88;
+    const POINT_MODE_COUPON_STORE_REWARD_ATTACHED = '消费券联盟核销奖励';
 
     const POINT_MODE_NEW_MEDIA_LIKE = 90;
     const POINT_MODE_NEW_MEDIA_LIKE_ATTACHED = '新媒体-点赞奖励';
@@ -330,7 +340,162 @@ class PointService
     const POINT_MODE_VIDEO_TEAM_REWARD = 106;
     const POINT_MODE_VIDEO_TEAM_REWARD_ATTACHED = '视频奖励-团队上级奖励';
 
+    const POINT_MODE_FLYERS_ADVERTISE = 107;
+    const POINT_MODE_FLYERS_ADVERTISE_ATTACHED = 'APP广告-广告奖励';
+
+    const POINT_MODE_POINT_MIDDLE_SYNC = 108;
+    const POINT_MODE_POINT_MIDDLE_SYNC_ATTACHED = '积分中台-积分同步';
+
+    const POINT_MODE_GOODS_REFUND = 109; //商品赠送退回
+    const POINT_MODE_GOODS_REFUND_ATTACHED = '商品赠送退回';
+
+    const POINT_MODE_ORDER_REFUND = 110; //订单赠送退回
+    const POINT_MODE_ORDER_REFUND_ATTACHED = '订单赠送退回';
+
+    const POINT_MODE_LOVE_TRANSFER = 111; //订单赠送退回
+    const POINT_MODE_LOVE_TRANSFER_ATTACHED = '转赠-转入';//爱心值转赠
+
+    const POINT_MODE_QQ_ADVERTISE_POINT = 112;
+    const POINT_MODE_QQ_ADVERTISE_POINT_ATTACHED = '优量汇-奖励扣除';
+
+    const POINT_MODE_BALANCE_RECHARGE_REWARD = 113; //余额充值奖励
+    const POINT_MODE_BALANCE_RECHARGE_REWARD_ATTACHED = '余额充值奖励';
+
+    const POINT_MODE_ORDER_SHOPKEEPER_REWARD = 114; //门店收银台消费奖励店长积分
+    const POINT_MODE_ORDER_SHOPKEEPER_REWARD_ATTACHED = '门店消费奖励店长';
+
+    const POINT_MODE_HAND_SIGN_PROTOCOL = 115;
+    const POINT_MODE_HAND_SIGN_PROTOCOL_ATTACHED = '手签协议奖励';
+    const POINT_MODE_GROUP_CHAT_ACTIVITY_REWARD = 116;// 群拓客活动奖励
+    const POINT_MODE_GROUP_CHAT_ACTIVITY_REWARD_ATTACHED = '群拓客活动奖励';
+
+    const POINT_MODE_CUSTOMER_INCREASE_REWARD = 117; //企业微信好友裂变活动奖励
+    const POINT_MODE_CUSTOMER_INCREASE_REWARD_ATTACHED = '企业微信好友裂变活动奖励';
+    const INTEGRAL_POINT = 118;
+    const INTEGRAL_POINT_ATTACHED = '消费积分转化积分';
+
+    const YS_SYSTEM_POINT_SYNC = 119;
+    const YS_SYSTEM_POINT_SYNC_NAME = '线下同步';
+
+    const POINT_MODE_VIDEO_WATCH_TAKE = 120;
+    const POINT_MODE_VIDEO_WATCH_TAKE_ATTACHED = '视频奖励-扣除积分';
+    const POINT_MODE_PARKING_PAY_COUPON = 121;
+    const POINT_MODE_PARKING_PAY_COUPON_ATTACHED = '停车缴费兑换优惠券';
+
+    const POINT_MODE_LOVE_WITHDRAW_FINAL_REDUCE = 122;
+    const POINT_MODE_LOVE_WITHDRAW_FINAL_REDUCE_ATTACHED = '爱心值提现扣除(实际到账)';
+
+    const POINT_MODE_STORE_BALANCE_RECHARGE = 123;
+    const POINT_MODE_STORE_BALANCE_RECHARGE_ATTACHED = '门店余额充值奖励';
+
+    const POINT_MODE_YWM_FIGHT_GROUPS_TEAM_SUCCESS = 124;
+    const POINT_MODE_YWM_FIGHT_GROUPS_TEAM_SUCCESS_ATTACHED = '(新拼团)拼团活动团长奖励';
+
+    const POINT_MODE_LOVE_BUY_DEDUCTE_REDUCE = 125;
+    const POINT_MODE_LOVE_BUY_DEDUCTE_REDUCE_ATTACHED = '爱心值购物抵扣扣除';
+
+    const POINT_MODE_SUBSCRIPTION = 126;
+    const POINT_MODE_SUBSCRIPTION_ATTACHED = '认购-认购活动';
+
+    const POINT_MODE_ROOM_RED_PACK_RECEIVE = 127;
+    const POINT_MODE_ROOM_RED_PACK_RECEIVE_ATTACHED = '直播领取拼手气红包';
+
+    const POINT_MODE_ROOM_RED_PACK_REFUND = 128;
+    const POINT_MODE_ROOM_RED_PACK_REFUND_ATTACHED = '直播拼手气红包返还';
+
+    const POINT_MODE_ROOM_RED_PACK_SEND = 129;
+    const POINT_MODE_ROOM_RED_PACK_SEND_ATTACHED = '直播发送拼手气红包扣除';
+
+    const POINT_MODE_LOVE_FROZE_ACTIVE = 130;
+    const POINT_MODE_LOVE_FROZE_ACTIVE_ATTACHED = '冻结爱心值激活';
+
+    const POINT_MODE_NEWCOMER_FISSION_ACTIVE = 131;
+    const POINT_MODE_NEWCOMER_FISSION_ACTIVE_ATTACHED = '新客裂变';
+
+    const POINT_MODE_TRANSFER_INTEGRAL = 132;
+    const POINT_MODE_TRANSFER_INTEGRAL_ATTACHED = '积分转化消费积分';
+
+    const POINT_MODE_BLB_CASHIER = 133;
+    const POINT_MODE_BLB_CASHIER_ATTACHED = '收银系统积分同步';
+
+    const FACE_TO_FACE_BUY = 134;
+    const FACE_TO_FACE_BUY_ATTACHED = '面对面服务购买';
+
+    const FACE_TO_FACE_MEMBER_GIFT = 135;
+    const FACE_TO_FACE_MEMBER_GIFT_ATTACHED = '面对面服务购买赠送';
+
+    const FACE_TO_FACE_MERCHANT_GIFT = 136;
+    const FACE_TO_FACE_MERCHANT_GIFT_ATTACHED = '面对面服务出售';
+
+    const POINT_EXCHANGE_OUT = 139;
+    const POINT_EXCHANGE_OUT_ATTACHED = '积分通转出';
+
+    const POINT_EXCHANGE_IN = 140;
+    const POINT_EXCHANGE_IN_ATTACHED = '积分通转入';
+
+    const POINT_MODE_FIRST_PARENT_REWARD = 141;
+    const POINT_MODE_FIRST_PARENT_REWARD_ATTACHED = '购物赠送上级(一级)';
+
+    
+    const POINT_MODE_SECOND_PARENT_REWARD = 142;
+    const POINT_MODE_SECOND_PARENT_REWARD_ATTACHED = '购物赠送上级(二级)';
+
+    const POINT_MODE_FIRST_PARENT_REFUND = 143;
+    const POINT_MODE_FIRST_PARENT_REFUND_ATTACHED = '商品退款上级(一级)赠送回退';
+
+    const POINT_MODE_SECOND_PARENT_REFUND = 144;
+    const POINT_MODE_SECOND_PARENT_REFUND_ATTACHED = '商品退款上级(二级)赠送回退';
+
+    const POINT_MODE_POINT_EXCHANGE_LOVE = 145;
+    const POINT_MODE_POINT_EXCHANGE_LOVE_ATTACHED = '手动转入' . (LOVE_NAME ?: '爱心值');
+
+    const POINT_MODE_POOL_RESET = 146;
+    const POINT_MODE_POOL_RESET_ATTACHED = '清零设置-积分清零';
+
+    const ACTIVITY_REWARD_INTEGRAL = 147;
+    const ACTIVITY_REWARD_INTEGRAL_ATTACHED = '拓客活动积分奖励';
+
+    const POINT_MODE_AREA_DIVIDEND = 148;
+    const POINT_MODE_AREA_DIVIDEND_ATTACHED = '区域分红转入';
+
+    const SIGN_BUY_ALLOWANCE = 156;
+    const SIGN_BUY_ALLOWANCE_NAME = '签到购物津贴';
+
+    const POINT_MODE_LOVE_SPEED_POOL_CLEAR = 149;
+    const POINT_MODE_LOVE_SPEED_POOL_CLEAR_ATTACHED = '加速池扣除(积分消耗)';
+
+    const POINT_MODE_MEMBER_MERGE = 150;
+    const POINT_MODE_MEMBER_MERGE_ATTACHED = '会员合并转入';
+
+    const POINT_MODE_NEW_BLIND_BOX_EXCHANGE = 151;
+    const POINT_MODE_NEW_BLIND_BOX_EXCHANGE_ATTACHED = '新盲盒兑换';
+
+    const POINT_MODE_AREA_DIVIDEND_AWARD = 153;
+    const POINT_MODE_AREA_DIVIDEND_AWARD_ATTACHED = '区域分红奖励';
+
+    const POINT_MODE_AREA_MERCHANT_AWARD = 154;
+    const POINT_MODE_AREA_MERCHANT_AWARD_ATTACHED = '区代招商奖励';
+
+    const POINT_MODE_FACE_TO_FACE_AWARD = 155;
+    const POINT_MODE_FACE_TO_FACE_AWARD_ATTACHED = '面对面服务奖励';
+
+    const STAFF_AUDIT_REWARD = 157;
+    const STAFF_AUDIT_REWARD_ATTACHED = '员工审批奖励';
+
+    const STATIC_POINT_DIVIDEND = 158;
+    const STATIC_POINT_DIVIDEND_ATTACHED = STATIC_POINT_DIVIDEND_NAME ?: '静态积分分红';
+
+
+    const WISE_YUAN_TRADE_ACTIVITY_GIVE = 159;
+    const WISE_YUAN_TRADE_ACTIVITY_GIVE_ATTACHED = '共识活动赠送';
+
+
+    const WISE_YUAN_TRADE_REOPEN_GIVE = 160;
+    const WISE_YUAN_TRADE_REOPEN_GIVE_ATTACHED = '重开值转入';
+
+
     /**
+     * todo 不需要而外添加已统一，只需要在 getAllSourceName 方法添加即可
      * 上面的常量写死在这里，所以导致控制器获取这些业务类型的时候也要把这边的常量拿过去，麻烦新增一个业务类型的常量在这里的时候往
      * app\backend\modules\finance\controllers\PointLogController这个控制器中也加入这些常量，否则后台前端会缺失业务类型
      **/
@@ -343,6 +508,10 @@ class PointService
     public $member_point;
 
     protected $member;
+
+    private $is_change = 1;
+
+    public static $otherSource = [];
 
     /*
      * $data = [
@@ -361,12 +530,25 @@ class PointService
         if (!isset($point_data['point'])) {
             return;
         }
+        event($event = new PointChangeCreatingEvent($point_data));
+        $this->is_change = $event->is_change;
+        $point_data = $event->changeData;
+
         $this->point_data = $point_data;
         $this->point_data['point'] = round($this->point_data['point'], 2);
         //$member = Member::getMemberById($point_data['member_id']);
 
         $this->member = $this->getMemberModel();
         $this->member_point = $this->member->credit1 ? $this->member->credit1 : 0;    //会员信息有可能找不到，默认给个0
+    }
+
+    public static function addSource($key, $value)
+    {
+        if (self::getAllSourceName()[$key]) {
+            throw new ShopException('积分常量重复【' . $key . '--' . $value . '】');
+
+        }
+        self::$otherSource[$key] = $value;
     }
 
 
@@ -397,7 +579,27 @@ class PointService
         if ($point < 0.01) {
             return false;
         }
+        if (!$this->is_change) {
+            \Log::debug('会员等级积分限制不修改', $this->point_data);
+            return true;
+        }
         $this->getAfterPoint();
+        Member::updateMemberInfoById(['credit1' => $this->member_point], $this->point_data['member_id']);
+        return $this->addLog();
+    }
+
+    /**
+     * 该方法处理扣除积分大于剩余积分按积分归零算。不抛出异常需要积分明细记录
+     */
+    public function deductPoint()
+    {
+        $point = floor(abs($this->point_data['point']) * 100) / 100;
+        if (bccomp($point, 0.01, 2) === -1) {
+            return false;
+        }
+        $this->point_data['before_point'] = $this->member_point;
+        $this->member_point = max(bcadd($this->member_point, $this->point_data['point'], 2), 0);
+        $this->point_data['after_point'] = round($this->member_point, 2);
         Member::updateMemberInfoById(['credit1' => $this->member_point], $this->point_data['member_id']);
         return $this->addLog();
     }
@@ -412,7 +614,13 @@ class PointService
         if (!isset($point_model)) {
             return false;
         }
-        event(new MemberPointChangeEvent($this->member, $this->point_data, $this->getModeAttribute($this->point_data['point_mode'])));
+        event(
+            new MemberPointChangeEvent(
+                $this->member,
+                $this->point_data,
+                $this->getModeAttribute($this->point_data['point_mode'])
+            )
+        );
         $this->messageNotice();
         $this->checkFloorNotice();
         return $point_model;
@@ -467,7 +675,10 @@ class PointService
                 return true;
             }
 
-            if ($set['point_floor_on'] == 0 || empty($set['point_message_type']) == true || in_array($set['point_message_type'], [1, 2, 3]) != true) {
+            if ($set['point_floor_on'] == 0 || empty($set['point_message_type']) == true || in_array(
+                    $set['point_message_type'],
+                    [1, 2, 3]
+                ) != true) {
                 return true;
             }
 
@@ -515,7 +726,6 @@ class PointService
             \Log::debug('抛异常了');
             return true;
         }
-
     }
 
     /**
@@ -536,310 +746,174 @@ class PointService
 
     public function getModeAttribute($mode)
     {
-        $mode_attribute = '';
-        switch ($mode) {
-            case (1):
-                $mode_attribute = self::POINT_MODE_GOODS_ATTACHED;
-                break;
-            case (2):
-                $mode_attribute = self::POINT_MODE_ORDER_ATTACHED;
-                break;
-            case (3):
-                $mode_attribute = self::POINT_MODE_POSTER_ATTACHED;
-                break;
-            case (4):
-                $mode_attribute = self::POINT_MODE_ARTICLE_ATTACHED;
-                break;
-            case (5):
-                $mode_attribute = self::POINT_MODE_ADMIN_ATTACHED;
-                break;
-            case (6):
-                $mode_attribute = self::POINT_MODE_BY_ATTACHED;
-                break;
-            case (7):
-                $mode_attribute = self::POINT_MODE_TEAM_ATTACHED;
-                break;
-            case (8):
-                $mode_attribute = self::POINT_MODE_LIVE_ATTACHED;
-                break;
-            case (9):
-                $mode_attribute = self::POINT_MODE_CASHIER_ATTACHED;
-                break;
-            case (10):
-                $mode_attribute = self::POINT_MODE_AIR_ATTACHED;
-                break;
-            case (11):
-                $mode_attribute = self::POINT_MODE_RECHARGE_ATTACHED;
-                break;
-            case (12):
-                $mode_attribute = self::POINT_MODE_FlOW_ATTACHED;
-                break;
-            case (13):
-                $mode_attribute = self::POINT_MODE_TRANSFER_ATTACHED;
-                break;
-            case (14):
-                $mode_attribute = self::POINT_MODE_RECIPIENT_ATTACHED;
-                break;
-            case (15):
-                $mode_attribute = self::POINT_MODE_ROLLBACK_ATTACHED;
-                break;
-            case (16):
-                $mode_attribute = self::POINT_MODE_COUPON_DEDUCTION_AWARD_ATTACHED;
-                break;
-            case (17):
-                $mode_attribute = self::POINT_MODE_TASK_REWARD_ATTACHED;
-                break;
-            case (18):
-                $mode_attribute = self::POINT_MODE_TRANSFER_LOVE_ATTACHED;
-                break;
-            case (19):
-                $mode_attribute = trans('Yunshop\Sign::sign.plugin_name') ? trans('Yunshop\Sign::sign.plugin_name') . '奖励' : self::POINT_MODE_SIGN_REWARD_ATTACHED;
-                break;
-            case (20):
-                $mode_attribute = self::POINT_MODE_COURIER_REWARD_ATTACHED;
-                break;
-            case (22):
-                $mode_attribute = self::POINT_MODE_COMMUNITY_REWARD_ATTACHED;
-                break;
-            case (23):
-                $mode_attribute = self::POINT_MODE_CREATE_ACTIVITY_ATTACHED;
-                break;
-            case (24):
-                $mode_attribute = self::POINT_MODE_ACTIVITY_OVERDUE_ATTACHED;
-                break;
-            case (25):
-                $mode_attribute = self::POINT_MODE_RECEIVE_ACTIVITY_ATTACHED;
-                break;
-            case (26):
-                $mode_attribute = self::POINT_MODE_RECEIVE_OVERDUE_ATTACHED;
-                break;
-            case (27):
-                $mode_attribute = self::POINT_MODE_COMMISSION_TRANSFER_ATTACHED;
-                break;
-            case (28):
-                $mode_attribute = self::POINT_MODE_HOTEL_CASHIER_ATTACHED;
-                break;
-            case (29):
-                $mode_attribute = self::POINT_MODE_EXCEL_RECHARGE_ATTACHED;
-                break;
-            case (92):
-                $mode_attribute = self::POINT_MODE_RECHARGE_CODE_ATTACHED;
-                break;
-            case (93):
-                $mode_attribute = self::POINT_MODE_STORE_ATTACHED;
-                break;
-            case (94):
-                $mode_attribute = self::POINT_MODE_HOTEL_ATTACHED;
-                break;
-            case (30):
-                $mode_attribute = self::POINT_MODE_CARD_VISIT_REWARD_ATTACHED;
-                break;
-            case (31):
-                $mode_attribute = self::POINT_MODE_CARD_REGISTER_REWARD_ATTACHED;
-                break;
-            case (32):
-                $mode_attribute = self::POINT_MODE_PRESENTATION_ATTACHED;
-                break;
-            case (33):
-                if (app('plugins')->isEnabled('love')) {
-                    $mode_attribute = \Yunshop\Love\Common\Services\SetService::getLoveName() ? \Yunshop\Love\Common\Services\SetService::getLoveName() . '提现扣除' : self::POINT_MODE_LOVE_WITHDRAWAL_DEDUCTION_ATTACHED;
-                } else {
-                    $mode_attribute = self::POINT_MODE_LOVE_WITHDRAWAL_DEDUCTION_ATTACHED;
-                }
-                break;
-            case (34):
-                $mode_attribute = self::POINT_MODE_FIGHT_GROUPS_TEAM_SUCCESS_ATTACHED;
-                break;
-            case (35):
-                $mode_attribute = self::POINT_MODE_DRAW_CHARGE_GRT_ATTACHED;
-                break;
-            case (36):
-                $mode_attribute = self::POINT_MODE_DRAW_CHARGE_DEDUCTION_ATTACHED;
-                break;
-            case (37):
-                $mode_attribute = self::POINT_MODE_DRAW_REWARD_GRT_ATTACHED;
-                break;
-            case (38):
-                $mode_attribute = self::POINT_MODE_CONVERT_ATTACHED;
-                break;
-            case (39):
-                $mode_attribute = self::POINT_MODE_THIRD_ATTACHED;
-                break;
-            case (40):
-                $mode_attribute = self::POINT_MODE_CONSUMPTION_POINTS_ATTACHED;
-                break;
-            case (41):
-                $mode_attribute = self::POINT_MODE_ROOM_MEMBER_ACTIVITY_POINTS_ATTACHED;
-                break;
-            case (42):
-                $mode_attribute = self::POINT_MODE_ROOM_ACTIVITY_POINTS_ATTACHED;
-                break;
-            case (43):
-                $mode_attribute = self::POINT_MODE_ROOM_ANCHOR_ACTIVITY_POINTS_ATTACHED;
-                break;
-            case (44):
-                $mode_attribute = self::POINT_MODE_ROOM_REWARD_TRANSFER_POINTS_ATTACHED;
-                break;
-            case (45):
-                $mode_attribute = self::POINT_MODE_ROOM_REWARD_RECIPIENT_POINTS_ATTACHED;
-                break;
-            case (46):
-                $mode_attribute = self::POINT_AUCTION_REWARD_RECIPIENT_POINTS_ATTACHED;
-                break;
-            case (47):
-                $mode_attribute = self::POINT_INCOME_WITHDRAW_AWARD_ATTACHED;
-                break;
-            case (48):
-                $mode_attribute = self::POINT_MODE_TRANSFER_BALANCE_ATTACHED;
-                break;
-            case (49):
-                $mode_attribute = self::POINT_MODE_BIND_MOBILE_ATTACHED;
-                break;
-            case 50:
-                $mode_attribute = self::POINT_MODE_LAYER_CHAIN_ATTACHED;
-                break;
-            case 51:
-                $mode_attribute = self::POINT_MODE_LAYER_CHAIN_RECHARGE_ATTACHED;
-                break;
-            case 52:
-                $mode_attribute = self::POINT_MODE_DRAW_NEW_MEMBER_PRIZE_ATTACHED;
-                break;
-            case 53:
-                $mode_attribute = self::POINT_MODE_LAYER_CHAIN_QUESTIONNAIRE_ATTACHED;
-                break;
-            case 54:
-                $mode_attribute = self::POINT_MODE_HEALTH_ASSESSMENT_ATTACHED;
-                break;
-            case 55:
-                $mode_attribute = self::POINT_INCOME_WITHDRAW_AWARD_ATTACHED_SCALE;
-                break;
-            case 56:
-                $mode_attribute = self::POINT_MODE_MICRO_COMMUNITIES_REWARD;
-                break;
-            case 57:
-                $mode_attribute = self::POINT_MODE_CONFERENCE_REWARD;
-                break;
-            case 58:
-                $mode_attribute = self::POINT_MODE_STORE_SHAREHOLDER_ATTACHED;
-                break;
-            case 59:
-                $mode_attribute = self::POINT_MODE_ANSWER_REWARD_ATTACHED;
-                break;
-            case 60:
-                $mode_attribute = self::POINT_MODE_ANSWER_REWARD_PARENT_ATTACHED;
-                break;
-            case 61:
-                $mode_attribute = self::POINT_MODE_POINT_EXCHANGE_ATTACHED;
-                break;
-            case 62:
-                $mode_attribute = self::POINT_MODE_SNATCH_REGIMENT_ATTACHED;
-                break;
-            case 63:
-                $mode_attribute = self::POINT_MODE_FIGHT_GROUPS_LOTTERY_WIN_ATTACHED;
-                break;
-            case 64:
-                $mode_attribute = self::POINT_MODE_FIGHT_GROUPS_LOTTERY_LOSER_ATTACHED;
-                break;
-            case 65:
-                $mode_attribute = self::POINT_MODE_COMMUNITY_RELAY_ATTACHED;
-                break;
-            case 66:
-                $mode_attribute = self::POINT_MODE_REGISTRATION_REWARDS_PARENT_ATTACHED;
-                break;
-            case 67:
-                $mode_attribute = self::POINT_MODE_REGISTRATION_AWARD_ATTACHED;
-                break;
-            case 68:
-                $mode_attribute = self::POINT_MODE_OPEN_GROUP_DEDUCTION_ATTACHED;
-                break;
-            case 69:
-                $mode_attribute = self::POINT_MODE_EXCHANGE_REDPACK_CHALLENGE_ATTACHED;
-                break;
-            case 70:
-                $mode_attribute = self::POINT_MODE_CPS_ATTACHED;
-                break;
-            case 71:
-                $mode_attribute = self::POINT_MODE_STAR_SPELL_ATTACHED;
-                break;
-            case 72:
-                $mode_attribute = self::POINT_MODE_STAR_SPELL_LOST_ATTACHED;
-                break;
-            case 73:
-                $mode_attribute = self::TEAM_POINTS_REWARD_ATTACHED;
-                break;
-            case 74:
-                $mode_attribute = self::POINT_MODE_LOCK_DRAW_ATTACHED;
-                break;
-            case 75:
-                $mode_attribute = self::POINT_MODE_CIRCLE_ADD_ATTACHED;
-                break;
-            case 77:
-                $mode_attribute = self::POINT_MODE_LINK_SERVICE_ATTACHED;
-                break;
-            case 78:
-                $mode_attribute = self::POINT_MODE_STORE_RESERVE_ATTACHED;
-                break;
-            case 80:
-                $mode_attribute = self::POINT_MODE_ZHUZHER_CREDIT_LOST_ATTACHED;
-                break;
+        $allSource = self::getAllSourceName();
 
-            case 84:
-                $mode_attribute = self::POINT_MODE_ZHP_LOST_ATTACHED;
-                break;
+        $mode_attribute = $allSource[$mode];
 
-            case 82:
-                $mode_attribute = self::POINT_MODE_FIGHT_GROUP_LOTTERY_COMFORT_ATTACHED;
-
-            case 83:
-                $mode_attribute = self::POINT_MODE_LOVE_REDPACK_ATTACHED;
-
-            case 86:
-                $mode_attribute = self::CPS_SUB_PLATFORM_ATTACHED;
-                break;
-
-            case 90:
-                $mode_attribute = self::POINT_MODE_NEW_MEDIA_LIKE_ATTACHED;
-
-            case 91:
-                $mode_attribute = self::POINT_MODE_NEW_MEDIA_ATTENTION_ATTACHED;
-
-            case 95:
-                $mode_attribute = self::POINT_MODE_NEW_MEDIA_COMMENT_ATTACHED;
-
-            case 96:
-                $mode_attribute = self::POINT_MODE_NEW_MEDIA_REWARD_ATTACHED;
-
-            case 97:
-                $mode_attribute = self::POINT_MODE_NEW_MEDIA_SUPERIOR_ATTACHED;
-
-            case 98:
-                $mode_attribute = self::POINT_MODE_NEW_MEDIA_EXCHANGE_ATTACHED;
-
-            case 99:
-                $mode_attribute = self::POINT_MODE_NEW_MEDIA_READ_ATTACHED;
-
-            case 100:
-                $mode_attribute = self::POINT_MODE_NEW_MEDIA_FORWARD_ATTACHED;
-
-            case 101:
-                $mode_attribute = self::POINT_MODE_NEW_MEDIA_FAVORITES_ATTACHED;
-
-            case (102):
-                $mode_attribute = self::GROUP_WORK_AWARD_ATTACHED ;
-                break;
-            case (103):
-                $mode_attribute = self::GROUP_WORK_HEAD_AWARD_ATTACHED ;
-                break;
-            case (104):
-                $mode_attribute = self::GROUP_WORK_PARENT_AWARD_ATTACHED ;
-                break;
-            case (105):
-                $mode_attribute = self::POINT_MODE_VIDEO_WATCH_REWARD_ATTACHED ;
-                break;
-            case (106):
-                $mode_attribute = self::POINT_MODE_VIDEO_TEAM_REWARD_ATTACHED ;
-                break;
+        if (!$mode_attribute) {
+            $mode_attribute = self::$otherSource[$mode];
         }
-        return $mode_attribute;
+
+
+        return $mode_attribute?:'类型：'.$mode;
+    }
+
+
+    public static function getAllSourceName()
+    {
+        //业务类型
+        $activity_mode = [
+            1   => self::POINT_MODE_GOODS_ATTACHED,
+            2   => self::POINT_MODE_ORDER_ATTACHED,
+            3   => self::POINT_MODE_POSTER_ATTACHED,
+            4   => self::POINT_MODE_ARTICLE_ATTACHED,
+            5   => self::POINT_MODE_ADMIN_ATTACHED,
+            6   => self::POINT_MODE_BY_ATTACHED,
+            7   => self::POINT_MODE_TEAM_ATTACHED,
+            8   => self::POINT_MODE_LIVE_ATTACHED,
+            9   => self::POINT_MODE_CASHIER_ATTACHED,
+            13  => self::POINT_MODE_TRANSFER_ATTACHED,
+            14  => self::POINT_MODE_RECIPIENT_ATTACHED,
+            15  => self::POINT_MODE_ROLLBACK_ATTACHED,
+            16  => self::POINT_MODE_COUPON_DEDUCTION_AWARD_ATTACHED,
+            17  => self::POINT_MODE_TASK_REWARD_ATTACHED,
+            18  => (app('plugins')->isEnabled('love')) ? '转入' . \Yunshop\Love\Common\Services\SetService::getLoveName() : self::POINT_MODE_TRANSFER_LOVE_ATTACHED,
+            19  => (app('plugins')->isEnabled('sign')) ? trans('Yunshop\Sign::sign.plugin_name') . '奖励' : self::POINT_MODE_SIGN_REWARD_ATTACHED,
+            20  => self::POINT_MODE_COURIER_REWARD_ATTACHED,
+            21  => (app('plugins')->isEnabled('froze')) ? \Yunshop\Froze\Common\Services\SetService::getFrozeName() . '奖励' : self::POINT_MODE_FROZE_AWARD_ATTACHED,
+            23  => self::POINT_MODE_CREATE_ACTIVITY_ATTACHED,
+            24  => self::POINT_MODE_ACTIVITY_OVERDUE_ATTACHED,
+            25  => self::POINT_MODE_RECEIVE_ACTIVITY_ATTACHED,
+            26  => self::POINT_MODE_RECEIVE_OVERDUE_ATTACHED,
+            27  => self::POINT_MODE_COMMISSION_TRANSFER_ATTACHED,
+            28  => self::POINT_MODE_HOTEL_CASHIER_ATTACHED,
+            29  => self::POINT_MODE_EXCEL_RECHARGE_ATTACHED,
+            92  => self::POINT_MODE_RECHARGE_CODE_ATTACHED,
+            93  => self::POINT_MODE_STORE_ATTACHED,
+            94  => self::POINT_MODE_HOTEL_ATTACHED,
+            22  => self::POINT_MODE_COMMUNITY_REWARD_ATTACHED,
+            30  => self::POINT_MODE_CARD_VISIT_REWARD_ATTACHED,
+            31  => self::POINT_MODE_CARD_REGISTER_REWARD_ATTACHED,
+            32  => self::POINT_MODE_PRESENTATION_ATTACHED,
+            33  => (app('plugins')->isEnabled('love')) ? \Yunshop\Love\Common\Services\SetService::getLoveName() . '提现扣除' : self::POINT_MODE_LOVE_WITHDRAWAL_DEDUCTION_ATTACHED,
+            34  => self::POINT_MODE_FIGHT_GROUPS_TEAM_SUCCESS_ATTACHED,
+            35  => self::POINT_MODE_DRAW_CHARGE_GRT_ATTACHED,
+            36  => self::POINT_MODE_DRAW_CHARGE_DEDUCTION_ATTACHED,
+            37  => self::POINT_MODE_DRAW_REWARD_GRT_ATTACHED,
+            38  => self::POINT_MODE_CONVERT_ATTACHED,
+            40  => self::POINT_MODE_CONSUMPTION_POINTS_ATTACHED,
+            41  => self::POINT_MODE_ROOM_MEMBER_ACTIVITY_POINTS_ATTACHED,
+            42  => self::POINT_MODE_ROOM_ACTIVITY_POINTS_ATTACHED,
+            43  => self::POINT_MODE_ROOM_ANCHOR_ACTIVITY_POINTS_ATTACHED,
+            44  => self::POINT_MODE_ROOM_REWARD_TRANSFER_POINTS_ATTACHED,
+            45  => self::POINT_MODE_ROOM_REWARD_RECIPIENT_POINTS_ATTACHED,
+            46  => self::POINT_AUCTION_REWARD_RECIPIENT_POINTS_ATTACHED,
+            47  => self::POINT_INCOME_WITHDRAW_AWARD_ATTACHED,
+            48  => self::POINT_MODE_TRANSFER_BALANCE_ATTACHED,
+            49  => self::POINT_MODE_BIND_MOBILE_ATTACHED,
+            50  => self::POINT_MODE_LAYER_CHAIN_ATTACHED,
+            51  => self::POINT_MODE_LAYER_CHAIN_RECHARGE_ATTACHED,
+            52  => self::POINT_MODE_HEALTH_ASSESSMENT_ATTACHED,
+            53  => self::POINT_MODE_LAYER_CHAIN_QUESTIONNAIRE_ATTACHED,
+            54  => self::POINT_MODE_HEALTH_ASSESSMENT_ATTACHED,
+            55  => self::POINT_INCOME_WITHDRAW_AWARD_ATTACHED_SCALE,
+            56  => self::POINT_MODE_MICRO_COMMUNITIES_REWARD,
+            57  => self::POINT_MODE_CONFERENCE_REWARD,
+            58  => self::POINT_MODE_STORE_SHAREHOLDER_ATTACHED,
+            59  => self::POINT_MODE_ANSWER_REWARD_ATTACHED,
+            60  => self::POINT_MODE_ANSWER_REWARD_PARENT_ATTACHED,
+            61  => self::POINT_MODE_POINT_EXCHANGE_ATTACHED,
+            62  => self::POINT_MODE_SNATCH_REGIMENT_ATTACHED,
+            63  => self::POINT_MODE_FIGHT_GROUPS_LOTTERY_WIN_ATTACHED,
+            64  => self::POINT_MODE_FIGHT_GROUPS_LOTTERY_LOSER_ATTACHED,
+            65  => self::POINT_MODE_COMMUNITY_RELAY_ATTACHED,
+            66  => self::POINT_MODE_REGISTRATION_REWARDS_PARENT_ATTACHED,
+            67  => self::POINT_MODE_REGISTRATION_AWARD_ATTACHED,
+            68  => self::POINT_MODE_OPEN_GROUP_DEDUCTION_ATTACHED,
+            69  => self::POINT_MODE_EXCHANGE_REDPACK_CHALLENGE_ATTACHED,
+            71  => self::POINT_MODE_STAR_SPELL_ATTACHED,
+            72  => self::POINT_MODE_STAR_SPELL_LOST_ATTACHED,
+            73  => self::TEAM_POINTS_REWARD_ATTACHED,
+            74  => self::POINT_MODE_LOCK_DRAW_ATTACHED,
+            75  => self::POINT_MODE_BLIND_BOX_LOST_ATTACHED,
+            76  => self::POINT_MODE_CIRCLE_ADD_ATTACHED,
+            78  => self::POINT_MODE_CONSUMER_REWARD_ATTACHED,
+            77  => self::POINT_MODE_LINK_SERVICE_ATTACHED,
+            79  => self::POINT_MODE_STORE_RESERVE_ATTACHED,
+            80  => self::POINT_MODE_ZHUZHER_CREDIT_LOST_ATTACHED,
+            81  => self::POINT_MODE_DEPOSIT_LADDER_REWARD,
+            82  => self::POINT_MODE_FIGHT_GROUP_LOTTERY_COMFORT_ATTACHED,
+            83  => self::POINT_MODE_LOVE_REDPACK_ATTACHED,
+            84  => self::POINT_MODE_ZHP_LOST_ATTACHED,
+            85  => self::POINT_MODE_TEAM_DIVIDEND_ATTACHED,
+            86  => self::CPS_SUB_PLATFORM_ATTACHED,
+            88  => self::POINT_MODE_COUPON_STORE_REWARD_ATTACHED,
+            90  => self::POINT_MODE_NEW_MEDIA_LIKE_ATTACHED,
+            91  => self::POINT_MODE_NEW_MEDIA_ATTENTION_ATTACHED,
+            95  => self::POINT_MODE_NEW_MEDIA_COMMENT_ATTACHED,
+            96  => self::POINT_MODE_NEW_MEDIA_REWARD_ATTACHED,
+            97  => self::POINT_MODE_NEW_MEDIA_SUPERIOR_ATTACHED,
+            98  => self::POINT_MODE_NEW_MEDIA_EXCHANGE_ATTACHED,
+            99  => self::POINT_MODE_NEW_MEDIA_READ_ATTACHED,
+            100 => self::POINT_MODE_NEW_MEDIA_FORWARD_ATTACHED,
+            101 => self::POINT_MODE_NEW_MEDIA_FAVORITES_ATTACHED,
+            102 => self::GROUP_WORK_AWARD_ATTACHED,
+            103 => self::GROUP_WORK_HEAD_AWARD_ATTACHED,
+            104 => self::GROUP_WORK_PARENT_AWARD_ATTACHED,
+            105 => self::POINT_MODE_VIDEO_WATCH_REWARD_ATTACHED,
+            106 => self::POINT_MODE_VIDEO_TEAM_REWARD_ATTACHED,
+            107 => self::POINT_MODE_FLYERS_ADVERTISE_ATTACHED,
+            108 => self::POINT_MODE_POINT_MIDDLE_SYNC_ATTACHED,
+            112 => self::POINT_MODE_QQ_ADVERTISE_POINT_ATTACHED,
+            111 => self::POINT_MODE_LOVE_TRANSFER_ATTACHED,
+            115 => self::POINT_MODE_GROUP_CHAT_ACTIVITY_REWARD_ATTACHED,
+            117 => self::POINT_MODE_CUSTOMER_INCREASE_REWARD_ATTACHED,
+            118 => self::INTEGRAL_POINT_ATTACHED,
+            119 => self::YS_SYSTEM_POINT_SYNC_NAME,
+            120 => self::POINT_MODE_VIDEO_WATCH_TAKE_ATTACHED,
+            121 => self::POINT_MODE_PARKING_PAY_COUPON_ATTACHED,
+            122 => self::POINT_MODE_LOVE_WITHDRAW_FINAL_REDUCE_ATTACHED,
+            123 => self::POINT_MODE_STORE_BALANCE_RECHARGE_ATTACHED,
+            124 => self::POINT_MODE_YWM_FIGHT_GROUPS_TEAM_SUCCESS_ATTACHED,
+            125 => self::POINT_MODE_LOVE_BUY_DEDUCTE_REDUCE_ATTACHED,
+            126 => self::POINT_MODE_SUBSCRIPTION_ATTACHED,
+            127 => self::POINT_MODE_ROOM_RED_PACK_RECEIVE_ATTACHED,
+            128 => self::POINT_MODE_ROOM_RED_PACK_REFUND_ATTACHED,
+            129 => self::POINT_MODE_ROOM_RED_PACK_SEND_ATTACHED,
+            130  => (app('plugins')->isEnabled('love')) ? '冻结'.\Yunshop\Love\Common\Services\SetService::getLoveName().'激活'  : self::POINT_MODE_LOVE_FROZE_ACTIVE_ATTACHED,
+            131 => self::POINT_MODE_NEWCOMER_FISSION_ACTIVE_ATTACHED,
+            132 => self::POINT_MODE_TRANSFER_INTEGRAL_ATTACHED,
+            133 => self::POINT_MODE_BLB_CASHIER_ATTACHED,
+            134 => self::FACE_TO_FACE_BUY_ATTACHED,
+            135 => self::FACE_TO_FACE_MEMBER_GIFT_ATTACHED,
+            136 => self::FACE_TO_FACE_MERCHANT_GIFT_ATTACHED,
+            139 => self::POINT_EXCHANGE_OUT_ATTACHED,
+            140 => self::POINT_EXCHANGE_IN_ATTACHED,
+            141 => self::POINT_MODE_FIRST_PARENT_REWARD_ATTACHED,
+            142 => self::POINT_MODE_SECOND_PARENT_REWARD_ATTACHED,
+            143 => self::POINT_MODE_FIRST_PARENT_REFUND_ATTACHED,
+            144 => self::POINT_MODE_SECOND_PARENT_REFUND_ATTACHED,
+            145 => self::POINT_MODE_POINT_EXCHANGE_LOVE_ATTACHED,
+            146 => self::POINT_MODE_POOL_RESET_ATTACHED,
+            147 => self::ACTIVITY_REWARD_INTEGRAL_ATTACHED,
+            148 => self::POINT_MODE_AREA_DIVIDEND_ATTACHED,
+            149 => self::POINT_MODE_LOVE_SPEED_POOL_CLEAR_ATTACHED,
+            153 => self::POINT_MODE_AREA_DIVIDEND_AWARD_ATTACHED,
+            154 => self::POINT_MODE_AREA_MERCHANT_AWARD_ATTACHED,
+            155 => self::POINT_MODE_FACE_TO_FACE_AWARD_ATTACHED,
+            157 => self::STAFF_AUDIT_REWARD_ATTACHED,
+            158 => self::STATIC_POINT_DIVIDEND_ATTACHED,
+            159 => self::WISE_YUAN_TRADE_ACTIVITY_GIVE_ATTACHED,
+            160 => app('plugins')->isEnabled('wise-yuan-trade') ?
+                \Yunshop\WiseYuanTrade\common\WiseYuanTradeSet::instance()->customName('reopen_name').'转入' : self::WISE_YUAN_TRADE_REOPEN_GIVE_ATTACHED,
+        ];
+
+        foreach (static::$otherSource as $key => $value) {
+            if (!isset($activity_mode[$key])) {
+                $activity_mode[$key] = $value;
+            }
+        }
+
+        return $activity_mode;
     }
 }

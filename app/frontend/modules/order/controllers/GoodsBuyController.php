@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/4/11
  * Time: 上午10:20
  */
@@ -9,8 +9,10 @@
 namespace app\frontend\modules\order\controllers;
 
 use app\common\components\ApiController;
+use app\frontend\models\Member;
 use app\frontend\modules\member\services\MemberCartService;
 use app\frontend\modules\memberCart\MemberCartCollection;
+
 class GoodsBuyController extends ApiController
 {
     /**
@@ -26,6 +28,9 @@ class GoodsBuyController extends ApiController
         ];
         $result = new MemberCartCollection();
         $result->push(MemberCartService::newMemberCart($goods_params));
+
+        event(new \app\common\events\goods\BeforeSaveGoodsVerify(request()->input('goods_id'), request()->input('total')));
+
         return $result;
     }
 
@@ -53,6 +58,7 @@ class GoodsBuyController extends ApiController
     {
         $this->validateParam();
         $trade = $this->getMemberCarts()->getTrade();
+
         return $this->successJson('成功', $trade);
     }
 

@@ -37,7 +37,7 @@ class MemberIncomeController extends BaseController
             ->selectRaw('sum(if(incometable_type like "%TeamDividend%", amount, 0)) as team_dividend')
             ->with([
                 'hasOneWithdraw' => function($q) {
-                    $q->selectRaw('sum(poundage) as total_poundage, member_id')->groupBy('member_id');
+                    $q->selectRaw('sum(actual_poundage) as total_poundage, member_id')->where('status',2)->groupBy('member_id');
                 },
                 'hasOneMember',
             ])
@@ -56,7 +56,19 @@ class MemberIncomeController extends BaseController
             ->selectRaw('sum(if(incometable_type like "%TeamDividend%", amount, 0)) as team_dividend')
             ->first()
             ->toArray();
-        $totalPoundage = \app\common\models\Withdraw::uniacid()->selectRaw('sum(actual_poundage) as total_poundage')->first();
+        $totalPoundage = \app\common\models\Withdraw::uniacid()
+            ->when($search['is_time'],function($query) use($search){
+                $query->whereBetween('created_at',[strtotime($search['time']['start']),strtotime($search['time']['end'])]);
+            })
+            ->when($search['member_id'],function($query) use($search){
+                $query->where('member_id',$search('member_id'));
+            })
+            ->when($search['member'],function($query)use($search){
+                $query->whereHas('hasOneMember',function ($q) use($search) {
+                    $q->searchLike($search['member']);
+                });
+            })
+            ->selectRaw('sum(actual_poundage) as total_poundage')->where('status',2)->first();
 
         $pager = PaginationHelper::show($list->total(), $list->currentPage(), $list->perPage());
         return view('charts.income.member_income',[
@@ -90,7 +102,7 @@ class MemberIncomeController extends BaseController
         }
 
         //检测收入数据
-        $incomeModel = Income::getIncomes()->where('member_id', $uid)->orderBy('created_at','decs');
+        $incomeModel = Income::getIncomes()->where('member_id', $uid)->orderBy('created_at','desc');
 //        dd($incomeModel);
 //        $config = \app\backend\modules\income\Income::current()->getItems();
 //        unset($config['balance']);
@@ -167,11 +179,15 @@ class MemberIncomeController extends BaseController
                 $item->merchant_dividend ?: '0.00',
             ];
         }
-        \Excel::create($file_name, function ($excel) use ($export_data) {
-            $excel->sheet('score', function ($sheet) use ($export_data) {
-                $sheet->rows($export_data);
-            });
-        })->export('csv');
+
+        \app\exports\ExcelService::fromArrayExport($export_data, $file_name.'.cvs');
+
+        // 商城更新，无法使用
+//        \Excel::create($file_name, function ($excel) use ($export_data) {
+//            $excel->sheet('score', function ($sheet) use ($export_data) {
+//                $sheet->rows($export_data);
+//            });
+//        })->export('csv');
 
     }
 

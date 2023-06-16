@@ -2,18 +2,12 @@
 
 namespace app\backend\modules\refund\models;
 
+use Illuminate\Http\Request;
 use app\backend\modules\order\models\Order;
 use app\backend\modules\refund\models\type\RefundMoney;
 use app\backend\modules\refund\models\type\ExchangeGoods;
 use app\backend\modules\refund\models\type\ReturnGoods;
 use app\common\exceptions\AdminException;
-
-/**
- * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
- * Date: 2017/4/21
- * Time: 下午2:24
- */
 
 /**
  * Class RefundApply
@@ -26,43 +20,57 @@ class RefundApply extends \app\common\models\refund\RefundApply
 
     protected $typeInstance;
 
+    protected $request;
+
+    //确认退款
     public function refundMoney()
     {
         return $this->getTypeInstance()->refundMoney();
     }
 
-    public function reject($data)
+    //驳回
+    public function reject()
     {
-        return $this->getTypeInstance()->reject($data);
+        return $this->getTypeInstance()->reject();
     }
 
+    //同意申请
     public function pass()
     {
         return $this->getTypeInstance()->pass();
     }
 
+
+    //手动退款
     public function consensus()
     {
         return $this->getTypeInstance()->consensus();
     }
 
+    //没用
     public function receiveReturnGoods()
     {
         //todo 补充当退款类型实例请求 收货请求时的提示
         return $this->getTypeInstance()->receiveReturnGoods();
     }
 
+    //换货完成
     public function close()
     {
         return $this->getTypeInstance()->close();
 
     }
 
+    //商家发货
     public function resend()
     {
         return $this->getTypeInstance()->resend();
     }
 
+    /**
+     * @return ExchangeGoods|RefundMoney|ReturnGoods
+     * @throws AdminException
+     */
     protected function getTypeInstance()
     {
         if (!isset($this->typeInstance)) {
@@ -84,5 +92,26 @@ class RefundApply extends \app\common\models\refund\RefundApply
 
         return $this->typeInstance;
 
+    }
+
+    /**
+     * @param $request
+     */
+    public function setRequest($request)
+    {
+        if ($request instanceof Request) {
+            $this->request = $request;
+        }
+        if (is_array($request)) {
+            $this->request = request()->merge($request);
+        }
+    }
+
+    public function getRequest()
+    {
+        if (!isset($this->request)) {
+            $this->request = request();
+        }
+        return $this->request;
     }
 }

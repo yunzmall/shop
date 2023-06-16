@@ -32,10 +32,10 @@ class GoodsOptionPriceAdapter extends BaseGoodsPriceAdapter
 
         switch ($level_discount_set['type']) {
             case 1:
-                $deal_price = $this->goods()->market_price;
+                $deal_price = $this->getMarketPrice();
                 break;
             default:
-                $deal_price = $this->goods()->product_price;
+                $deal_price = $this->getPrice();
         }
 
         return $deal_price;
@@ -43,7 +43,7 @@ class GoodsOptionPriceAdapter extends BaseGoodsPriceAdapter
 
     protected function _getDealPrice()
     {
-        return $this->goods()->deal_Price;
+        return $this->goods()->deal_price;
     }
 
 

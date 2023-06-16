@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/2/22
  * Time: 下午5:54
  */
@@ -42,8 +42,7 @@ class Category extends BaseModel
     {
         return self::uniacid()
             ->where('parent_id', $parentId)
-            ->orderBy('display_order', 'asc')
-            ->orderBy('id', 'asc');
+            ->orderBy('display_order', 'desc');
     }
 
     public static function checkCategory($ids=[]){
@@ -72,13 +71,13 @@ class Category extends BaseModel
         if ($set['cat_level'] == 3) {
             $model->with(['hasManyChildren'=>function($qurey){
                 return $qurey->where('enabled', 1)
-                    ->orderBy('display_order', 'asc');
+                    ->orderBy('display_order', 'desc');
             }]);
         }
 
         $model->where('parent_id', $parentId);
         $model->where('enabled', 1);
-        $model->orderBy('display_order', 'asc');
+        $model->orderBy('display_order', 'desc');
         $model->orderBy('id', 'asc');
         return $model;
     }

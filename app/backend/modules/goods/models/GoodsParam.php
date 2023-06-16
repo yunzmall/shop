@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/2/22
  * Time: 下午18:16
  */
@@ -12,7 +12,38 @@ class GoodsParam extends \app\common\models\GoodsParam
 {
     static protected $needLog = true;
 
-    public static function saveParam($data, $goods_id = 2)
+
+    public static function store($goods_id, $parameter)
+    {
+        $paramids = [];
+        foreach ($parameter as  $key => $item) {
+            $param = [
+                "uniacid" => \YunShop::app()->uniacid,
+                "title" => $item['title'],
+                "value" => $item['value'],
+                "displayorder" => $key,
+                "goods_id" => $goods_id
+            ];
+            if (!intval($item['id'])) {
+                $goods_param = self::create($param);
+                $param_id = $goods_param->id;
+            } else {
+                $goods_param = GoodsParam::updateOrCreate(['id' => intval($item['id'])], $param);
+                $param_id = $goods_param->id;
+            }
+            $paramids[] = $param_id;
+        }
+
+        //删除本商品其它规格
+        if (count($paramids) > 0) {
+            GoodsParam::where('goods_id', '=', $goods_id)->whereNotIn('id', $paramids )->delete();
+
+        } else {
+            GoodsParam::where('goods_id', '=', $goods_id)->delete();
+        }
+    }
+
+    public static function saveParam($data, $goods_id)
     {
         $param_ids = $data->param_id;
         $param_titles = $data->param_title;

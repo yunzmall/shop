@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 24/03/2017
  * Time: 01:07
  */
@@ -36,34 +36,22 @@ class AlipayController extends PaymentController
 
     private $pay_type_id = 2;
 
+    //商城支付宝app支付异步通知
     public function notifyUrl()
     {
-        $this->log($_POST, '支付宝支付');
-        if ($_POST['sign_type'] == 'MD5') {
-            $verify_result = $this->getSignResult();
-        } else {
-            //定义app支付类型，验证app回调信息
-            $this->pay_type_id = 10;
-            $verify_result = $this->get_RSA_SignResult($_POST);
-        }
-
+        $this->log($_POST, '支付宝支付2.0');
+        $this->pay_type_id = 10;
+        $verify_result = $this->get_RSA_SignResult($_POST);
         \Log::debug(sprintf('支付回调验证结果[%d]', intval($verify_result)));
-
         if ($verify_result) {
             if ($_POST['trade_status'] == 'TRADE_SUCCESS') {
-                if ($_POST['sign_type'] == 'RSA2') {
-                    if (strpos($_POST['out_trade_no'], '_') !== false) {
-                        $out_trade_no = substr($_POST['out_trade_no'], strpos($_POST['out_trade_no'], '_') + 1);
-                    } else {
-                        $out_trade_no = $_POST['out_trade_no'];
-                    }
+                if (strpos($_POST['out_trade_no'], '_') !== false) {
+                    $out_trade_no = substr($_POST['out_trade_no'], strpos($_POST['out_trade_no'], '_') + 1);
                 } else {
                     $out_trade_no = $_POST['out_trade_no'];
                 }
-
-                $total_key = $this->total_fee[$_POST['sign_type']];
                 $data = [
-                    'total_fee' => $_POST[$total_key],
+                    'total_fee' => $_POST['total_amount'],
                     'out_trade_no' => $out_trade_no,
                     'trade_no' => $_POST['trade_no'],
                     'unit' => 'yuan',
@@ -71,7 +59,6 @@ class AlipayController extends PaymentController
                     'pay_type_id' => $this->pay_type_id
 
                 ];
-
                 $this->payResutl($data);
             }
 
@@ -80,34 +67,52 @@ class AlipayController extends PaymentController
             echo "fail";
         }
     }
-
-    //商城支付宝app2.0支付异步通知
+    //商城支付宝app支付异步通知
     public function newNotifyUrl()
     {
         $this->log($_POST, '支付宝支付2.0');
-        if ($_POST['sign_type'] == 'MD5') {
-            $verify_result = $this->getSignResult();
-        } else {
-            $verify_result = $this->get_RSA2_SignResult($_POST);
-        }
-
+        $this->pay_type_id = 10;
+        $verify_result = $this->get_RSA_SignResult($_POST);
         \Log::debug(sprintf('支付回调验证结果[%d]', intval($verify_result)));
-
         if ($verify_result) {
             if ($_POST['trade_status'] == 'TRADE_SUCCESS') {
-                if ($_POST['sign_type'] == 'RSA2') {
-                    if (strpos($_POST['out_trade_no'], '_') !== false) {
-                        $out_trade_no = substr($_POST['out_trade_no'], strpos($_POST['out_trade_no'], '_') + 1);
-                    } else {
-                        $out_trade_no = $_POST['out_trade_no'];
-                    }
+                if (strpos($_POST['out_trade_no'], '_') !== false) {
+                    $out_trade_no = substr($_POST['out_trade_no'], strpos($_POST['out_trade_no'], '_') + 1);
                 } else {
                     $out_trade_no = $_POST['out_trade_no'];
                 }
-
-                $total_key = $this->total_fee[$_POST['sign_type']];
                 $data = [
-                    'total_fee' => $_POST[$total_key],
+                    'total_fee' => $_POST['total_amount'],
+                    'out_trade_no' => $out_trade_no,
+                    'trade_no' => $_POST['trade_no'],
+                    'unit' => 'yuan',
+                    'pay_type' => $this->sign_type[$_POST['sign_type']],
+                    'pay_type_id' => $this->pay_type_id
+
+                ];
+                $this->payResutl($data);
+            }
+
+            echo "success";
+        } else {
+            echo "fail";
+        }
+    }
+    //标准支付宝支付
+    public function preNotifyUrl()
+    {
+        $this->log($_POST, '支付宝支付2.0');
+        $verify_result = $this->get_RSA2_SignResult($_POST);
+        \Log::debug(sprintf('支付回调验证结果[%d]', intval($verify_result)));
+        if ($verify_result) {
+            if ($_POST['trade_status'] == 'TRADE_SUCCESS') {
+                if (strpos($_POST['out_trade_no'], '_') !== false) {
+                    $out_trade_no = substr($_POST['out_trade_no'], strpos($_POST['out_trade_no'], '_') + 1);
+                } else {
+                    $out_trade_no = $_POST['out_trade_no'];
+                }
+                $data = [
+                    'total_fee' => $_POST['total_amount'],
                     'out_trade_no' => $out_trade_no,
                     'trade_no' => $_POST['trade_no'],
                     'unit' => 'yuan',
@@ -135,17 +140,29 @@ class AlipayController extends PaymentController
             } else {
                 $out_trade_no = $alipayresult['alipay_trade_app_pay_response']['out_trade_no'];
             }
-            \Log::debug('====================支付宝APP支付2.0======================:', $alipayresult['alipay_trade_app_pay_response']);
+            \Log::debug('=========支付宝APP支付2.0==========:', $alipayresult['alipay_trade_app_pay_response']);
         } elseif (strpos($_GET['out_trade_no'], '_') !== false) {
             $data = explode('_', $_GET['out_trade_no']);
-            $out_trade_no = $data[1];
-            \YunShop::app()->uniacid = $data[0];
-            \Log::debug('=============商城支付宝APP支付2.0===========:', $data);
+            if (count($data) == 2) {
+                $out_trade_no = $data[1];
+                \YunShop::app()->uniacid = $data[0];
+                \Log::debug('=============商城支付宝APP支付2.0==========:', $data);
+            } else {
+                $out_trade_no = $data[0];
+                \YunShop::app()->uniacid = $data[1];
+                \Log::debug('========支付宝JSAPI支付（服务商）=====:', $data);
+            }
+
         } else {
             $out_trade_no = $this->substr_var($_GET['out_trade_no']);
         }
+
         $orderPay = OrderPay::where('pay_sn', $out_trade_no)->first();
-        $orders = Order::whereIn('id', $orderPay->order_ids)->get();
+
+        if (!is_null($orderPay)) {
+            $orders = Order::whereIn('id', $orderPay->order_ids)->get();
+            event($event = new AfterOrderPaidRedirectEvent($orders, $orderPay->id));
+        }
 
         $trade = \Setting::get('shop.trade');
         //这里做支付后跳转，需要取到支付流水号
@@ -160,10 +177,11 @@ class AlipayController extends PaymentController
                 $redirect = $trade['redirect_url'] . '&outtradeno=' . $out_trade_no;
             }
         }
-        event($event = new AfterOrderPaidRedirectEvent($orders, $orderPay->id));
-        $redirect = $event->getData()['redirect'] ?: $redirect;
-        redirect($redirect)->send();
 
+        if (isset($event)) {
+            $redirect = $event->getData()['redirect'] ?: $redirect;
+        }
+        redirect($redirect)->send();
     }
 
     public function jsapiNotifyUrl()
@@ -405,11 +423,8 @@ class AlipayController extends PaymentController
         }
         ($res) or die('支付宝RSA公钥错误。请检查公钥文件格式是否正确');
         //调用openssl内置方法验签，返回bool值
-        if ($isnewalipay) {
-            $result = (bool)openssl_verify($data, base64_decode($sign), $res, OPENSSL_ALGO_SHA256);
-        } else {
-            $result = (bool)openssl_verify($data, base64_decode($sign), $res);
-        }
+        $result = (bool)openssl_verify($data, base64_decode($sign), $res, OPENSSL_ALGO_SHA256);
+
         openssl_free_key($res);
         return $result;
     }
@@ -427,7 +442,6 @@ class AlipayController extends PaymentController
         $set = \Setting::get('shop.pay');
         $alipay_sign_public = decrypt($set['rsa_public_key']);
         //如果isnewalipay为1，则为rsa2支付类型
-        $isnewalipay = \Setting::get('shop.pay.alipay_pay_api');
         if (!$this->checkEmpty($alipay_sign_public)) {
             $res = "-----BEGIN PUBLIC KEY-----\n" .
                 wordwrap($alipay_sign_public, 64, "\n", true) .
@@ -435,11 +449,7 @@ class AlipayController extends PaymentController
         }
         ($res) or die('支付宝RSA公钥错误。请检查公钥文件格式是否正确');
         //调用openssl内置方法验签，返回bool值
-        if ($isnewalipay) {
-            $result = (bool)openssl_verify($data, base64_decode($sign), $res, OPENSSL_ALGO_SHA256);
-        } else {
-            $result = (bool)openssl_verify($data, base64_decode($sign), $res);
-        }
+        $result = (bool)openssl_verify($data, base64_decode($sign), $res, OPENSSL_ALGO_SHA256);
         openssl_free_key($res);
         return $result;
     }

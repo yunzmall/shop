@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 18/04/2017
  * Time: 15:12
  */
@@ -16,12 +16,21 @@ use app\backend\modules\uploadVerificate\UploadVerificationBaseController;
 use app\backend\modules\uploadVerificate\UploadVerificationController;
 use app\common\components\BaseController;
 use app\common\events\order\AfterOrderCreatedEvent;
+use app\common\facades\EasyWeChat;
+use app\common\facades\Setting;
+use app\common\helpers\Url;
+use app\common\models\Goods;
 use app\common\models\Income;
 use app\common\models\member\ChildrenOfMember;
+use app\common\models\member\MemberParent;
 use app\common\models\member\ParentOfMember;
 use app\common\models\Order;
 use app\common\models\OrderGoods;
 use app\common\modules\shop\ShopConfig;
+use app\common\services\PayFactory;
+use app\common\services\Session;
+use app\common\services\systemUpgrade;
+use app\common\services\wechatApiV3\ApiV3Config;
 use app\framework\Http\Request;
 use app\framework\Redis\RedisServiceProvider;
 use app\common\services\member\MemberRelation;
@@ -31,12 +40,40 @@ use app\Jobs\addReturnIncomeJob;
 use app\Jobs\MemberLowerCountJob;
 use app\Jobs\MemberLowerGroupOrderJob;
 use app\Jobs\MemberLowerOrderJob;
+use business\common\models\Staff;
+use business\common\services\QyWechatRequestService;
+use business\common\services\SettingService;
 use Carbon\Carbon;
+use EasyWeChat\Factory;
+use EasyWeChat\Kernel\Messages\TextCard;
 use Illuminate\Filesystem\Filesystem;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redis;
+use Yunshop\BrowseFootprint\models\BrowseFootprintModel;
+use Yunshop\CityDelivery\models\AnotherOrder;
+use Yunshop\CityDelivery\models\DeliveryOrder;
+use Yunshop\CityDelivery\services\SfService;
+use Yunshop\ClockIn\api\ClockInPayController;
+use Yunshop\Commission\models\AgentLevel;
 use Yunshop\Commission\models\Agents;
 use Yunshop\Commission\models\CommissionOrder;
+use Yunshop\CustomerIncrease\models\Activity;
+use Yunshop\CustomerIncrease\models\ActivityCode;
+use Yunshop\CustomerIncrease\models\ActivityPoster;
+use Yunshop\CustomerIncrease\services\IntroduceService;
+use Yunshop\CustomerIncrease\services\PosterService;
+use Yunshop\CustomerRadar\models\CustomerRadarSet;
+use Yunshop\GroupDevelopUser\common\models\GroupChat;
+use Yunshop\GroupDevelopUser\common\models\GroupCode;
+use Yunshop\GroupDevelopUser\common\services\CodeService;
+use Yunshop\GroupDevelopUser\common\services\GroupChatService;
+use Yunshop\GroupReward\common\services\GroupChatRewardService;
+use Yunshop\MemberTags\Common\models\MemberTagsRelationModel;
+use Yunshop\ProjectManager\events\SaveNoticeEvent;
+use Yunshop\StoreCashier\common\models\StoreSetting;
+use Yunshop\TeamDividend\admin\models\MemberChild;
 use Yunshop\UploadVerification\service\UploadVerificateRoute;
 use app\backend\modules\member\models\MemberShopInfo;
 use app\common\events\member\BecomeAgent;
@@ -45,6 +82,12 @@ use app\common\models\order\OrderDeduction;
 use Yunshop\StoreBusinessAlliance\models\StoreBusinessAlliancePriceDifferenceAwardModel;
 use Yunshop\StoreBusinessAlliance\models\StoreBusinessAllianceRecommendAwardModel;
 use app\common\events\order\AfterOrderReceivedEvent;
+use Exception;
+use Yunshop\WechatCustomers\common\models\Customer;
+use Yunshop\YunChat\common\models\Chats;
+use Yunshop\YunChat\common\service\ChatService;
+use Yunshop\YunChat\common\utils\WechatKf;
+use Yunshop\YunChat\manage\GroupController;
 
 
 class TestController extends UploadVerificationBaseController
@@ -53,7 +96,20 @@ class TestController extends UploadVerificationBaseController
 
     protected $isPublic = true;
 
-    //生成请求链接
+    public function t()
+    {
+        return;
+    }
+
+
+    public function getParams($url)
+    {
+        $result = array();
+        $mr     = preg_match('/groupId=([0-9]+)/', $url, $matchs);
+        dd($url,$mr,$matchs);
+    }
+
+ //生成请求链接
     public function getRequestUrl($base_url, //设置页面的基础链接
                                   $app_id,   //设置页面的app_id
                                   $app_secret, //设置页面的app_secret
@@ -62,47 +118,13 @@ class TestController extends UploadVerificationBaseController
                                   $notify_url = 'https://www.baidu.com' //要增加的积分点数，如果设置页面没有开启积分增加开关则无效
     )
     {
-        $i = explode('i=', $base_url);
-        $i = trim($i[1]);
-
-        if (!$app_id || !$app_secret || !$user_mobile || !$i || $point < 0) {
-            return false;
-        }
-
-        $request_arr = [
-            'app_id' => $app_id,
-            'timestamp' => time(),
-            'user_mobile' => $user_mobile,
-            'point' => bcmul($point, 1, 2),
-            'number' => mt_rand(1000, 9999)
-        ];
-
-        $request_arr['sign'] = $this->getSign(array_merge($request_arr, ['app_secret' => $app_secret, 'i' => $i]));
-
-        return $base_url . '&' . http_build_query($request_arr);
-
-    }
-
-
-    //生成sign
-    private function getSign($sign_arr)
-    {
-        ksort($sign_arr);
-
-        return hash_hmac('sha256', http_build_query($sign_arr), $sign_arr['app_secret']);
-
-    }
-    public function t()
-    {
-        $a = $this->getRequestUrl('https://yz.zd71360.com/addons/yun_shop/?menu#/others/integral_shop?i=25',
-            'xksd63897','xksd78635','15736779727');
-        dd($a);
     }
 
     public function a()
     {
         (new \app\backend\modules\charts\modules\member\services\TimedTaskService())->handle();
     }
+
     private $amountItems;
 
     private function getAmountItems()
@@ -490,21 +512,18 @@ class TestController extends UploadVerificationBaseController
 
     public function test()
     {
-    	
-    	dd(json_decode('{"userid":"ZouMaGuanHua","remark":"Abe","description":"","createtime":1629712133,"tags":[],"remark_mobiles":[],"add_way":0}'));
-	    $data = unserialize('a:3:{i:0;a:5:{s:8:"group_id";s:32:"etDesSDgAAgSPK4ZV9R6whR-HznwfJGw";s:10:"group_name";s:16:"测试标签组1";s:11:"create_time";i:1616825466;s:3:"tag";a:2:{i:0;a:4:{s:2:"id";s:32:"etDesSDgAACFJtKmZ8DmxP3DjZmceyLw";s:4:"name";s:14:"测试标签11";s:11:"create_time";i:1616825466;s:5:"order";i:0;}i:1;a:4:{s:2:"id";s:32:"etDesSDgAAYoJscGWjVDukf38n7PJIOg";s:4:"name";s:15:"测试标签1-2";s:11:"create_time";i:1616825466;s:5:"order";i:0;}}s:5:"order";i:0;}i:1;a:5:{s:8:"group_id";s:32:"etDesSDgAAkqdytUBUMtc_fsnHRnEZ6w";s:10:"group_name";s:22:"开发测试标签组1";s:11:"create_time";i:1615434976;s:3:"tag";a:1:{i:0;a:4:{s:2:"id";s:32:"etDesSDgAAB6_PNgMEt6fWHVVJhceQow";s:4:"name";s:29:"开发测试标签组1标签1";s:11:"create_time";i:1615434976;s:5:"order";i:0;}}s:5:"order";i:0;}i:2;a:5:{s:8:"group_id";s:32:"etDesSDgAAe1uXI3LwGyNBoOtNhGr46Q";s:10:"group_name";s:12:"客户等级";s:11:"create_time";i:1581554618;s:3:"tag";a:3:{i:0;a:4:{s:2:"id";s:32:"etDesSDgAAcBFviotsZn1vuRNmolURmw";s:4:"name";s:6:"一般";s:11:"create_time";i:1581554618;s:5:"order";i:0;}i:1;a:4:{s:2:"id";s:32:"etDesSDgAAuZKtVsCgU3R6fzzYTixGMw";s:4:"name";s:6:"重要";s:11:"create_time";i:1581554618;s:5:"order";i:0;}i:2;a:4:{s:2:"id";s:32:"etDesSDgAAXjIInNAJ6GedjNyDHAqYGw";s:4:"name";s:6:"核心";s:11:"create_time";i:1581554618;s:5:"order";i:0;}}s:5:"order";i:0;}}');
-	    
-	    dd();
+
     }
 
-    public function fixImg(){
-        $time = [mktime(23,59,59,date('m'),date('d')-date('w')-7,date('Y')),time()];
+    public function fixImg()
+    {
+        $time = [mktime(23, 59, 59, date('m'), date('d') - date('w') - 7, date('Y')), time()];
 //        $time = [mktime(0,0,0,date('m'),1,date('Y')),time()];
 
-        $order = Order::uniacid()->with(['hasManyOrderGoods.goods'])->whereBetween('create_time',$time)->get();
-        foreach ($order as $item){
-            foreach ($item['hasManyOrderGoods'] as $it){
-                if (empty($it['thumb'])){
+        $order = Order::uniacid()->with(['hasManyOrderGoods.goods'])->whereBetween('create_time', $time)->get();
+        foreach ($order as $item) {
+            foreach ($item['hasManyOrderGoods'] as $it) {
+                if (empty($it['thumb'])) {
                     $order_goods = OrderGoods::find($it['id']);
                     $data['thumb'] = yz_tomedia($it['goods']['thumb']);
                     $order_goods->fill($data);
@@ -513,8 +532,8 @@ class TestController extends UploadVerificationBaseController
                         throw new AppException($validator->messages()->first());
                     }
                     if (!$order_goods->save()) {
-                        \Log::debug('修复图片失败,订单id:'.$item['id']);
-                        throw new AppException('修复图片失败,订单id:'.$item['id']);
+                        \Log::debug('修复图片失败,订单id:' . $item['id']);
+                        throw new AppException('修复图片失败,订单id:' . $item['id']);
                     }
                 }
             }
@@ -523,4 +542,16 @@ class TestController extends UploadVerificationBaseController
         dd('修复成功');
     }
 
+    public function suser()
+    {
+        $u = request()->input('u');
+
+        $blank = request()->input('blank');
+        if ($blank) {
+            Session::set('member_id', $u);
+        }
+
+        $a = Session::get('member_id');
+        dd($a);
+    }
 }

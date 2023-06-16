@@ -27,7 +27,8 @@ class ListController extends ApiController
 
         $member_id =  \YunShop::app()->getMemberId();
 
-        $cartList = app('CartContainer')->make('MemberCart')->carts()->filterFailureGoods()
+        //->filterFailureGoods()
+        $cartList = app('CartContainer')->make('MemberCart')->carts()
             ->where('yz_member_cart.member_id', $member_id)
 //            ->pluginId()
             ->with(["hasManyAddress"=>function($query) use ($member_id){
@@ -39,6 +40,7 @@ class ListController extends ApiController
 
             ->orderBy('yz_member_cart.created_at', 'desc')
             ->get();
+
 
         $manager = new GroupManager();
         $manager->init($cartList);
@@ -76,17 +78,23 @@ class ListController extends ApiController
     //删除失效购物车
     public function delFailureCart()
     {
-        $member_id =  \YunShop::app()->getMemberId();
-        $cart_ids = app('CartContainer')->make('MemberCart')->select('yz_member_cart.id')
-            ->join('yz_goods', 'yz_goods.id', '=', 'yz_member_cart.goods_id')
-            ->where(function ($where) {
-                return $where->where('yz_goods.status','!=',1)->orWhereNotNull('yz_goods.deleted_at');
-            })
-            ->where('yz_member_cart.member_id', $member_id)
-            ->orderBy('yz_member_cart.created_at', 'desc')
-            ->pluck('yz_member_cart.id')->toArray();
 
-        $bool = MemberCart::whereIn('id', $cart_ids)->delete();
+        $cart_ids = request()->input('cart_ids');
+        $member_id =  \YunShop::app()->getMemberId();
+
+       $bool = app('CartContainer')->make('MemberCart')
+           ->where('member_id', $member_id)
+           ->whereIn('id', $cart_ids)->delete();
+//        $cart_ids = app('CartContainer')->make('MemberCart')->select('yz_member_cart.id')
+//            ->join('yz_goods', 'yz_goods.id', '=', 'yz_member_cart.goods_id')
+//            ->where(function ($where) {
+//                return $where->where('yz_goods.status','!=',1)->orWhereNotNull('yz_goods.deleted_at');
+//            })
+//            ->where('yz_member_cart.member_id', $member_id)
+//            ->orderBy('yz_member_cart.created_at', 'desc')
+//            ->pluck('yz_member_cart.id')->toArray();
+//
+//        $bool = MemberCart::whereIn('id', $cart_ids)->delete();
 
         return $this->successJson('del',$bool);
     }
@@ -194,6 +202,9 @@ class ListController extends ApiController
             if ($cartModel) {
                 $cartModel->total = $num;
 
+                // 触发保存验证是否有要拦击验证并通过.
+                event(new \app\common\events\cart\BeforeSaveCartVerify($cartModel->goods_id, $cartModel->total, 'cartList'));
+
                 if ($cartModel->total < 1) {
                     $result = MemberCartService::clearCartByIds([$cartModel->id]);
                     if ($result) {
@@ -253,5 +264,58 @@ class ListController extends ApiController
         }
 
         return $cartId;
+    }
+
+    public function recommendGoods()
+    {
+        $plugin_on = app('plugins')->isEnabled('web-design');
+        $plugin_set_on = \Setting::get('web-design.web_set.cart_open');
+        if ($plugin_on && $plugin_set_on) {
+            $data =  \Yunshop\WebDesign\common\models\Goods::getRecommend();
+
+            return $this->successJson('ok', $data);
+        }
+
+        return $this->errorJson('fail');
+    }
+
+    public function cartGoodsNum()
+    {
+
+        $data['cart_goods_num'] = \app\frontend\models\MemberCart::uniacid()
+            ->select('member_id', 'total')
+            ->where('member_id', \YunShop::app()->getMemberId())
+            ->sum('total');
+
+//        $data['cart_num'] = \app\frontend\models\MemberCart::getCartNum(\YunShop::app()->getMemberId());
+
+        return $this->successJson('购物车商品总数', $data);
+    }
+
+    public function otherPageCartList()
+    {
+        $member_id = \YunShop::app()->getMemberId();
+        $cartList = app('CartContainer')->make('MemberCart')->carts()
+            ->where('yz_member_cart.member_id', $member_id)
+            ->with(["hasManyAddress"=>function($query) use ($member_id){
+                return $query->where("uid",$member_id)->where("isdefault",1);
+            }])
+            ->with(["hasManyMemberAddress"=> function($query) use ($member_id){
+                return $query->where("uid",$member_id)->where("isdefault",1);
+            }])
+            ->orderBy('yz_member_cart.created_at', 'desc')
+            ->get();
+
+        //todo 其他页也要搞个购物车展示，跟上面的区别就是默认选中全部计算金额...这样写最快
+        $ids = [];
+        foreach ($cartList as $item) {
+            $ids[] = $item->id;
+        }
+        request()->offsetSet('cart_ids',implode(',',$ids));
+
+        $manager = new GroupManager();
+        $manager->init($cartList);
+        $cartLists = $manager->cartList();
+        return $this->successJson('list', $cartLists);
     }
 }

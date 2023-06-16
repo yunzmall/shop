@@ -25,6 +25,7 @@ class CreateDispatchClassify extends Migration
                 $table->integer('created_at')->nullable();
                 $table->integer('updated_at')->nullable();
             });
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE " . app('db')->getTablePrefix() . "yz_dispatch_classify comment '配送分类表'");//表注释
         }
     }
 

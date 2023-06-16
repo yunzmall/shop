@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/2/28
  * Time: 上午11:32
  */
@@ -38,10 +38,32 @@ class DispatchType extends BaseModel
 
     const CLOUD_WAREHOUSE = 9; //云仓
 
+    const SUPPLIER_DRIVER_DISTRIBUTION = 10; //供应商订单配送
+
+    const CITY_DELIVERY = 11; //同城配送
+
+    const STORE_PACKAGE_DELIVER = 12; //门店自提点
+
+    const STORE_POS = 13; //门店POS收银
+
+    const SHOP_POS = 14; //pos收银
+
+    const PACKAGE_DELIVERY = 15; //商城自提
+
+//    public $appends = ['name'];
     public function needSend()
     {
         return $this->need_send;
     }
+
+    public function getNameAttribute()
+    {
+        if ($this->hasOneSet) {
+            return $this->hasOneSet->name ?: $this->attributes['name'];
+        }
+        return $this->attributes['name'];
+    }
+
 
     /**
      * 订单支付就直接完成的配送方式
@@ -49,7 +71,7 @@ class DispatchType extends BaseModel
      */
     public function paidCompleted()
     {
-        return [self::CLOUD_WAREHOUSE];
+        return [self::CLOUD_WAREHOUSE, self::SHOP_POS];
     }
 
 
@@ -92,15 +114,32 @@ class DispatchType extends BaseModel
 
     public static function getCurrentUniacidSet($plugin = 0)
     {
-        $dispatchTypes = self::where('plugin', $plugin)->with(['hasOneSet'])->get();
+        if (is_array($plugin)) {
+            $dispatchTypes = self::whereIn('plugin', $plugin)->with(['hasOneSet'])->get();
+        } else {
+            $dispatchTypes = self::where('plugin', $plugin)->with(['hasOneSet'])->get();
+        }
 
-        $dispatchTypes = $dispatchTypes->map(function ($item) {
-            if (!is_null($item->hasOneSet)) {
-                $item->enable = $item->hasOneSet->enable;
-                $item->sort = $item->hasOneSet->sort;
-            }
-            return $item;
-        })->sortByDesc('sort')->values();
+        $dispatchTypes = $dispatchTypes->filter(function ($item) {
+                    return $item->getPluginEnable();
+                })->map(function ($item) {
+                if (!is_null($item->hasOneSet)) {
+                    $item->enable = $item->hasOneSet->enable;
+                    $item->sort = $item->hasOneSet->sort;
+                }
+                $item->name = $item->getTypeName();
+
+                return $item;
+            })->sortByDesc('sort')->values();
+//        $dispatchTypes = $dispatchTypes->map(function ($item) {
+//            if (!is_null($item->hasOneSet)) {
+//                $item->enable = $item->hasOneSet->enable;
+//                $item->sort = $item->hasOneSet->sort;
+//            }
+//            $item->name = $item->getTypeName();
+//
+//            return $item;
+//        })->sortByDesc('sort')->values();
 
         return $dispatchTypes;
     }
@@ -120,6 +159,26 @@ class DispatchType extends BaseModel
         })->values();
 
         return $dispatchTypes;
+    }
+
+    //todo 临时加自定义名称
+    public function getTypeName()
+    {
+        $type_name = $this->name;
+        switch ($this->id) {
+            case self::PACKAGE_DELIVER : $type_name = PackageDeliver; break;
+        }
+        return $type_name;
+    }
+    //判断是否有这种配送方式
+    public function getPluginEnable()
+    {
+        if ($this->plugin_id) {
+            $configs = \app\common\modules\shop\ShopConfig::current()->get('shop-foundation.order-dispatch-menu')[$this->plugin_id][$this->code];
+        } else {
+            $configs = \app\common\modules\shop\ShopConfig::current()->get('shop-foundation.order-dispatch-menu.shop')[$this->code];
+        }
+        return !is_null($configs);
     }
     
 

@@ -8,17 +8,17 @@
   }
 /*
   window.sysinfo = {
-  'uniacid': '{{YunShop::app()->uniacid or ''}}',
-  'acid': '{{YunShop::app()->acid or ''}}',
-  'openid': '{{YunShop::app()->openid or ''}}',
-  'uid': '{{YunShop::app()->uid or ''}}',
+  'uniacid': '{{YunShop::app()->uniacid ?? ''}}',
+  'acid': '{{YunShop::app()->acid ?? ''}}',
+  'openid': '{{YunShop::app()->openid ?? ''}}',
+  'uid': '{{YunShop::app()->uid ?? ''}}',
   'siteroot': './',
-  //  'siteurl': '{{YunShop::app()->siteurl or ''}}',
-    //'attachurl': '{{YunShop::app()->attachurl or ''}}',
-   // 'attachurl_local': '{{YunShop::app()->attachurl_local or ''}}',
-   // 'attachurl_remote': '{{YunShop::app()->attachurl_remote or ''}}',
+  //  'siteurl': '{{YunShop::app()->siteurl ?? ''}}',
+    //'attachurl': '{{YunShop::app()->attachurl ?? ''}}',
+   // 'attachurl_local': '{{YunShop::app()->attachurl_local ?? ''}}',
+   // 'attachurl_remote': '{{YunShop::app()->attachurl_remote ?? ''}}',
 
-  'cookie' : {'pre': '{{YunShop::app()->config['cookie']['pre'] or ''}}'}
+  'cookie' : {'pre': '{{YunShop::app()->config['cookie']['pre'] ?? ''}}'}
   };
 */
 </script>

@@ -26,6 +26,8 @@ class CreateImsYzOrderGoodsCoinExchangeTable extends Migration
                     $table->integer('deleted_at')->nullable();
                     $table->index(['order_goods_id']);
                 });
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE `".app('db')->getTablePrefix()."yz_order_goods_coin_exchange` comment'订单--商品全额抵扣记录'");//表注释
+
         }
     }
 

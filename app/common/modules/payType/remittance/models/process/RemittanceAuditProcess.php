@@ -35,7 +35,7 @@ class RemittanceAuditProcess extends Process
     public function scopeDetail(Builder $query)
     {
         return $query->with(['remittanceRecord'=> function ($query) {
-            $query->with('orderPay');
-        },'member']);
+            $query->with(['orderPay','member']);
+        }]);
     }
 }

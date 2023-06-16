@@ -89,6 +89,7 @@ class ResetpwdController extends BaseController
             if (!$uid) {
                 return $this->errorJson('该手机号不存在');
             }
+            return $this->send($mobile, $state);
         }
 
 
@@ -188,7 +189,7 @@ class ResetpwdController extends BaseController
         if ($username) {
             $user = AdminUser::where('username', $username)->with('hasOneProfile')->first();
 
-            if (!$user->uid || $user->hasOneProfile->mobile != $mobile) {
+            if (!$user->uid || (in_array($user->type,[0,1]) && $user->hasOneProfile->mobile != $mobile)) {
                 return $this->errorJson('该用户不存在');
             }
 
@@ -223,12 +224,12 @@ class ResetpwdController extends BaseController
             );
             $rules = array(
                 'mobile' => 'regex:/^1\d{10}$/',
-                'password' => 'required|min:6|regex:/^[A-Za-z0-9@!#\$%\^&\*+]+$/',
+                'password' => 'required|min:8|regex:/^[A-Za-z0-9.@!~#\$%\^&\*+_-]+$/',
             );
             $message = array(
                 'regex' => ':attribute 格式错误',
                 'required' => ':attribute 不能为空',
-                'min' => ':attribute 最少6位'
+                'min' => ':attribute 最少8位'
             );
             $attributes = array(
                 "mobile" => '手机号',
@@ -242,13 +243,13 @@ class ResetpwdController extends BaseController
             );
             $rules = array(
                 'mobile' => 'regex:/^1\d{10}$/',
-                'password' => 'required|min:6|regex:/^[A-Za-z0-9@!#\$%\^&\*+]+$/',
+                'password' => 'required|min:8|regex:/^[A-Za-z0-9.@!~#\$%\^&\*+_-]+$/',
                 'confirm_password' => 'same:password',
             );
             $message = array(
                 'regex' => ':attribute 格式错误',
                 'required' => ':attribute 不能为空',
-                'min' => ':attribute 最少6位',
+                'min' => ':attribute 最少8位',
                 'same' => ':attribute 不匹配'
             );
             $attributes = array(
@@ -286,6 +287,18 @@ class ResetpwdController extends BaseController
         return $this->successJson();
     }
 
+
+    public function sendSmsV3($mobile, $state, $sms_type = 2)
+    {
+        $sms = app('sms')->sendCode($mobile, $state, 1);
+
+
+        if (0 == $sms['status']) {
+            return $this->errorJson('短信发送失败，可能是您短时间内多次发送导致，请一小时之后再试');
+        }
+
+        return $this->successJson();
+    }
     /**
      * 管理员修改密码
      */

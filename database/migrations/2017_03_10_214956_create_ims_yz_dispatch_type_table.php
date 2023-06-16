@@ -18,6 +18,8 @@ class CreateImsYzDispatchTypeTable extends Migration {
                 $table->string('name', 50)->default('');
                 $table->integer('plugin');
             });
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE " . app('db')->getTablePrefix() . "yz_dispatch_type comment '配送类型表'");//表注释
+
         }
 	}
 

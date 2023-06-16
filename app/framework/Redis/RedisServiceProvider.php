@@ -14,7 +14,7 @@ class RedisServiceProvider extends \Illuminate\Redis\RedisServiceProvider
     public function register()
     {
         $this->app->singleton('redis', function ($app) {
-            $redisConfig = $app['config']['database.redis'];
+			$redisConfig = $app->make('config')->get('database.redis', []);
             if (app()->runningInConsole()) {
                 foreach ($redisConfig as &$item) {
                     if (isset($item['host'])) {
@@ -22,7 +22,7 @@ class RedisServiceProvider extends \Illuminate\Redis\RedisServiceProvider
                     }
                 }
             }
-            return new Database($redisConfig['client'],$redisConfig);
+            return new Database($app,$redisConfig['client'],$redisConfig);
         });
     }
 }

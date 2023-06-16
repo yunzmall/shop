@@ -72,6 +72,8 @@ class MemberUpdateService
         $user_info = $app->user->get($McFans['openid']);
 
         if ($user_info['subscribe'] == 0) {
+            $this->updateFansInfo(\YunShop::app()->getMemberId(), $user_info);
+
             return [
                 'status' => 0,
                 'message' => '未关注当前公众号，无法获取会员信息',
@@ -135,7 +137,7 @@ class MemberUpdateService
         $mc_data = array(
             'nickname' => isset($userinfo['nickname'])  ? stripslashes($userinfo['nickname']) : '',
             'avatar' => isset($userinfo['headimgurl']) ? $userinfo['headimgurl'] : '',
-            'gender' => isset($userinfo['sex']) ? $userinfo['sex'] : '-1',
+//            'gender' => isset($userinfo['sex']) ? $userinfo['sex'] : '-1',
             'nationality' => isset($userinfo['country']) ? $userinfo['country'] : '',
             'resideprovince' => isset($userinfo['province']) ? $userinfo['province'] : '' . '省',
             'residecity' => isset($userinfo['city']) ? $userinfo['city'] : '' . '市'

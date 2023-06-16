@@ -1,5 +1,5 @@
 /*
- * 芸众商城
+
  * 
  */
 define(['jquery','core'], function($,core){

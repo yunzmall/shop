@@ -36,12 +36,17 @@ class RemittanceAuditController extends BaseController
          */
         $searchParams = request()->input('searchParams');
         $remittanceAuditFlow = RemittanceAuditFlow::first();
-        $processBuilder = RemittanceAuditProcess::where('flow_id', $remittanceAuditFlow->id)->uniacid()->with(['member', 'status', 'remittanceRecord' => function ($query) {
-            $query->with('orderPay');
+
+        $processBuilder = RemittanceAuditProcess::where('flow_id', $remittanceAuditFlow->id)->uniacid()->with(['status', 'remittanceRecord' => function ($query) {
+            $query->with(['orderPay','member']);
         }]);
         if(!empty(request()->input('status_id'))){
             $processBuilder->where('status_id',request()->input('status_id'));
         }
+        $amount = (clone $processBuilder)
+            ->leftJoin('yz_remittance_record', 'yz_process.model_id', '=', 'yz_remittance_record.id')
+            ->leftJoin('yz_order_pay', 'yz_order_pay.id', '=', 'yz_remittance_record.order_pay_id')
+            ->sum('yz_order_pay.amount');
         $processList = $processBuilder->orderBy('id','desc')->paginate($pageSize)->toArray();
         $processList['pagesize'] = $pageSize;
         //dd($processList);
@@ -52,6 +57,7 @@ class RemittanceAuditController extends BaseController
             'remittanceAudits' => $processList,
             'allStatus' => $allStatus,
             'searchParams' => $searchParams,
+            'amount' => $amount
         ];
         return $data;
     }

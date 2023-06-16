@@ -195,4 +195,19 @@ abstract class DeductionSettingCollection extends Collection
         }
         return $type;
     }
+
+    public function getAffectDeductionAmount()
+    {
+        $type = '';
+        foreach ($this as $deductionSetting){
+            /**
+             * @var DeductionSettingInterface $deductionSetting
+             */
+            if($deductionSetting->getAffectDeductionAmount() !== false){
+                $type = $deductionSetting->getAffectDeductionAmount();
+                break;
+            }
+        }
+        return $type;
+    }
 }

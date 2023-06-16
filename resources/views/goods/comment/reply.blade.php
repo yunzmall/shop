@@ -50,6 +50,24 @@
                             </div>
                         </el-form-item>
 
+                        <el-form-item v-show="score_latitude.score_latitude_describe" label="描述/包装" prop="score_latitude_describe">
+                            <div style="padding-top:10px">
+                                <el-rate v-model="score_latitude.score_latitude_describe"  disabled show-score></el-rate>
+                            </div>
+                        </el-form-item>
+
+                        <el-form-item v-show="score_latitude.score_latitude_delivery" label="物流服务/配送" prop="score_latitude_delivery">
+                            <div style="padding-top:10px">
+                                <el-rate v-model="score_latitude.score_latitude_delivery" disabled show-score></el-rate>
+                            </div>
+                        </el-form-item>
+
+                        <el-form-item v-show="score_latitude.score_latitude_service" label="服务态度/质量" prop="score_latitude_service">
+                            <div style="padding-top:10px">
+                                <el-rate v-model="score_latitude.score_latitude_service" disabled show-score></el-rate>
+                            </div>
+                        </el-form-item>
+
                         <el-form-item v-if="isset_live_install" label="安装评分等级" prop="level">
                             <div style="padding-top:10px">
                                 <el-rate v-model="live_install.worker_score" disabled show-score></el-rate>
@@ -61,6 +79,16 @@
                             <div v-if="comment&&comment.images&&comment.images.length>0">
                                 <div v-for="(item1,index1) in comment.images" :key="index1" style="margin:5px 2px;display:inline-block">
                                     <img :src="item1" alt="" style="width:50px;height:50px" @click="openBig(comment.images,index1)">
+                                </div>
+                            </div>
+                        </el-form-item>
+
+                        <el-form-item v-show="after_content && after_content.content" label="追评内容">
+                            <el-input v-model="after_content.content" disabled type="textarea" style="width:70%"></el-input>
+
+                            <div v-if="after_content && after_content.images && after_content.images.length>0">
+                                <div v-for="(item1,index1) in after_content.images" :key="index1" style="margin:5px 2px;display:inline-block">
+                                    <img :src="item1" alt="" style="width:50px;height:50px" @click="openBig(after_content.images,index1)">
                                 </div>
                             </div>
                         </el-form-item>
@@ -83,9 +111,13 @@
                                                 <img :src="item1" alt="" style="width:50px;height:50px" @click="openBig(item.images,index1)">
                                             </div>
                                         </div>
-                                        <div style="width:150px;text-align:right">
-                                            <el-button size="mini" v-if="item.uid&&item.type!=3" @click="replyCon(item)">回复</el-button>
-                                            <el-button size="mini" type="info" @click="del(item.id,index)" plain>删除</el-button>
+                                        <div style="width:200px;text-align:right">
+                                            <div>
+                                                <el-switch v-model="item.is_show" @change="Switch2(item,'show')" :active-value="1" :inactive-value="0"></el-switch>
+                                                <el-button size="mini" v-if="item.uid&&item.type!=3" @click="replyCon(item)">回复</el-button>
+                                                <el-button size="mini" type="info" @click="del(item.id,index)" plain>删除</el-button>
+                                            </div>
+
                                         </div>
                                     </div>
                                 </div>
@@ -107,6 +139,14 @@
                                 </div>
                             </div>
                         </el-form-item>
+
+                        <el-form-item label="显示" prop="is_show">
+                            <el-switch v-model="is_show" :active-value="1" :inactive-value="0"></el-switch>
+                        </el-form-item>
+
+                        <el-form-item label="置顶" prop="is_top">
+                            <el-switch v-model="is_top" :active-value="1" :inactive-value="0"></el-switch>
+                        </el-form-item>
                     </el-form>
                     <el-dialog :visible.sync="big_img_show" width="60%" height="500px" center>
                         <div>
@@ -126,6 +166,7 @@
                 <div class="vue-center">
                     <el-button type="primary" @click="submitForm('form')">提交</el-button>
                     <el-button @click="goBack">返回</el-button>
+                    <el-button v-if="page_type=='audit'" @click="pass(comment.id)"><b>审核</b></el-button>
                 </div>
             </div>
 
@@ -136,6 +177,7 @@
 
     <script>
         let id = {!! $id !!};
+        let page_type = '{!! $page_type !!}';
         var app = new Vue({
             el:"#app",
             delimiters: ['[[', ']]'],
@@ -143,8 +185,8 @@
             data() {
                 
                 return{
-                    
                     id:id,
+                    page_type:page_type,
                     form:{
                         images:[],
                         images_url:[],
@@ -160,6 +202,8 @@
 
                     goods:{},
                     comment:{},
+                    score_latitude:{},
+                    after_content:{},
                     live_install:{},
                     isset_live_install:false,
                     submit_url:'',
@@ -169,8 +213,10 @@
                     
                     loading: false,
                     rules:{
-                        content:{ required: true, message: '请输入回复内容'}
+                        // content:{ required: true, message: '请输入回复内容'}
                     },
+                    is_show:0,
+                    is_top:0
 
                 }
             },
@@ -185,14 +231,18 @@
             methods: {
                 getData() {
                     let loading = this.$loading({target:document.querySelector(".content"),background: 'rgba(0, 0, 0, 0)'});
-                    this.$http.post('{!! yzWebFullUrl('goods.comment.reply') !!}',{id:this.id}).then(function (response) {
+                    this.$http.post('{!! yzWebFullUrl('goods.comment.reply') !!}',{id:this.id,page_type:this.page_type}).then(function (response) {
                             if (response.data.result){
                                 this.goods = response.data.data.goods || {};
                                 this.comment = response.data.data.comment || {};
+                                this.score_latitude = response.data.data.score_latitude || {};
+                                this.after_content = response.data.data.after_content || {};
                                 this.comment_id = response.data.data.comment.id;
                                 this.reply_id = response.data.data.comment.uid;
                                 this.reply_name = response.data.data.comment.nick_name;
                                 this.live_install = response.data.data.live_install ?  response.data.data.live_install : {};
+                                this.is_show = response.data.data.comment.is_show ?  response.data.data.comment.is_show : 0;
+                                this.is_top = response.data.data.comment.is_top ?  response.data.data.comment.is_top : 0;
                                 if(response.data.data.live_install){
                                     this.isset_live_install = true;
                                 }
@@ -237,6 +287,46 @@
                         this.$message({type: 'info',message: '已取消删除'});
                     });
                 },
+                Switch2(scope, type){
+                    let json={
+                        comment_id:scope.id,
+                        is_show:scope.is_show,
+                        is_top:scope.is_top,
+                        type:type,
+                    }
+                    this.$http.post('{!! yzWebFullUrl('goods.comment.changeCommentStatus') !!}',json).then(function (response){
+                        // console.log(scope);
+                        // return;
+                            if (response.data.result){
+                                this.$message.success("修改状态成功");
+                                this.getData();
+                            }
+                            else{
+                                this.$message({message: response.data.msg,type: 'error'});
+                            }
+                        },function (response) {
+                            console.log(response);
+                            this.loading = false;
+                        }
+                    );
+                },
+                pass(id) {
+                    let loading = this.$loading({target:document.querySelector(".content"),background: 'rgba(0, 0, 0, 0)'});
+                    this.$http.post('{!! yzWebFullUrl('goods.comment.changeAuditStatus') !!}',{comment_id:id}).then(function (response) {
+                            if (response.data.result){
+                                this.$message.success("操作成功");
+                                this.goBack();
+                            }
+                            else {
+                                this.$message.error( response.data.msg );
+                            }
+                            loading.close();
+                        },function (response) {
+                            this.$message.error(response.data.msg);
+                            loading.close();
+                        }
+                    );
+                },
                 submitForm(formName) {
                     console.log(this.form)
                     let that = this;
@@ -251,7 +341,9 @@
                             comment_id:this.comment_id,
                             reply_id:this.reply_id,
                             type:2,
-                        }
+                        },
+                        is_show:this.is_show,
+                        is_top:this.is_top,
                     };
                     console.log(json);
                     this.$refs[formName].validate((valid) => {

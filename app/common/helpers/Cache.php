@@ -133,9 +133,13 @@ class Cache
      * @return mixed
      * @static
      */
-    public static function get($key, $default = null)
+    public static function get($key, $default = null , $tags = [])
     {
-        return \Cache::get(self::getUniacid() . $key, $default);
+        if (!$tags){
+            return \Cache::get(self::getUniacid() . $key, $default);
+        }else{
+            return \Cache::tags($tags)->get(self::getUniacid() . $key, $default);
+        }
     }
 
     /**
@@ -174,9 +178,17 @@ class Cache
      * @return void
      * @static
      */
-    public static function put($key, $value, $minutes = null)
+    public static function put($key, $value, $minutes = null,$tags = [])
     {
-        \Cache::put(self::getUniacid() . $key, $value, $minutes);
+        if ($minutes) {
+            $minutes = $minutes * 60;
+        }
+
+        if (!$tags){
+            \Cache::put(self::getUniacid() . $key, $value, $minutes);
+        } elseif (is_array($tags)){
+            \Cache::tags($tags)->put(self::getUniacid() . $key, $value, $minutes);
+        }
     }
 
 
@@ -250,7 +262,7 @@ class Cache
      * Get an item from the cache, or store the default value.
      *
      * @param string $key
-     * @param \DateTime|float|int $minutes
+     * @param \DateTime|float|int $seconds
      * @param \Closure $callback
      * @return mixed
      * @static
@@ -439,9 +451,13 @@ class Cache
      * @return void
      * @static
      */
-    public static function flush()
+    public static function flush($tags = [])
     {
-        \Cache::flush();
+        if(!$tags){
+            \Cache::flush();
+        }else{
+            \Cache::tags($tags)->flush();
+        }
     }
 
     /**

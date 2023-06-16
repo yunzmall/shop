@@ -71,13 +71,15 @@ abstract class VirtualCoin extends BaseModel
 
     public function setCoin($amount)
     {
-        $this->amountOfMoney = $amount * $this->exchange_rate;
+        $this->amountOfMoney =  $amount * $this->exchange_rate;
+        //四舍六入五成双
+//        $this->amountOfMoney =  round($amount * $this->exchange_rate,2,PHP_ROUND_HALF_EVEN);
         return $this;
     }
 
     public function setMoney($amount)
     {
-
+//        $this->amountOfMoney =  round($amount,4,PHP_ROUND_HALF_EVEN);
         $this->amountOfMoney = $amount;
         return $this;
     }
@@ -96,8 +98,10 @@ abstract class VirtualCoin extends BaseModel
      */
     public function getCoin()
     {
-        //todo 为了保证usable_amount显示0.01 usable_coin不显示0.00，这里使用了四舍五入
-        return $this->amountOfCoin = round(bcdiv($this->amountOfMoney,$this->exchange_rate,3),2);
+        //四舍六入五成双
+        return $this->amountOfCoin = round($this->amountOfMoney / $this->exchange_rate,2,PHP_ROUND_HALF_EVEN);
+
+//        return $this->amountOfCoin = sprintf('%.2f', bcdiv($this->amountOfMoney,$this->exchange_rate,4));
     }
 
     /**

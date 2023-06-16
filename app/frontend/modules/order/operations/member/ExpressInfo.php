@@ -14,6 +14,10 @@ class ExpressInfo extends OrderOperation
 {
     public function getApi()
     {
+        if ($this->order->is_all_send_goods) {
+            return 'dispatch.express.get-order-multiple-packages';
+        }
+
         return 'dispatch.express';
     }
     public function getName()
@@ -38,7 +42,7 @@ class ExpressInfo extends OrderOperation
             DispatchType::SELF_DELIVERY, 
             DispatchType::DELIVERY_STATION_SELF, 
             DispatchType::DELIVERY_STATION_SEND,
-            DispatchType::PACKAGE_DELIVER,
+            DispatchType::STORE_PACKAGE_DELIVER
         ];
         if (in_array($this->order->dispatch_type_id, $dispatchType)) {
             return false;

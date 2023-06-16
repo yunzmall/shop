@@ -2,7 +2,7 @@
 /**
  * 配送模板数据操作
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/2/24
  * Time: 下午2:31
  */

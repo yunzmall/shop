@@ -108,8 +108,50 @@
                             </template>
                             <div style="font-size:12px;color:#ccc;">开启后平台自营/供应商/门店待发货的订单有催发货的功能。</div>
                         </el-form-item>
-                    </div>
+                        <el-form-item label="调用微信地址">
+                            <template>
+                                <el-switch
+                                        v-model="form.use_wechat_address"
+                                        active-value="1"
+                                        inactive-value="0"
+                                >
+                                </el-switch>
+                            </template>
+                            <div style="font-size:12px;">开启后用户在预下单页可以调用微信地址，只支持小程序</div>
+                            <div style="font-size:12px;">注：调用微信地址的订单不产生与地址相关的分红，如区域分红。</div>
+                            <div style="font-size:12px;">注：需要通过地址验证的订单，微信地址与商城地址库记录的存在差异则会提示错误，如聚合供应链和供应链插件</div>
+                        </el-form-item>
+                        <el-form-item label="确认收货弹窗">
+                            <div style="font-size:12px;color:#ccc;">注：设置后平台自营/供应链点击确认收货弹窗显示下面设置内容，默认显示确认收货</div>
+                        </el-form-item>
+                        <div class="block">
+                            <el-form-item label="自定义文案">
+                                <tinymceee  v-model="form.receipt_goods_notice" style="width:70%" v-if="info"></tinymceee>
+                            </el-form-item>
+                        </div>
+                        <el-form-item label="运费说明" prop="is_freight_explain">
+                            <el-switch v-model="form.is_freight_explain" :active-value="1" :inactive-value="0"></el-switch>
+                        </el-form-item>
 
+                        <el-form-item label="运费说明" prop="">
+                            <el-input v-model="form.freight_explain_content" type="textarea" rows="8"
+                                      style="width:70%">
+                            </el-input>
+                        </el-form-item>
+                        <el-form-item label="多包裹前端显示">
+                            <el-radio-group v-model="form.package_show">
+                                <el-radio :label="1">按包裹显示</el-radio>
+                                <el-radio :label="2">按商品显示</el-radio>
+                            </el-radio-group>
+
+                        </el-form-item>
+
+                        <el-form-item label="下单跳转表单填写" prop="is_diy_form_jump">
+                            <el-switch v-model="form.is_diy_form_jump" :active-value="1" :inactive-value="0"></el-switch>
+                        </el-form-item>
+
+                    </div>
+                </el-form>
             </div>
             <el-dialog :visible.sync="goodsShow" width="60%" center title="选择商品">
                 <div>
@@ -151,6 +193,10 @@
             </el-form>
         </div>
     </div>
+    <script src="{{resource_get('static/yunshop/tinymce4.7.5/tinymce.min.js')}}"></script>
+    @include('public.admin.tinymceee')
+    @include('public.admin.uploadMultimediaImg')
+
     <script>
         var vm = new Vue({
             el: "#re_content",
@@ -178,12 +224,18 @@
                         order_apart:'0',
                         goods:[],
                         expediting_delivery:'0',
+                        use_wechat_address: '0',
+                        receiving_popup: '',
+                        receipt_goods_notice: "",
+                        freight_explain_content:'',
+                        package_show:1,
+                        is_diy_form_jump:0,
                     },
+                    info: false
                 }
             },
-            mounted () {
-                this.getData();
-
+            mounted(){
+                this.getData()
             },
             methods: {
                 openGoods() {
@@ -249,7 +301,7 @@
                     this.form.goods.push(item.id)
                 },
                 getData(){
-                    this.$http.post('{!! yzWebFullUrl('setting.shop.order') !!}').then(function (response){
+                    this.$http.post('{!! yzWebFullUrl('setting.shop.order') !!}').then(response => {
                         if (response.data.result) {
                             if(response.data.data.set){
                                 for(let i in response.data.data.set){
@@ -264,6 +316,7 @@
                                         this.thumbList.push(item)
                                     })
                                 }
+                                this.info = true
                             }
                         }else {
                             this.$message({message: response.data.msg,type: 'error'});

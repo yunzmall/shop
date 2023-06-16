@@ -3,7 +3,7 @@ namespace app\backend\modules\goods\models;
 
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/2/22
  * Time: 下午2:24
  */
@@ -22,7 +22,7 @@ class Category extends \app\common\models\Category
      */
     public static function getAllCategory()
     {
-        return self::uniacid()->select(['id','name','parent_id'])
+        return self::uniacid()->select(['id','name','parent_id','level'])
             ->orderBy('id', 'asc')
             ->where('plugin_id',0)
             ->get();
@@ -269,7 +269,7 @@ class Category extends \app\common\models\Category
             if($item['parent_id'] == 0){
                 unset($item['parent_id']);
             }
-            $item ['href'] = 'packageB/member/category/catelist/catelist?id='. $item['id'];
+            $item ['href'] = '/packageB/member/category/catelist/catelist?id='. $item['id'];
         });
         return $data;
     }
@@ -298,6 +298,46 @@ class Category extends \app\common\models\Category
             ->where('level', 1)
             ->orderBy('id', 'asc');
 
+    }
+
+
+    public function getCateOrderByLevel($ids){
+
+
+        $list = $this->orderExportCacheAllCategory()->whereIn('id', explode(',',$ids))->sortBy('level')->pluck('name')->all();
+
+        $list = array_pad($list,3,'');
+        return $list;
+
+//        $list=self::uniacid()->withTrashed()->whereIn('id',explode(',',$ids))->orderBy('level','asc')->pluck('name')->toArray();
+//        if(count($list)==2){
+//            array_push($list,'');
+//        }else if(count($list)==1){
+//            array_push($list,'','');
+//        }
+//
+//        if (empty($list)) {
+//            array_push($list,'','','');
+//        }
+
+        return $list;
+    }
+
+
+    protected $cacheAllCategory;
+
+    /**
+     * 缓存商品分类减少订单导出时sql查询次数
+     * @return \app\framework\Database\Eloquent\Collection
+     */
+    public function orderExportCacheAllCategory()
+    {
+        if (!isset($this->cacheAllCategory)) {
+
+            $this->cacheAllCategory = self::select('id', 'name', 'level')->uniacid()->withTrashed()->get();
+        }
+
+        return $this->cacheAllCategory;
     }
 
 }

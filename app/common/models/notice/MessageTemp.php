@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/11/9
  * Time: 下午3:09
  */

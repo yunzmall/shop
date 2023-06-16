@@ -23,6 +23,7 @@ class CreateImsYzPayAccessLogTable extends Migration {
                 $table->integer('created_at')->default(0);
                 $table->integer('updated_at')->nullable()->default(0);
             });
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE " . app('db')->getTablePrefix() . "yz_pay_access_log comment '支付--支付通道记录表'");//表注释
         }
 	}
 

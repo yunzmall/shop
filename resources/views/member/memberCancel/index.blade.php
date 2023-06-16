@@ -3,13 +3,25 @@
 @section('content')
     <link rel="stylesheet" type="text/css" href="{{static_url('yunshop/goods/vue-goods1.css')}}"/>
     <style>
+        .panel-info {
+            margin: 6px 0;
+        }
+        .add-shopnav {
+            padding: 5px;
+        }
+        .add-shopnav li.active a{
+            padding: 4px 12px;
+            letter-spacing: 2px;
+            font-size: 14px;
+            border-radius: 5px!important;
+        }
         .main-panel{
             margin-top:50px;
         }
         .panel{
-            margin-bottom:10px!important;
+            margin-bottom: 20px!important;
             border-radius: 10px;
-            padding-left: 20px;
+            padding-left: 5px;
         }
         .panel .active a {
             background-color: #29ba9c!important;
@@ -22,7 +34,7 @@
         }
         .content{
             background: #eff3f6;
-            padding:10px!important;
+            padding:15px!important;
         }
         .con{
             padding-bottom:40px;
@@ -71,7 +83,22 @@
         }
     </style>
     <div id='re_content' >
-        @include('member.memberCancel.tab')
+        <div class="panel panel-info">
+            <ul class="add-shopnav">
+                <li class="active">
+                    <a href="{{ yzWebFullUrl('member.member-cancel.index') }}">
+                        账号注销设置
+                    </a>
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                </li>
+                <li>
+                    <a href="{{ yzWebFullUrl('member.member-cancel.verify') }}">
+                        账号注销申请审核
+                    </a>
+                </li>
+            </ul>
+        </div>
+
         <div class="con">
             <div class="setting">
                 <el-form ref="form" :model="form" label-width="15%">

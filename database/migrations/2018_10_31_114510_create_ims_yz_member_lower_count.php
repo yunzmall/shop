@@ -26,6 +26,7 @@ class CreateImsYzMemberLowerCount extends Migration
                 $table->integer('created_at')->nullable();
                 $table->integer('updated_at')->nullable();
             });
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE " . app('db')->getTablePrefix() . "yz_member_lower_count comment '会员下线统计表表'");//表注释
         }
     }
 

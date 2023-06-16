@@ -2,7 +2,7 @@
 /**
  * 单订单余额支付
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/4/17
  * Time: 上午10:57
  */
@@ -47,13 +47,20 @@ class CreditMergePayController extends MergePayController
         if (!$result) {
             throw new AppException('余额扣除失败,请联系客服');
         }
-        // \Log::info('---step2------');
-        $orderPay->pay();
-        // \Log::info('---step3------');
 
-        event(new ChargeComplatedEvent([
-            'order_pay_id' => $orderPay->id
-        ]));
+        try {
+            // \Log::info('---step2------');
+            $orderPay->pay();
+            // \Log::info('---step3------');
+            event(new ChargeComplatedEvent([
+                'order_pay_id' => $orderPay->id
+            ]));
+        } catch (\Exception $e) {
+            $msg = $e->getMessage();
+            \Log::debug('订单余额支付失败:', $msg);
+            throw new AppException($msg);
+        }
+
         // \Log::info('---step4----');
 
         $trade = \Setting::get('shop.trade');
@@ -91,7 +98,7 @@ class CreditMergePayController extends MergePayController
      * @throws AppException
      * @throws \app\common\exceptions\PaymentException
      */
-    private function checkPassword($uid)
+    protected function checkPassword($uid)
     {
         if (!$this->needPassword()) return true;
 
@@ -101,7 +108,7 @@ class CreditMergePayController extends MergePayController
         return (new PasswordService())->checkPayPassword($uid, request()->input('payment_password'));
     }
 
-    private function needPassword()
+    protected function needPassword()
     {
         return (new PasswordService())->isNeed('balance', 'pay');
     }

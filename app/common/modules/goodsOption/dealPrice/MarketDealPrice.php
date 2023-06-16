@@ -26,7 +26,11 @@ class MarketDealPrice extends BaseDealPrice
         if ($level_discount_set['type'] != 1) {
             return false;
         }
-        if (!$this->goodsOption->memberLevelDiscount()->getAmount($this->goodsOption->getGoodsOptionPriceAdapter())) {
+
+        $priceAdapter = $this->goodsOption->getGoodsOptionPriceAdapter();
+        $priceAdapter->setAppointPrice($this->goodsOption->market_price);
+
+        if (!$this->goodsOption->memberLevelDiscount()->getAmount($priceAdapter)) {
             return false;
         }
         return true;

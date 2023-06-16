@@ -30,7 +30,8 @@ class ShopOrderListController extends OrderListController
 
     public function index()
     {
-        return view('order.shop-list', $this->getData())->render();
+
+        return view('order.vue-list', $this->getData())->render();
     }
 
 }

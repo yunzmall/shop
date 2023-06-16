@@ -24,7 +24,10 @@ class CreateImsYzOrderExpressTable extends Migration {
                 $table->integer('deleted_at')->default(0);
             });
         }
-	}
+
+        \Illuminate\Support\Facades\DB::statement("ALTER TABLE `".app('db')->getTablePrefix()."yz_order_express` comment'订单--快递记录'");//表注释
+
+    }
 
 
 	/**

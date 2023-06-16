@@ -50,7 +50,7 @@ class BasePayType extends PayType implements OrderPayInterface
 //
 //        }
 
-        $goods_title = $this->orderPay->orders->first()->hasManyOrderGoods[0]->title;
+        $goods_title = $this->orderPay->orders->first()->hasManyOrderGoods[0]->pay_title;
 
         return [
             'order_no' => $this->orderPay->pay_sn,

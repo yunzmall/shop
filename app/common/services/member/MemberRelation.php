@@ -201,6 +201,8 @@ class MemberRelation
 
     public function change($member_id, $parent_id)
     {
+        $ids = [];
+
         if ($member_id != $parent_id) {
             $parent_relation = $this->hasRelationOfParent($member_id, 1);
             $child_relation = $this->hasRelationOfChild($member_id);
@@ -212,7 +214,7 @@ class MemberRelation
                 $ids[] = $rows['child_id'];
             }
 
-            $ids = array_unique($ids);
+            $ids = array_unique($ids) ?: [];
             $memberInfo = MemberShopInfo::getParentOfMembeWithTrashed($ids);
 
             if (count($ids) != count($memberInfo)) {

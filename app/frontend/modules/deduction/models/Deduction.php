@@ -41,6 +41,16 @@ class Deduction extends BaseModel
         return app('DeductionManager')->make('GoodsDeductionManager')->bound($this->getCode());
     }
 
+    //订单抵扣新增判断，抵扣虚拟币必须注册会员类
+    public function memberCoin($member)
+    {
+        if (app('CoinManager')->make('MemberCoinManager')->bound($this->getCode())) {
+            return app('CoinManager')->make('MemberCoinManager')->make($this->getCode(), [$member]);
+        }
+
+        return false;
+    }
+
     public function getId()
     {
         return $this->id;
@@ -88,6 +98,20 @@ class Deduction extends BaseModel
         }
         return $this->getSettingCollection()->isEnableDeductDispatchPrice();
     }
+
+    /**
+     * todo 这里应该是全局范围内的抵扣设置项
+     * @return bool|mixed|string
+     */
+    public function getAffectDeductionAmount()
+    {
+
+        if (!$this->getSettingCollection()) {
+            return false;
+        }
+        return $this->getSettingCollection()->getAffectDeductionAmount();
+    }
+
     public function getEnable(){
         if(ShopConfig::current()->get('shop-foundation.deduction.enable') == false){
             return collect();

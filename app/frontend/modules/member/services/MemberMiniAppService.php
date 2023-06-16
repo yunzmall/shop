@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 17/2/23
  * Time: 上午11:20
  */
@@ -9,11 +9,17 @@
 namespace app\frontend\modules\member\services;
 
 use app\common\exceptions\MemberNotLoginException;
+use app\common\exceptions\ShopException;
+use app\common\facades\EasyWeChat;
+use app\common\helpers\Cache;
 use app\common\helpers\Client;
 use app\common\services\Session;
 use app\frontend\modules\member\models\MemberMiniAppModel;
 use app\frontend\modules\member\models\MemberUniqueModel;
 use app\frontend\modules\member\models\McMappingFansModel;
+use app\frontend\modules\member\models\MemberModel;
+use EasyWeChat\Factory;
+use EasyWeChat\MiniProgram\Application;
 
 class MemberMiniAppService extends MemberService
 {
@@ -30,7 +36,7 @@ class MemberMiniAppService extends MemberService
         if ($ver == 2) {
             return $this->newLogin();
         } else {
-           return $this->oldLogin();
+            return $this->oldLogin();
         }
     }
 
@@ -91,18 +97,14 @@ class MemberMiniAppService extends MemberService
 
     public function updateMemberInfo($member_id, $userinfo)
     {
-        if (request()->input('route') == 'member.member.bindMobile') {
-            parent::updateMemberInfo($member_id, $userinfo);
-        }
+		parent::updateMemberInfo($member_id, $userinfo);
 
         $record = array(
             'openid' => $userinfo['openid'],
             'nickname' => stripslashes($userinfo['nickname'])
         );
 
-        if (request()->input('route') == 'member.member.bindMobile') {
-            MemberMiniAppModel::updateData($member_id, $record);
-        }
+		MemberMiniAppModel::updateData($member_id, $record);
     }
 
     public function addMemberInfo($uniacid, $userinfo)
@@ -127,6 +129,7 @@ class MemberMiniAppService extends MemberService
 
     public function addFansMember($uid, $uniacid, $userinfo)
     {
+        if ($userinfo['openid']) {
         MemberMiniAppModel::replace(array(
             'uniacid' => $uniacid,
             'member_id' => $uid,
@@ -135,6 +138,7 @@ class MemberMiniAppService extends MemberService
             'avatar' => $userinfo['headimgurl'],
             'gender' => $userinfo['sex'],
         ));
+        }
     }
 
     public function getFansModel($openid)
@@ -186,7 +190,18 @@ class MemberMiniAppService extends MemberService
      */
     public function checkLogged($login = null)
     {
-        return MemberService::isLogged();
+		if (MemberService::isLogged()) {
+			if (!empty(Session::get('mini_openid'))) {
+				return true;
+			}
+			$member_mini = MemberMiniAppModel::getFansById(\YunShop::app()->getMemberId());
+			if (empty($member_mini)) {
+				return false;
+			}
+			Session::set('mini_openid',$member_mini['openid']);
+			return true;
+		}
+		return false;
     }
 
     public function updateFansMember($fan, $member_id, $userinfo)
@@ -205,38 +220,25 @@ class MemberMiniAppService extends MemberService
     public function oldLogin()
     {
         include dirname(__FILE__) . "/../vendors/wechat/wxBizDataCrypt.php";
-
         $min_set = \Setting::get('plugin.min_app');
-
         if (is_null($min_set) || 0 == $min_set['switch']) {
             return show_json(0, '未开启小程序');
         }
-
         $para = \YunShop::request();
-
         $data = array(
             'appid' => $min_set['key'],
             'secret' => $min_set['secret'],
             'js_code' => $para['code'],
             'grant_type' => 'authorization_code',
         );
-
         $url = 'https://api.weixin.qq.com/sns/jscode2session';
-
-        $user_info = \Curl::to($url)
-            ->withData($data)
-            ->asJsonResponse(true)
-            ->get();
-
+        $user_info = \Curl::to($url)->withData($data)->asJsonResponse(true)->get();
         $data = '';  //json
-
         if (!empty($para['info'])) {
             $json_data = json_decode($para['info'], true);
-
             $pc = new \WXBizDataCrypt($min_set['key'], $user_info['session_key']);
             $errCode = $pc->decryptData($json_data['encryptedData'], $json_data['iv'], $data);
         }
-
         \Log::debug('-------------min errcode-------', [$errCode]);
         if ($errCode == 0) {
             $json_user = json_decode($data, true);
@@ -255,22 +257,30 @@ class MemberMiniAppService extends MemberService
             if (isset($json_user['unionId'])) {
                 $json_user['unionid'] = $json_user['unionId'];
             }
-            if(isset($json_user['openId'])){
+            if (isset($json_user['openId'])) {
                 $json_user['openid'] = $json_user['openId'];
                 $json_user['nickname'] = $json_user['nickName'];
                 $json_user['headimgurl'] = $json_user['avatarUrl'];
                 $json_user['sex'] = $json_user['gender'];
             }
-
             //Login
-            $member_id = $this->memberLogin($json_user);
-
+            try {
+                $member_id = $this->memberLogin($json_user);
+            } catch (ShopException $exception) {
+                return show_json(0, $exception->getMessage());
+            }
+            $is_first_time_bind = $this->verifyFirstTimeLogin($member_id,(bool)$min_set['is_first_time_bind']);
             Session::set('member_id', $member_id);
-
+			Session::set('mini_openid', $json_user['openid']);
             $random = $this->wx_app_session($user_info);
-
-            $result = array('session' => $random, 'wx_token' => session_id(), 'uid' => $member_id);
-
+            $nickname = MemberModel::select('nickname')->where('uid',$member_id)->first();
+            $result = array(
+                'session' => $random,
+                'wx_token' => session_id(),
+                'uid' => $member_id,
+                'user_info' => ['nickname' => $nickname['nickname'] ?: ''],
+                'is_first_time_bind' => $is_first_time_bind
+            );
             return show_json(1, $result, $result);
         } else {
             return show_json(0, '获取用户信息失败');
@@ -280,62 +290,101 @@ class MemberMiniAppService extends MemberService
     public function newLogin()
     {
         include dirname(__FILE__) . "/../vendors/wechat/wxBizDataCrypt.php";
-
         $min_set = \Setting::get('plugin.min_app');
-
         if (is_null($min_set) || 0 == $min_set['switch']) {
             return show_json(0, '未开启小程序');
         }
-
         $para = json_decode(\YunShop::request()->info, 1);
         $code = \YunShop::request()->code;
-
         $data = array(
             'appid' => $min_set['key'],
             'secret' => $min_set['secret'],
             'js_code' => $code,
             'grant_type' => 'authorization_code',
         );
-
         $url = 'https://api.weixin.qq.com/sns/jscode2session';
-
-        $user_info = \Curl::to($url)
-            ->withData($data)
-            ->asJsonResponse(true)
-            ->get();
-
+        $user_info = \Curl::to($url)->withData($data)->asJsonResponse(true)->get();
         \Log::debug('-------------min errcode-------', ['code: ' . $user_info['errcode'] . ' errmsg: ' . $user_info['errmsg']]);
-
         if (!empty($user_info) && 0 == $user_info['errcode']) {
-            if ($code && is_null($para)) {
-                $mini_member = MemberMiniAppModel::uniacid()->where('openid', $user_info['openid'])->count();
-
-                if (!$mini_member) {
-                    throw new MemberNotLoginException('请登录', $_SERVER['QUERY_STRING']);
-                }
-            }
-
             if (isset($user_info['unionid'])) {
                 $json_user['unionid'] = $user_info['unionid'];
             }
-
             $json_user['openid'] = $user_info['openid'];
-            $json_user['nickname'] = $para['nickName'] ?: '';
+            $json_user['nickname'] = $para['nickName'] ? $this->filteNickname($para['nickName']) : '';
             $json_user['headimgurl'] = $para['avatarUrl'] ?: '';
             $json_user['sex'] = $para['gender'] ?: 0;
-
             //Login
-            $member_id = $this->memberLogin($json_user);
-
+            try {
+                $member_id = $this->memberLogin($json_user);
+            } catch (ShopException $exception) {
+                return show_json(0, $exception->getMessage());
+            }
+            $is_first_time_bind = $this->verifyFirstTimeLogin($member_id,(bool)$min_set['is_first_time_bind']);
             Session::set('member_id', $member_id);
-
+			Session::set('mini_openid', $json_user['openid']);
             $random = $this->wx_app_session($user_info);
-
-            $result = array('session' => $random, 'wx_token' => session_id(), 'uid' => $member_id);
-
+            $nickname = MemberModel::select('nickname')->where('uid',$member_id)->first();
+            $result = array(
+                'session' => $random,
+                'wx_token' => session_id(),
+                'uid' => $member_id,
+                'user_info' => ['nickname' => $nickname['nickname'] ?: ''],
+                'is_first_time_bind' => $is_first_time_bind
+            );
             return show_json(1, $result, $result);
         } else {
             return show_json(0, '获取用户信息失败');
         }
+    }
+
+    /**
+     * @param $member_id
+     * @param $first_time_bind_set
+     * @return int
+     */
+    protected function verifyFirstTimeLogin($member_id, $first_time_bind_set): int
+    {
+        $member_model = MemberModel::getMemberById($member_id);
+        $is_first_time_bind = 1;//首次登录显示授权手机号按钮:1-开启
+
+        //已绑定手机
+        if ($member_model->mobile) {
+            $is_first_time_bind = 0;
+        }
+
+        //未开启
+        if (!$first_time_bind_set) {
+            $is_first_time_bind = 0;
+        }
+
+        return $is_first_time_bind;
+    }
+
+    /**
+     * 获取授权用户手机号
+     *
+     * @param $code
+     * @return array|mixed|\stdClass
+     */
+    public function getPhoneNumber($code)
+    {
+        $min_set = \Setting::get('plugin.min_app');
+
+        if (is_null($min_set) || 0 == $min_set['switch']) {
+            return show_json(0, '未开启小程序');
+        }
+
+        $token = Cache::remember('mini:phonenumber:' . \YunShop::app()->uniacid, 90, function () use ($min_set) {
+            $gtoken = \Curl::to("https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid={$min_set['key']}&secret={$min_set['secret']}")->get();
+
+            return json_decode($gtoken, 1);
+        });
+
+        $data = \Curl::to("https://api.weixin.qq.com/wxa/business/getuserphonenumber?access_token={$token['access_token']}")
+            ->withData(json_encode(['code' => $code]))
+            ->asJsonResponse(true)
+            ->post();
+
+        return $data;
     }
 }

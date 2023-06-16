@@ -46,21 +46,28 @@ class MemberCartCollection extends Collection
         }
 
 
+        //这里处理需要合并规格商品验证的购物车,没有开启规格购物权限的,线下pos收银机无需验证
+        $buyMemberId =  $this->first()->member_id;
+        if (isset($buyMemberId) && !empty($buyMemberId) &&  \app\frontend\models\Member::current()->uid !== $buyMemberId && request()->type != 9) {
+            throw new AppException("操作无效,购物车记录属于其他用户");
+        }
+
         $this->unique('goods_id')->each(function (MemberCart $memberCart) {
 
-            if (isset($memberCart->goods->hasOnePrivilege)) {
+            if (isset($memberCart->goods->hasOnePrivilege) && empty($memberCart->goods->hasOnePrivilege->option_id_array)) {
                 // 合并规格商品数量,并校验
                 $total = $this->where('goods_id', $memberCart->goods_id)->sum('total');
 
                 $memberCart->goods->hasOnePrivilege->validate($memberCart->member, $total);
-
-                $memberCart->goods->hasOnePrivilege->validateMinBuyLimit($total);
             }
         });
+
         $this->each(function (Membercart $memberCart) {
             $memberCart->validate();
         });
         $this->validated = true;
+
+        return $this->validated;
     }
 
     /**
@@ -140,7 +147,6 @@ class MemberCartCollection extends Collection
 //        }
         $this->validate();
 
-
         $orderGoodsCollection = OrderService::getOrderGoods($this);
         /**
          * @var PreOrder $order
@@ -197,7 +203,7 @@ class MemberCartCollection extends Collection
     {
         $result = [];
         $dispatchType = new DispatchType();
-        $settings = $dispatchType->dispatchTypesSetting();
+        $settings = $dispatchType->dispatchTypesSetting(DispatchType::getCurrentUniacidSet([0,92])->toArray());
         foreach ($settings as $setting) {
             $memberCarts = [];
             // 按照配送方式分组

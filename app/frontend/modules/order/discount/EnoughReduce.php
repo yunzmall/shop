@@ -26,10 +26,13 @@ class EnoughReduce extends BaseDiscount
         if(!Setting::get('enoughReduce.open')){
             return 0;
         }
-        //只有商城,供应商订单参加
-        if($this->order->plugin_id != 0){
+
+        //只有商城、益生插件、应用市场、应用市场-子平台
+        if(!in_array($this->order->plugin_id,[0,61,57,59])){
             return 0;
         }
+
+
         // 获取满减设置,按enough倒序
         $settings = collect(Setting::get('enoughReduce.enoughReduce'));
 

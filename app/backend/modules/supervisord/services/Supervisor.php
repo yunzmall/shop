@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 22/02/2017
  * Time: 18:48
  */
@@ -25,6 +25,7 @@ class Supervisor
     protected $_password;
     protected $_socket;
     protected $_current_hostname;
+    protected $_host_num;
 
     /**
      * Construct a supervisor client instance.
@@ -33,13 +34,14 @@ class Supervisor
      * @param string $hostname The hostname.
      * @param int $port The port number.
      */
-    public function __construct($hostname, $port = -1)
+    public function __construct($hostname, $port = -1,$_host_num = 1)
     {
         $this->_hostname = $hostname;
         $this->_port = $port;
         $this->_username = null;
         $this->_password = null;
         $this->_current_hostname = null;
+        $this->_host_num = $_host_num;
         $this->setTimeout(null);
     }
 
@@ -647,6 +649,10 @@ class Supervisor
 		return $this->_hostname;
 	}
 
+    public function getHostNum()
+    {
+        return $this->_host_num;
+    }
 
     /**
      * Close the socket when the class destructs

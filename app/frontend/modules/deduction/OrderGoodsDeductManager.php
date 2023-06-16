@@ -66,6 +66,10 @@ class OrderGoodsDeductManager
     private function getEnableDeductions()
     {
 
+        //由于获取开启抵扣都是相同的所以这里把这部分代码提取出来
+        return \app\frontend\modules\deduction\EnableDeductionService::getInstance()->getEnableDeductions($this->orderGoods->order);
+
+
         //blank not deduction
         if ($this->orderGoods->order->isDeductionDisable()) {
             trace_log()->deduction('订单商品关闭的抵扣类型','');

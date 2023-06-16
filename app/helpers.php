@@ -25,12 +25,12 @@ if (!function_exists("yz_tpl_ueditor")) {
         $fileUploader = resource_get('static/js/fileUploader.min.js');
         if (!defined('TPL_INIT_UEDITOR')) {
             if (config('app.framework') == 'platform') {
-                $s .= '<script type="text/javascript" src="' . $file_dir .'/app/common/components/ueditor/ueditor.config.js"></script><script type="text/javascript" src="' . $file_dir . '/app/common/components/ueditor/ueditor.all.min.js"></script><script type="text/javascript" src="' . $file_dir . '/app/common/components/ueditor/lang/zh-cn/zh-cn.js"></script><link href="/static/resource/components/webuploader/webuploader.css" rel="stylesheet"><link href="/static/resource/components/webuploader/style.css" rel="stylesheet">';
+                $s .= '<script type="text/javascript" src="' . $file_dir .'/app/common/components/ueditor/ueditor.config.js"></script><script type="text/javascript" src="' . $file_dir . '/static/resource/components/ueditor/ueditors.all.min.js"></script><script type="text/javascript" src="' . $file_dir . '/app/common/components/ueditor/lang/zh-cn/zh-cn.js"></script><link href="/static/resource/components/webuploader/webuploader.css" rel="stylesheet"><link href="/static/resource/components/webuploader/style.css" rel="stylesheet">';
             } else {
                 $s .= '<script type="text/javascript" src="' . $file_dir .'/app/common/components/ueditor/ueditor.config.js"></script><script type="text/javascript" src="' . $file_dir . '/app/common/components/ueditor/ueditor.all.min.js"></script><script type="text/javascript" src="' . $file_dir . '/app/common/components/ueditor/lang/zh-cn/zh-cn.js"></script><link href="/web/resource/components/webuploader/webuploader.css" rel="stylesheet"><link href="/web/resource/components/webuploader/style.css" rel="stylesheet">';
             }
         }
-        
+
         $url = uploadUrl();
         $options['height'] = empty($options['height']) ? 200 : $options['height'];
         $s .= !empty($id) ? "<textarea id=\"{$id}\" name=\"{$id}\" type=\"text/plain\" style=\"height:{$options['height']}px;\">{$value}</textarea>" : '';
@@ -307,33 +307,38 @@ function yz_tomedia($src, $local_path = false, $upload_type = null,$host = '')
     if (empty($src)) {
         return '';
     }
-    if($host){
+    $HttpHost = request()->getSchemeAndHttpHost();
+    if ($host) {
         $HttpHost = $host;
-    }else{
-        $HttpHost = request()->getSchemeAndHttpHost();
     }
     $setting = [];
-    $sign = false;
-
     if (config('app.framework') == 'platform') {
         $systemSetting = app('SystemSetting');
         if ($remote = $systemSetting->get('remote')) {
             $setting[$remote['key']] = unserialize($remote['value']);
         }
-        $sign = true;
         $upload_type = $setting['remote']['type'];
-
         $addons = '/storage/';
-        $attachment = '/static/';
+        $attachment = '/static/upload/';
+        $file_name = 'photo-mr';
+        $file_path = base_path($attachment) . $src;
+        if (file_exists($file_path)) {//本地图片存在直接返回 示例图片path image/e3a555295b58e043dbf8ea3eb0434647.png
+            return $HttpHost.$attachment . $src;
+        }
+        if (strexists($src, $attachment)) {//本地图片存在直接返回 示例图片path /static/upload/image/e3a555295b58e043dbf8ea3eb0434647.png
+            $relative_path = substr($src, strpos($src, $attachment));
+            $file_path = base_path($relative_path);
+            if (file_exists($file_path)) {
+                return $HttpHost.$relative_path;
+            }
+        }
 
-        $file_path = base_path($attachment . 'upload/') . $src;
-        if (file_exists($file_path)) {
-            return $HttpHost . $attachment . 'upload/' . $src;
+        if (strexists($src, $file_name) && file_exists(base_path($src))) { //默认会员头像
+            return $HttpHost.$src;
         }
     } else {
         //全局配置
         global $_W;
-
         //公众号独立配置信息 优先使用公众号独立配置
         $uni_setting = app('WqUniSetting')->get()->toArray();
         if (!empty($uni_setting['remote']) && iunserializer($uni_setting['remote'])['type'] != 0) {
@@ -343,16 +348,20 @@ function yz_tomedia($src, $local_path = false, $upload_type = null,$host = '')
             $setting = $_W['setting'];
             $upload_type = $setting['remote']['type'];
         }
-
         $addons = '/addons/';
         $attachment = '/attachment/';
-
         $file_path = base_path('../../attachment/') . $src;
-        if (file_exists($file_path)) {
-            return $HttpHost . '/attachment/' . $src;
+        if (file_exists($file_path)) {//本地图片存在直接返回 示例图片path image/e3a555295b58e043dbf8ea3eb0434647.png
+            return $HttpHost.'/attachment/'.$src;
+        }
+        if (strexists($src, $attachment)) {//本地图片存在直接返回 示例图片path /attachment/image/e3a555295b58e043dbf8ea3eb0434647.png
+            $relative_path = substr($src, strpos($src, $attachment));
+            $file_path = base_path('../..'.$relative_path);
+            if (file_exists($file_path)) {
+                return $HttpHost.$relative_path;
+            }
         }
     }
-
     $os = Client::osType();
     if (strexists($src, $addons)) {
         if ($os == Client::OS_TYPE_IOS) {
@@ -361,13 +370,10 @@ function yz_tomedia($src, $local_path = false, $upload_type = null,$host = '')
         }
         return $HttpHost . substr($src, strpos($src, $addons));
     }
-
     $local = strtolower($src);
-
     //todo 临时增加如果是插件图片
     if (strexists($src, "plugins/")) {
         $attachment = "/plugins/";
-
         if ($os == Client::OS_TYPE_IOS) {
             $url_dz = $HttpHost . substr($src, strpos($src, $attachment));
             return 'https:' . substr($url_dz, strpos($url_dz, '//'));
@@ -378,56 +384,66 @@ function yz_tomedia($src, $local_path = false, $upload_type = null,$host = '')
             return $HttpHost . substr($src, strpos($src, $attachment));
         }
     }
-
+    //装修静态
+    if (strexists($src, 'static/') && strexists($src, 'yunshop/')) {
+        $path = substr($src, strpos($src, 'static/'));
+        if (base_path($path)) {
+            return $HttpHost.'/'.$path;
+        }
+    }
+    $attach_url_remote = '';
+    if ($upload_type) {
+        switch ($upload_type) {
+            case 1 :
+                $attach_url_remote = $setting['remote']['ftp']['url'];
+                break;
+            case 2 :
+                $attach_url_remote = $setting['remote']['alioss']['url'];
+                break;
+            case 3 :
+                $attach_url_remote = $setting['remote']['qiniu']['url'];
+                break;
+            case 4 :
+                $attach_url_remote = $setting['remote']['cos']['url'];
+                break;
+            case 5 :
+                $attach_url_remote = $setting['remote']['obs']['url'];
+                break;
+        }
+    }
+    if (strexists($src, request()->getHost()) && strexists($src, $attachment)  && $upload_type) {
+        $host_str = $HttpHost.$attachment;
+        $str_len = strlen($host_str);
+        $relative_path = substr($src, $str_len);
+        return $attach_url_remote .'/'. $relative_path;
+    }
     //判断是否是本地不带域名图片地址
     if ((strexists($src, $attachment) && (parse_url($src)['scheme'].'://'.parse_url($src)['host']) == $HttpHost) || (strexists($src, $attachment) && !strexists($src, 'http://') && !strexists($src, 'https://'))) {
         if ($os == Client::OS_TYPE_IOS) {
             $url_dz = $HttpHost . substr($src, strpos($src, $attachment));
             return 'https:' . substr($url_dz, strpos($url_dz, '//'));
         }
-
         return $HttpHost . substr($src, strpos($src, $attachment));
     }
-
     //如果远程地址中包含本地host也检测是否远程图片
-    $t = strtolower($src);
-    if (strexists($t, 'http://') || strexists($t, 'https://') || substr($t, 0, 2) == '//') {
+    if (strexists($local, 'http://') || strexists($local, 'https://') || substr($local, 0, 2) == '//') {
+        if (strexists($local, 'http://')) {
+            return 'http:' . substr($src, strpos($src, '//'));
+        }
+        if (strexists($local, 'https://')) {
+            return 'https:' . substr($src, strpos($src, '//'));
+        }
         return 'https:' . substr($src, strpos($src, '//'));
     }
-
-    //todo 2019/06/25 blank ---- 把或 || 条件换成与 && ,这样修改有个问题就是只有开启了远程存储图片，就永远不会再取本地图片
-    if (!$sign && ($local_path || empty($upload_type)) && file_exists(base_path('../../') . '/' . $_W['config']['upload']['attachdir'] . '/' . $src)) {
-        if (strexists($src, '/attachment/')) {
-            $src = $HttpHost . $src;
-        } else {
-            $src = $HttpHost . '/attachment/' . $src;
-        }
-    } elseif (config('app.framework') == 'platform' && ($local_path || empty($upload_type)) && file_exists(base_path('static/upload/').$src)) {
-        $src = $HttpHost .  '/static/upload' . (strpos($src,'/') === 0 ? '':'/') . $src;
-    } elseif (config('app.framework') == 'platform' && ($local_path || empty($upload_type))) {
-        $src = $HttpHost .  '/static/upload' . (strpos($src,'/') === 0 ? '':'/') . $src;
-    } elseif (preg_match('/^(\/\/){1}.*/',$src)) {
-        //暂时修复，以//开头的链接直接返回
-        return $src;
-    }  else {
-        $attach_url_remote = '';
-        if ($upload_type == 1) {
-            $attach_url_remote = $setting['remote']['ftp']['url'] . '/';
-        } elseif ($upload_type == 2) {
-            $attach_url_remote = $setting['remote']['alioss']['url'] . '/';
-        } elseif ($upload_type == 3) {
-            $attach_url_remote = $setting['remote']['qiniu']['url'] . '/';
-        } elseif ($upload_type == 4) {
-            $attach_url_remote = $setting['remote']['cos']['url'] . '/';
-        }
-
-        $src = $attach_url_remote . $src;
+    if ($upload_type) {
+        return $attach_url_remote.'/'.$src;
     }
-
+    if (preg_match('/^(\/\/){1}.*/',$src)) {
+        return $src;
+    }
     if (!config('app.debug')) {
         $src = 'https:' . substr($src, strpos($src, '//'));
     }
-
     return $src;
 }
 
@@ -639,7 +655,7 @@ if (!function_exists('my_link_extra')) {
 
         $extraContents = [];
 
-        Event::fire(new app\common\events\RenderingMyLink($extraContents));
+        Event::dispatch(new app\common\events\RenderingMyLink($extraContents));
 
         return $type == 'content' ? $content . implode("\n", $extraContents) : implode("\n",
             array_keys($extraContents));
@@ -726,6 +742,21 @@ if (!function_exists('yzAppFullUrl')) {
     function yzAppFullUrl($route, $params = [])
     {
         return Url::absoluteApp($route, $params);
+    }
+}
+
+if (!function_exists('yzBusinessFullUrl')) {
+    function yzBusinessFullUrl($route, $params = [])
+    {
+        return request()->getSchemeAndHttpHost() . '/' . yzBusinessUrl($route, $params);
+    }
+}
+
+if (!function_exists('yzBusinessUrl')) {
+    function yzBusinessUrl($route, $params = [])
+    {
+        if (!$params['i']) $params = array_merge(['i' => YunShop::app()->uniacid], $params);
+        return 'business/business_font/#/' . $route . '?' . http_build_query($params);
     }
 }
 
@@ -855,7 +886,7 @@ if (!function_exists('yz_footer')) {
 
         $extraContents = [];
 
-        Event::fire(new app\common\events\RenderingFooter($extraContents));
+        Event::dispatch(new app\common\events\RenderingFooter($extraContents));
 
         return $content . implode("\n", $extraContents);
     }
@@ -885,7 +916,7 @@ if (!function_exists('yz_header')) {
 
         $extraContents = [];
 
-        Event::fire(new app\common\events\RenderingHeader($extraContents));
+        Event::dispatch(new app\common\events\RenderingHeader($extraContents));
 
         return $content . implode("\n", $extraContents);
     }
@@ -898,7 +929,7 @@ if (!function_exists('yz_menu')) {
     {
         $menu = \app\backend\modules\menu\Menu::current()->getItems();
 
-        Event::fire($type == "member" ? new app\common\events\ConfigureMemberMenu($menu)
+        Event::dispatch($type == "member" ? new app\common\events\ConfigureMemberMenu($menu)
             : new app\common\events\ConfigureAdminMenu($menu));
 
         if (!isset($menu[$type])) {
@@ -1079,7 +1110,7 @@ if (!function_exists('randNum')) {
         }
         $max = strlen($seed) - 1;
         for ($i = 0; $i < $length; $i++) {
-            $hash .= $seed{mt_rand(0, $max)};
+            $hash .= $seed[mt_rand(0, $max)];
         }
         return $hash;
     }
@@ -1109,7 +1140,7 @@ if (!function_exists('random')) {
         }
         $max = strlen($seed) - 1;
         for ($i = 0; $i < $length; $i++) {
-            $hash .= $seed{mt_rand(0, $max)};
+            $hash .= $seed[mt_rand(0, $max)];
         }
         return $hash;
     }
@@ -1460,14 +1491,17 @@ if (!function_exists('file_remote_upload')) {
             $endpoint = 'http://' . $buckets[$bucket]['location'] . $host_name;
             try {
                 $ossClient = new \app\common\services\aliyunoss\OssClient($remote['alioss']['key'], $remote['alioss']['secret'], $endpoint);
-                $ossClient->uploadFile($bucket, $filename, base_path('static/upload/') . $filename);
+                $result = $ossClient->uploadFile($bucket, $filename, base_path('static/upload/') . $filename);
             } catch (\app\common\services\aliyunoss\OSS\Core\OssException $e) {
-                \Log::info('-----alioss上传失败信息-----', $e->getMessage());
                 return error(1, $e->getMessage());
             }
             if ($auto_delete_local) {
                 file_delete($filename);
             }
+            if (!$result) {
+                return error(-1, $result);
+            }
+            return true;
         } elseif ($remote['type'] == '4') {
             $result = (new \app\common\services\QcloudCosService(
                 $remote['cos']['local'],
@@ -1476,17 +1510,29 @@ if (!function_exists('file_remote_upload')) {
                 $remote['cos']['bucket'],
                 $remote['cos']['appid']
             ))->upload($filename);
-
             if ($auto_delete_local) {
                 file_delete($filename);
             }
-
-            if ($result === true) {
-                return true;
-            } else {
-                return error(-1, $result);
+            if (!$result) {
+                return error(-1, '上传远程失败');
             }
+            return true;
+        } elseif ($remote['type'] == '5') {
+            $result = (new \app\common\services\ObsService(
+                $remote['obs']['key'],
+                $remote['obs']['secret'],
+                $remote['obs']['endpoint'],
+                $remote['obs']['bucket']
+            ))->upload($filename);
+            if ($auto_delete_local) {
+                file_delete($filename);
+            }
+            if (!$result) {
+                return error(-1, '上传远程失败');
+            }
+            return true;
         }
+        return false;
     }
 }
 
@@ -1519,17 +1565,29 @@ if (!function_exists('file_video_remote_upload')) {
                 $remote['cos']['bucket'],
                 $remote['cos']['appid']
             ))->upload($filename);
-
             if ($auto_delete_local) {
                 file_delete($filename);
             }
-
-            if ($result === true) {
-                return true;
-            } else {
-                return error(-1, $result);
+            if (!$result) {
+                return error(-1, '上传远程失败');
             }
+            return true;
+        } elseif ($remote['type'] == '5') {
+            $result = (new \app\common\services\ObsService(
+                $remote['obs']['key'],
+                $remote['obs']['secret'],
+                $remote['obs']['endpoint'],
+                $remote['obs']['bucket']
+            ))->upload($filename);
+            if ($auto_delete_local) {
+                file_delete($filename);
+            }
+            if (!$result) {
+                return error(-1, '上传远程失败');
+            }
+            return true;
         }
+        return false;
     }
 }
 
@@ -1562,17 +1620,29 @@ if (!function_exists('file_remote_upload_new')) {
                 $remote['cos']['bucket'],
                 $remote['cos']['appid']
             ))->upload($filename);
-
             if ($auto_delete_local) {
                 file_delete($filename);
             }
-
-            if ($result === true) {
-                return true;
-            } else {
-                return error(-1, $result);
+            if (!$result) {
+                return error(-1, '上传远程失败');
             }
+            return true;
+        } elseif ($remote['type'] == '5') {
+            $result = (new \app\common\services\ObsService(
+                $remote['obs']['key'],
+                $remote['obs']['secret'],
+                $remote['obs']['endpoint'],
+                $remote['obs']['bucket']
+            ))->upload($filename);
+            if ($auto_delete_local) {
+                file_delete($filename);
+            }
+            if (!$result) {
+                return error(-1, '上传远程失败');
+            }
+            return true;
         }
+        return false;
     }
 }
 
@@ -2342,6 +2412,18 @@ if (!function_exists('ihttp_allow_host')) {
     }
 }
 
+if (!function_exists('attachment_obs_auth')) {
+    function attachment_obs_auth($key, $secret, $endpoint, $bucket)
+    {
+        $filename = '/static/logo.png';
+        $result = (new \app\common\services\ObsService($key, $secret, $endpoint, $bucket))->upload($filename, true);
+        if (!$result) {
+            return error(-1, '测试上传失败');
+        }
+        return true;
+    }
+}
+
 if (!function_exists('attachment_cos_auth')) {
     function attachment_cos_auth($bucket, $appid, $key, $secret, $bucket_local = '')
     {
@@ -2354,10 +2436,8 @@ if (!function_exists('attachment_cos_auth')) {
         if (!preg_match('/^[a-zA-Z0-9]{32}$/', $secret)) {
             return error(-1, '传入secretkey值不合法，请重新传入');
         }
-
-        $filename = 'icon.jpg';
+        $filename = 'logo.png';
         $result = (new \app\common\services\QcloudCosService($bucket_local, $key, $secret, $bucket, $appid))->uploadTest($filename);
-
         if ($result === true) {
             return true;
         } else {
@@ -2446,7 +2526,7 @@ if (!function_exists('attachment_newalioss_auth')) {
         $buckets = attachment_alioss_buctkets($key, $secret);
         $host = $internal ? '-internal.aliyuncs.com' : '.aliyuncs.com';
         $url = 'http://' . $buckets[$bucket]['location'] . $host;
-        $filename = 'icon.jpg';
+        $filename = 'logo.png';
         try {
             $ossClient = new \app\common\services\aliyunoss\OssClient($key, $secret, $url);
             $ossClient->uploadFile($bucket, $filename, base_path() . '/static/' . $filename);
@@ -2700,21 +2780,23 @@ if (!function_exists('file_remote_delete')) {
                 return error(1, '删除oss远程文件失败');
             }
         } elseif ($upload_type == '4') {
-            $bucketName = $remote['cos']['bucket'];
-            $path = '/' . $file;
-            if ($remote['cos']['local']) {
-                \app\common\services\qcloud\Cosapi::setRegion($remote['cos']['local']);
-                $result = \app\common\services\qcloud\Cosapi::delFile($bucketName, $path);
-            } else {
-                $result = \app\common\services\cos\Qcloud_cos\Cosapi::delFile($bucketName, $path);
-            }
-            if ($result['code']) {
+            $result = (new \app\common\services\QcloudCosService(
+                $remote['cos']['local'],
+                $remote['cos']['secretid'],
+                $remote['cos']['secretkey'],
+                $remote['cos']['bucket'],
+                $remote['cos']['appid']
+            ))->delete($file);
+            if (!$result) {
                 return error(-1, '删除cos远程文件失败');
-            } else {
-                return true;
+            }
+        } elseif ($upload_type == '5') {
+            try {
+                $result = (new \app\common\services\ObsService())->delete($file);
+            } catch (\app\common\services\aliyunoss\OSS\Core\OssException $e) {
+                return error(1, '删除oss远程文件失败');
             }
         }
-
         return true;
     }
 }
@@ -2752,10 +2834,8 @@ if (!function_exists('material_list')) {
                 unset($row);
             }
         }
-
         $pager = pagination($total, $page['page_index'], $page['page_size'], '', $context = array('before' => 5, 'after' => 4, 'isajax' => '1'));
         $material_news = array('material_list' => $core_attach, 'page' => $pager);
-
         return $material_news;
     }
 }
@@ -3186,26 +3266,25 @@ if (!function_exists('uploadUrl')) {
      */
     function uploadUrl($type = 'default')
     {
+        $rand_str = randNum(4, true);
         if (config('app.framework') == 'platform') {
-            $url['upload_url'] = '/admin/system/upload/upload?upload_type=';
-            $url['image_url'] = '/admin/system/upload/image?local=local&groupid=-999';
-            $url['fetch_url'] = '/admin/system/upload/fetch';
-            $url['delet_url'] = '/admin/system/upload/delete';
+            $url['upload_url'] = '/admin/shop?route=upload.upload.jsUpload&upload_type=';
+            $url['image_url'] = '/admin/shop?route=upload.upload.jsImage';
+            $url['fetch_url'] = '/admin/shop?route=upload.upload.fetch';
+            $url['delet_url'] = '/admin/shop?route=upload.upload.delete';
             $url['video_url'] = '/admin/system/upload/video?local=local&type=video&pagesize=5';
         } else {
-            $url['upload_url'] = './index.php?c=site&a=entry&m=yun_shop&do=shop&route=upload.upload.upload&upload_type=';
-            if($type == 'new'){
+            $url['upload_url'] = './index.php?c=site&a=entry&m=yun_shop&do='.$rand_str.'&route=upload.upload.jsUpload&upload_type=';
+            if ($type == 'new') {
                 $image_url = str_replace('/web','.',yzWebUrl('upload.uploadImage.getImage'));
                 $url['image_url'] = $image_url;
-            }elseif($type == 'default') {
-                $url['image_url'] = './index.php?c=site&a=entry&m=yun_shop&do=shop&route=upload.upload.getImage&local=local&group_id=-999';
+            } elseif($type == 'default') {
+                $url['image_url'] = './index.php?c=site&a=entry&m=yun_shop&do='.$rand_str.'&route=upload.upload.jsImage';
             }
-
-            $url['fetch_url'] = './index.php?c=site&a=entry&m=yun_shop&do=shop&route=upload.upload.fetch';
-            $url['delet_url'] = './index.php?c=site&a=entry&m=yun_shop&do=shop&route=upload.upload.delete';
-            $url['video_url'] = './index.php?c=site&a=entry&m=yun_shop&do=shop&route=upload.upload.getVideo&local=local&type=video&pagesize=5';
+            $url['fetch_url'] = './index.php?c=site&a=entry&m=yun_shop&do='.$rand_str.'&route=upload.upload.fetch';
+            $url['delet_url'] = './index.php?c=site&a=entry&m=yun_shop&do='.$rand_str.'&route=upload.upload.delete';
+            $url['video_url'] = './index.php?c=site&a=entry&m=yun_shop&do='.$rand_str.'&route=upload.upload.getVideo&local=local&type=video&pagesize=5';
         }
-
         return $url;
     }
 }
@@ -3231,11 +3310,9 @@ if (!function_exists('uploadParam')) {
             $result['fileSizeLimitImage'] = intval($global['image']['limit']) * 1024;
             $result['fileSizeLimitAudio'] = intval($global['audio']['limit']) * 1024;
         }
-
         $result['util'] = $util;
         $result['global'] = $global;
         $result['util_url'] = $util_url;
-
         return $result;
     }
 }
@@ -3374,12 +3451,12 @@ if (!function_exists('verifyPasswordStrength')) {
             }
         }
 
-        if($is_check == 1){
-//            if (!preg_match('/^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[!~@#$%^&*?\(\)]).{8,18}$/', $password)) {
+        if ($is_check == 1) {
+//            if (!preg_match('/(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,30}/', $password)) {
 //                return '密码至少为8-16个字符,至少1个大写字母，1个小写字母和一个数字，其他可以任意字符';
 //            }
-            if (!preg_match('/(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,30}/', $password)) {
-                return '密码至少为8-16个字符,至少1个大写字母，1个小写字母和一个数字，其他可以任意字符';
+            if (!preg_match('/^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[.!~@#$%^&*?\(\)+_-]).{8,18}$/', $password)) {
+                return '密码长度至少为8位,最多18位,要求包括数字，大小写字母和特殊字符';
             }
         }
         return true;
@@ -3492,8 +3569,26 @@ if (!function_exists('validatePassword')) {
      * @return string
      */
     function validatePassword($password) {
-        if (!preg_match('/^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[.!~@#$%^&*?\(\)+_-]).{8,18}$/', $password)) {
-            return '密码长度至少为8位,要求包括数字，大小写字母和特殊字符';
+        $is_check = 0;
+        if (config('app.APP_Framework', false) == 'platform') {
+            //独立版
+            $loginset = SystemSetting::settingLoad('loginset', 'system_loginset');
+            $is_check = $loginset['password_verify'];
+        }elseif(config('app.APP_Framework', false) != 'platform'){
+            //微擎版
+            if (\Illuminate\Support\Facades\Schema::hasTable('core_settings')) {
+                $setting = \Illuminate\Support\Facades\DB::table('core_settings')->where('key','register')->first();
+                if($setting){
+                    $value = unserialize($setting['value']);
+                    $is_check = $value['safe']?:0;
+                }
+            }
+        }
+
+        if ($is_check == 1) {
+            if (!preg_match('/^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[.!~@#$%^&*?\(\)+_-]).{8,18}$/', $password)) {
+                return '密码长度至少为8位,要求包括数字，大小写字母和特殊字符';
+            }
         }
         return true;
     }
@@ -3590,7 +3685,7 @@ if (!function_exists('validatePassword')) {
                                     </p>`;
                                 resolve({ html: embedHtml });
                             }
-                        
+
                         } catch (e) {
                             resolve({ html: "" });
                         }
@@ -3609,3 +3704,76 @@ if (!function_exists('validatePassword')) {
 */
 }
 
+if (!function_exists('passwordVerifyStatus')) {
+    /**
+     * @return bool|string
+     */
+    function passwordVerifyStatus()
+    {
+        $is_check = 0;
+        if (config('app.APP_Framework', false) == 'platform') {
+            //独立版
+            $loginset = SystemSetting::settingLoad('loginset', 'system_loginset');
+            $is_check = $loginset['password_verify'];
+        }elseif(config('app.APP_Framework', false) != 'platform'){
+            //微擎版
+            if (\Illuminate\Support\Facades\Schema::hasTable('core_settings')) {
+                $setting = \Illuminate\Support\Facades\DB::table('core_settings')->where('key','register')->first();
+                if($setting){
+                    $value = unserialize($setting['value']);
+                    $is_check = $value['safe']?:0;
+                }
+            }
+        }
+
+        if ($is_check == 1) {
+            return true;//开启了密码强度效验
+        }
+        return false;
+    }
+
+
+
+    /**
+     * 四舍六入五成双规则、银行进位法
+     * 被修约的数字等于5时，要看5前面的数字,
+     * 若是奇数则进位，若是偶数则将5舍掉,即修约后末尾数字都成为偶数;
+     * 若5的后面还有不为'0'的任何数，则此时无论5的前面是奇数还是偶数，均应进位
+     */
+    if (!function_exists('bankerRounding')) {
+        function bankerRounding($money, $precision = 2)
+        {
+            return round($money,$precision,PHP_ROUND_HALF_EVEN);
+        }
+    }
+}
+
+/**
+ * 插件图标路径
+ */
+if (!function_exists('plugin_icon_path')) {
+    function plugin_icon_path($icon_name): string
+    {
+        return base_path() . '/static/yunshop/plugins/list-icon/icon/' . $icon_name;
+    }
+}
+
+/**
+ * 会员中心入口图标
+ */
+if (!function_exists('entry_icon_path')) {
+    function entry_icon_path($icon_name): string
+    {
+        return base_path() . '/static/yunshop/designer/images/' . $icon_name;
+    }
+}
+
+/**
+ * 插件静态文件目录、文件
+ */
+if (!function_exists('plugin_assets_path')) {
+    function plugin_assets_path($plugin_name, $path = '')
+    {
+        return base_path() . '/plugins/' . $plugin_name . '/assets' . ($path ? '/'.$path : '');
+    }
+}

@@ -1,530 +1,522 @@
 @extends('layouts.base')
 @section('title', '余额设置')
 @section('content')
+    <link rel="stylesheet" type="text/css" href="{{static_url('yunshop/goods/vue-goods1.css')}}"/>
+    <style>
+        .el-form-item__label {
+            width: 300px;
+            text-align: right;
+        }
+        .alert.alert-warning {
+            border: 1px;
+            color: red;
+            border-radius: 3px;
+            box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.14), 0 7px 10px -5px rgba(255, 152, 0, 0.4);
+            background-color: #fcf4f4;
+        }
+        .note-span {
+            width: 290px;
+            text-align: right;
+            margin-right: 10px;
+        }
 
-    <div class="main rightlist">
+        .el-radio-group {
+            display: inline-block;
+            line-height: 1;
+            vertical-align: inherit;
+        }
+        .content{
+            background: #eff3f6;
+            padding: 10px!important;
+        }
+        .con{
+            padding-bottom:40px;
+            position:relative;
+            border-radius: 8px;
+            min-height:100vh;
+        }
+        .con .setting .block{
+            padding:10px;
+            background-color:#fff;
+            border-radius: 8px;
+        }
+        .con .setting .block .title{
+            font-size:18px;
+            margin-bottom:15px;
+            display:flex;
+            align-items:center;
+        }
+        .con .confirm-btn{
+            width: calc(100% - 266px);
+            position:fixed;
+            bottom:0;
+            right:0;
+            margin-right:10px;
+            line-height:63px;
+            background-color: #ffffff;
+            box-shadow: 0px 8px 23px 1px
+            rgba(51, 51, 51, 0.3);
+            background-color:#fff;
+            text-align:center;
+        }
+        b{
+            font-size:14px;
+        }
+        .el-checkbox__inner{
+            border:solid 1px #56be69!important;
+        }
+    </style>
+    <div id="app" class="main rightlist">
+        <div class="con">
+            <div class="setting">
 
-        <form action="{{ yzWebUrl('finance.balance-set.store') }}" method="post" class="form-horizontal form"
-              enctype="multipart/form-data">
-            <div class="panel panel-default">
-
-                <div class="alert alert-warning alert-important">
-                    余额支付开关、及其他支付设置，请到支付方式查看<a href="{{ yzWebUrl('setting.shop.pay') }}" target="_blank">【点击支付方式设置】</a>.
-                </div>
-
-                <div class='panel-body'>
-
-                    <div class="form-group">
-                        <label class="col-xs-12 col-sm-3 col-md-2 control-label">开启账户充值</label>
-                        <div class="col-sm-9 col-xs-12">
-                            <!--原字段 name = trade[closerecharge] -->
-                            <label class='radio-inline'><input type='radio' name='balance[recharge]' value='1'
-                                                               @if($balance['recharge'] == 1) checked @endif/>
-                                开启</label>
-                            <label class='radio-inline'><input type='radio' name='balance[recharge]' value='0'
-                                                               @if($balance['recharge'] == 0) checked @endif/>
-                                关闭</label>
-                            <span class='help-block'>是否允许用户对账户余额进行充值</span>
-                        </div>
+        <div style="align-content: center">
+            <el-form ref="form" :model="balance">
+                <div class="block">
+                    <div class="title"><span style="width: 4px;height: 18px;background-color: #29ba9c;margin-right:15px;display:inline-block;"></span><b>余额设置</b></div>
+                    <div class="alert alert-warning alert-important" style="margin-left:300px;text-align: center;border-style:solid !important;width: 500px;border-color: red !important;border-radius: 5px">
+                        余额支付开关、及其他支付设置，请到支付方式查看<a style="color: red" href="{{ yzWebUrl('setting.shop.pay') }}" target="_blank">【点击支付方式设置】</a>.
                     </div>
+                    <el-form-item label="开启账户充值">
+                        <el-switch
+                                v-model="balance.recharge"
+                                active-color="#13ce66"
+                                inactive-color="#bfbfbf"
+                                active-value="1"
+                                inactive-value="0"
+                        >
+                        </el-switch>
+                        <span class='help-block'>是否允许用户对账户余额进行充值</span>
+                    </el-form-item>
+                    <el-form-item label=" " v-if="balance.recharge==1">
+                        <el-radio-group v-model="balance.recharge_activity">
+                            <el-radio :label="1">启用充值活动</el-radio>
+                            <el-radio :label="0">关闭充值活动</el-radio>
+                            <el-radio v-if="re_recharge_activity==1" :label="2">重置充值活动</el-radio>
+                            <span class='help-block'>开启时需选择活动开始及结束时间、会员最多参与次数(-1，0，空则不限参与次数)，重置充值活动：开启新充值活动统计</span>
 
-                    <div id='recharge' @if( empty($balance['recharge']) ) style="display:none" @endif>
-                        <div class="form-group">
-                            <label class="col-xs-12 col-sm-3 col-md-2 control-label"></label>
-                            <div class="col-sm-9 col-xs-12">
-                                @if($balance['recharge_activity'] == 1)
-                                    <label class='radio-inline'>
-                                        <input type='radio' name='balance[recharge_activity]' value='2'/>
-                                        重置充值活动
-                                    </label>
-                                @endif
-                                <label class='radio-inline'>
-                                    <input type='radio' name='balance[recharge_activity]' value='1'
-                                           @if($balance['recharge_activity'] == 1) checked @endif/>
-                                    启用充值活动
-                                </label>
-                                <label class='radio-inline'>
-                                    <input type='radio' name='balance[recharge_activity]' value='0'
-                                           @if(empty($balance['recharge_activity'])) checked @endif/>
-                                    关闭充值活动
-                                </label>
-                                <span class='help-block'>开启时需选择活动开始及结束时间、会员最多参与次数(-1，0，空则不限参与次数)，重置充值活动：开启新充值活动统计</span>
-                                <div id='recharge_activity'
-                                     @if( empty($balance['recharge_activity']) ) style="display:none" @endif>
-                                    <div class="col-sm-9 col-xs-12">
-                                        <div class="alipay">
-                                            <label class='radio-inline'></label>
-                                        </div>
-                                        <div class="cost">
-                                            <label class='radio-inline'>
-                                                <div class="input-group" style="width: 330px;">
-                                                    <div class="input-group-addon" style="width: 120px;">会员最多参与次数</div>
-                                                    <input type="text" name="balance[recharge_activity_fetter]"
-                                                           class="form-control"
-                                                           value="{{ $balance['recharge_activity_fetter'] or -1 }}"
-                                                           placeholder=""/>
-                                                    <div class="input-group-addon">次</div>
-                                                </div>
-                                            </label>
-                                            <label class='radio-inline'>
-                                                <div class="search-select">
-                                                    {!! app\common\helpers\DateRange::tplFormFieldDateRange('balance[recharge_activity_time]', [
-                                                    'starttime'=>date('Y-m-d H:i',$balance['recharge_activity_start'] ?: time()),
-                                                    'endtime'=>date('Y-m-d H:i',$balance['recharge_activity_end'] ?: strtotime('1 month')),
-                                                    'start'=>0,
-                                                    'end'=>0
-                                                    ], true) !!}
-                                                </div>
-                                            </label>
-                                        </div>
-                                    </div>
-                                </div>
+                            <div v-if="balance.recharge_activity">
+                                <el-input style="width: 350px;margin-right: 20px"
+                                          v-model="balance.recharge_activity_fetter">
+                                    <template slot="append">次</template>
+                                    <template slot="prepend">会员最多参与次数</template>
+                                </el-input>
+                                <el-date-picker
+                                        v-model="recharge_activity_time"
+                                        type="datetimerange"
+                                        :picker-options="pickerOptions"
+                                        value-format="timestamp"
+                                        range-separator="至"
+                                        start-placeholder="开始日期"
+                                        end-placeholder="结束日期"
+                                        align="right">
+                                </el-date-picker>
+                            </div>
+
+                        </el-radio-group>
+                    </el-form-item>
+                    <el-form-item label=" " v-if="balance.recharge==1">
+                        <el-radio-group v-model="balance.proportion_status">
+                            <el-radio label="0">赠送固定金额</el-radio>
+                            <el-radio label="1">赠送充值比例</el-radio>
+                        </el-radio-group>
+                    </el-form-item>
+                    <el-form-item label=" " v-if="balance.recharge==1">
+                        充值满额送：
+                        <el-button @click="addRechargeItem"><i class='fa fa-plus'></i> 增加优惠项</el-button>
+                        <div v-for="(item,index) in balance.sale" :key="index">
+                            <el-input style="width: 350px;margin-left: 300px;margin-top: 20px" v-model="item.enough">
+                                <template slot="append">赠送</template>
+                                <template slot="prepend">满</template>
+                            </el-input>
+
+                            <el-input style="width: 350px;;margin-top: 20px" v-model="item.give">
+                                <template v-if="balance.proportion_status==1" slot="append">%</template>
+                                <template v-if="balance.proportion_status==0" slot="append">元</template>
+                            </el-input>
+                            <el-button style="margin-top: 20px" class='btn btn-danger' type='button'
+                                       @click="removeRechargeItem(index)"><i
+                                        class='fa fa-remove'></i>
+                            </el-button>
+                        </div>
+                        <div v-if="balance.recharge==1" style="margin-left: 300px;line-height: 30px;margin-top: 10px">
+                            <span class="help-block">两项都填写才能生效</span>
+                            <span class="help-block">赠送固定金额：充值满100，赠送10元,实际赠送10元</span>
+                            <span class="help-block">赠送充值比例：充值满200，赠送15%，实际赠送30【200*15%】元</span>
+                        </div>
+                    </el-form-item>
+                </div>
+                <div style="background: #eff3f6;width:100%;height:15px;"></div>
+                <div class="block">
+                    <div class="title"><span style="width: 4px;height: 18px;background-color: #29ba9c;margin-right:15px;display:inline-block;"></span><b>余额转账设置</b></div>
+                    <el-form-item label="开启余额转账">
+                        <el-switch
+                                v-model="balance.transfer"
+                                active-color="#13ce66"
+                                inactive-color="#bfbfbf"
+                                active-value="1"
+                                inactive-value="0"
+                        >
+                        </el-switch>
+                        <span class='help-block'>是否允许用户对账户余额进行转账</span>
+                    </el-form-item>
+                    <el-form-item label="余额团队转账">
+                        <el-switch
+                                v-model="balance.team_transfer"
+                                active-color="#13ce66"
+                                inactive-color="#bfbfbf"
+                                active-value="1"
+                                inactive-value="0"
+                        >
+                        </el-switch>
+                        <span class='help-block'>开启后用户只能对团队成员转账</span>
+                    </el-form-item>
+                </div>
+                <div style="background: #eff3f6;width:100%;height:15px;"></div>
+                <div class="block" v-if="is_open">
+                    <div class="title"><span style="width: 4px;height: 18px;background-color: #29ba9c;margin-right:15px;display:inline-block;"></span><b>余额转换[[love_name]]设置</b></div>
+                    <el-form-item :label="'余额转换'+love_name">
+                        <el-switch
+                                v-model="balance.love_swich"
+                                active-color="#13ce66"
+                                inactive-color="#bfbfbf"
+                                active-value="1"
+                                inactive-value="0"
+                        >
+                        </el-switch>
+                        <div>
+                            <el-input v-if="balance.love_swich==1" style="width: 350px;;margin-top: 20px"
+                                      v-model="balance.love_rate">
+                                <template slot="prepend">余额转换比例</template>
+                                <template slot="append">%</template>
+                            </el-input>
+                            <span style="margin-left: 300px;" class='help-block'>转化实例:实际转化10个 [[love_name]],余额转化比例10%，则需要10 / 10%，比例为空或为0则默认为1:1</span>
+                        </div>
+
+                    </el-form-item>
+                </div>
+                <div style="background: #eff3f6;width:100%;height:15px;"></div>
+                <div class="block">
+                    <div class="title"><span style="width: 4px;height: 18px;background-color: #29ba9c;margin-right:15px;display:inline-block;"></span><b>消息提醒</b></div>
+                    <el-form-item label="开启余额定时提醒">
+                        <el-switch
+                                v-model="balance.sms_send"
+                                active-color="#13ce66"
+                                inactive-color="#bfbfbf"
+                                active-value="1"
+                                inactive-value="0"
+                        >
+                        </el-switch>
+                        <div style="margin-left: 300px;" v-if="balance.sms_send==1">
+                            <el-select style="width: 150px;" v-model="balance.sms_hour" placeholder="请选择">
+                                <el-option
+                                        v-for="item in cron_time"
+                                        :key="item.value"
+                                        :label="item.label"
+                                        :value="item.value">
+                                </el-option>
+                            </el-select>
+                            <el-input style="width: 350px;" v-model="balance.sms_hour_amount">
+                                <template slot="prepend">金额超过</template>
+                                <template slot="append">元</template>
+                            </el-input>
+                        </div>
+                        <span style="margin-left: 300px;" class='help-block'>重新设置时间后一定要在一分钟后重启队列，若不重启该设置则会在第二天才生效</span>
+                    </el-form-item>
+                    <el-form-item label="开启余额不足消息提醒">
+                        <el-switch
+                                v-model="balance.blance_floor_on"
+                                active-color="#13ce66"
+                                inactive-color="#bfbfbf"
+                                active-value="1"
+                                inactive-value="0"
+                        >
+                        </el-switch>
+                    </el-form-item>
+                    <el-form-item label="" v-if="balance.blance_floor_on==1">
+                        <div>
+                            <label class="note-span">余额不足</label>
+                            <el-input style="width: 350px;" v-model="balance.blance_floor">
+                                <template slot="prepend">余额不足</template>
+                                <template slot="append">元</template>
+                            </el-input>
+                        </div>
+                        <div>
+                            <label class="note-span">消息通知类型</label>
+                            <el-radio-group v-model="balance.balance_message_type">
+                                <el-radio label="1">指定会员</el-radio>
+                                <el-radio label="2">指定会员等级</el-radio>
+                                <el-radio label="3">指定会员分组</el-radio>
+                            </el-radio-group>
+                        </div>
+                        <div style="margin-top: 20px" v-if="balance.balance_message_type==1">
+                            <label class="note-span">选择指定会员：</label>
+                            <el-input style="width: 350px;" v-model="balance.uids"></el-input>
+                            <span style="margin-left: 300px" class='help-block'>请填写会员id，会员id之间用英文逗号隔开</span>
+                        </div>
+                        <div style="margin-top: 20px" v-if="balance.balance_message_type==2">
+                            <label class="note-span">使用条件 - 会员等级</label>
+                            <el-select style="width: 150px;" v-model="balance.level_limit" placeholder="请选择">
+                                <el-option
+                                        v-for="item in memberLevels"
+                                        :key="item.id"
+                                        :label="item.level_name"
+                                        :value="item.id">
+                                </el-option>
+                            </el-select>
+                        </div>
+                        <div style="margin-top: 20px" v-if="balance.balance_message_type==3">
+                            <label class="note-span">使用条件 - 会员分组</label>
+                            <el-select style="width: 150px;" v-model="balance.group_type" placeholder="请选择">
+                                <el-option
+                                        v-for="item in group_type"
+                                        :key="item.id"
+                                        :label="item.group_name"
+                                        :value="item.id">
+                                </el-option>
+                            </el-select>
+                        </div>
+                    </el-form-item>
+                </div>
+                <div style="background: #eff3f6;width:100%;height:15px;"></div>
+                <div class="block">
+                    <div class="title"><span style="width: 4px;height: 18px;background-color: #29ba9c;margin-right:15px;display:inline-block;"></span><b>余额抵扣设置</b></div>
+                    <el-form-item label="余额抵扣">
+                        <el-switch
+                                v-model="balance.balance_deduct"
+                                active-color="#13ce66"
+                                inactive-color="#bfbfbf"
+                                active-value="1"
+                                inactive-value="0"
+                        >
+                        </el-switch>
+                        <span style="margin-left: 300px" class='help-block'>开启后订单不支持余额支付</span>
+                        <div style="margin-top: 20px" v-if="balance.balance_deduct==1">
+                            <label class="note-span">商品抵扣</label>
+                            <el-input style="width: 350px;" v-model="balance.money_max">
+                                <template slot="append">%</template>
+                                <template slot="prepend">最多可抵扣</template>
+                            </el-input>
+                            <span style="margin-left: 300px" class='help-block'>商品最高抵扣比例</span>
+                        </div>
+                    </el-form-item>
+                    <el-form-item label="余额返还">
+                        <el-switch
+                                v-model="balance.balance_deduct_rollback"
+                                active-color="#13ce66"
+                                inactive-color="#bfbfbf"
+                                active-value="1"
+                                inactive-value="0"
+                        >
+                        </el-switch>
+                        <span style="margin-left: 300px" class='help-block'>开启余额返还：未付款订单、退款订单关闭订单后，用于抵扣的余额返还到会员账户</span>
+                    </el-form-item>
+                </div>
+                <div style="background: #eff3f6;width:100%;height:15px;"></div>
+                <div class="block">
+                    <div class="title"><span style="width: 4px;height: 18px;background-color: #29ba9c;margin-right:15px;display:inline-block;"></span><b>余额充值设置</b></div>
+
+                    <el-form-item label="充值余额赠送积分">
+                        <el-switch
+                                v-model="balance.charge_reward_swich"
+                                active-color="#13ce66"
+                                inactive-color="#bfbfbf"
+                                active-value="1"
+                                inactive-value="0"
+                        >
+                        </el-switch>
+                        <div style="margin-top: 20px" v-if="balance.charge_reward_swich==1">
+                            <el-input style="margin-left: 300px;width: 350px;" v-model="balance.charge_reward_rate">
+                                <template slot="append">%</template>
+                                <template slot="prepend">余额转换比例</template>
+                            </el-input>
+                            <span style="margin-left: 300px" class='help-block'>转化实例:实际赠送10积分,余额转化比例10%，则需要充值10 / 10%，比例为空或为0则默认为1:1</span>
+                        </div>
+                    </el-form-item>
+                    <el-form-item label="充值余额审核">
+                        <el-switch
+                                v-model="balance.charge_check_swich"
+                                active-color="#13ce66"
+                                inactive-color="#bfbfbf"
+                                active-value="1"
+                                inactive-value="0"
+                        >
+                        </el-switch>
+                        <span style="margin-left: 300px" class='help-block'>开启后，后台手动充值余额需要审核后才充值成功，与前端充值以及后台批量充值无关</span>
+                    </el-form-item>
+                    <el-form-item label="收入提现赠送余额">
+                        <el-switch
+                                v-model="balance.income_withdraw_award"
+                                active-color="#13ce66"
+                                inactive-color="#bfbfbf"
+                                active-value="1"
+                                inactive-value="0"
+                        >
+                        </el-switch>
+                        <div v-if="balance.income_withdraw_award==1">
+                            <div style="margin-top: 20px">
+                                <label class="note-span">赠送余额比例 (统一设置)</label>
+                                <el-input style="width: 350px;" v-model="balance.income_withdraw_award_rate">
+                                    <template slot="append">%</template>
+                                </el-input>
+                            </div>
+                            <div style="margin-top: 20px">
+                                <label class="note-span">赠送余额比例 (微信独立)</label>
+                                <el-input style="width: 350px;" v-model="balance.income_withdraw_wechat_rate">
+                                    <template slot="append">%</template>
+                                </el-input>
+                            </div>
+                            <div v-if="high_light_open==1" style="margin-top: 20px">
+                                <label class="note-span">赠送余额比例 (高灯独立)</label>
+                                <el-input style="width: 350px;" v-model="balance.income_withdraw_light_rate">
+                                    <template slot="append">%</template>
+                                </el-input>
                             </div>
                         </div>
-
-                        <div class="form-group">
-                            <label class="col-xs-12 col-sm-3 col-md-2 control-label"></label>
-                            <div class="col-sm-9 col-xs-12">
-                                <label class='radio-inline'>
-                                    <input type='radio' name='balance[proportion_status]' value='0'
-                                           @if(empty($balance['proportion_status'])) checked @endif/>
-                                    赠送固定金额
-                                </label>
-                                <label class='radio-inline'>
-                                    <input type='radio' name='balance[proportion_status]' value='1'
-                                           @if($balance['proportion_status'] == 1) checked @endif/>
-                                    赠送充值比例
-                                </label>
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label class="col-xs-12 col-sm-3 col-md-2 control-label"></label>
-                            <div class="col-sm-9 col-xs-12">
-                                <h4>
-                                    充值满额送:
-                                    <button type='button' class="btn btn-default" onclick='addRechargeItem()'
-                                            style="margin-bottom:5px">
-                                        <i class='fa fa-plus'></i> 增加优惠项
-                                    </button>
-                                </h4>
-
-
-                                <div class='recharge-items'>
-                                    @foreach( $balance['sale'] as $list)
-                                        <div class="input-group recharge-item" style="margin-top:5px; width: 60%">
-                                            <span class="input-group-addon">满</span>
-                                            <input type="text" class="form-control" name='balance[enough][]'
-                                                   value='{{ $list['enough'] or '' }}'/>
-                                            <span class="input-group-addon">赠送</span>
-                                            <input type="text" class="form-control" name='balance[give][]'
-                                                   value='{{ $list['give'] or '' }}'/>
-                                            <span class="input-group-addon unit">@if(empty($balance["proportion_status"]))
-                                                    元 @else % @endif</span>
-                                            <div class='input-group-btn'>
-                                                <button class='btn btn-danger' type='button'
-                                                        onclick="removeRechargeItem(this)"><i class='fa fa-remove'></i>
-                                                </button>
-                                            </div>
-                                        </div>
-                                    @endforeach
-                                </div>
-
-                                <span class="help-block">两项都填写才能生效</span>
-                                <span class="help-block">赠送固定金额：充值满100，赠送10元,实际赠送10元</span>
-                                <span class="help-block">赠送充值比例：充值满200，赠送15%，实际赠送30【200*15%】元</span>
-                            </div>
-                        </div>
-                    </div>
-
-
-                    <div class="form-group">
-                        <label class="col-xs-12 col-sm-3 col-md-2 control-label">开启余额转账</label>
-                        <div class="col-sm-9 col-xs-12">
-                            <label class='radio-inline'><input type='radio' name='balance[transfer]' value='1'
-                                                               @if($balance['transfer'] ==1) checked @endif/>开启</label>
-                            <label class='radio-inline'><input type='radio' name='balance[transfer]' value='0'
-                                                               @if($balance['transfer'] ==0) checked @endif/> 关闭</label>
-                            <span class='help-block'>是否允许用户对账户余额进行转账</span>
-                        </div>
-                    </div>
-
-                    <div class="form-group">
-                        <label class="col-xs-12 col-sm-3 col-md-2 control-label">余额团队转账</label>
-                        <div class="col-sm-9 col-xs-12">
-                            <label class='radio-inline'><input type='radio' name='balance[team_transfer]' value='1'
-                                                               @if($balance['team_transfer'] ==1) checked @endif/>开启</label>
-                            <label class='radio-inline'><input type='radio' name='balance[team_transfer]' value='0'
-                                                               @if($balance['team_transfer'] ==0) checked @endif/> 关闭</label>
-                            <span class='help-block'>开启后用户只能对团队成员转账</span>
-                        </div>
-                    </div>
-
-
-
+                    </el-form-item>
+                    <el-form-item v-if="balance.income_withdraw_award==1" label="收入提现赠送说明">
+                        <el-input
+                                style="width: 600px;"
+                                type="textarea"
+                                placeholder="请输入内容"
+                                v-model="balance.income_withdraw_award_explain">
+                        </el-input>
+                        <span style="margin-left: 300px" class='help-block'>收入提现页面提现成功自定义提示语，变量：[奖励余额]</span>
+                    </el-form-item>
+                </div>
+                <div style="background: #eff3f6;width:100%;height:15px;"></div>
+                <!-- 分页 -->
+                <div class="vue-page" style="text-align: center">
+                        <el-button type="primary" @click="onSubmit">提交</el-button>
                 </div>
 
-                @if($is_open)
-                <div class="form-group">
-                    <label class="col-xs-12 col-sm-3 col-md-2 control-label">余额转换@if (app('plugins')->isEnabled('designer') == 1){{ LOVE_NAME }}@else
-                            '爱心值'@endif：</label>
-                    <div class="col-sm-4 col-xs-6">
-                        <label class="radio-inline">
-                            <input type="radio" name="balance[love_swich]" value="1"
-                                   @if($balance['love_swich'] ==1 ) checked="checked" @endif>
-                            开启
-                        </label>
-                        <label class="radio-inline">
-                            <input type="radio" name="balance[love_swich]" value="0"
-                                   @if($balance['love_swich'] ==0 ) checked="checked" @endif >
-                            关闭
-                        </label>
-                    </div>
-                </div>
-                <div id="love_rate" @if($balance['love_swich'] !=1 ) style="display:none" @endif >
-                    <div class="form-group">
-                        <label class="col-xs-12 col-sm-3 col-md-2 control-label"></label>
-                        <div class="col-sm-4 col-xs-12">
-                            <div class="input-group">
-                                <div class="input-group-addon">余额转换比例</div>
-                                <input type="text" name="balance[love_rate] " class="form-control"
-                                       value="{{ $balance['love_rate']  or '0'}}" placeholder="0.00">
-                                <div class="input-group-addon">%</div>
-                            </div>
-                            <div class="help-block">
-                                转化实例:实际转化10个@if (app('plugins')->isEnabled('designer') == 1){{ LOVE_NAME }}@else
-                                    '爱心值'@endif,余额转化比例10%，则需要10 / 10%，比例为空或为0则默认为1:1
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                @endif
-
+            </el-form>
+        </div>
             </div>
-
-
-            <div class="form-group">
-                <label class="col-xs-12 col-sm-3 col-md-2 control-label">开启余额定时提醒</label>
-                <div class="col-sm-9 col-xs-12">
-                    <!--原字段 name = trade[closerecharge] -->
-                    <label class='radio-inline'>
-                        <input type='radio' name='balance[sms_send]' value='1'
-                               @if($balance['sms_send'] == 1) checked @endif/>
-                        开启
-                    </label>
-                    <label class='radio-inline'>
-                        <input type='radio' name='balance[sms_send]' value='0'
-                               @if($balance['sms_send'] == 0) checked @endif/>
-                        关闭
-                    </label>
-                </div>
-            </div>
-
-
-            <div id="sms_send" @if($balance['sms_send'] !=1 ) style="display:none" @endif >
-                <div class="form-group">
-                    <label class="col-xs-12 col-sm-3 col-md-2 control-label">定时提醒设置</label>
-                    <div class="input-group recharge-item" style="margin-top:5px; width: 30%">
-                        <select name="balance[sms_hour]" class="form-control">
-                            @foreach($day_data as $key => $week)
-                                <option value='{{ $key }}' @if($key == $balance['sms_hour']) selected @endif>{{
-                                    $week}}
-                                </option>
-                            @endforeach
-                        </select>
-                        <span class="input-group-addon">点,金额超过</span>
-                        <input type="text" class="form-control" name="balance[sms_hour_amount]"
-                               value="{{ $balance['sms_hour_amount']  or '0'}}">
-                        <span class="input-group-addon unit"> 元 </span>
-                    </div>
-                    <span style="margin-left: 18%" class="help-block">重新设置时间后一定要在一分钟后重启队列，若不重启该设置则会在第二天才生效</span>
-                </div>
-
-            </div>
-
-
-            <div class="form-group">
-                <label class="col-xs-12 col-sm-3 col-md-2 control-label">开启余额不足消息提醒</label>
-                <div class="col-sm-9 col-xs-12">
-                    <!--原字段 name = trade[closerecharge] -->
-                    <label class='radio-inline'>
-                        <input type='radio' name='balance[blance_floor_on]' value='1'
-                               @if($balance['blance_floor_on'] == 1) checked @endif/>
-                        开启
-                    </label>
-                    <label class='radio-inline'>
-                        <input type='radio' name='balance[blance_floor_on]' value='0'
-                               @if($balance['blance_floor_on'] == 0) checked @endif/>
-                        关闭
-                    </label>
-                </div>
-            </div>
-
-            <div id="blance_floor_on" @if($balance['blance_floor_on'] !=1 ) style="display:none" @endif>
-                <div class="form-group">
-                    <label class="col-xs-12 col-sm-3 col-md-2 control-label">余额不足</label>
-                    <div class="col-sm-2">
-                        <div class='input-group'>
-                            <input type="text" name="balance[blance_floor]" value="{{$balance['blance_floor']}}"
-                                   class="form-control"/>
-                            <span class='input-group-addon'>元</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label class="col-xs-12 col-sm-3 col-md-2 control-label">消息通知类型</label>
-                    <div class="col-sm-9 col-xs-12">
-                        <label class="radio-inline">
-                            <input type="radio" name="balance[balance_message_type]" value='1' onclick='showtype(1)'
-                                   @if ($balance['balance_message_type'] == 1) checked @endif /> 指定会员
-                        </label>
-                        <label class="radio-inline">
-                            <input type="radio" name="balance[balance_message_type]" onclick='showtype(2)' value='2'
-                                   @if ($balance['balance_message_type'] == 2) checked @endif /> 指定会员等级
-                        </label>
-                        <label class="radio-inline">
-                            <input type="radio" name="balance[balance_message_type]" onclick='showtype(3)' value='3'
-                                   @if ($balance['balance_message_type'] == 3) checked @endif /> 指定会员分组
-                        </label>
-                    </div>
-                </div>
-
-                <div class="form-group showtype showtype2"
-                     @if($balance['balance_message_type'] != 2) style="display: none" @endif>
-                    <label class="col-xs-12 col-sm-3 col-md-2 control-label">使用条件 - 会员等级</label>
-                    <div class="col-sm-2">
-                        <select name="balance[level_limit]" class="form-control">
-                            @foreach($memberLevels as $v)
-                                <option value="{{$v['id']}}"
-                                        @if($balance['level_limit']==$v['id']) selected @endif>{{$v['level_name']}}
-                                    (发送消息通知)
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-                </div>
-
-                <div class="form-group showtype showtype3"
-                     @if($balance['balance_message_type'] != 3) style="display: none" @endif>
-                    <label class="col-xs-12 col-sm-3 col-md-2 control-label">使用条件 - 会员分组</label>
-                    <div class="col-sm-2">
-                        <select name="balance[group_type]" class="form-control">
-                            @foreach($group_type as $v)
-                                <option value="{{$v['id']}}"
-                                        @if($balance['group_type']==$v['id']) selected @endif>{{$v['group_name']}}
-                                    (发送消息通知)
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-                </div>
-
-                <div class="form-group showtype showtype1"
-                     @if($balance['balance_message_type'] != 1) style="display: none" @endif>
-                    <label class="col-xs-12 col-sm-3 col-md-2 control-label">选择指定会员：</label>
-                    <div class='input-group' style="width: 50%">
-                        <input type="text" name="balance[uids]" value="{{$balance['uids']}}"
-                               class="form-control"/>
-                    </div>
-                    <span style="margin-left: 17%" class='help-block'>请填写会员id，会员id之间用英文逗号隔开</span>
-                </div>
-
-            </div>
-
-            <div>
-                <div class="form-group">
-                    <label class="col-xs-12 col-sm-3 col-md-2 control-label">余额抵扣</label>
-                    <div class="col-sm-9 col-xs-12">
-                        <label class="radio-inline">
-                            <input type="radio" name="balance[balance_deduct]" value='1'
-                                   @if ($balance['balance_deduct'] == 1) checked @endif /> 开启
-                        </label>
-                        <label class="radio-inline">
-                            <input type="radio" name="balance[balance_deduct]" value='0'
-                                   @if (empty($balance['balance_deduct'])) checked @endif /> 关闭
-                        </label>
-                        <span class='help-block'>开启后订单不支持余额支付</span>
-                        {{--<span class='help-block'>开启余额抵扣，订单使用余额抵扣则不能使用余额支付；<br/>--}}
-                            {{--开启后门店、酒店收银台订单不支持余额支付--}}
-                        {{--</span>--}}
-                    </div>
-                </div>
-
-                {{--<div class="form-group">--}}
-                    {{--<label class="col-xs-12 col-sm-3 col-md-2 control-label">余额抵扣运费</label>--}}
-                    {{--<div class="col-sm-9 col-xs-12">--}}
-                        {{--<label class="radio-inline">--}}
-                            {{--<input type="radio" name="balance[balance_deduct_freight]" value='1'--}}
-                                   {{--@if ($balance['balance_deduct_freight'] == 1) checked @endif /> 开启--}}
-                        {{--</label>--}}
-                        {{--<label class="radio-inline">--}}
-                            {{--<input type="radio" name="balance[balance_deduct_freight]" value='0'--}}
-                                   {{--@if (empty($balance['balance_deduct_freight'])) checked @endif /> 关闭--}}
-                        {{--</label>--}}
-                        {{--<span class='help-block'>前置需要开启余额抵扣才会生效</span>--}}
-                    {{--</div>--}}
-                {{--</div>--}}
-
-                <div class="form-group">
-                    <label class="col-xs-12 col-sm-3 col-md-2 control-label">余额返还</label>
-                    <div class="col-sm-9 col-xs-12">
-                        <label class="radio-inline">
-                            <input type="radio" name="balance[balance_deduct_rollback]" value='1'
-                                   @if ($balance['balance_deduct_rollback'] == 1) checked @endif /> 开启
-                        </label>
-                        <label class="radio-inline">
-                            <input type="radio" name="balance[balance_deduct_rollback]" value='0'
-                                   @if (empty($balance['balance_deduct_rollback'])) checked @endif /> 关闭
-                        </label>
-                        <span class='help-block'>开启余额返还：未付款订单、退款订单关闭订单后，用于抵扣的余额返还到会员账户</span>
-                    </div>
-                </div>
-
-                <div id="balance_deduct_set" class="form-group" @if($balance['balance_deduct'] !=1 ) style="display:none" @endif >
-                    <label class="col-xs-12 col-sm-3 col-md-2 control-label">商品抵扣</label>
-                    <div class="col-sm-3">
-                        <div class='input-group'>
-                            <span class='input-group-addon'>最多可抵扣</span>
-                            <input type="text" name="balance[money_max]" value="{{$balance['money_max']}}"
-                                   class="form-control"/>
-                            <span class='input-group-addon'>%</span>
-                        </div>
-                        <span class='help-block'>商品最高抵扣比例</span>
-                    </div>
-                    {{--<div class="col-sm-3">--}}
-                        {{--<div class='input-group'>--}}
-                            {{--<span class='input-group-addon'>最少需抵扣</span>--}}
-                            {{--<input type="text" name="set[money_min]" value="{{$set['money_min']}}"--}}
-                                   {{--class="form-control"/>--}}
-                            {{--<span class='input-group-addon'>%</span>--}}
-                        {{--</div>--}}
-                        {{--<span class='help-block'>商品最少抵扣比例</span>--}}
-                    {{--</div>--}}
-                </div>
-            </div>
-            <div class="form-group">
-                <label class="col-xs-12 col-sm-3 col-md-2 control-label"></label>
-                <div class="col-sm-9 col-xs-12">
-                    <input type="submit" name="submit" value="提交" class="btn btn-success"/>
-                </div>
-            </div>
-        </form>
+        </div>
     </div>
-    <script language='javascript'>
-        function search_members() {
-            if ($('#search-kwd-notice').val() == '') {
-                Tip.focus('#search-kwd-notice', '请输入关键词');
-                return;
-            }
-            $("#module-menus-notice").html("正在搜索....");
-            $.get("{!! yzWebUrl('member.member.get-search-member') !!}", {
-                keyword: $.trim($('#search-kwd-notice').val())
-            }, function (dat) {
-                $('#module-menus-notice').html(dat);
-            });
-        }
-
-        function select_member(o) {
-            $("#uid").val(o.uid);
-            $("#saleravatar").show();
-            $("#saleravatar").find('img').attr('src', o.avatar);
-            $("#saler").val(o.nickname + "/" + o.realname + "/" + o.mobile);
-            $("#modal-module-menus-notice .close").click();
-        }
-
-        function showtype(type) {
-            $('.showtype').hide();
-            $('.showtype' + type).show();
-        }
-
-        $(function () {
-
-            $(":radio[name='balance[balance_deduct]']").click(function () {
-
-                if ($(this).val() == 1) {
-                    $("#balance_deduct_set").show();
-                } else {
-                    $("#balance_deduct_set").hide();
+    <script>
+        var app = new Vue({
+            el: "#app",
+            delimiters: ['[[', ']]'],
+            name: 'test',
+            data() {
+                return {
+                    balance: {},
+                    love_name: '',
+                    cron_time: [],
+                    re_recharge_activity: 0,
+                    memberLevels: [],
+                    group_type: [],
+                    is_open: '',
+                    recharge_activity_time: [],
+                    high_light_open: 0,
+                    pickerOptions: {
+                        shortcuts: [{
+                            text: '最近一周',
+                            onClick(picker) {
+                                const end = new Date();
+                                const start = new Date();
+                                start.setTime(start.getTime() - 3600 * 1000 * 24 * 7);
+                                picker.$emit('pick', [start, end]);
+                            }
+                        }, {
+                            text: '最近一个月',
+                            onClick(picker) {
+                                const end = new Date();
+                                const start = new Date();
+                                start.setTime(start.getTime() - 3600 * 1000 * 24 * 30);
+                                picker.$emit('pick', [start, end]);
+                            }
+                        }, {
+                            text: '最近三个月',
+                            onClick(picker) {
+                                const end = new Date();
+                                const start = new Date();
+                                start.setTime(start.getTime() - 3600 * 1000 * 24 * 90);
+                                picker.$emit('pick', [start, end]);
+                            }
+                        }]
+                    },
                 }
-            });
+            },
+            created() {
+                this.cronSelect()
+                this.getData()
+            },
+            mounted() {
 
-            $(":radio[name='balance[love_swich]']").click(function () {
-
-                if ($(this).val() == 1) {
-                    $("#love_rate").show();
-                } else {
-                    $("#love_rate").hide();
+            },
+            methods: {
+                cronSelect() {
+                    for (let i = 1; i < 24; i++) {
+                        this.cron_time.push(
+                            {
+                                value: i + '',
+                                label: '每天' + i + ':00' + '点'
+                            }
+                        )
+                    }
+                },
+                getData() {
+                    this.$http.post("{!! yzWebFullUrl('finance.balance-set.see') !!}", {}).then(response => {
+                        if (response.data.result == 1) {
+                            this.balance = response.data.data.balance
+                            if (typeof(this.balance.sale) === 'undefined') {
+                                this.$set(this.balance,'sale',[])
+                            }
+                            this.re_recharge_activity = response.data.data.balance.recharge_activity
+                            this.love_name = response.data.data.love_name
+                            this.memberLevels = response.data.data.memberLevels
+                            this.group_type = response.data.data.group_type
+                            this.is_open = response.data.data.is_open
+                            this.recharge_activity_time[0] = this.balance.recharge_activity_start ? this.balance.recharge_activity_start : ''
+                            this.recharge_activity_time[1] = this.balance.recharge_activity_end ? this.balance.recharge_activity_end : ''
+                            this.high_light_open = response.data.data.high_light_open
+                            console.log(this.recharge_activity_time)
+                        } else {
+                            this.$message.error(response.data.msg);
+                        }
+                        this.table_loading = false;
+                    }), function (res) {
+                        console.log(res);
+                        this.table_loading = false;
+                    };
+                },
+                onSubmit() {
+                    let loading = this.$loading({
+                        target: document.querySelector(".content"),
+                        background: 'rgba(0, 0, 0, 0)'
+                    });
+                    this.balance.recharge_activity_time = {
+                        start: this.recharge_activity_time[0],
+                        end: this.recharge_activity_time[1]
+                    }
+                    console.log(this.balance.recharge_activity_time)
+                    this.$http.post("{!! yzWebFullUrl('finance.balance-set.store') !!}", {'balance': this.balance}).then(response => {
+                        if (response.data.result == 1) {
+                            this.$message.success(response.data.msg);
+                            loading.close()
+                        } else {
+                            this.$message.error(response.data.msg);
+                            loading.close()
+                        }
+                        this.table_loading = false;
+                    }), function (res) {
+                        console.log(res);
+                        this.table_loading = false;
+                    };
+                },
+                addRechargeItem() {
+                    this.balance.sale.push({
+                        'enough': 0,
+                        'give': 0
+                    })
+                },
+                removeRechargeItem(index) {
+                    this.balance.sale.splice(index, 1)
                 }
-            });
-
-            $(":radio[name='balance[sms_send]']").click(function () {
-
-                if ($(this).val() == 1) {
-                    $("#sms_send").show();
-                } else {
-                    $("#sms_send").hide();
-                }
-            });
-
-            $(":radio[name='balance[blance_floor_on]']").click(function () {
-
-                if ($(this).val() == 1) {
-                    $("#blance_floor_on").show();
-                } else {
-                    $("#blance_floor_on").hide();
-                }
-            });
-
-
-            $(":radio[name='balance[recharge]']").click(function () {
-                if ($(this).val() == 1) {
-                    $("#recharge").show();
-                } else {
-                    $("#recharge").hide();
-                }
-            });
-            $(":radio[name='balance[recharge_activity]']").click(function () {
-                if ($(this).val() == 1 || $(this).val() == 2) {
-                    $("#recharge_activity").show();
-                } else {
-                    $("#recharge_activity").hide();
-                }
-            });
-            $(":radio[name='balance[proportion_status]']").click(function () {
-              //  if ($(this).val() == 1) {
-                 //   $(".unit").html('%');
-               // } else {
-                    $(".unit").html('元');
-            //    }
-            });
-        });
-
-        function addRechargeItem() {
-            var value = $('input[name="balance[proportion_status]"]:checked').val();
-            if (value == 1) {
-                var unit = '%';
-            } else {
-                var unit = '元';
-            }
-
-            var html = '<div class="input-group recharge-item"  style="margin-top:5px; width: 60%;">';
-            html += '<span class="input-group-addon">满</span>';
-            html += '<input type="text" class="form-control" name="balance[enough][]"  />';
-            html += '<span class="input-group-addon">赠送</span>';
-            html += '<input type="text" class="form-control"  name="balance[give][]"  />';
-            html += '<span class="input-group-addon unit">' + unit + '</span>';
-            html += '<div class="input-group-btn"><button type="button" class="btn btn-danger" onclick="removeRechargeItem(this)"><i class="fa fa-remove"></i></button></div>';
-            html += '</div>';
-            $('.recharge-items').append(html);
-        }
-
-        function removeRechargeItem(obj) {
-            $(obj).closest('.recharge-item').remove();
-        }
-
-
+            },
+        })
     </script>
-
-
-
 @endsection

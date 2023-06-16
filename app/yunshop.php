@@ -25,59 +25,6 @@ class YunShop
 
     }
 
-//    public static function run($namespace, $modules, $controllerName, $action, $currentRoutes)
-//    {
-//        //检测命名空间
-//        if (!class_exists($namespace)) {
-//            throw new NotFoundException(" 路由错误:不存在类: " . $namespace);
-//        }
-//        //检测controller继承
-//        $controller = new $namespace;
-//        if (!$controller instanceof \app\common\components\BaseController) {
-//            if (config('app.debug')) {
-//                throw new NotFoundException($controller . ' 没有继承\app\common\components\BaseController: ' . $namespace);
-//            }
-//            throw new NotFoundException(" 路由错误:不存在控制器: " . $namespace);
-//
-//        }
-//
-//        //设置默认方法
-//        if (empty($action)) {
-//            $action = 'index';
-//            self::app()->action = $action;
-//            $currentRoutes[] = $action;
-//        }
-//
-//        //检测方法是否存在并可执行
-//        if (!method_exists($namespace, $action) || !is_callable([$namespace, $action])) {
-//            throw new NotFoundException('路由错误:操作方法不存在: ' . $action);
-//        }
-//        $controller->modules = $modules;
-//        $controller->controller = $controllerName;
-//        $controller->action = $action;
-//        $controller->route = implode('.', $currentRoutes);
-//
-//        request()->setRoute($controller->route);
-//
-//        //执行方法
-//        $controller->preAction();
-//
-//        if (method_exists($controller, 'needTransaction') && $controller->needTransaction($action)) {
-//            // action设置了需要回滚
-//            $content = \Illuminate\Support\Facades\DB::transaction(function () use ($action, $controller) {
-//                return self::getContent($controller, $action);
-//            });
-//        } else {
-//            $content = self::getContent($controller, $action);
-//        }
-//
-//        $time = app()->getTime();
-//        if ($time > 1) {
-//            //(new \app\framework\Log\SlowApiLog())->add($time,request()->input());
-//        }
-//        return $content;
-//    }
-
     /**
      * Configures an object with the initial property values.
      * @param object $object the object to be configured
@@ -122,6 +69,7 @@ class YunShop
         return strpos($_SERVER['PHP_SELF'], 'phpunit') !== false ? true : false;
 
     }
+
 
     public static function isWeb()
     {
@@ -234,7 +182,10 @@ class YunShop
 		return false;
 	}
 
-
+    public static function cleanApp()
+    {
+        self::$_app = null;
+    }
     /**
      * @name 验证是否门店店长
      * @return array|bool|null|stdClass
@@ -538,19 +489,17 @@ class YunApp extends YunComponent
     public function __construct()
     {
         global $_W;
-
         $this->values = !YunShop::isWeb() && !YunShop::isWechatApi() ? $this->getW() : (array)$_W;
-
-
     }
 
     public function getW()
     {
-        $account = \app\common\models\AccountWechats::getAccountByUniacid(request()->get('i'));
+        $uniacid = intval(trim(request()->get('i')));
+        $account = \app\common\models\AccountWechats::getAccountByUniacid($uniacid);
         return [
-            'uniacid' => trim(request()->get('i')),
-            'weid'    => trim(request()->get('i')),
-            'acid'    => trim(request()->get('i')),
+            'uniacid' => $uniacid,
+            'weid'    => $uniacid,
+            'acid'    => $uniacid,
             'account' => $account ? $account->toArray() : '',
         ];
     }
@@ -560,30 +509,26 @@ class YunApp extends YunComponent
      * @return int
      * @todo set member id from session
      */
-    public function getMemberId()
+    public function getMemberId($get_type = 0)
     {
         $member_id = 0;
         $type = \Yunshop::request()->type ?: '';
         $token = \Yunshop::request()->yz_token ?: '';
-        switch ($type) {
-            case 9:
-                $native_app = new \app\frontend\modules\member\services\MemberNativeAppService();
-
-                $member_id = $native_app->getMemberId($token);
-
-                break;
-            case 14:
-                $anchor_app = new MemberAnchorAppService();
-                $member_id = $anchor_app->getMemberId($token);
-                break;
-            case 15:
-                $cps_app = new MemberCpsAppService();
-                $member_id = $cps_app->getMemberId($token);
-                break;
-            default:
-                if (Session::get('member_id')) {
-                    $member_id = Session::get('member_id');
-                }
+        if ($get_type == 0 && request()->is_shop_pos && app('plugins')->isEnabled('shop-pos') && ($pos_uid = \Yunshop\ShopPos\services\CustomerService::getPosUid())) {
+            $member_id = $pos_uid;
+        } elseif ($get_type == 0 && request()->is_store_pos && app('plugins')->isEnabled('store-pos') && ($pos_uid = \Yunshop\StorePos\services\BuyerService::getBuyerMemberId())) {
+            $member_id = $pos_uid;
+        } elseif ($type == 9) {
+            $native_app = new \app\frontend\modules\member\services\MemberNativeAppService();
+            $member_id = $native_app->getMemberId($token);
+        } elseif ($type == 14) {
+            $anchor_app = new MemberAnchorAppService();
+            $member_id = $anchor_app->getMemberId($token);
+        } elseif ($type == 15 && app('plugins')->isEnabled('aggregation-cps') && (!request()->appid || \Yunshop\AggregationCps\services\SettingManageService::getTrueKey() == request()->appid)) {
+            $cps_app = new MemberCpsAppService();
+            $member_id = $cps_app->getMemberId($token);
+        } elseif (Session::get('member_id')) {
+            $member_id = Session::get('member_id');
         }
         return $member_id;
     }

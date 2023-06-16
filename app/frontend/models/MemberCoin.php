@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 17/2/23
  * Time: 下午5:40
  */
@@ -20,6 +20,17 @@ abstract class MemberCoin
     function __construct(\app\common\models\Member $member)
     {
         $this->member = $member;
+    }
+
+    //
+
+    /**
+     * 会员虚拟币使用限制
+     * @return bool true 不限制 false 限制使用
+     */
+    public function useLimit()
+    {
+        return true;
     }
 
     /**

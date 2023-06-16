@@ -21,7 +21,9 @@ use app\frontend\modules\orderGoods\OrderGoodsCouponPriceNode;
 use app\frontend\modules\orderGoods\OrderGoodsDeductionPriceNode;
 use app\frontend\modules\orderGoods\OrderGoodsDiscountPriceNode;
 use app\frontend\models\orderGoods\PreOrderGoodsDiscount;
+use app\frontend\modules\orderGoods\OrderGoodsTaxfeeNode;
 use app\frontend\modules\orderGoods\price\adapter\GoodsAdapterManager;
+use app\frontend\modules\orderGoods\taxFee\BaseTaxFee;
 
 abstract class BaseOrderGoodsPrice extends OrderGoodsPrice
 {
@@ -68,8 +70,12 @@ abstract class BaseOrderGoodsPrice extends OrderGoodsPrice
 
         });
 
+        $taxNodes = $this->orderGoods->getTaxFees()->map(function (BaseTaxFee $taxFee) {
+            return new OrderGoodsTaxfeeNode($this, $taxFee, 2300);
+        });
+
         // 按照weight排序
-        return $nodes->merge($discountNodes)->merge($deductionNodes)->sortBy(function (PriceNode $priceNode) {
+        return $nodes->merge($discountNodes)->merge($deductionNodes)->merge($taxNodes)->sortBy(function (PriceNode $priceNode) {
             return $priceNode->getWeight();
         })->values();
     }
@@ -99,10 +105,6 @@ abstract class BaseOrderGoodsPrice extends OrderGoodsPrice
         // 商品销售价 - 等级优惠金额
         $this->price = $this->getGoodsPrice();
 
-        //$this->price -= $this->getVipDiscountAmount($this->goodsPriceManager());
-
-        $this->price = bcsub($this->price, $this->getVipDiscountAmount($this->goodsPriceManager()), 2);
-
         $this->price =  max($this->price, 0);
 
         return $this->price;
@@ -119,13 +121,12 @@ abstract class BaseOrderGoodsPrice extends OrderGoodsPrice
         return $this->priceClass;
     }
 
-    //弃用
     public function getVipPrice()
     {
         if ($this->isCoinExchange()) {
             return 0;
         }
-        return $this->getGoodsPrice() - $this->getVipDiscountAmount($this->goodsPriceManager());
+        return $this->getGoodsPrice() - $this->getMemberLevelDiscountAmount();
     }
 
     private $isCoinExchange;
@@ -237,6 +238,7 @@ abstract class BaseOrderGoodsPrice extends OrderGoodsPrice
         return $this->goods()->market_price * $this->orderGoods->total;
     }
 
+
     /**
      * 优惠券价
      * @return int
@@ -297,7 +299,7 @@ abstract class BaseOrderGoodsPrice extends OrderGoodsPrice
     }
 
     /**
-     * 需要弃用
+     * 不可用
      * 商品的会员等级折扣金额(缓存)
      * @return mixed
      */

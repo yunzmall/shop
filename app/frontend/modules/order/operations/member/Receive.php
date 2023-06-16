@@ -8,6 +8,7 @@
 
 namespace app\frontend\modules\order\operations\member;
 
+use app\common\facades\Setting;
 use app\common\models\DispatchType;
 use app\frontend\modules\order\operations\OrderOperation;
 
@@ -46,7 +47,7 @@ class Receive extends OrderOperation
             return '确认核销';
         }
 
-        return '确认收货';
+        return Setting::get('shop.lang.zh_cn.order.received_goods') ?: '确认收货';
     }
 
     public function getValue()

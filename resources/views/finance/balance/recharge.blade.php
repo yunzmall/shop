@@ -21,11 +21,10 @@
                         </div>
                     </div>
 
-
                     <div class="form-group">
                         <label class="col-xs-12 col-sm-3 col-md-2 control-label">{{ $rechargeMenu['profile'] }}</label>
                         <div class="col-sm-9 col-xs-12">
-                            <div class="form-control-static">姓名: {{ $memberInfo['realname'] or $memberInfo['nickname'] }} / 手机号: {{ $memberInfo['mobile'] }}
+                            <div class="form-control-static">姓名: {{ $memberInfo['realname'] ?? $memberInfo['nickname'] }} / 手机号: {{ $memberInfo['mobile'] }}
                             </div>
                         </div>
                     </div>
@@ -47,6 +46,15 @@
                             <textarea name="remark" rows="5" class="form-control"></textarea>
                         </div>
                     </div>
+
+                    @if ($charge_check_swich)
+                    <div class="form-group">
+                        <label class="col-xs-12 col-sm-3 col-md-2 control-label"><span style="color: red">*</span>充值说明</label>
+                        <div class="col-sm-9 col-xs-12">
+                            <textarea name="recharge_explain" rows="5" class="form-control"></textarea>
+                        </div>
+                    </div>
+                    @endif
 
                     <div class="form-group">
                         <label class="col-xs-12 col-sm-3 col-md-2 control-label"></label>

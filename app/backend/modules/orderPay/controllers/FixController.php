@@ -28,6 +28,22 @@ class FixController extends BaseController
             throw new AppException('未找到支付记录'.request('order_pay_id'));
         }
         $a = (new DoublePaymentRepair($orderPay))->handle();
-        dd($a);
+
+
+        if ($a !== false) {
+            $orderPay->orders->each(function ($order) {
+                //原路退款操作成功关闭该支付记录下的所以订单
+                if ($order->status > \app\common\models\Order::WAIT_PAY) {
+                    \app\frontend\modules\order\services\OrderService::orderForceClose(['order_id' => $order->id]);
+                }
+            });
+        }
+
+        foreach ($a as $msg) {
+            echo "<span>{$msg}</span><br>";
+        }
+
+//        echo '<button onclick="history.back()">返回</button>';
+        exit();
     }
 }

@@ -25,6 +25,7 @@ class CreateImsYzExcelRechargeRecordsTable extends Migration {
                 $table->integer('created_at')->nullable();
                 $table->integer('updated_at')->nullable();
             });
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE " . app('db')->getTablePrefix() . "yz_excel_recharge_records comment '批量充值记录表'");//表注释
         }
 	}
 

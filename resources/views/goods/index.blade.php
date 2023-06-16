@@ -2,22 +2,70 @@
 @section('title', "商品列表")
 @section('content')
     <link rel="stylesheet" type="text/css" href="{{static_url('yunshop/goods/vue-goods.css')}}"/>
+<style>
+    .a-btn {
+        border-radius: 2px;
+        padding: 8px 12px;
+        box-sizing: border-box;
+        color: #666;
+        font-weight: 500;
+        text-align: center;
+        margin-left: 1%;
+        background-color: #fff;
+    }
+    .a-btn:hover{
+        background-color: #29BA9C;
+        color: #FFF;
+        border-radius: 5px;
+    }
+    .tabs-div {
+        background: #fff;
+        padding: 13px 0;
+        margin-left: 10px;
+        cursor: pointer;
+        border-radius:10px;
+    }
+    .a-colour2 {
+        background-color: #29BA9C;
+        color: #FFF;
+        border-radius: 5px;
+    }
+    
+    .sort_active{
+        color: #29BA9C;
+    }
 
+    .dispatch-gap .el-checkbox {
+        line-height: 3;
+    }
+</style>
     <div id="qrcode" ref="qrcode" style="display:none;"></div>
     <div class="rightlist">
         <div id="app" v-cloak v-loading="all_loading">
+
             <template>
-                <div class="second-list">
+                <div class="">
                     <div class="third-list">
+                        <div class="tabs-div">
+                            <span :class="tab_state == 1? 'a-btn a-colour2':'a-btn'" size="small" type="text" @click="stateList(1)">
+                                上架中（[[statistics.put_shelf]]）
+                            </span>
+                            <span :class="tab_state == 0? 'a-btn a-colour2':'a-btn'" size="small" type="text" @click="stateList(0)">
+                                仓库中（[[statistics.lower_shelf]]）
+                            </span>
+                            <span :class="tab_state == 'all'? 'a-btn a-colour2':'a-btn'" size="small" type="text" @click="stateList('all')">
+                                全部商品（[[statistics.all_goods]]）
+                            </span>
+                        </div>
                         <div class="form-list">
                             <el-form :inline="true" :model="search_form" ref="search_form" style="margin-left:10px;">
                                 <el-row>
-                                    <el-form-item label="" prop="">
-                                        <el-select v-model="search_form.status" placeholder="请选择商品状态" clearable>
-                                            <el-option v-for="item in status_list" :key="item.id" :label="item.name"
-                                                       :value="item.id"></el-option>
-                                        </el-select>
-                                    </el-form-item>
+                                    {{--<el-form-item label="" prop="">--}}
+                                        {{--<el-select v-model="search_form.status" placeholder="请选择商品状态" clearable>--}}
+                                            {{--<el-option v-for="item in status_list" :key="item.id" :label="item.name"--}}
+                                                       {{--:value="item.id"></el-option>--}}
+                                        {{--</el-select>--}}
+                                    {{--</el-form-item>--}}
                                     <el-form-item label="" prop="">
                                         <el-select v-model="search_form.sell_stock" placeholder="请选择售中库存" clearable>
                                             <el-option v-for="item in sell_stock_list" :key="item.id" :label="item.name"
@@ -54,7 +102,9 @@
                                     <el-form-item label="" prop="keyword">
                                         <el-input v-model="search_form.keyword" placeholder="请输入商品ID或关键字"></el-input>
                                     </el-form-item>
-
+                                    <el-form-item label="" prop="keyword">
+                                        <el-input v-model="search_form.filtering_name" placeholder="请输入商品标签"></el-input>
+                                    </el-form-item>
 
                                     <el-form-item label="" prop="">
                                         <el-select v-model="search_form.is_spec" placeholder="请选择商品是否多规格" clearable>
@@ -62,10 +112,17 @@
                                                        :value="item.id"></el-option>
                                         </el-select>
                                     </el-form-item>
-
-
-
-
+                                    <el-form-item>
+                                        <el-select v-model="search_form.is_hide" placeholder="请选择商品是否显示" clearable>
+                                            <el-option label="显示" value="1"></el-option>
+                                            <el-option label="隐藏" value="2"></el-option>
+                                        </el-select>
+                                    </el-form-item>
+                                    <el-form-item>
+                                        <el-select v-model="search_form.source_id" placeholder="请选择商品来源" clearable v-if="is_source_open==1">
+                                            <el-option v-for="item in source_list" :key="item.id" :label="item.source_name" :value="item.id"></el-option>
+                                        </el-select>
+                                    </el-form-item>
                                     <el-form-item label="价格区间" prop="">
                                         <el-input v-model="search_form.min_price" placeholder="最低价"
                                                   style="width:150px;"></el-input>
@@ -111,6 +168,10 @@
                                 <el-button size="small" @click="batchPutAway(0)">批量下架</el-button>
                                 <el-button size="small" @click="batchDestroy">批量删除</el-button>
                                 <el-button size="small" @click="openCategory">批量修改分类</el-button>
+                                <el-button size="small" @click="openService">批量编辑服务提供</el-button>
+                                <el-button size="small" @click="batchCopy">批量复制商品</el-button>
+                                <el-button size="small" @click="openEditDispatch">修改运费模板</el-button>
+                                <span style="color: #29bcb9;margin-left: 10px" v-if="choose_count>0"><b>已选商品（[[choose_count]]）</b></span>
                             </div>
                             <div>
                                 <template>
@@ -173,7 +234,45 @@
                                                 [[scope.row.title]]
                                             </template>
                                         </el-table-column>
+                                        <el-table-column prop="cost_price" label="成本价" max-width="80" align="center">
+                                            <template slot="header" slot-scope="scope">
+                                                <div style="display: flex;align-items: center;justify-content:center">
+                                                    <span>成本价</span>
+                                                    <div style="display: flex;flex-direction: column;margin-left: 5px;">
+                                                        <i class="el-icon-caret-top" :class="sort_cost_price == 'asc' ? 'sort_active' : '' " @click="btnPositiveSequence('cost_price')" ></i>
+                                                        <i class="el-icon-caret-bottom" :class="sort_cost_price == 'desc' ? 'sort_active' : '' " @click="btnReverseOrder('cost_price')"></i>
+                                                    </div>
+                                                </div>
+                                            </template>
+                                            <template slot-scope="scope">
+                                                <el-popover class="item" placement="top" effect="light"
+                                                            :disabled="scope.row.has_option==1">
+                                                    <div style="text-align:center;">
+                                                        <el-input v-model="change_cost_price" size="small"
+                                                                  style="width:100px;"></el-input>
+                                                        <el-button size="small"
+                                                                   @click="confirmChange(scope.row.id,'cost_price')">确定
+                                                        </el-button>
+                                                    </div>
+                                                    <a slot="reference">
+                                                        <i class="el-icon-edit edit-i"
+                                                           :title="scope.row.has_option==1?'多规格不支持快速修改':'点击编辑'"
+                                                           @click="editTitle(scope.$index,'cost_price')"></i>
+                                                    </a>
+                                                </el-popover>
+                                                ￥[[scope.row.cost_price]]
+                                            </template>
+                                        </el-table-column>
                                         <el-table-column prop="member_num" label="价格" max-width="80" align="center">
+                                            <template slot="header" slot-scope="scope">
+                                                <div style="display: flex;align-items: center;justify-content:center">
+                                                    <span>价格</span>
+                                                    <div style="display: flex;flex-direction: column;margin-left: 5px;">
+                                                        <i class="el-icon-caret-top" :class="sort_price == 'asc' ? 'sort_active' : '' " @click="btnPositiveSequence('price')" ></i>
+                                                        <i class="el-icon-caret-bottom" :class="sort_price == 'desc' ? 'sort_active' : '' " @click="btnReverseOrder('price')"></i>
+                                                    </div>
+                                                </div>
+                                            </template>
                                             <template slot-scope="scope">
                                                 <el-popover class="item" placement="top" effect="light"
                                                             :disabled="scope.row.has_option==1">
@@ -193,7 +292,21 @@
                                                 ￥[[scope.row.price]]
                                             </template>
                                         </el-table-column>
+                                        <el-table-column label="成本利润率" prop="cost_ratio" align="center">
+                                            <template slot-scope="scope">
+                                                [[scope.row.cost_ratio]]
+                                          </template>
+                                        </el-table-column>
                                         <el-table-column label="库存" align="center" max-width="80">
+                                            <template slot="header" slot-scope="scope">
+                                                <div style="display: flex;align-items: center;justify-content:center">
+                                                    <span>库存</span>
+                                                    <div style="display: flex;flex-direction: column;margin-left: 5px;">
+                                                        <i class="el-icon-caret-top" :class="sort_stock == 'asc' ? 'sort_active' : '' " @click="btnPositiveSequence('stock')" ></i>
+                                                        <i class="el-icon-caret-bottom" :class="sort_stock == 'desc' ? 'sort_active' : '' " @click="btnReverseOrder('stock')"></i>
+                                                    </div>
+                                                </div>
+                                            </template>
                                             <template slot-scope="scope">
                                                 <el-popover class="item" placement="top" effect="light"
                                                             :disabled="scope.row.has_option==1">
@@ -213,8 +326,17 @@
                                                 [[scope.row.stock]]
                                             </template>
                                         </el-table-column>
-                                        <el-table-column prop="real_sales" label="销量" width="70"
-                                                         align="center"></el-table-column>
+                                        <el-table-column prop="real_sales" label="销量" max-width="80" align="center">
+                                            <template slot="header" slot-scope="scope">
+                                                <div style="display: flex;align-items: center;justify-content:center">
+                                                    <span>销量</span>
+                                                    <div style="display: flex;flex-direction: column;margin-left: 5px;">
+                                                        <i class="el-icon-caret-top" :class="sort_sales == 'asc' ? 'sort_active' : '' " @click="btnPositiveSequence('sales')" ></i>
+                                                        <i class="el-icon-caret-bottom" :class="sort_sales == 'desc' ? 'sort_active' : '' " @click="btnReverseOrder('sales')"></i>
+                                                    </div>
+                                                </div>
+                                            </template>
+                                        </el-table-column>
 
                                         <el-table-column label="状态" prop="status_message" align="center">
                                             <template slot-scope="scope">
@@ -239,15 +361,15 @@
                                                                 trigger="hover">
                                                         <div style="text-align:center;">
                                                             <img :src="img" alt=""
-                                                                 style="margin:10px;width:100px;height:100px;">
+                                                                 style="margin:10px;width:120px;height:120px;">
                                                         </div>
                                                         <a slot="reference" @mouseover="listCode(scope.$index)">推广链接</a>
                                                     </el-popover>&nbsp;&nbsp;
-                                                    <a :href="'{{ yzWebFullUrl('goods.goods.copy', array('id' => '')) }}'+[[scope.row.id]]">
+                                                    <a @click="copyGoods(scope.row.id)">
                                                         复制商品
                                                     </a>
                                                     &nbsp;&nbsp;
-                                                    <a :href="'{{ yzWebFullUrl('goods.goods.edit', array('id' => '')) }}'+[[scope.row.id]]" target="_blank">
+                                                    <a @click="editGoods(scope.row.id)">
                                                         编辑
                                                     </a>&nbsp;&nbsp;
                                                     <a @click="delOne(scope.row.id)">
@@ -313,13 +435,148 @@
                             <el-button type="primary" @click="batchCategory">确 定 </el-button>
                         </span>
                     </el-dialog>
+
+                    <el-dialog title="服务提供" :visible.sync="service_show" center width="730px">
+                        <div style="overflow:auto">
+                            <el-form ref="service_form" style="width: 100%;height:auto;overflow:auto">
+                                <el-form-item label="是否自动上下架">
+                                    <el-radio v-model="service_form.is_automatic" :label="1">是</el-radio>
+                                    <el-radio v-model="service_form.is_automatic" :label="0">否</el-radio>
+                                </el-form-item>
+                                <el-form-item label="时间方式">
+                                    <el-radio v-model="service_form.time_type" :label="0">固定</el-radio>
+                                    <el-radio v-model="service_form.time_type" :label="1">循环</el-radio>
+                                    <span style="display: flex">
+                            <span class="tip" style="margin-right: 20px">固定：在设置的时间商品自动上下架时间</span>
+                            <span class="tip">循环：在循环日期内商品每天在设置的时间点自动循环上下架</span>
+                        </span>
+                                </el-form-item>
+                                <el-form-item label="上下架时间" v-if="service_form.time_type==0">
+                                    <el-date-picker
+                                            v-model="service_form.shelves_time"
+                                            type="datetimerange"
+                                            value-format="timestamp"
+                                            align="right"
+                                            unlink-panels
+                                            range-separator="至"
+                                            start-placeholder="开始日期"
+                                            end-placeholder="结束日期"
+                                            :picker-options="pickerOptions">
+                                    </el-date-picker>
+                                </el-form-item>
+                                <el-form-item label="循环日期" v-if="service_form.time_type==1">
+                                    <el-date-picker
+                                            v-model="service_form.loop_date"
+                                            type="daterange"
+                                            value-format="timestamp"
+                                            align="right"
+                                            unlink-panels
+                                            range-separator="至"
+                                            start-placeholder="开始日期"
+                                            end-placeholder="结束日期"
+                                            :picker-options="pickerOptions"
+                                    >
+                                    </el-date-picker>
+                                </el-form-item>
+                                <el-form-item label="上架时间" v-if="service_form.time_type==1">
+                                    <el-time-select
+                                            v-model="service_form.loop_time_up"
+                                            value-format="timestamp"
+                                            :picker-options="{
+                                    start: '00:00',
+                                    step: '00:05',
+                                    end: '24:00'
+                                }"
+                                            placeholder="选择时间">
+                                    </el-time-select>
+                                    <span style="margin-left: 15px;margin-right: 8px">下架时间</span>
+                                    <el-time-select
+                                            v-model="service_form.loop_time_down"
+                                            value-format="timestamp"
+                                            :picker-options="{
+                                    start: '00:00',
+                                    step: '00:05',
+                                    end: '24:00',
+                                    minTime: service_form.loop_time_up
+                                }"
+                                            placeholder="选择时间">
+                                    </el-time-select>
+                                </el-form-item>
+                                <el-form-item label="库存自动刷新" v-if="service_form.time_type==1">
+                                    <el-switch v-model="service_form.auth_refresh_stock" active-color="#13ce66" inactive-color="#ff4949" :active-value="1" :inactive-value="0"></el-switch>
+                                    <div class="tip">开启后，循环日期期间，每日重新上架时，库存商品数自动刷新为原始库存数</div>
+                                </el-form-item>
+                                <el-form-item label="原始库存" v-if="service_form.time_type==1">
+                                    <el-input v-model="service_form.original_stock" style="width:30%;"></el-input>
+                                </el-form-item>
+                                <span style="">
+                        <el-button type="primary" @click="serviceSubmit">确 认</el-button>
+                        <el-button @click="closeService">取 消</el-button>
+                    </span>
+                            </el-form>
+                        </div>
+                    </el-dialog>
+
+                    <!--统一修改运费-->
+                    <el-dialog :visible.sync="edit_dispatch_show" center width="730px" v-loading="dispatch_loading"
+                           element-loading-text="拼命同步中..."
+                           element-loading-spinner="el-icon-loading"
+                           element-loading-background="rgba(0, 0, 0, 0.8)">
+                        <div>
+                            <el-form label-width="35%" >
+                                <div id="vue_head">
+                                    <div class="base_set">
+                                        <div class="vue-main-form">
+                                            <el-form-item label="运费配置">
+                                                <el-radio v-model="edit_dispatch_form.dispatch_type" :label="1">统一邮费</el-radio>
+                                                <el-radio v-model="edit_dispatch_form.dispatch_type" :label="0">运费模板</el-radio>
+                                            </el-form-item>
+                                            <el-form-item label=" ">
+                                                <div>
+                                                    <el-input v-model="edit_dispatch_form.dispatch_price" style="width:80%;" v-if="edit_dispatch_form.dispatch_type == 1">
+                                                        <template slot="append">元</template>
+                                                    </el-input>
+                                                    <div v-if="(Number(edit_dispatch_form.dispatch_price) < 0 || edit_dispatch_form.dispatch_price == '') && edit_dispatch_form.dispatch_type" style="color: #EE3939;font-size: 12px;line-height: 1; margin-top: 10px;">请输入大于等于0的数</div>
+                                                    <el-select v-model="edit_dispatch_form.dispatch_id" placeholder="请选择运费模板" v-if="edit_dispatch_form.dispatch_type == 0" clearable filterable allow-create default-first-option>
+                                                        <el-option :label="item.dispatch_name" :value="item.id" v-for="(item,index) in dispatchTemplates" :key="index"></el-option>
+                                                    </el-select>
+                                                </div>
+                                            </el-form-item>
+                                            <el-form-item label="配送方式" v-if="dispatchTypesSetting.length > 0">
+                                                <el-checkbox-group v-model="edit_dispatch_form.dispatch_type_ids" class="dispatch-gap">
+                                                    <el-checkbox :label="item.id"  v-for="(item,index) in dispatchTypesSetting" :key="index">[[item.name]]</el-checkbox>
+                                                </el-checkbox-group>
+                                            </el-form-item>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div style="display: flex;justify-content: center;">
+                                    <el-button type="primary" @click="dispatchSubmit">保存</el-button>
+                                    <el-button @click="closeEditDispatch">取消</el-button>
+                                </div>
+                            </el-form>
+                        </div>
+                    </el-dialog>
+
                     <!-- 分页 -->
                     <div class="vue-page" v-show="total>1">
                         <el-row>
                             <el-col align="right">
-                                <el-pagination layout="prev, pager, next,jumper" @current-change="search" :total="total"
-                                               :page-size="per_size" :current-page="current_page" background
-                                               v-loading="loading"></el-pagination>
+                                <el-pagination
+                                        background
+                                        v-loading="loading"
+                                        @size-change="setPageSize"
+                                        @current-change="search"
+                                        layout="total, sizes, prev, pager, next, jumper"
+                                        :current-page="current_page"
+                                        :page-sizes="[20, 50, 100, 200]"
+                                        :page-size="per_size"
+                                        :total="total">
+                                </el-pagination>
+                                {{--<el-pagination layout="prev, pager, next,jumper" @current-change="search" :total="total"--}}
+                                               {{--:page-size="per_size" :current-page="current_page" background--}}
+                                               {{--v-loading="loading"></el-pagination>--}}
                             </el-col>
                         </el-row>
                     </div>
@@ -336,6 +593,13 @@
             delimiters: ['[[', ']]'],
             data() {
                 return {
+
+                    edit_url: '{!! yzWebFullUrl('goods.goods.edit') !!}',//商品编辑链接
+                    delete_url: '{!! yzWebFullUrl('goods.goods.destroy') !!}',//商品删除链接
+                    copy_url: '{!! yzWebFullUrl('goods.goods.copy') !!}', //商品复制链接
+                    sort_url: '{!! yzWebFullUrl('goods.goods.displayorder') !!}', //商品排序链接
+
+
                     id: "",
                     img: "",//二维码
                     smallImg:"",//小程序二维码
@@ -344,6 +608,7 @@
                     goods_list: [],//商品列表
                     change_title: "",//修改标题弹框赋值
                     change_price: "",//修改价格弹框赋值
+                    change_cost_price: "",//修改成本价弹框赋值
                     change_stock: "",//修改库存弹框赋值
                     change_sort: "",//修改排序弹框赋值
                     all_loading: false,
@@ -370,6 +635,8 @@
                         id_v1: '',
                         id_v2: '',
                         id_v3: '',
+                        sort:'',
+                        filtering_name:'',
                     },
                     form: {},
                     level_list: [],
@@ -382,16 +649,83 @@
                     batch_v2:'',
                     batch_v3:'',
                     category_show:false,
+                    service_show:false,
+                    edit_dispatch_show:false,
 
                     loading: false,
                     table_loading: false,
-                    rules: {},
+
+                    //服务提供
+                    service_form:{
+                        is_automatic: 0,
+                        time_type: 1,
+                        auth_refresh_stock: 1,
+                        shelves_time:[],
+                        loop_date:[],
+                    },
+                    edit_dispatch_form:{
+                        dispatch_type:1,
+                        dispatch_price:"",
+                        dispatch_type_ids:[],
+                        dispatch_id:""
+                    },
+                    dispatchTypesSetting:{},
+                    dispatchTemplates:{},
+                    //商品来源
+                    source_list: [],
+                    is_source_open: 0,
+                    pickerOptions: {
+                        shortcuts: [{
+                            text: "最近一周",
+                            onClick(picker) {
+                                const end = new Date();
+                                const start = new Date();
+                                start.setTime(start.getTime() - 3600 * 1000 * 24 * 7);
+                                picker.$emit("pick", [start, end]);
+                            }
+                        }, {
+                            text: "最近一个月",
+                            onClick(picker) {
+                                const end = new Date();
+                                const start = new Date();
+                                start.setTime(start.getTime() - 3600 * 1000 * 24 * 30);
+                                picker.$emit("pick", [start, end]);
+                            }
+                        }, {
+                            text: "最近三个月",
+                            onClick(picker) {
+                                const end = new Date();
+                                const start = new Date();
+                                start.setTime(start.getTime() - 3600 * 1000 * 24 * 90);
+                                picker.$emit("pick", [start, end]);
+                            }
+                        }]
+                    },
+                    //
+
+                    producer_id: 0, //什么厂家搜索的
+
                     //分页
                     total: 0,
                     per_size: 0,
                     current_page: 0,
                     this_page:0,
                     rules: {},
+
+
+                    tab_state:1,//选项卡
+                    statistics: {
+                        'lower_shelf':0,
+                        'put_shelf': 0,
+                        'all_goods': 0,
+                    },
+
+                    sort_price:"",
+                    sort_stock:"",
+                    sort_sales:"",
+                    sort_cost_price:"",
+                    dispatch_loading: false,
+                    choose_count:0,
                 }
             },
             created() {
@@ -405,10 +739,71 @@
             },
             mounted() {
                 let data = {!! $data !!};
+                let producer_id = JSON.parse('{!! $producerId !!}');
+
+                if (producer_id) {
+                    this.producer_id = producer_id;
+                }
+
                 this.setData(data);
                 console.log(data)
             },
             methods: {
+                btnPositiveSequence(val){
+                    switch (val) {
+                        case 'price'://价格
+                        this.sort_price =  this.sort_price == 'asc'? '' : 'asc';
+                            break;
+                        case 'stock': //库存
+                        this.sort_stock = this.sort_stock == 'asc'? '' : 'asc';
+                            break;
+                        case 'sales': //销量
+                        this.sort_sales = this.sort_sales == 'asc'? '' : 'asc';
+                            break;
+                        case 'cost_price'://成本价
+                            this.sort_cost_price =  this.sort_cost_price == 'asc'? '' : 'asc';
+                            break;
+                        default:
+                            break;
+                    }
+
+                    this.search(1);
+                },
+                btnReverseOrder(val){
+                    switch (val) {
+                        case 'price'://价格
+                        this.sort_price = this.sort_price == 'desc'? '' : 'desc';
+                            break;
+                        case 'stock': //库存
+                        this.sort_stock = this.sort_stock == 'desc'? '' : 'desc';
+                            break;
+                        case 'sales': //销量
+                        this.sort_sales = this.sort_sales == 'desc'? '' : 'desc';
+                            break;
+                        case 'cost_price': //成本价
+                            this.sort_cost_price = this.sort_cost_price == 'desc'? '' : 'desc';
+                            break;
+                        default:
+                            break;
+                    }
+
+                    this.search(1);
+                },   
+                stateList(value) {
+                    this.tab_state  = value;
+                    this.search(1);
+                },
+                //设置每页条数
+                setPageSize(val) {
+                    let refresh = val !== this.per_size;
+
+                    this.per_size = val;
+
+                    if (refresh) {
+                        this.search(1);
+                    }
+                },
+
                 setData(data) {
                     this.goods_list = data.list.data;
                     let arr = [];
@@ -420,10 +815,43 @@
                     this.total = data.list.total;
                     this.current_page = data.list.current_page;
                     this.per_size = data.list.per_page;
-                    // this.brands_list = data.brands;
                     this.category_list = data.category;
                     this.catlevel = data.cat_level;
-                    //console.log(this.goods_list);
+                    this.source_list = data.source_list;
+                    this.is_source_open = data.is_source_open;
+
+                    if (data.edit_url) {
+                        this.edit_url = data.edit_url;
+                    }
+                    if (data.delete_url) {
+                        this.delete_url = data.delete_url;
+                    }
+                    if (data.sort_url) {
+                        this.sort_url = data.sort_url;
+                    }
+                    if (data.copy_url) {
+                        this.copy_url = data.copy_url;
+                    }
+
+                    if (data.lower_shelf) {
+                        this.statistics.lower_shelf = data.lower_shelf;
+                    }
+                    if (data.put_shelf) {
+                        this.statistics.put_shelf = data.put_shelf;
+                    }
+                    if (data.all_goods) {
+                        this.statistics.all_goods = data.all_goods;
+                    }
+                    if (data.dispatchTypesSetting) {
+                        this.dispatchTypesSetting = data.dispatchTypesSetting;
+                        for(let item of this.dispatchTypesSetting) {
+                            this.edit_dispatch_form.dispatch_type_ids.push(item.id);
+                        }
+                    }
+                    if (data.dispatchTemplates) {
+                        this.dispatchTemplates = data.dispatchTemplates;
+                    }
+
                 },
                 
                 getData() {
@@ -516,8 +944,30 @@
                     if (that.search_form.is_discount == 1) {
                         product_attr.push('is_discount')
                     }
+
+                    let order_by = {};
+                    if (this.sort_price) {
+                        order_by.price = this.sort_price;
+                    }
+
+                    if (this.sort_stock) {
+                        order_by.stock = this.sort_stock;
+                    }
+
+                    if (this.sort_sales) {
+                        order_by.real_sales = this.sort_sales;
+                    }
+
+                    if (this.sort_cost_price) {
+                        order_by.cost_price = this.sort_cost_price;
+                    }
+
                     let json = {
                         page: page,
+                        tab_state:that.tab_state != 'all'?that.tab_state:'',
+                        order_by:order_by,
+                        per_size:that.per_size,
+                        producer_id:that.producer_id,
                         search: {
                             keyword: that.search_form.keyword,
                             status: that.search_form.status,
@@ -527,6 +977,9 @@
                             max_price: that.search_form.max_price,
                             product_attr: product_attr,//商品类型
                             is_spec: that.search_form.is_spec,
+                            is_hide: that.search_form.is_hide,
+                            filtering_name:that.search_form.filtering_name,
+                            source_id:that.search_form.source_id,
                         },
                         category: {
                             parentid: that.search_form.id_v1,
@@ -586,6 +1039,14 @@
                     document.execCommand("Copy", false);
                     that.$message({message: "复制成功！", type: "success"});
                 },
+                editGoods(id) {
+                    let link = this.edit_url +`&id=`+id;
+                    window.open(link)
+                },
+                copyGoods(id) {
+                    let link = this.copy_url +`&id=`+id;
+                    window.location.href = link;
+                },
                 // 单个选择
                 oneChange(item) {
                     let that = this;
@@ -599,6 +1060,7 @@
                         }
                     })
                     that.is_all_choose = is_all;
+                    this.sumChoose()
                 },
                 // 全选
                 allChoose() {
@@ -611,6 +1073,17 @@
                     }
                     that.goods_list.forEach((item, index) => {
                         item.is_choose = status;
+                    })
+                    this.sumChoose()
+                },
+                // 统计选中个数
+                sumChoose() {
+                    let that = this;
+                    that.choose_count = 0;
+                    that.goods_list.forEach((item, index) => {
+                        if(item.is_choose === 1) {
+                            that.choose_count +=1;
+                        };
                     })
                 },
                 // 上架、下架
@@ -659,6 +1132,37 @@
                         that.table_loading = false;
                     };
                 },
+                //批量复制商品
+                batchCopy() {
+                    var that = this;
+                    that.table_loading = true;
+                    let ids = [];
+                    that.goods_list.forEach((item, index) => {
+                        if (item.is_choose == 1) {
+                            ids.push(item.id);
+                        }
+                    })
+                    let json = {ids: ids}
+                    that.$http.post("{!! yzWebFullUrl('goods.goods.batchCopy') !!}", json).then(response => {
+                        if (response.data.result == 1) {
+                            that.$message.success('操作成功！');
+                            that.is_all_choose = 0;
+                            that.search(1);
+                        } else {
+                            that.$message.error(response.data.msg);
+                        }
+                        that.table_loading = false;
+                    }), function (res) {
+                        console.log(res);
+                        that.table_loading = false;
+                    };
+                },
+                openEditDispatch() {
+                    this.edit_dispatch_show = true;
+                },
+                closeEditDispatch() {
+                    this.edit_dispatch_show = false;
+                },
                 // 单个删除
                 delOne(id) {
                     var that = this;
@@ -668,7 +1172,7 @@
                         type: 'warning'
                     }).then(() => {
                         that.table_loading = true;
-                        that.$http.post("{!! yzWebFullUrl('goods.goods.destroy') !!}", {id: id}).then(response => {
+                        that.$http.post(this.delete_url, {id: id}).then(response => {
                             console.log(response);
                             if (response.data.result == 1) {
                                 that.$message.success("删除成功！");
@@ -725,6 +1229,61 @@
                     if(this.batch_category.length==0) {
                         this.getBatchCategory();
                     }
+                },
+                openService() {
+                    this.service_show = true;
+                },
+                closeService() {
+                    this.service_show = false;
+                },
+                serviceSubmit() {
+                    var that = this;
+                    that.table_loading = true;
+                    let ids = [];
+                    that.goods_list.forEach((item, index) => {
+                        if (item.is_choose == 1) {
+                            ids.push(item.id);
+                        }
+                    });
+                    if (this.service_form.time_type==0) {
+                        console.log(this.service_form)
+                        if (!this.service_form.shelves_time[0] || !this.service_form.shelves_time[1]) {
+                            this.$message({message: '上下架时间不能为空', type: 'error'});return;
+                        }
+                        this.service_form.on_shelf_time = this.service_form.shelves_time[0] / 1000;
+                        this.service_form.lower_shelf_time = this.service_form.shelves_time[1] / 1000;
+                    }
+                    if (this.service_form.time_type==1) {
+                        if (!this.service_form.loop_date[0] || !this.service_form.loop_date[1]) {
+                            this.$message({message: '循环时间不能为空', type: 'error'});return;
+                        }
+                        this.service_form.loop_date_start = this.service_form.loop_date[0] / 1000;
+                        this.service_form.loop_date_end = this.service_form.loop_date[1] / 1000;
+                    }
+                    if (this.service_form.time_type==1) {
+                        if (!this.service_form.loop_time_up || !this.service_form.loop_time_down) {
+                            this.$message({message: '循环上下架时间不能为空', type: 'error'});return;
+                        }
+                    }
+                    let json = {
+                        ids:ids,
+                        service_form:this.service_form,
+                    };
+                    that.$http.post("{!! yzWebFullUrl('goods.goods.batchService') !!}", json).then(response => {
+                        console.log(response);
+                        if (response.data.result == 1) {
+                            that.$message.success('操作成功！');
+                            that.is_all_choose = 0;
+                            that.search(1);
+                            that.service_show = false;
+                        } else {
+                            that.$message.error(response.data.msg);
+                        }
+                        that.table_loading = false;
+                    }), function (res) {
+                        console.log(res);
+                        that.table_loading = false;
+                    };
                 },
                 getBatchCategory() {
                     var that = this;
@@ -841,6 +1400,14 @@
                         that.change_price = "";
                         that.change_price = that.goods_list[index].price;
                     }
+                    if (type == 'cost_price') {
+                        if (that.goods_list[index].has_option == 1) {
+                            that.$message.error('多规格不支持快速修改');
+                            return false;
+                        }
+                        that.change_cost_price = "";
+                        that.change_cost_price = that.goods_list[index].cost_price;
+                    }
                     if (type == 'stock') {
                         if (that.goods_list[index].has_option == 1) {
                             that.$message.error('多规格不支持快速修改');
@@ -869,6 +1436,13 @@
                         value = that.change_price;
                         if (!(/^\d+(\.\d+)?$/.test(that.change_price))) {
                             that.$message.error('请输入正确价格');
+                            return false;
+                        }
+                    }
+                    if (type == 'cost_price') {
+                        value = that.change_cost_price;
+                        if (!(/^\d+(\.\d+)?$/.test(that.change_cost_price))) {
+                            that.$message.error('请输入正确成本价');
                             return false;
                         }
                     }
@@ -943,6 +1517,35 @@
                     return a.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, "\"").replace(/&apos;/g, "'");
                     ;
                 },
+                async dispatchSubmit() {
+                    this.dispatch_loading = true;
+                    let json = {
+                        data:this.edit_dispatch_form,
+                        goods_id_arr:[],
+                    };
+
+                    this.goods_list.forEach((item, index) => {
+                        if (item.is_choose == 1) {
+                            json.goods_id_arr.push(item.id);
+                        }
+                    })
+
+                    try {
+                        let {data: {data,result,msg} } = await this.$http.post("{!! yzWebFullUrl('goods.goods.batchEditDispatch') !!}", json)
+                        this.dispatch_loading = false;
+                        if(result) {
+                            this.edit_dispatch_show = false;
+                            this.$message.success('操作成功！');
+                            this.is_all_choose = 0;
+                            this.search(this.this_page);
+                        }else {
+                            this.$message.error(msg);
+                        }
+                    }catch(e) {
+                        this.$message.error(e);
+                    }
+
+                }
             },
         })
 

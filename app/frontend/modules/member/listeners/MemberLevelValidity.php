@@ -2,6 +2,7 @@
 
 namespace app\frontend\modules\member\listeners;
 
+use app\common\events\member\MemberLevelExpireEvent;
 use app\common\facades\Setting;
 use app\common\models\UniAccount;
 use app\frontend\models\MemberShopInfo;
@@ -41,13 +42,12 @@ class MemberLevelValidity
 
             $this->memberSet = Setting::get('shop.member');
             $this->setLog = Setting::get('plugin.member_log');
-            if (!$this->memberSet['term']) {
+            if (!$this->memberSet['term'] || $this->memberSet['level_type'] != 2) {
                 continue;
             }
             $this->setReduceLevelValidity();
 
             $this->setExpire();
-
         }
     }
 
@@ -69,13 +69,19 @@ class MemberLevelValidity
 
     public function setExpire()
     {
-        if ($this->memberSet['level_type'] != '2') {
-            return;
-        }
-        MemberShopInfo::uniacid()
+        $expireMember = MemberShopInfo::uniacid()
+            ->select('member_id')
             ->where('level_id', '!=', '0')
             ->where('validity', 0)
-            ->update(['level_id' => 0, 'downgrade_at' => time()]);
+            ->get()->pluck('member_id')->all();
+
+
+        if ($expireMember) {
+            \app\backend\modules\member\models\MemberShopInfo::uniacid()
+                ->whereIn('member_id', $expireMember)
+                ->update(['level_id' => 0, 'downgrade_at' => time()]);
+            event(new MemberLevelExpireEvent($expireMember));
+        }
     }
 
 }

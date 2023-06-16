@@ -10,6 +10,7 @@
 namespace app\common\models;
 
 
+use app\common\facades\Setting;
 use app\common\traits\CreateOrderSnTrait;
 
 /**
@@ -43,37 +44,37 @@ class Withdraw extends BaseModel
     /**
      * 提现审核状态：无效
      */
-    const STATUS_INVALID    = -1;
+    const STATUS_INVALID = -1;
 
 
     /**
      * 提现审核状态：未审核
      */
-    const STATUS_INITIAL    = 0;
+    const STATUS_INITIAL = 0;
 
 
     /**
      * 提现审核状态：待打款
      */
-    const STATUS_AUDIT      = 1;
+    const STATUS_AUDIT = 1;
 
 
     /**
      * 提现审核状态：已打款
      */
-    const STATUS_PAY        = 2;
+    const STATUS_PAY = 2;
 
 
     /**
      * 提现审核状态：已驳回
      */
-    const STATUS_REBUT      = 3;
+    const STATUS_REBUT = 3;
 
 
     /**
      * 提现审核状态：打款中
      */
-    const STATUS_PAYING     = 4;
+    const STATUS_PAYING = 4;
 
 
     /**
@@ -85,37 +86,37 @@ class Withdraw extends BaseModel
     /**
      * 提现打款方式：打款至微信
      */
-    const WITHDRAW_WITH_WECHAT  = 'wechat';
+    const WITHDRAW_WITH_WECHAT = 'wechat';
 
 
     /**
      * 提现打款方式：打款至支付宝
      */
-    const WITHDRAW_WITH_ALIPAY  = 'alipay';
+    const WITHDRAW_WITH_ALIPAY = 'alipay';
 
 
     /**
      * 提现打款方式：手动打款
      */
-    const WITHDRAW_WITH_MANUAL  = 'manual';
+    const WITHDRAW_WITH_MANUAL = 'manual';
 
 
     /**
      * 提现打款方式：打款到环迅
      */
-    const WITHDRAW_WITH_HUANXUN  = 'huanxun';
+    const WITHDRAW_WITH_HUANXUN = 'huanxun';
 
 
     /**
      * 提现打款方式：打款到EUP
      */
-    const WITHDRAW_WITH_EUP_PAY  = 'eup_pay';
+    const WITHDRAW_WITH_EUP_PAY = 'eup_pay';
 
     /**
      * @author blank
      * 提现打款方式：打款到易宝
      */
-    const WITHDRAW_WITH_YOP  = 'yop_pay';
+    const WITHDRAW_WITH_YOP = 'yop_pay';
 
 
     const WITHDRAW_WITH_SEPARATE_UNION_PAY = 'separate';
@@ -123,49 +124,85 @@ class Withdraw extends BaseModel
     /**
      * 提现打款方式：打款到汇聚
      */
-    const WITHDRAW_WITH_CONVERGE_PAY  = 'converge_pay';
+    const WITHDRAW_WITH_CONVERGE_PAY = 'converge_pay';
 
     /**
      * 提现打款方式：打款到易宝代付
      */
-    const WITHDRAW_WITH_YEE_PAY  = 'yee_pay';
+    const WITHDRAW_WITH_YEE_PAY = 'yee_pay';
 
     /**
      * 提现打款方式：打款到微信-高灯
      */
-    const WITHDRAW_WITH_HIGH_LIGHT_WECHAT  = 'high_light_wechat';
+    const WITHDRAW_WITH_HIGH_LIGHT_WECHAT = 'high_light_wechat';
 
     /**
      * 提现打款方式：打款到支付宝-高灯
      */
-    const WITHDRAW_WITH_HIGH_LIGHT_ALIPAY  = 'high_light_alipay';
+    const WITHDRAW_WITH_HIGH_LIGHT_ALIPAY = 'high_light_alipay';
 
     /**
      * 提现打款方式：打款到银行卡-高灯
      */
-    const WITHDRAW_WITH_HIGH_LIGHT_BANK  = 'high_light_bank';
+    const WITHDRAW_WITH_HIGH_LIGHT_BANK = 'high_light_bank';
+
+    /**
+     * 提现打款方式：打款到微信-好灵工
+     */
+    const WITHDRAW_WITH_WORK_WITHDRAW_WECHAT = 'worker_withdraw_wechat';
+
+    /**
+     * 提现打款方式：打款到支付宝-好灵工
+     */
+    const WITHDRAW_WITH_WORK_WITHDRAW_ALIPAY = 'worker_withdraw_alipay';
+
+    /**
+     * 提现打款方式：打款到银行卡-好灵工
+     */
+    const WITHDRAW_WITH_WORK_WITHDRAW_BANK = 'worker_withdraw_bank';
+
+    /**
+     * 提现打款方式：打款到银行卡-智E+
+     */
+    const WITHDRAW_WITH_EPLUS_WITHDRAW_BANK = 'eplus_withdraw_bank';
+
+    /**
+     * 提现打款方式：打款到银典支付
+     */
+    const WITHDRAW_WITH_SILVER_POINT = 'silver_point';
+
+    /**
+     * 提现打款方式：打款到兼职猫-银行卡
+     */
+    const WITHDRAW_WITH_JIANZHIMAO_BANK = 'jianzhimao_bank';
+
+    /**
+     * 提现打款方式：打款到税惠添薪-银行卡
+     */
+    const TAX_WITHDRAW_BANK = 'tax_withdraw_bank';
+
 
     /**
      * 手动打款方式：手动至银行卡
      */
-    const MANUAL_TO_BANK    = 1;
+    const MANUAL_TO_BANK = 1;
 
 
     /**
      * 手动打款方式：手动至微信
      */
-    const MANUAL_TO_WECHAT  = 2;
+    const MANUAL_TO_WECHAT = 2;
 
 
     /**
      * 手动打款方式：手动至支付宝
      */
-    const MANUAL_TO_ALIPAY  = 3;
+    const MANUAL_TO_ALIPAY = 3;
 
 
     /**
      * 审核通过的收入 ids 集合
-     * 
+     *
      * @var array
      */
     public $audit_ids = [];
@@ -173,7 +210,7 @@ class Withdraw extends BaseModel
 
     /**
      * 审核驳回的收入 ids 集合
-     * 
+     *
      * @var array
      */
     public $rebut_ids = [];
@@ -181,7 +218,7 @@ class Withdraw extends BaseModel
 
     /**
      * 审核无效的收入 ids 集合
-     * 
+     *
      * @var array
      */
     public $invalid_ids = [];
@@ -193,21 +230,31 @@ class Withdraw extends BaseModel
      * @var array
      */
     public static $payWayComment = [
-        self::WITHDRAW_WITH_BALANCE                => '提现到余额',
-        self::WITHDRAW_WITH_WECHAT                 => '提现到微信',
-        self::WITHDRAW_WITH_ALIPAY                 => '提现到支付宝',
-        self::WITHDRAW_WITH_MANUAL                 => '提现手动打款',
-        self::WITHDRAW_WITH_HUANXUN                => '提现到银行卡',
-        self::WITHDRAW_WITH_EUP_PAY                => '提现EUP',
-        self::WITHDRAW_WITH_YOP                    => '提现易宝',
-        self::WITHDRAW_WITH_SEPARATE_UNION_PAY     => '提现银联',
-        self::WITHDRAW_WITH_CONVERGE_PAY           => '提现到银行卡-HJ',
-        self::WITHDRAW_WITH_YEE_PAY                => '提现易宝代付',
-        self::WITHDRAW_WITH_HIGH_LIGHT_WECHAT      => '提现到微信-高灯',
-        self::WITHDRAW_WITH_HIGH_LIGHT_ALIPAY      => '提现到支付宝-高灯',
-        self::WITHDRAW_WITH_HIGH_LIGHT_BANK        => '提现到银行卡-高灯',
+        self::WITHDRAW_WITH_BALANCE              => '提现到余额',
+        self::WITHDRAW_WITH_WECHAT               => '提现到微信',
+        self::WITHDRAW_WITH_ALIPAY               => '提现到支付宝',
+        self::WITHDRAW_WITH_MANUAL               => '提现手动打款',
+        self::WITHDRAW_WITH_HUANXUN              => '提现到银行卡',
+        self::WITHDRAW_WITH_EUP_PAY              => '提现EUP',
+        self::WITHDRAW_WITH_YOP                  => '提现易宝',
+        self::WITHDRAW_WITH_SEPARATE_UNION_PAY   => '提现银联',
+        self::WITHDRAW_WITH_CONVERGE_PAY         => '提现到银行卡-HJ',
+        self::WITHDRAW_WITH_YEE_PAY              => '提现易宝代付',
+        self::WITHDRAW_WITH_HIGH_LIGHT_WECHAT    => '提现到微信-高灯',
+        self::WITHDRAW_WITH_HIGH_LIGHT_ALIPAY    => '提现到支付宝-高灯',
+        self::WITHDRAW_WITH_HIGH_LIGHT_BANK      => '提现到银行卡-高灯',
+        self::WITHDRAW_WITH_WORK_WITHDRAW_WECHAT => '提现到微信-好灵工',
+        self::WITHDRAW_WITH_WORK_WITHDRAW_ALIPAY => '提现到支付宝-好灵工',
+        self::WITHDRAW_WITH_WORK_WITHDRAW_BANK   => '提现到银行卡-好灵工',
+        self::WITHDRAW_WITH_EPLUS_WITHDRAW_BANK  => '提现到银行卡-智E+',
+        self::WITHDRAW_WITH_SILVER_POINT         => '提现到银典支付',
+        self::WITHDRAW_WITH_JIANZHIMAO_BANK      => '提现到兼职猫-银行卡',
+        self::TAX_WITHDRAW_BANK                  => '提现到税惠添薪-银行卡',
     ];
 
+    public static $noDeductionServicetax = [//不扣除劳务税的提现类型
+                                            'Yunshop\StoreCashier\common\models\StoreOrder',
+    ];
 
     /**
      * 提现审核状态集合
@@ -215,18 +262,18 @@ class Withdraw extends BaseModel
      * @var array
      */
     public static $statusComment = [
-        self::STATUS_INVALID    => '已无效',
-        self::STATUS_INITIAL    => '待审核',
-        self::STATUS_AUDIT      => '待打款',
-        self::STATUS_PAY        => '已打款',
-        self::STATUS_REBUT      => '已驳回',
-        self::STATUS_PAYING     => '打款中',
+        self::STATUS_INVALID => '已无效',
+        self::STATUS_INITIAL => '待审核',
+        self::STATUS_AUDIT   => '待打款',
+        self::STATUS_PAY     => '已打款',
+        self::STATUS_REBUT   => '已驳回',
+        self::STATUS_PAYING  => '打款中',
     ];
 
 
     /**
      * 数据表名称
-     * 
+     *
      * @var string
      */
     protected $table = 'yz_withdraw';
@@ -237,25 +284,34 @@ class Withdraw extends BaseModel
      */
     protected $guarded = [];
 
+    /**
+     * @var array
+     */
+    protected $dates = [
+        'audit_at',
+        'pay_at',
+        'arrival_at'
+    ];
 
     /**
      * @var array
      */
     protected $appends = ['status_name', 'pay_way_name'];
 
+    public function member()
+    {
+        return $this->hasOne(Member::class, 'uid', 'member_id');
+    }
 
     public function hasOneMember()
     {
         return $this->hasOne(Member::class, 'uid', 'member_id');
     }
 
-
     public function hasOneYzMember()
     {
         return $this->hasOne('app\backend\modules\member\models\MemberShopInfo', 'member_id', 'member_id');
-
     }
-
 
     public function bankCard()
     {
@@ -283,6 +339,22 @@ class Withdraw extends BaseModel
      */
     public static function getPayWayComment($pay_way)
     {
+        static::$payWayComment[self::WITHDRAW_WITH_BALANCE] = Setting::get('shop.shop.credit') ? '提现到' . Setting::get(
+                'shop.shop.credit'
+            ) : '提现到余额';
+        if (app('plugins')->isEnabled('high-light')) {
+            static::$payWayComment[self::WITHDRAW_WITH_HIGH_LIGHT_WECHAT] = '提现到微信-' . \Yunshop\HighLight\services\SetService::getDiyName(
+                );
+            static::$payWayComment[self::WITHDRAW_WITH_HIGH_LIGHT_ALIPAY] = '提现到支付宝-' . \Yunshop\HighLight\services\SetService::getDiyName(
+                );
+            static::$payWayComment[self::WITHDRAW_WITH_HIGH_LIGHT_BANK] = '提现到银行卡-' . \Yunshop\HighLight\services\SetService::getDiyName(
+                );
+        }
+
+        if (app('plugins')->isEnabled('tax-withdraw')) {
+            static::$payWayComment[self::TAX_WITHDRAW_BANK] = '提现到' . TAX_WITHDRAW_DIY_NAME . '-银行卡';
+        }
+
         return isset(static::$payWayComment[$pay_way]) ? static::$payWayComment[$pay_way] : '';
     }
 
@@ -389,23 +461,22 @@ class Withdraw extends BaseModel
     public function atributeNames()
     {
         return [
-            'member_id'     => '会员ID',
-            'type'          => '提现类型',
-            'amounts'       => '提现金额',
-            'pay_way'       => '打款方式',
+            'member_id' => '会员ID',
+            'type'      => '提现类型',
+            'amounts'   => '提现金额',
+            'pay_way'   => '打款方式',
         ];
     }
 
     public function rules()
     {
-        return  [
-            'member_id'     => 'required',
-            'type'          => 'required',
-            'amounts'       => 'required',
-            'pay_way'       => 'required',
+        return [
+            'member_id' => 'required',
+            'type'      => 'required',
+            'amounts'   => 'required',
+            'pay_way'   => 'required',
         ];
     }
-
 
 
     /**
@@ -427,17 +498,7 @@ class Withdraw extends BaseModel
     }
 
 
-
-
-
-/********************* todo 以下代码不确定功能逻辑，需要处理删除 yitian 2017-12-19 ****************/
-
-
-
-
-
-
-
+    /********************* todo 以下代码不确定功能逻辑，需要处理删除 yitian 2017-12-19 ****************/
 
 
     public $separate = [];
@@ -456,16 +517,14 @@ class Withdraw extends BaseModel
      */
     public function getTypeDataAttribute()
     {
-
         if (!isset($this->TypeData)) {
             $configs = \app\backend\modules\income\Income::current()->getItems();
 
             foreach ($configs as $key => $config) {
                 if ($config['class'] === $this->type) {
-
                     $orders = Income::getIncomeByIds($this->type_id)->get();
 //                    $is_pay = Income::getIncomeByIds($this->type_id)->where('pay_status','1')->get()->sum(amount);
-                    if($orders){
+                    if ($orders) {
                         $this->TypeData['income_total'] = $orders->count();
 //                        $this->TypeData['is_pay'] = $is_pay;
                         $this->TypeData['incomes'] = $orders->toArray();
@@ -477,8 +536,6 @@ class Withdraw extends BaseModel
 
                     }
                 }
-
-
             }
         }
         return $this->TypeData;
@@ -487,38 +544,63 @@ class Withdraw extends BaseModel
 
     public static function getWithdrawByWithdrawSN($withdrawSN)
     {
-        return self::uniacid()->where('withdraw_sn',$withdrawSN)->first();
+        return self::uniacid()->where('withdraw_sn', $withdrawSN)->first();
     }
 
     public static function getBalanceWithdrawById($id)
     {
         return self::uniacid()->where('id', $id)
-            ->with(['hasOneMember' => function($query) {
-                return $query->select('uid', 'mobile', 'realname', 'nickname', 'avatar')
-                    ->with(['yzMember' => function($member) {
-                        return $member->select('member_id', 'group_id','alipay','wechat','level_id')
-                            ->with([
-                                'group' => function($group) {
-                                    return $group->select('id', 'group_name');
-                                },
-                                'level' =>function($level) {
-                                    return  $level->select('id', 'level', 'level_name');
-                                }]);
-                    }]);
-            }])
-            ->with(['bankCard'=> function($bank){
-                return $bank->select('member_id','bank_card','member_name','bank_card','bank_province','bank_city','bank_branch','bank_name');
-            }])
+            ->with([
+                'hasOneMember' => function ($query) {
+                    return $query->select('uid', 'mobile', 'realname', 'nickname', 'avatar')
+                        ->with([
+                            'yzMember' => function ($member) {
+                                return $member->select(
+                                    'member_id',
+                                    'group_id',
+                                    'alipayname',
+                                    'alipay',
+                                    'wechat',
+                                    'level_id'
+                                )
+                                    ->with([
+                                        'group' => function ($group) {
+                                            return $group->select('id', 'group_name');
+                                        },
+                                        'level' => function ($level) {
+                                            return $level->select('id', 'level', 'level_name');
+                                        }
+                                    ]);
+                            }
+                        ]);
+                }
+            ])
+            ->with([
+                'bankCard' => function ($bank) {
+                    return $bank->select(
+                        'member_id',
+                        'bank_card',
+                        'member_name',
+                        'bank_card',
+                        'bank_province',
+                        'bank_city',
+                        'bank_branch',
+                        'bank_name'
+                    );
+                }
+            ])
             ->first();
-
     }
+
     public static function getWithdrawById($id)
     {
         $Model = self::where('id', $id);
-        $Model->orWhere('withdraw_sn',$id);
-        $Model->with(['hasOneMember' => function ($query) {
-            $query->select('uid', 'mobile', 'realname', 'nickname', 'avatar');
-        }]);
+        $Model->orWhere('withdraw_sn', $id);
+        $Model->with([
+            'hasOneMember' => function ($query) {
+                $query->select('uid', 'mobile', 'realname', 'nickname', 'avatar');
+            }
+        ]);
 //        $Model->with(['hasOneAgent' => function ($query) {
 //            $query->select('member_id', 'agent_level_id', 'commission_total');
 //        }]);
@@ -536,37 +618,33 @@ class Withdraw extends BaseModel
 
     public static function updatedWithdrawStatus($id, $updatedData)
     {
-        return self::where('id',$id)
-            ->orWhere('withdraw_sn',(string)$id)
+        return self::where('id', $id)
+            ->orWhere('withdraw_sn', (string)$id)
             ->update($updatedData);
     }
 
     //统计当天的
-    public static function  successfulWithdrawals($pay_type,$start,$end){
-
+    public static function successfulWithdrawals($pay_type, $start, $end)
+    {
         return self::where([
-            ['member_id',\YunShop::app()->getMemberId()],
+            ['member_id', \YunShop::app()->getMemberId()],
             //['status','=',self::STATUS_PAY],
-            ['pay_way','=',$pay_type],
-            ['created_at','>=',$start],
-            ['created_at','<=',$end]
+            ['pay_way', '=', $pay_type],
+            ['created_at', '>=', $start],
+            ['created_at', '<=', $end]
         ])->count();
-
     }
 
 
-    public static function SuccessfulCashWithdrawal($pay_type,$start,$end){
-
+    public static function SuccessfulCashWithdrawal($pay_type, $start, $end)
+    {
         return self::where([
-                ['member_id',\YunShop::app()->getMemberId()],
-                ['status','=',self::STATUS_PAY],
-                ['pay_way','=',$pay_type],
-                ['pay_at','>=',$start],
-                ['pay_at','<=',$end]
-            ])->sum('actual_amounts');
-
+            ['member_id', \YunShop::app()->getMemberId()],
+            ['status', '=', self::STATUS_PAY],
+            ['pay_way', '=', $pay_type],
+            ['pay_at', '>=', $start],
+            ['pay_at', '<=', $end]
+        ])->sum('actual_amounts');
     }
-
-
 
 }

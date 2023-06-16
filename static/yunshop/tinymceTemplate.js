@@ -45,7 +45,7 @@ Vue.component('tinymce', {
             default_link_target: '_blank',
             link_title: false,
             nonbreaking_force_tab: true, // inserting nonbreaking space &nbsp; need Nonbreaking Space Plugin
-            plugins: ['advlist anchor autolink autosave code codesample colorpicker colorpicker contextmenu directionality emoticons fullscreen hr image imagetools insertdatetime link lists media nonbreaking noneditable pagebreak paste preview print save searchreplace spellchecker tabfocus table template textcolor textpattern visualblocks visualchars wordcount'],
+            plugins: ['advlist anchor autolink code codesample colorpicker colorpicker contextmenu directionality emoticons fullscreen hr image imagetools insertdatetime link lists media nonbreaking noneditable pagebreak paste preview print save searchreplace spellchecker tabfocus table template textcolor textpattern visualblocks visualchars wordcount'],
             toolbar: ['searchreplace bold italic underline strikethrough alignleft aligncenter alignright outdent indent  blockquote undo redo removeformat subscript superscript code codesample', 'hr bullist numlist link image charmap preview anchor pagebreak insertdatetime media table emoticons forecolor backcolor fullscreen'],
             init_instance_callback: editor => {
               if (this.value) {
@@ -85,6 +85,6 @@ Vue.component('tinymce', {
     },
   template: `<div>
               
-              <textarea id="tinymceId" style="height:300px" v-model="value"></textarea>
+              <textarea id="tinymceId" style="height:600px" v-model="value"></textarea>
             </div>`
 });

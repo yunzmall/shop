@@ -21,6 +21,7 @@ class QrcodeController extends ApiController
     protected $uid;
     protected $posterModel;
     protected $memberModel;
+    protected $poster_id;
 
     const WE_CHAT_SHOW_QR_CODE_URL = 'https://mp.weixin.qq.com/cgi-bin/showqrcode?ticket=';
 
@@ -43,9 +44,18 @@ class QrcodeController extends ApiController
         //新海报
         if (\YunShop::plugin()->get('new-poster')) {
             $this->type = intval(request()->type);
-            $this->posterModel = $posterModel = \Yunshop\NewPoster\models\Poster::uniacid()
-                ->whereRaw('FIND_IN_SET('.$this->type.',center_show)')
-                ->first();
+            $this->poster_id = intval(request()->poster_id);
+
+            if ($this->poster_id) {
+                $this->posterModel = $posterModel = \Yunshop\NewPoster\models\Poster::uniacid()
+                    ->where('id',$this->poster_id)
+                    ->first();
+            } else {
+                $this->posterModel = $posterModel = \Yunshop\NewPoster\models\Poster::uniacid()
+                    ->whereRaw('FIND_IN_SET('.$this->type.',center_show)')
+                    ->first();
+            }
+
             if (!$this->posterModel) {
                 //默认二维码
                 if ($this->createPoster()) {
@@ -274,7 +284,7 @@ class QrcodeController extends ApiController
                 $qrcode = MemberModel::getAgentQR();
                 $qrSource = imagecreatefromstring(\Curl::to($qrcode)->get());
             }
-            $fingerPrintImg = imagecreatefromstring(file_get_contents($this->getImgUrl('ewm.png')));
+            $fingerPrintImg = imagecreatefromstring(\Curl::to($this->getImgUrl('ewm.png'))->get());
             $mergeData = [
                 'dst_left' => $space,
                 'dst_top' => 10,
@@ -331,7 +341,7 @@ class QrcodeController extends ApiController
     {
         $w = imagesx($sourceImg);
         $h = imagesy($sourceImg);
-        imagecopyresized($destinationImg,$sourceImg,$data['dst_left'],$data['dst_top'],0,0,$data['dst_width'],$data['dst_height'],$w,$h);
+        imagecopyresampled($destinationImg,$sourceImg,$data['dst_left'],$data['dst_top'],0,0,$data['dst_width'],$data['dst_height'],$w,$h);
         imagedestroy($sourceImg);
         return $destinationImg;
     }
@@ -339,7 +349,7 @@ class QrcodeController extends ApiController
     private static function mergeText($destinationImg, $text, $data)
     {
         putenv('GDFONTPATH=' . base_path('static/fonts'));
-        $font = "source_han_sans";
+        $font = base_path() . DIRECTORY_SEPARATOR . "static" . DIRECTORY_SEPARATOR . "fonts" . DIRECTORY_SEPARATOR . "source_han_sans.ttf";
         $black = imagecolorallocate($destinationImg, 0, 0, 0);
         imagettftext($destinationImg, $data['size'], 0, $data['left'], $data['top'], $black, $font, $text);
         return $destinationImg;
@@ -410,7 +420,7 @@ class QrcodeController extends ApiController
         $paths = \Storage::url('app/public/qr/');
         $paths_change = ltrim($paths, '/');
         file_put_contents(base_path($paths_change) . $filename, $res);
-        return $this->host . config('app.webPath') . $paths . $filename;
+        return $this->host . config('app.webPath') . $paths . $filename.'?v='.str_random(6);
     }
     //商城二维码
     protected function getQrShopImage($link)

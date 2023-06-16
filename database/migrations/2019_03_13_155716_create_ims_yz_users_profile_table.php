@@ -24,6 +24,8 @@ class CreateImsYzUsersProfileTable extends Migration
                 $table->integer('updated_at')->nullable();
                 $table->integer('deleted_at')->nullable();
             });
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE " . app('db')->getTablePrefix()
+                . "yz_users_profile comment '系统--管理员信息表'");
         }
     }
 

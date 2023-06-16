@@ -17,7 +17,7 @@ class CronRun extends RunCommand
      */
     public function fire() {
         // Fire event before the Cron jobs will be executed
-        \Event::fire('cron.collectJobs');
+        \Event::dispatch('cron.collectJobs');
         $report = Cron::run();
 
         if($report['inTime'] === -1) {

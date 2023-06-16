@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/2/27
  * Time: 上午11:18
  */
@@ -94,8 +94,8 @@ class MemberLevel extends BaseModel
         $this->discount = trim($this->discount);
         $this->discount = $this->discount == false ? 10 : $this->discount;
 
-        if ($this->distinct > 10) {
-            $this->distinct = 10;
+        if ($this->discount > 10) {
+            $this->discount = 10;
         }
         // 折扣/10 得到折扣百分比
         return (1 - $this->discount / 10) * $goodsPrice;

@@ -19,6 +19,9 @@ class Resend  extends BaseStepFactory
             case RefundApply::WAIT_RECEIVE_RESEND_GOODS:
                 $name = '等待用户收货';
                 break;
+            case RefundApply::WAIT_RESEND_GOODS:
+                $name = '商家分批发货中';
+                break;
             default:
                 $name = '待商家发货';
         }

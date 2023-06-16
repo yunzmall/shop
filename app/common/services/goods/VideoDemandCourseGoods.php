@@ -1,7 +1,7 @@
 <?php
 /**
  *  Create date 2018/1/3 14:24
- *  Author: 芸众商城 www.yunzshop.com
+ *  Author:
  */
 
 namespace app\common\services\goods;

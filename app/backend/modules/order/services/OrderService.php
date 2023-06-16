@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/5/2
  * Time: 下午4:28
  */
@@ -22,6 +22,13 @@ class OrderService
         $order->cancel_time = time();
         $result = $order->save();
         event(new AfterOrderCanceledEvent($order));
+        return $result;
+    }
+
+    public static function cancelRefund($order)
+    {
+        $order->refund_id = 0;
+        $result = $order->save();
         return $result;
     }
 }

@@ -21,6 +21,8 @@ class CreateImsYzPointLoveSetTable extends Migration {
                 $table->integer('created_at');
                 $table->string('updated_at', 45);
             });
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE `" . app('db')->getTablePrefix()
+                . "yz_point_love_set` comment '积分--积分自动转入设置'");
         }
 	}
 

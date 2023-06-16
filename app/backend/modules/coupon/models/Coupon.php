@@ -4,6 +4,7 @@ namespace app\backend\modules\coupon\models;
 
 
 use app\common\observers\coupon\CouponObserver;
+use app\common\models\coupon\CouponIncreaseRecords;
 
 class Coupon extends \app\common\models\Coupon
 {
@@ -18,9 +19,11 @@ class Coupon extends \app\common\models\Coupon
         'goods_ids' => 'json',
         'category_ids' => 'json',
         'storeids' => 'json',
+        'member_tags_ids' => 'json',
         'goods_names' => 'json',
         'categorynames' => 'json',
         'storenames' => 'json',
+        'member_tags_names' => 'json',
     ];
 
     //默认值
@@ -28,6 +31,7 @@ class Coupon extends \app\common\models\Coupon
         'goods_ids' => '[]',
         'category_ids' => '[]',
         'storeids' => '[]',
+        'member_tags_ids' => '[]',
         'display_order' => 0,
         'plugin_id' => 0,
     ];
@@ -51,6 +55,11 @@ class Coupon extends \app\common\models\Coupon
             'resp_desc' => '推送说明',
             'resp_url' => '推送链接',
         ];
+    }
+
+    public function couponIncreaseRecords()
+    {
+        return $this->hasMany(CouponIncreaseRecords::class, 'coupon_id')->select('count', 'created_at')->orderBy('created_at', 'desc')->get();
     }
 
     /**
@@ -79,8 +88,8 @@ class Coupon extends \app\common\models\Coupon
             'time_days' => 'required|integer',
             'deduct' => 'required|'.$deduct,
             'discount' => 'required|'.$discount,
-            'get_max' => 'required|integer',
-            'get_limit_max' => 'required|integer',
+//            'get_max' => 'required|integer',
+//            'get_limit_max' => 'required|integer',
             'total' => 'required|integer',
             'resp_title' => 'nullable|string',
             'resp_desc' => 'nullable|string',
@@ -142,5 +151,4 @@ class Coupon extends \app\common\models\Coupon
     {
         return static::find($couponId)->delete();
     }
-
 }

@@ -9,6 +9,7 @@
 namespace app\backend\modules\balance\controllers;
 
 
+use app\backend\modules\balance\services\BalanceRechargeService;
 use app\backend\modules\finance\models\BalanceRechargeRecords;
 use app\backend\modules\member\models\Member;
 use app\common\components\BaseController;
@@ -37,15 +38,28 @@ class RechargeController extends BaseController
         $this->memberModel = $this->getMemberModel();
 
         //todo 加速开发，暂时不提独立模型
-        if (\YunShop::request()->num) {
+        if (request()->ajax()) {
+            if (!request()->num || !is_numeric(request()->num)) {
+                return $this->errorJson('请输入充值金额');
+            }
+            $balanceRechargeService = new BalanceRechargeService();
+            if ($balanceRechargeService->chargeCheckOpen()) {//需要进行审核
+                try {
+                    $balanceRechargeService->rechargeStart($this->getRechargeCheckData());
+                    return $this->successJson('充值提交成功，等待审核通过即可完成充值');
+                } catch (\Exception $e) {
+                    return $this->errorJson($e->getMessage());
+                }
+            }
+
             $result = $this->rechargeStart();
             if ($result === true) {
-                return $this->message('余额充值成功', Url::absoluteWeb('balance.recharge.index',array('member_id' => $this->memberModel->uid)), 'success');
+                return $this->successJson('余额充值成功');
             }
-            $this->error($result);
+            return $this->errorJson($result);
         }
 
-        return view('finance.balance.recharge', $this->getResultData())->render();
+        return view('finance.balance.recharge_new', $this->getResultData())->render();
     }
 
     /**
@@ -56,6 +70,7 @@ class RechargeController extends BaseController
         return [
             'rechargeMenu'  => $this->getRechargeMenu(),
             'memberInfo'    => $this->memberModel,
+            'charge_check_swich' => \Setting::get('finance.balance.charge_check_swich') ? 1 : 0
         ];
     }
 
@@ -90,6 +105,22 @@ class RechargeController extends BaseController
             return true;
         }
         return '充值状态修改失败';
+    }
+
+    private function getRechargeCheckData()
+    {
+        return array(
+            'member_id'     => $this->memberModel->uid,
+            'money'         => $this->getPostNum(),
+            'type'          => BalanceRechargeRecords::PAY_TYPE_SHOP,
+            'recharge_remark' => $this->getPostRemark(),
+            'remark'        => '后台充值' . $this->getPostNum() . "元",
+            'source'        => ConstService::SOURCE_RECHARGE,
+            'operator'      => ConstService::OPERATOR_SHOP,
+            'operator_id'   => \YunShop::app()->uid,
+            'explain'       => trim(\YunShop::request()->explain),
+            'enclosure'     => \YunShop::request()->enclosure,
+        );
     }
 
     private function getChangeBalanceData()

@@ -75,6 +75,15 @@ class WithdrawApplyListener
             static::class . "@withdrawMessage",
             999
         );
+
+        /**
+         * 提现申请后，消息通知店铺助手插件审核员
+         */
+        $dispatcher->listen(
+            WithdrawAppliedEvent::class,
+            static::class . "@withdrawShopAssistantMessage",
+            999
+        );
     }
 
 
@@ -179,5 +188,18 @@ class WithdrawApplyListener
         $withdrawModel = $event->getWithdrawModel();
         (new WithdrawMessageService())->withdraw($withdrawModel);
 
+    }
+
+    /**
+     * 提现申请后，消息通知到店铺助手审核员
+     * @param $event WithdrawAppliedEvent
+     */
+    public function withdrawShopAssistantMessage($event)
+    {
+        if (app('plugins')->isEnabled('shop-assistant')) {
+            \Log::info('提现TEST-店铺助手申请');
+            $withdrawModel = $event->getWithdrawModel();
+            (new \Yunshop\ShopAssistant\services\MessageService)->withdrawAudit($withdrawModel);
+        }
     }
 }

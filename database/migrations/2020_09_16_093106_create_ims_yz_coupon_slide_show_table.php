@@ -26,6 +26,7 @@ class CreateImsYzCouponSlideShowTable extends Migration
                 $table->integer('created_at')->nullable();
                 $table->integer('updated_at')->nullable();
             });
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE " . app('db')->getTablePrefix() . "yz_coupon_slide_show comment '领券中心优惠券--幻灯片'");//表注释
         }
     }
 

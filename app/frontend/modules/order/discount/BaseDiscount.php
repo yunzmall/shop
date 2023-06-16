@@ -59,6 +59,11 @@ abstract class BaseDiscount
         return isset($this->amount);
     }
 
+    public function preSave()
+    {
+        return true;
+    }
+
 
     /**
      * 获取总金额
@@ -70,13 +75,15 @@ abstract class BaseDiscount
             return $this->amount;
         }
 
+
         $this->amount = $this->_getAmount();
-        if($this->amount){
+        if($this->amount && $this->preSave()){
             // 将抵扣总金额保存在订单优惠信息表中
+            //统一算法记录金额保存算法为：四舍六入五成双
             $preOrderDiscount = new PreOrderDiscount([
                 'discount_code' => $this->code,
-                'amount' => $this->amount,
-                'name' => $this->name,
+                'amount' => round($this->amount,2,PHP_ROUND_HALF_EVEN),
+                'name' => $this->getName(),
                 'no_show' => $this->no_show
             ]);
             $preOrderDiscount->setOrder($this->order);

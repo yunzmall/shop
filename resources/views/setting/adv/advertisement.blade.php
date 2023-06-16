@@ -7,6 +7,9 @@
         .main-panel{
             margin-top:50px;
         }
+        .main-panel #re_content {
+            padding: 10px;
+        }
         .panel{
             margin-bottom:10px!important;
             padding-left: 20px;
@@ -91,7 +94,7 @@
                                 <i class="el-icon-close" @click.stop="clearImg('1')" title="点击清除图片"></i>
 
                             </div>
-                            <div class="tip">建议尺寸:186.5 * 180</div>
+                            <div class="tip">建议尺寸:339 * 282</div>
                         </el-form-item>
                         <upload-multimedia-img :upload-show="uploadShow" :type="type" :name="chooseImgName" :sel-Num="selNum"  @replace="changeProp" @sure="sureImg"></upload-multimedia-img>
                         <!-- <upload-img :upload-show="uploadShow" :name="chooseImgName" @replace="changeProp" @sure="sureImg"></upload-img> -->
@@ -118,7 +121,7 @@
                                 <div class="upload-boxed-text">点击重新上传</div>
                                 <i class="el-icon-close" @click.stop="clearImg('2')" title="点击清除图片"></i>
                             </div>
-                            <div class="tip">建议尺寸:186.5 * 180</div>
+                            <div class="tip">建议尺寸:339 * 135</div>
                         </el-form-item>
                         <el-form-item label="广告位二链接">
                             <el-input v-model="form.advs[2].link"  style="width:60%;"></el-input><el-button @click="openConnect('2')">选择链接</el-button>
@@ -143,7 +146,7 @@
                                 <div class="upload-boxed-text">点击重新上传</div>
                                 <i class="el-icon-close" @click.stop="clearImg('3')" title="点击清除图片"></i>
                             </div>
-                            <div class="tip">建议尺寸:186.5 * 180</div>
+                            <div class="tip">建议尺寸:339 * 135</div>
                         </el-form-item>
                         <el-form-item label="广告位三链接">
                             <el-input v-model="form.advs[3].link"  style="width:60%;"></el-input><el-button @click="openConnect('3')">选择链接</el-button>
@@ -166,9 +169,9 @@
                             <div @click="openUpload('4','one')" class="upload-boxed" v-if="form.advs[4].img_url" >
                                 <img :src="form.advs['4'].img_url" alt="" style="width:150px;height:150px;border-radius: 5px;cursor: pointer;">
                                 <div class="upload-boxed-text">点击重新上传</div>
-                                <i class="el-icon-close" @click.stop="clearImg('5')" title="点击清除图片"></i>
+                                <i class="el-icon-close" @click.stop="clearImg('4')" title="点击清除图片"></i>
                             </div>
-                            <div class="tip">建议尺寸:92.25*90</div>
+                            <div class="tip">建议尺寸:223 * 260</div>
                         </el-form-item>
                         <el-form-item label="广告位四链接">
                             <el-input v-model="form.advs[4].link"  style="width:60%;"></el-input><el-button @click="openConnect('4')">选择链接</el-button>
@@ -193,7 +196,7 @@
                                 <div class="upload-boxed-text">点击重新上传</div>
                                 <i class="el-icon-close" @click.stop="clearImg('5')" title="点击清除图片"></i>
                             </div>
-                            <div class="tip">建议尺寸:92.25*90</div>
+                            <div class="tip">建议尺寸:223 * 260</div>
                         </el-form-item>
                         <el-form-item label="广告位五链接">
                             <el-input v-model="form.advs[5].link"  style="width:60%;"></el-input><el-button @click="openConnect('5')">选择链接</el-button>
@@ -218,7 +221,7 @@
                                 <div class="upload-boxed-text">点击重新上传</div>
                                 <i class="el-icon-close" @click.stop="clearImg('6')" title="点击清除图片"></i>
                             </div>
-                            <div class="tip">建议尺寸:92.25*90</div>
+                            <div class="tip">建议尺寸:223 * 260</div>
                         </el-form-item>
                         <el-form-item label="广告位六链接">
                             <el-input v-model="form.advs[6].link"  style="width:60%;"></el-input><el-button @click="openConnect('6')">选择链接</el-button>
@@ -243,7 +246,7 @@
                                 <div class="upload-boxed-text">点击重新上传</div>
                                 <i class="el-icon-close" @click.stop="clearImg('7')" title="点击清除图片"></i>
                             </div>
-                            <div class="tip">建议尺寸:92.25*90</div>
+                            <div class="tip">建议尺寸:223 * 260</div>
                         </el-form-item>
                         <el-form-item label="广告位七链接">
                             <el-input v-model="form.advs[7].link"  style="width:60%;"></el-input><el-button @click="openConnect('7')">选择链接</el-button>

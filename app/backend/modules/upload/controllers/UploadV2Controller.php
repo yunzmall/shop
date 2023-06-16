@@ -45,11 +45,11 @@ class UploadV2Controller extends BaseController
         $file = request()->file('file');
 
         if (!$file) {
-            return $this->errorJson('请传入正确参数.');
+            return $this->errorJson('文件上传失败.');
         }
 
         if (!$file->isValid()) {
-            return $this->errorJson('上传失败.');
+            return $this->errorJson('文件上传失败.');
         }
 
         $type = request()->upload_type;

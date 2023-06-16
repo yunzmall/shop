@@ -108,4 +108,12 @@ class PointGoodsDeductionSetting implements DeductionSettingInterface
     {
         return false;
     }
+
+    public function getAffectDeductionAmount()
+    {
+        if (\Setting::get('point.set.point_deduction_integer')) {
+            return 'integer';
+        }
+        return false;
+    }
 }

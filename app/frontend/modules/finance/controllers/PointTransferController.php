@@ -4,7 +4,7 @@
  * Date:    2017/9/1 下午2:22
  * Email:   livsyitian@163.com
  * QQ:      995265288
- * User:    芸众商城 www.yunzshop.com
+ * User:
  ****************************************************************/
 
 namespace app\frontend\modules\finance\controllers;
@@ -155,23 +155,31 @@ class PointTransferController extends ApiController
 
     private function getTransferRecordData()
     {
+        $remark = '积分转让-转出：转入会员ID' . $this->transferModel->recipient;
+        if (request()->input('remark')) {
+            $remark .= ' 会员备注:'.request()->input('remark');
+        }
         return [
             'point_income_type' => PointService::POINT_INCOME_LOSE,
             'point_mode'        => PointService::POINT_MODE_TRANSFER,
             'member_id'         => $this->transferModel->transferor,
             'point'             => -$this->request_point,
-            'remark'            => '积分转让-转出：转入会员ID' . $this->transferModel->recipient
+            'remark'            => $remark,
         ];
     }
 
     private function getRecipientRecordData()
     {
+        $remark = '积分转让-转入：转出会员ID' . $this->transferModel->transferor;
+        if (request()->input('remark')) {
+            $remark .= ' 会员备注:'.request()->input('remark');
+        }
         return [
             'point_income_type' => PointService::POINT_INCOME_GET,
             'point_mode'        => PointService::POINT_MODE_RECIPIENT,
             'member_id'         => $this->transferModel->recipient,
             'point'             => $this->transferModel->value,
-            'remark'            => '积分转让-转入：转出会员ID' . $this->transferModel->transferor,
+            'remark'            => $remark,
         ];
     }
 

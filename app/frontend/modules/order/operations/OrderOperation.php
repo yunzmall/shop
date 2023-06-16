@@ -29,6 +29,10 @@ abstract class OrderOperation implements OrderOperationInterface
     const BLIND_BOX_GOODS = 53; // 盲盒商品
     const BLIND_BOX_REFUND = 54; // 盲盒申请退款
     const STORE_PROJECTS_GOODS = 56;//多门店核销商品
+    const GOODS_COMMENT = 57;//评价 上面为10的不清楚有没有给用到，另起一个
+    const ADDITIONAL_COMMENT = 58;//追评
+    const LOOK_COMMENT = 59;//查看评价
+
 
     /**
      * @var Order

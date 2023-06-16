@@ -23,24 +23,24 @@ class PopularizePageShowController extends BaseController
         $data = [
             'wechat' => [
                 'vue_route' => !empty($all_set['wechat']['vue_route'])?$all_set['wechat']['vue_route']:[],
-                'url' => !empty($all_set['wechat']['callback_url'])?$all_set['wechat']['callback_url']:'',
+                'url' => !empty($all_set['wechat']['callback_url']) ? $all_set['wechat']['callback_url'] : yzAppFullUrl('home'),
             ],
             'mini' => [
                 'vue_route' => !empty($all_set['mini']['vue_route'])?$all_set['mini']['vue_route']:[],
                 'url' => !empty($all_set['mini']['callback_url'])?$all_set['mini']['callback_url']:'',
-                'mini_url' => !empty($all_set['mini']['small_extension_link'])?$all_set['mini']['small_extension_link']:'',
+                'mini_url' => !empty($all_set['mini']['small_extension_link'])?$all_set['mini']['small_extension_link']:'/pages/index/index',
             ],
             'wap' => [
                 'vue_route' => !empty($all_set['wap']['vue_route'])?$all_set['wap']['vue_route']:[],
-                'url' => !empty($all_set['wap']['callback_url'])?$all_set['wap']['callback_url']:'',
+                'url' => !empty($all_set['wap']['callback_url']) ? $all_set['wap']['callback_url'] : yzAppFullUrl('home'),
             ],
             'app' => [
                 'vue_route' => !empty($all_set['app']['vue_route'])?$all_set['app']['vue_route']:[],
-                'url' => !empty($all_set['app']['callback_url'])?$all_set['app']['callback_url']:'',
+                'url' => !empty($all_set['app']['callback_url']) ? $all_set['app']['callback_url'] : yzAppFullUrl('home'),
             ],
             'alipay' => [
                 'vue_route' => !empty($all_set['alipay']['vue_route'])?$all_set['alipay']['vue_route']:[],
-                'url' => !empty($all_set['alipay']['callback_url'])?$all_set['alipay']['callback_url']:'',
+                'url' => !empty($all_set['alipay']['callback_url']) ? $all_set['alipay']['callback_url'] : yzAppFullUrl('home'),
             ],
                 'baidu' => !empty(Setting::get('shop.shop.baidu'))?Setting::get('shop.shop.baidu'):null,
         ];

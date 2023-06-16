@@ -11,6 +11,12 @@ namespace app\common\facades;
 
 use app\common\helpers\Url;
 use app\common\models\AccountWechats;
+use app\framework\EasyWechat\MiniProgram\AppCode;
+use app\framework\EasyWechat\OfficialAccount\Material;
+use app\framework\EasyWechat\Payment\Order;
+use app\framework\EasyWechat\Payment\TransferV3;
+use app\framework\EasyWechat\Work\Client;
+use app\framework\EasyWechat\Work\ContactWayClient;
 use EasyWeChat\MiniProgram\Application as MiniProgram;
 use EasyWeChat\OfficialAccount\Application as OfficialAccount;
 use EasyWeChat\OpenPlatform\Application as OpenPlatform;
@@ -27,6 +33,7 @@ class EasyWeChat extends Facade
      */
     public static function getFacadeAccessor()
     {
+
         return new OfficialAccount();
     }
 
@@ -35,7 +42,6 @@ class EasyWeChat extends Facade
      */
     public static function officialAccount(array $config = [])
     {
-
         //独立版
         if (config('APP_Framework') == 'platform') {
             $default_config = [
@@ -55,8 +61,12 @@ class EasyWeChat extends Facade
                 'aes_key' => $account['encodingaeskey'],  // EncodingAESKey，兼容与安全模式下请一定要填写！！！
             ];
         }
-
-        return new OfficialAccount(array_merge($default_config,$config));
+        $OfficialAccount = new OfficialAccount(array_merge($default_config,$config));
+        $OfficialAccount['cache'] = app('cache')->store();
+        $OfficialAccount->rebind('material',function ($app) {
+            return new Material($app);
+        });
+        return $OfficialAccount;
     }
 
     /**
@@ -64,7 +74,21 @@ class EasyWeChat extends Facade
      */
     public static function work(array $config = [])
     {
-        return new Work($config);
+        $Work = new Work($config);
+        $Work['cache'] = app('cache')->store();
+        $Work->rebind('external_contact',function ($app) {
+            return new Client($app);
+        });
+        $Work->rebind('contact_way',function ($app) {
+            return new ContactWayClient($app);
+        });
+        $Work->rebind('user', function ($app) {
+            return new \app\framework\EasyWechat\Work\User($app);
+        });
+        $Work->rebind('department', function ($app) {
+            return new \app\framework\EasyWechat\Work\Department($app);
+        });
+        return $Work;
     }
 
     /**
@@ -81,7 +105,15 @@ class EasyWeChat extends Facade
             'key_path'   => $pay['weixin_key'],
             'notify_url' => Url::shopSchemeUrl('payment/wechat/notifyUrl.php'),
         ];
-        return new Payment(array_merge($default_config,$config));
+        $Payment = new Payment(array_merge($default_config,$config));
+        $Payment['cache'] = app('cache')->store();
+        $Payment->rebind('order',function ($app) {
+            return new Order($app);
+        });
+        $Payment->rebind('transfer_v3',function ($app) {
+            return new TransferV3($app);
+        });
+        return $Payment;
     }
 
     /**
@@ -89,7 +121,13 @@ class EasyWeChat extends Facade
      */
     public static function miniProgram(array $config = [])
     {
-        return new MiniProgram($config);
+        $MiniProgram = new MiniProgram($config);
+        $MiniProgram['cache'] = app('cache')->store();
+
+        $MiniProgram->rebind('app_code',function ($app) {
+            return new AppCode($app);
+        });
+        return $MiniProgram;
     }
 
     /**

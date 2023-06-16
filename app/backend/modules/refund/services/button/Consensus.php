@@ -13,7 +13,7 @@ class Consensus extends RefundButtonBase
 {
     public function getApi()
     {
-        return 'refund.operation.consensus';
+        return 'refund.vue-operation.consensus';
     }
 
     public function getName()
@@ -38,6 +38,6 @@ class Consensus extends RefundButtonBase
 
     public function getDesc()
     {
-        return '订单会完成退款处理，您用其他方式进行退款';
+        return '您用其他方式进行退款，或者退款金额为0时';
     }
 }

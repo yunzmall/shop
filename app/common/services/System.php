@@ -1,13 +1,17 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/3/24
  * Time: 下午2:29
  */
 
 namespace app\common\services;
 
+
+use app\common\helpers\Cache;
+use app\common\helpers\YunSession;
+use Illuminate\Support\Facades\Redis;
 
 class System
 {
@@ -37,10 +41,29 @@ class System
 
     public function index()
     {
-        $this->getLoadAvg();
-        $this->getCpu();
-        $this->getRAM();
-        $this->getDisk();
+        $system_info = Redis::get('system_info');
+        if (is_null($system_info)) {
+            $this->loadAvg = $this->getLoadAvg();
+            $this->cpu = $this->getCpu();
+            $this->RAM = $this->getRAM();
+            $this->disk = $this->getDisk();
+
+            $data = [
+                $this->loadAvg,
+                $this->cpu,
+                $this->RAM,
+                $this->disk
+            ];
+
+            Redis::setnx('system_info', json_encode($data));
+            Redis::expire('system_info', 120);
+        } else {
+            $system_info = json_decode($system_info);
+            $this->loadAvg = $system_info[0];
+            $this->cpu = $system_info[1];
+            $this->RAM = $system_info[2];
+            $this->disk = $system_info[3];
+        }
 
         return [
             'loadAvg' => $this->loadAvg,
@@ -67,9 +90,7 @@ class System
         $percent = explode('/' ,$str[0][3]);
 
         $str[0][3] =  round($percent[0]/$percent[1]*100, 2);
-        $this->loadAvg = $str[0];
-
-
+        return $str[0];
     }
 
 
@@ -98,7 +119,7 @@ class System
             $stat2 = self::GetCoreInformation();
             $data = self::GetCpuPercentages($stat1, $stat2);
             $res['cpu']['using'] = $data['cpu0']['user']; //cpu使用率
-            $this->cpu = $res['cpu'];
+            return $res['cpu'];
 
         }
 
@@ -138,7 +159,7 @@ class System
             $res['memFree']  = round($res['memRealFree']/1024,3)." G";
         }
 
-        $this->RAM = $res;
+        return $res;
     }
 
     private function getDisk()
@@ -149,7 +170,7 @@ class System
         $re['used'] = round($re['total']-$re['free'], 3); //已用
         $re['percent'] = (floatval($re['total'])!=0)?round($re['used']/$re['total']*100,2):0;
 
-        $this->disk = $re;
+        return $re;
     }
     private function GetCoreInformation() {$data = file('/proc/stat');$cores = array();foreach( $data as $line ) {if( preg_match('/^cpu[0-9]/', $line) ){$info = explode(' ', $line);$cores[]=array('user'=>$info[1],'nice'=>$info[2],'sys' => $info[3],'idle'=>$info[4],'iowait'=>$info[5],'irq' => $info[6],'softirq' => $info[7]);}}return $cores;}
     private function GetCpuPercentages($stat1, $stat2) {if(count($stat1)!==count($stat2)){return;}$cpus=array();for( $i = 0, $l = count($stat1); $i < $l; $i++) {	$dif = array();	$dif['user'] = $stat2[$i]['user'] - $stat1[$i]['user'];$dif['nice'] = $stat2[$i]['nice'] - $stat1[$i]['nice'];	$dif['sys'] = $stat2[$i]['sys'] - $stat1[$i]['sys'];$dif['idle'] = $stat2[$i]['idle'] - $stat1[$i]['idle'];$dif['iowait'] = $stat2[$i]['iowait'] - $stat1[$i]['iowait'];$dif['irq'] = $stat2[$i]['irq'] - $stat1[$i]['irq'];$dif['softirq'] = $stat2[$i]['softirq'] - $stat1[$i]['softirq'];$total = array_sum($dif);$cpu = array();foreach($dif as $x=>$y) $cpu[$x] = round($y / $total * 100, 2);$cpus['cpu' . $i] = $cpu;}return $cpus;}

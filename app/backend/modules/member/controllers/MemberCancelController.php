@@ -1,9 +1,9 @@
 <?php
 /**
  * Created by PhpStorm.
- * Name: 芸众商城系统
- * Author: 广州市芸众信息科技有限公司
- * Profile: 广州市芸众信息科技有限公司位于国际商贸中心的广州，专注于移动电子商务生态系统打造，拥有芸众社交电商系统、区块链数字资产管理系统、供应链管理系统、电子合同等产品/服务。官网 ：www.yunzmall.com  www.yunzshop.com
+ *
+ * 
+ *
  * Date: 2021-07-30
  * Time: 16:14
  */
@@ -23,6 +23,9 @@ use app\common\models\MemberMiniAppModel;
 use app\common\models\Order;
 use app\frontend\modules\member\models\MemberWechatModel;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use Yunshop\YunSign\common\models\CompanyAccount;
+use Yunshop\YunSign\common\models\PersonAccount;
 
 class MemberCancelController extends BaseController
 {
@@ -76,11 +79,19 @@ class MemberCancelController extends BaseController
         if (!$model) {
             return $this->errorJson('记录不存在');
         }
-        $order = Order::where('uid', $model->member_id)->whereBetween('status', [0, 2])->first();
+        $order = Order::where('uid', $model->member_id)->whereBetween('status', [1, 2])->first();
         if ($order) {
             return $this->errorJson('该会员存在交易中订单，暂不能审核！');
         }
         if ($this->delMember($model->member_id, $model)) {
+            if (app('plugins')->isEnabled('yun-sign')) {
+                PersonAccount::where('uid', $model->member_id)->delete();
+                CompanyAccount::where('uid', $model->member_id)->delete();
+            }
+            if (app('plugins')->isEnabled('shop-esign')) {
+                \Yunshop\ShopEsign\common\models\PersonAccount::where('uid', $model->member_id)->delete();
+                \Yunshop\ShopEsign\common\models\CompanyAccount::where('uid', $model->member_id)->delete();
+            }
             return $this->successJson('审核成功');
         } else {
             return $this->errorJson('审核失败');
@@ -102,6 +113,14 @@ class MemberCancelController extends BaseController
             MemberAlipay::where('member_id', $uid)->delete();
             Member::where('uid', $uid)->delete();  //删除mc_members数据
             MemberShopInfo::where('member_id', $uid)->delete();  //软删除yz_member
+            //聚合cps
+            if (Schema::hasTable('yz_member_aggregation_app')) {
+                DB::table('yz_member_aggregation_app')->where('member_id', $uid)->delete();
+            }
+            //企业微信
+            if (Schema::hasTable('yz_member_customer')) {
+                DB::table('yz_member_customer')->where('uid', $uid)->delete();
+            }
             $model->update(['status'=>2]);
         });
         setcookie('Yz-Token', '', time() - 3600);

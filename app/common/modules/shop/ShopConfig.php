@@ -82,6 +82,10 @@ class ShopConfig
                     'name' => 'son-provider-platform'
                 ],
                 [
+                    'id' => 61,
+                    'name' => 'ys-system'
+                ],
+                [
                     'id' => 107,
                     'name' => 'blind-box'
                 ],
@@ -96,6 +100,10 @@ class ShopConfig
                 [
                     'id' => 120,
                     'name' => 'yz-supply'
+                ],
+                [
+                    'id' => 144,
+                    'name' => 'coupon-store'
                 ],
             ],
             'observer' => [
@@ -170,6 +178,21 @@ class ShopConfig
                         'function_validator' => 'relationValidator',
                         'function_save' => 'relationSave'
                     ],
+                    'spec_info' => [
+                        'class' => 'app\backend\modules\goods\models\GoodsSpecInfo',
+                        'function_validator' => 'relationValidator',
+                        'function_save' => 'relationSave'
+                    ],
+                    'trade_set' => [
+                        'class' => 'app\backend\modules\goods\models\GoodsTradeSet',
+                        'function_validator' => 'relationValidator',
+                        'function_save' => 'relationSave'
+                    ],
+                    'contact_tel' => [
+                        'class' => 'app\backend\modules\goods\models\ContactTel',
+                        'function_validator' => 'relationValidator',
+                        'function_save' => 'relationSave'
+                    ],
                 ],
                 'order' => [
                     //订单操作记录
@@ -193,7 +216,7 @@ class ShopConfig
                 'GoodsMemberLevelDiscountCalculator' => [
                     'goods' => \app\common\modules\discount\GoodsMemberLevelDiscountCalculator::class,
                     'shop' => \app\common\modules\discount\ShopGoodsMemberLevelDiscountCalculator::class
-                ]
+                ],
             ],
             'shop-foundation' => [
                 'goods' => [
@@ -213,6 +236,12 @@ class ShopConfig
 
                     //标准商城默认都会显示下面这几种类型的商品
                     'plugin'    => [0],
+
+                    'no-deduct-stock' => [
+                        'ids' => [56,128],//下单不会扣除库存的订单类型128 = 圈仓插件,56 = 云仓插件
+                        //某些情况 下单不会扣除库存的验证，例子:agency插件
+                        'name' => [],
+                    ],
                 ],
                 //订单列表类型区分
                 'order-list' => [
@@ -228,10 +257,14 @@ class ShopConfig
                     'top-row'=> [],
                 ],
                 'member-cart'          => [
+                    'validate' => [], //下单插件验证商品
                     'with' => [],
                     'models' => [
                         'shop' => \app\frontend\models\MemberCart::class,
                     ],
+                ],
+                'refund' => [
+                    'order-type' => [], //申请售后订单类型
                 ],
                 'model'                => [
                     'PreOrder' => []
@@ -300,9 +333,9 @@ class ShopConfig
                 ],
                 'order-fee' => [],
                 'order-service-fee' => [],
+                'order-tax-fee' => [],
+                'goods-tax-fee' => [],
                 'status' => [
-//    'remittance'=>\app\common\modules\payType\remittance\models\status\RemittanceStatus::class,
-//    'remittanceAudit'=>\app\common\modules\payType\remittance\models\status\RemittanceAuditStatus::class,
                     [
                         'key' => 'remittance',
                         'class' => \app\common\modules\payType\remittance\models\status\RemittanceStatus::class,
@@ -316,13 +349,35 @@ class ShopConfig
                     [
                         'weight' => 1000,
                         'class' => function (\app\frontend\modules\order\models\PreOrder $preOrder, $weight) {
-                            return new \app\frontend\modules\dispatch\freight\TemplateFreight($preOrder, $weight);
+                            return new \app\frontend\modules\dispatch\freight\ShopFreight($preOrder, $weight);
                         },
-                    ], [
-                        'weight' => 1010,
-                        'class' => function (\app\frontend\modules\order\models\PreOrder $preOrder, $weight) {
-                            return new \app\frontend\modules\dispatch\freight\UnifyFreight($preOrder, $weight);
-                        },
+                    ],
+//                    [
+//                        'weight' => 1000,
+//                        'class' => function (\app\frontend\modules\order\models\PreOrder $preOrder, $weight) {
+//                            return new \app\frontend\modules\dispatch\freight\TemplateFreight($preOrder, $weight);
+//                        },
+//                    ], [
+//                        'weight' => 1010,
+//                        'class' => function (\app\frontend\modules\order\models\PreOrder $preOrder, $weight) {
+//                            return new \app\frontend\modules\dispatch\freight\UnifyFreight($preOrder, $weight);
+//                        },
+//                    ],
+                ],
+                'order-freight-discount' => [
+                    [
+                        'priority' => 0, //优惠项权重
+                        'type' => 'enoughReduce',//分组
+                        'class' => function (\app\frontend\modules\order\models\PreOrder $preOrder) {
+                            return new  \app\frontend\modules\dispatch\discount\EnoughReduce($preOrder);
+                        }
+                    ],
+                    [
+                        'priority' => 0,
+                        'type' => 'levelFreeFreight',
+                        'class' => function (\app\frontend\modules\order\models\PreOrder $preOrder) {
+                            return new  \app\frontend\modules\dispatch\discount\LevelFreeFreight($preOrder);
+                        }
                     ],
                 ],
                 'goods-discount' => [
@@ -336,6 +391,12 @@ class ShopConfig
                         'weight' => 2010,
                         'class' => function (\app\frontend\modules\orderGoods\models\PreOrderGoods $preOrderGoods) {
                             return new \app\frontend\modules\orderGoods\discount\SingleEnoughReduce($preOrderGoods);
+                        },
+                    ],
+                    [
+                        'weight' => 2010,
+                        'class' => function (\app\frontend\modules\orderGoods\models\PreOrderGoods $preOrderGoods) {
+                            return new \app\frontend\modules\orderGoods\discount\FullPiece($preOrderGoods);
                         },
                     ], [
                         'weight' => 2020,
@@ -427,6 +488,11 @@ class ShopConfig
                             return new \app\frontend\modules\order\discount\SingleEnoughReduce($preOrder);
                         },
                     ], [
+                        'key' => 'fullPiece',
+                        'class' => function (\app\frontend\modules\order\models\PreOrder $preOrder) {
+                            return new \app\frontend\modules\order\discount\FullPiece($preOrder);
+                        },
+                    ],[
                         'key' => 'enoughReduce',
                         'class' => function (\app\frontend\modules\order\models\PreOrder $preOrder) {
                             return new \app\frontend\modules\order\discount\EnoughReduce($preOrder);
@@ -468,16 +534,25 @@ class ShopConfig
                     ],
                     [
                         'class' => function (\app\frontend\modules\order\models\PreOrder $order) {
-                            return new \app\frontend\modules\order\OrderFeeNode($order, 9200);
+                            return new \app\frontend\modules\order\OrderTaxFeePriceNode($order, 9200);
                         },
                     ],
                     [
                         'class' => function (\app\frontend\modules\order\models\PreOrder $order) {
-                            return new \app\frontend\modules\order\OrderServiceFeeNode($order, 9300);
+                            return new \app\frontend\modules\order\OrderFeeNode($order, 9998);
+                        },
+                    ],
+                    [
+                        'class' => function (\app\frontend\modules\order\models\PreOrder $order) {
+                            return new \app\frontend\modules\order\OrderServiceFeeNode($order, 9999);
                         },
                     ]
                 ], 'deduction' => [
                     'enable' => true
+                ],
+
+                'send_back_way' => [
+                    'self_send' => '\app\frontend\modules\refund\services\back_way_operation\SelfSend',
                 ]
             ],
             'queue' => [
@@ -502,6 +577,12 @@ class ShopConfig
                     'name' => '统计',
                     'option' => [],
                     'is_serial' => false
+                ], [
+                    'key' => 'limit',
+                    'total' => 3,
+                    'name' => '限定',
+                    'option' => [],
+                    'is_serial' => true
                 ],
             ],
             'password' => [
@@ -534,6 +615,9 @@ class ShopConfig
                     ]
                 ],
             ],
+            'data-clear' => [//商城设置-数据清理
+
+            ]
         ];
 
         $plugins = app('plugins')->getEnabledPlugins('*');

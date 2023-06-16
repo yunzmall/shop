@@ -5,7 +5,7 @@
  * Email:   livsyitian@163.com
  * QQ:      995265288
  * IDE:     PhpStorm
- * User:    芸众商城 www.yunzshop.com
+ * User:
  ****************************************************************/
 
 
@@ -22,24 +22,32 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 class MemberController extends BaseController
 {
+    private $amount;
+
     public function index()
     {
-        return view('balance.member', $this->resultData());
+        return view('balance.member');
     }
 
-    private function resultData()
+    public function resultData()
     {
         $recordsModels = $this->recordsModels();
-
-        return [
+        $recordsModels->map(function ($item){
+            $item->yz_member = $item->yzMember;
+            $item->nickname = $item->nickname ?:
+                ($item->mobile ? substr($item->mobile, 0, 2) . '******' . substr($item->mobile, -2, 2) : '无昵称会员');
+            $item->yz_member->level = $item->yzMember->level;
+            $item->yz_member->group = $item->yzMember->group;
+        });
+        return $this->successJson('ok',[
             'shopSet'       => Setting::get('shop.member'),
-            'amount'        => $this->amount(),
+            'amount'        => $this->amount,
             'page'          => $this->page($recordsModels),
             'search'        => $this->searchParams(),
             'pageList'      => $recordsModels,
             'memberLevel'   => $this->memberLevels(),
             'memberGroup'   => $this->memberGroups(),
-        ];
+        ]);
     }
 
     /**
@@ -70,12 +78,8 @@ class MemberController extends BaseController
         if ($search = $this->searchParams()) {
             $recordsModels = $recordsModels->search($search);
         }
+        $this->amount = $recordsModels->sum('credit2');
         return $recordsModels->orderBy('uid', 'desc')->withoutDeleted()->paginate();
-    }
-
-    private function amount()
-    {
-        return Member::uniacid()->withoutDeleted()->sum('credit2');
     }
 
     private function memberLevels()

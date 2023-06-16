@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/4/27
  * Time: 下午4:26
  */
@@ -34,6 +34,34 @@ class AddressController extends BaseController
         }
 
         echo json_encode($addressData);
+    }
+
+    public function getAjaxAddress()
+    {
+        $addressData = [];
+        switch (request()->input('type')) {
+            case 'province':
+                $addressData = Address::getProvince();
+                break;
+            case 'city':
+                $addressData = Address::getCityByParentId(request()->input('parentid'));
+                break;
+            case 'district':
+                $addressData = Address::getAreaByParentId(request()->input('parentid'));
+                break;
+            case 'street':
+                $addressData = Street::getStreetByParentId(request()->input('parentid'));
+                break;
+        }
+
+        return $this->successJson('ok',$addressData);
+    }
+
+    public function getAjaxExpress()
+    {
+        $data = \app\common\repositories\ExpressCompany::create()->all();
+
+        return $this->successJson('ok',$data);
     }
 
     public function test()

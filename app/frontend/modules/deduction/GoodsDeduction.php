@@ -81,6 +81,15 @@ abstract class GoodsDeduction
     }
 
     /**
+     * 影响最终抵扣金额返回方式
+     * @return mixed|string
+     */
+    public function getAffectDeductionAmountType()
+    {
+        return $this->getDeductionSettingCollection()->getAffectDeductionAmount();
+    }
+
+    /**
      * 商品可使用抵扣
      * @param $goods
      * @return bool

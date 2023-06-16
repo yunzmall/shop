@@ -3,7 +3,7 @@ namespace app\backend\modules\goods\services;
 
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/2/27
  * Time: 下午5:10
  */
@@ -22,7 +22,7 @@ class CommentService
                 return "回复";
                 break;
             case '3':
-                return "追加评论";
+                return "追评";
                 break;
             default:
                 return "追加回复";
@@ -89,7 +89,7 @@ class CommentService
             'comment_id' => $reply['comment_id'],
             'reply_id' => $reply['reply_id'],
             'reply_name' => $member->nickname,
-            'type' => $reply['type'],
+            'type' => $reply['type']
         ];
         if (isset($reply['reply_images']) && is_array($reply['reply_images'])) {
             $data['images'] = serialize($reply['reply_images']);

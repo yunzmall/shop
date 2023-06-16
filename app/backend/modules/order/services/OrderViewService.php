@@ -85,26 +85,25 @@ class OrderViewService
     }
 
 
-    //自定义添加搜索项
-    public static function searchTerm()
+    //搜索组件引用
+    public function searchImport($key)
     {
-        return (new OrderViewService())->getSearchTermConfig();
-    }
 
-    public function getSearchTermConfig()
-    {
-        $searchTerm = [];
+        $array = ['path'=> 'order.template.search', 'name' => 'shop-order-search'];
 
-        if (app('plugins')->isEnabled('package-deliver')) {
+        $route = request()->input('route');
 
-            $package_deliver = [
-                ['name' => 'package_deliver_id', 'placeholder' => '自提点ID', 'type' => 'text'],
-                ['name' => 'package_deliver_name', 'placeholder' => '自提点名称', 'type' => 'text']
-            ];
-            $searchTerm = array_merge($searchTerm, $package_deliver);
+        $viewElement = $this->getViewSet()->first(function (OrderViewBase $view) use ($route) {
+            return $view->getRoute() == $route;
+        });
+
+
+        if ($viewElement && $viewElement->getSearchElementPath() && $viewElement->getSearchElementName()) {
+            $array = ['path'=> $viewElement->getSearchElementPath(), 'name' => $viewElement->getSearchElementName()];
         }
 
-        return $searchTerm;
+
+        return $array[$key];
     }
 
     /**
@@ -112,17 +111,7 @@ class OrderViewService
      */
     public static function searchablePayType()
     {
-        $payType = [
-            ['name' => '微信小程序支付', 'value' => 55],
-            ['name' => '微信H5', 'value' => 50],
-            ['name' => '确认支付', 'value' => 54],
-            ['name' => '货到付款', 'value' => 17],
-            ['name' => '汇聚快捷支付', 'value' => 59],
-            ['name' => '汇聚微信', 'value' =>  PayFactory::PAY_WECHAT_HJ],
-            ['name' => '汇聚支付宝', 'value' => PayFactory::PAY_ALIPAY_HJ],
-        ];
-
-        return $payType;
+        return PayFactory::getPayType();
     }
 
 

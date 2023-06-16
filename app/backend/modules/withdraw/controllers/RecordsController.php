@@ -4,17 +4,18 @@
  * Date:    2017/11/14 上午10:22/2019-06-28 下午14:47
  * Email:   livsyitian@163.com
  * QQ:      995265288
- * User:    芸众商城 www.yunzshop.com
+ * User:     
  * Tool:    Created by PhpStorm.
  ****************************************************************/
 
 namespace app\backend\modules\withdraw\controllers;
 
 
-use app\backend\models\Withdraw;
+use app\backend\modules\withdraw\models\WithdrawModel as Withdraw;
 use app\backend\modules\member\models\MemberBankCard;
 use app\backend\modules\member\models\MemberShopInfo;
 use app\common\components\BaseController;
+use app\common\facades\Setting;
 use app\common\helpers\PaginationHelper;
 use app\common\models\WithdrawMergeServicetaxRate;
 use app\common\services\ExportService;
@@ -25,7 +26,7 @@ class RecordsController extends BaseController
      * @var Withdraw
      */
     private $withdrawModel;
-
+    private $amount;
 
     public function __construct()
     {
@@ -91,13 +92,15 @@ class RecordsController extends BaseController
     }
 
     /**
-     * 视图
+     * 视图和页面数据
      *
-     * @return \Illuminate\Contracts\View\Factory|\Illuminate\View\View
      */
     private function view()
     {
-        return view('withdraw.records', $this->resultData());
+        if (request()->ajax()) {
+            return $this->successJson('ok', $this->resultData());
+        }
+        return view('withdraw.records');
     }
 
     /**
@@ -113,15 +116,20 @@ class RecordsController extends BaseController
      */
     private function resultData()
     {
-        $records = $this->withdrawModel->paginate();
+        $records = $this->withdrawModel->paginate()->toArray();
 
-        $page = PaginationHelper::show($records->total(), $records->currentPage(), $records->perPage());
+        $shopSet = Setting::get('shop.member');
+        foreach ($records['data'] as &$item) {
+            $item['has_one_member']['avatar'] =  $item['has_one_member']['avatar'] ? tomedia($item['has_one_member']['avatar'] ) : tomedia($shopSet['headimg']);
+            $item['has_one_member']['nickname'] = $item['has_one_member']['nickname'] ?: '未更新';
+        }
 
         return [
             'records' => $records,
-            'search'  => $this->searchParams(),
-            'types'   => Withdraw::getTypes(),
-            'page'    => $page,
+            'search' => $this->searchParams(),
+            'types' => Withdraw::getTypes(),
+            'pay_way_list' => Withdraw::getPayWay(),
+            'amount' => $this->amount
         ];
     }
 
@@ -132,9 +140,11 @@ class RecordsController extends BaseController
     {    
         $search = $this->searchParams();
         if ($search) {
+            $search['searchtime'] = is_numeric($search['time']['start']) && is_numeric($search['time']['end']);
             $this->withdrawModel->search($search);
-        } 
+        }
         $this->withdrawModel->orderBy('created_at', 'desc');
+        $this->amount = $this->withdrawModel->sum('amounts');
     }
 
     /**
@@ -220,27 +230,26 @@ class RecordsController extends BaseController
 //                $item->actual_amounts,
                 $this->getActualAmount($item),
                 $item->created_at->toDateTimeString(),
-                $item->audit_at ? date("Y-m-d H:i:s", $item->audit_at) : '',
-                $item->pay_at ? date("Y-m-d H:i:s", $item->pay_at) : '',
-                $item->arrival_at ? date("Y-m-d H:i:s", $item->arrival_at) : '',
+                $item->audit_at ? $item->audit_at->toDateTimeString() : '',
+                $item->pay_at ? $item->pay_at->toDateTimeString() : '',
+                $item->arrival_at ? $item->arrival_at->toDateTimeString() : '',
                 $this->getCustomValue($item->member_id),
             ];
-            if ($item->pay_way == 'manual') {
-                switch ($item->manual_type) {
-                    case 2:
-                        $export_data[$key + 1][] = '微信';
-                        $export_data[$key + 1] = array_merge($export_data[$key + 1], $this->getMemberWeChat($item->member_id));
-                        break;
-                    case 3:
-                        $export_data[$key + 1][] = '支付宝';
-                        $export_data[$key + 1] = array_merge($export_data[$key + 1], $this->getMemberAlipay($item->member_id));
-                        break;
-                    default:
-                        $export_data[$key + 1][] = '银行卡';
-                        $export_data[$key + 1] = array_merge($export_data[$key + 1], $this->getMemberBankCard($item->member_id));
-                        break;
-                }
+            switch ($item->manual_type) {
+                case 2:
+                    $export_data[$key + 1][] = '微信';
+                    $export_data[$key + 1] = array_merge($export_data[$key + 1], $this->getMemberWeChat($item->member_id));
+                    break;
+                case 3:
+                    $export_data[$key + 1][] = '支付宝';
+                    $export_data[$key + 1] = array_merge($export_data[$key + 1], $this->getMemberAlipay($item->member_id));
+                    break;
+                default:
+                    $export_data[$key + 1][] = '银行卡';
+                    $export_data[$key + 1] = array_merge($export_data[$key + 1], $this->getMemberBankCard($item->member_id));
+                    break;
             }
+
             //判断字体，针对性的防止𠂆字，使xsl终止不完整的bug
             $zit = strpos($export_data[$key + 1][21],'𠂆');
             if ($zit) {
@@ -315,7 +324,14 @@ class RecordsController extends BaseController
     public function getActualAmount($withdraw)
     {
         $withdraw_data = $this->setWithdraw($withdraw);
-        $withdraw_data->actual_amounts = bcsub(bcsub($withdraw_data->amounts, $withdraw_data->poundage, 2), $withdraw_data->servicetax, 2);
+        if ($withdraw_data->type == 'balance')  {//余额不减劳务税
+            $withdraw_data->actual_amounts = bcsub($withdraw_data->amounts, $withdraw_data->poundage, 2);
+        }
+
+        // 暂时屏蔽, 等之后有误重新计算
+//        else {
+//            $withdraw_data->actual_amounts = bcsub(bcsub($withdraw_data->amounts, $withdraw_data->poundage, 2), $withdraw_data->servicetax, 2);
+//        }
         return $withdraw_data->actual_amounts;
     }
 
@@ -334,7 +350,7 @@ class RecordsController extends BaseController
                 $withdraw->servicetax = bcmul($base_amount, bcdiv($withdraw->servicetax_rate, 100, 4), 2);
             } elseif ($withdraw->pay_way != 'balance' || !$withdraw_set['balance_special']) {
                 $base_amount = !$withdraw_set['service_tax_calculation'] ? bcsub($withdraw->amounts, $withdraw->poundage, 2) : $withdraw->amounts;
-                $res = \app\common\services\finance\Withdraw::getWithdrawServicetaxPercent($base_amount);
+                $res = \app\common\services\finance\Withdraw::getWithdrawServicetaxPercent($base_amount,$withdraw);
                 $withdraw->servicetax_rate = $res['servicetax_percent'];
                 $withdraw->servicetax = $res['servicetax_amount'];
             }

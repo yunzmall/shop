@@ -10,10 +10,11 @@ use app\frontend\models\Order;
 use Request;
 use app\backend\modules\goods\models\ReturnAddress;
 use Yunshop\AreaDividend\models\AgentOrder;
+use Yunshop\YzSupply\services\YzRefundService;
 
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/4/12
  * Time: 上午10:38
  */
@@ -39,6 +40,23 @@ class RefundController extends ApiController
                     ->where('store_id', $agentOrder->agent_id)
                     ->where('is_default', 1)
                     ->first();
+            }
+        }
+        //中台的获取中台的售后地址
+        if (app('plugins')->isEnabled('yz-supply') && $plugins_id == 120) {
+            $orderRefund = RefundApply::select()
+                ->where('id', request()->refund_id)
+                ->first();
+            //获取中台售后收货地址
+            $yzRefundService = YzRefundService::getReturnAddressStart($orderRefund->order_id);
+            switch ($yzRefundService['code']){
+                case 1:
+                    return $this->successJson('获取退货地址成功',$yzRefundService['data']);
+                    break;
+                case 2:
+                    return $this->errorJson('获取退货地址失败',$yzRefundService['msg']);
+                    break;
+                //其他均为使用商城的售后售后地址
             }
         }
 

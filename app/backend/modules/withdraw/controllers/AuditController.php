@@ -27,6 +27,7 @@ class AuditController extends PreController
         $this->withdrawModel->audit_ids = $audit_ids;
         $this->withdrawModel->rebut_ids = $rebut_ids;
         $this->withdrawModel->invalid_ids = $invalid_ids;
+        $this->withdrawModel->reject_reason = request()->reject_reason ? : '';
 
         $result = (new AuditService($this->withdrawModel))->withdrawAudit();
 
@@ -36,9 +37,9 @@ class AuditController extends PreController
                 WithdrawHandleService::handle('rebut',$rebut_ids,$this->withdrawModel,true);
                 WithdrawHandleService::handle('invalid',$invalid_ids,$this->withdrawModel,true);
             }
-            return $this->message('审核成功', yzWebUrl("withdraw.detail.index", ['id' => $this->withdrawModel->id]));
+            return $this->successJson('审核成功');
         }
-        return $this->message('审核失败，请刷新重试', yzWebUrl("withdraw.detail.index", ['id' => $this->withdrawModel->id]), 'error');
+        return $this->errorJson('审核失败，请刷新重试');
     }
 
 

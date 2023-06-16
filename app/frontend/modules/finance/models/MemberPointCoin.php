@@ -45,7 +45,7 @@ class MemberPointCoin extends MemberCoin
     {
         $point_service = new PointService([
             'point_income_type' => -1,
-            'point_mode'        => 6,
+            'point_mode'        => PointService::POINT_MODE_BY,
             'member_id'         => $this->member->uid,
             'point'             => -$coin->getCoin(),
             'remark'            => '订单[' . $data['order_sn'] . ']抵扣[' . $coin->getMoney() . ']元'

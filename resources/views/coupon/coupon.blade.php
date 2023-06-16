@@ -168,12 +168,12 @@
                             <el-radio v-model.number="form.get_type" :label="0">不可以</el-radio>
                             <div class="tip">是否可以在领券中心领取 (或者只能手动发放)</div>
 
-                            <div v-show="form.get_type == 1">
-                                <el-input v-model.number="form.get_max" style="width:70%" v-show="form.get_type==1">
+                            <div>
+                                <el-input v-model.number="form.get_max" style="width:70%" >
                                     <template slot="prepend">每人限领</template>
                                     <template slot="append">张</template>
                                 </el-input>
-                                <div class="tip" v-show="form.get_type==1">每人限领数量 (-1为不限制数量)</div>
+                                <div class="tip" >每人限领数量 (-1为不限制数量)</div>
 
                                 <el-checkbox v-model="form.get_limit_type">每人每日限领</el-checkbox>
                                 <br>
@@ -186,9 +186,73 @@
                         </el-form-item>
 
                         <el-form-item label="发放总数" prop="total">
-                            <el-input v-model="form.total" style="width:70%;"></el-input>
+                            @if($id)
+                                <el-input v-model="form.total" style="width:70%;" disabled></el-input>
+                                <el-button v-if="form.total > 0" type="primary" plain @click="couponAddCount(id)">点击添加优惠券</el-button>
+                                <el-button type="primary" @click="dialogTableVisible = true">查看优惠券新增记录</el-button>
+                                <el-dialog title="优惠券新增记录" :visible.sync="dialogTableVisible">
+                                    <el-table :data="form.coupon_increase_records">
+                                        <el-table-column property="created_at" label="日期"></el-table-column>
+                                        <el-table-column property="count" label="新增优惠券数量"></el-table-column>
+                                    </el-table>
+                                </el-dialog>
+                            @else
+                                <el-input v-model="form.total" style="width:70%;"></el-input>
+                            @endif
                             <div class="tip">优惠券总数量，没有则不能领取或发放, -1 为不限制数量</div>
                         </el-form-item>
+
+
+                        <div class="vue-head" v-show="integral_is_open==1" style="margin-bottom:20px">
+                            <div class="vue-main-title">
+                                <div class="vue-main-title-left"></div>
+                                <div class="vue-main-title-content">优惠券兑换</div>
+                            </div>
+
+                            <div class="vue-main-form">
+                                <el-form-item :label=`${integral_name}兑换优惠券` prop="">
+                                    <el-switch v-model="form.is_integral_exchange_coupon" :active-value="1" :inactive-value="0"></el-switch>
+                                </el-form-item>
+
+                                <el-form-item v-show="form.is_integral_exchange_coupon == 1" label="兑换一张需要" prop="exchange_coupon_integral">
+                                    <el-input v-model="form.exchange_coupon_integral" style="width:70%">
+                                        <template slot="append">[[integral_name]]</template>
+                                    </el-input>
+                                </el-form-item>
+                            </div>
+                        </div>
+
+                        <div class="vue-head" v-show="member_tags_is_open==1" style="margin-bottom:20px">
+                            <div class="vue-main-title">
+                                <div class="vue-main-title-left"></div>
+                                <div class="vue-main-title-content">用户标签</div>
+                            </div>
+
+                            <div class="vue-main-form">
+                                <el-form-item label="指定会员标签领取">
+                                    <el-button size="mini" @click="openDia(10)">添加标签</el-button>
+                                    <div>
+                                        <el-tag v-for="(tag,index) in member_tags_names" :key="index" closable @close="closeMemberTags(index)" style="margin-right:5px;">
+                                            [[tag]]
+                                        </el-tag>
+                                    </div>
+                                </el-form-item>
+
+                            </div>
+                        </div>
+
+                        <div class="vue-head" style="margin-bottom:20px">
+                            <div class="vue-main-title">
+                                <div class="vue-main-title-left"></div>
+                                <div class="vue-main-title-content">领券说明</div>
+                            </div>
+                            <div class="vue-main-form">
+                                <el-form-item label="领券说明">
+                                    <tinymceee v-model="form.content" style="width:70%"></tinymceee>
+                                </el-form-item>
+                            </div>
+                        </div>
+
                     </div>
                 </div>
             </el-form>
@@ -330,14 +394,48 @@
                     <el-button @click="hotel_show = false">取 消</el-button>
                 </span>
             </el-dialog>
+
+            <el-dialog :visible.sync="member_tags_show" width="60%" center title="添加标签">
+                <div>
+                    <div>
+                        <el-input v-model="member_tags_keyword" style="width:70%"></el-input>
+                        <el-button type="primary" @click="searchMemberTags()">搜索</el-button>
+                    </div>
+                    <el-table :data="member_tags_list" style="width: 100%;height:500px;overflow:auto" v-loading="loading">
+                        <el-table-column label="ID" prop="id" align="center" width="100px"></el-table-column>
+                        <el-table-column label="标签名称">
+                            <template slot-scope="scope">
+                                <div v-if="scope.row" style="display:flex;align-items: center">
+                                    <div style="margin-left:10px">[[scope.row.title]]</div>
+                                </div>
+                            </template>
+                        </el-table-column>
+
+                        <el-table-column prop="refund_time" label="操作" align="center" width="320">
+                            <template slot-scope="scope">
+                                <el-button @click="chooseMemberTags(scope.row)">
+                                    选择
+                                </el-button>
+
+                            </template>
+                        </el-table-column>
+                    </el-table>
+                </div>
+                <span slot="footer" class="dialog-footer">
+                    <el-button @click="member_tags_show = false">取 消</el-button>
+                </span>
+            </el-dialog>
         </div>
     </div>
     @include('public.admin.uploadImg')
+    <script src="{{resource_get('static/yunshop/tinymce4.7.5/tinymce.min.js')}}"></script>
+    @include('public.admin.tinymceee')
     <script>
         const category_url = '{!! yzWebFullUrl('goods.category.get-search-categorys-json') !!}';
         const goods_url = '{!! yzWebFullUrl('goods.goods.get-search-goods-json') !!}';
         const store_url = '{!! yzWebFullUrl('goods.goods.get-search-store-json') !!}';
         const hotel_url = '{!! yzWebFullUrl('goods.goods.get-search-hotel-json') !!}';
+        const member_tags_url = '{!! yzWebFullUrl('goods.goods.get-search-member-tags-json') !!}';
         var app = new Vue({
             el:"#app",
             delimiters: ['[[', ']]'],
@@ -355,6 +453,9 @@
                     id:id,
                     hotel_is_open:0,
                     store_is_open:0,
+                    integral_is_open:0,
+                    member_tags_is_open:0,
+                    integral_name:'',
                     form:{
                         display_order:'0',
                         name:'',
@@ -366,7 +467,6 @@
                         time_limit:0,
                         is_complex:0,
                         coupon_method:1,
-                        use_type:0,
                         get_type:0,
                         get_max:'1',
                         get_limit_type:false,
@@ -374,7 +474,10 @@
                         total:'1',
                         discount:'0',
                         deduct:'0',
-                        time:[]
+                        time:[],
+                        coupon_increase_records:[],
+                        is_integral_exchange_coupon:0,
+                        exchange_coupon_integral:''
                     },
 
                     category_ids : [],
@@ -389,6 +492,9 @@
                     hotel_names:[],
                     member_list:[],
                     goods_list:[],
+                    member_tags_ids:[],
+                    member_tags_names:[],
+                    member_tags_list:[],
 
                     goodsShow:false,
                     chooseGoodsItem:{},//选中的商品
@@ -398,7 +504,6 @@
                     category_keyword:'',
                     // 商品
                     goods_show:false,
-                    goods_list:[],
                     goods_keyword:'',
                     // 门店
                     store_show:false,
@@ -409,6 +514,10 @@
                     hotel_list:[],
                     hotel_keyword:'',
 
+                    // 标签
+                    member_tags_show:false,
+                    member_tags_keyword:'',
+
                     keyword:'',
                     submit_url:'',
                     showVisible:false,
@@ -416,7 +525,6 @@
                     uploadShow:false,
                     chooseImgName:'',
 
-                    loading: false,
                     uploadImg1:'',
                     rules:{
                         name:{ required: true, message: '请输入优惠券名称'},
@@ -432,7 +540,8 @@
                         good_names:[],
                         store_ids:[],
                         store_names:[]
-                    }
+                    },
+                    dialogTableVisible: false
 
                 }
             },
@@ -457,6 +566,9 @@
                             if (response.data.result){
                                 this.hotel_is_open = response.data.data.hotel_is_open;
                                 this.store_is_open = response.data.data.store_is_open;
+                                this.integral_is_open = response.data.data.integral_is_open;
+                                this.member_tags_is_open = response.data.data.member_tags_is_open;
+                                this.integral_name = response.data.data.integral_name;
                                 this.member_list = response.data.data.memberlevels || [];
                                 if(this.id && response.data.data.coupon) {
                                     let coupon = response.data.data.coupon;
@@ -478,6 +590,10 @@
                                     this.form.total = coupon.total;
                                     this.form.discount = coupon.discount;
                                     this.form.deduct = coupon.deduct;
+                                    this.form.coupon_increase_records = coupon.coupon_increase_records;
+                                    this.form.is_integral_exchange_coupon = coupon.is_integral_exchange_coupon;
+                                    this.form.exchange_coupon_integral = coupon.exchange_coupon_integral;
+                                    this.form.content = coupon.content;
 
                                     this.category_ids = response.data.data.category_ids || [];
                                     this.category_names = response.data.data.category_names || [];
@@ -485,6 +601,10 @@
 
                                     this.store_ids = response.data.data.store_ids || [];
                                     this.store_names = response.data.data.store_names || [];
+
+                                    this.member_tags_ids = response.data.data.member_tags_ids || [];
+                                    this.member_tags_names = response.data.data.member_tags_names || [];
+
                                     if(this.form.use_type==2) {
                                         this.goods_ids = response.data.data.goods_ids || [];
                                         this.goods_names = response.data.data.goods_names || [];
@@ -583,11 +703,13 @@
                         this.goods_show = true;
                     }else if(type==9) {
                         this.goods_show = true;
+                    } else if(type==10) {
+                        this.member_tags_show = true;
                     }
                 },
                 currentChange(val) {
                     this.loading = true;
-                    this.$http.post(goods_url,{page:val,keyword:this.real_search_form}).then(function (response){
+                    this.$http.post(goods_url,{page:val,keyword:this.real_search_form,except_supplier:1}).then(function (response){
                             if (response.data.result){
                                 let datas = response.data.data.goods;
                                 this.goods_list=datas.data
@@ -613,13 +735,14 @@
                 searchGoods() {
                     let that = this;
                     this.loading = true;
-                    this.$http.post(goods_url,{keyword:this.goods_keyword}).then(response => {
+                    this.$http.post(goods_url,{keyword:this.goods_keyword,except_supplier:1}).then(response => {
                         if (response.data.result) {
                             let datas = response.data.data.goods;
                             this.goods_list=datas.data
                             this.page_total = datas.total;
                             this.page_size = datas.per_page;
                             this.current_page = datas.current_page;
+                            this.real_search_form=this.goods_keyword;
                             this.goods_list.forEach((item,index) => {
                                 if(item.title) {
                                     item.title = this.escapeHTML(item.title);
@@ -853,6 +976,7 @@
                             total:this.form.total,
                             deduct:this.form.deduct || '0',
                             discount:this.form.discount || '0',
+                            content:this.form.content,
                         },
                         category_ids:this.category_ids,
                         category_names:this.category_names,
@@ -864,6 +988,10 @@
                         goods_name:this.goods_name,
                         hotel_ids:this.hotel_ids,
                         hotel_names:this.hotel_names,
+                        member_tags_ids:this.member_tags_ids,
+                        member_tags_names:this.member_tags_names,
+                        is_integral_exchange_coupon:this.form.is_integral_exchange_coupon,
+                        exchange_coupon_integral:this.form.exchange_coupon_integral,
                         time:{start:"",end:""}
                     };
                     if(this.form.use_type===9){
@@ -890,7 +1018,18 @@
                                     this.$message({type: 'success',message: '操作成功!'});
                                     this.goBack();
                                 } else {
-                                    this.$message({message: response.data.msg,type: 'error'});
+                                    let msg = response.data.msg;
+                                    let tips = '';
+                                    try {
+                                        msg = JSON.stringify(res);
+                                    }catch (e) {
+                                    }
+                                    if(msg instanceof Object){
+                                        for (let key in msg){
+                                            tips += msg[key][0];
+                                        }
+                                    }
+                                    this.$message({message: tips ? tips : msg,type: 'error'});
                                 }
                                 loading.close();
                             },response => {
@@ -902,6 +1041,43 @@
                             return false;
                         }
                     });
+                },
+
+                //标签
+                searchMemberTags() {
+                    let that = this;
+                    this.loading = true;
+                    this.$http.post(member_tags_url,{keyword:this.member_tags_keyword}).then(response => {
+                        if (response.data.result) {
+                            this.member_tags_list = response.data.data;
+                        } else {
+                            this.$message({message: response.data.msg,type: 'error'});
+                        }
+                        this.loading = false;
+                    },response => {
+                        this.loading = false;
+                    });
+                },
+                chooseMemberTags(item) {
+                    let is_exist = 0
+                    this.member_tags_ids.some((item1,index) => {
+                        if(item1 == item.id) {
+                            is_exist = 1;
+                            this.$message.error("请勿重复选择");
+                            return true;
+                        }
+                    })
+                    if(is_exist == 1) {
+                        return;
+                    }
+                    this.member_tags_ids.push(item.id)
+                    this.member_tags_names.push(item.title)
+                },
+                closeMemberTags(index) {
+                    console.log(index)
+                    this.member_tags_ids.splice(index,1)
+                    this.member_tags_names.splice(index,1)
+
                 },
 
                 goBack() {
@@ -950,6 +1126,42 @@
                         this.use_conditions.store_ids =  [];
                         this.use_conditions.store_names = [];
                     }
+                },
+                couponAddCount(id) {
+                    const that = this
+                    this.$prompt('输入增加的优惠劵数量', '提示', {
+                        confirmButtonText: '确定',
+                        cancelButtonText: '取消',
+                        inputPattern: /^[0-9]*$/,
+                        inputErrorMessage: '请输入整型'
+                    }).then(({ value }) => {
+                        let params = {
+                            id: id,
+                            total: value
+                        }
+                        that.$http.post("{!! yzWebFullUrl('coupon.coupon.add-coupon-count') !!}", params).then(response => {
+                            if (response.data.result === 1) {
+                                that.form.total = response.data.data.total
+                                this.$message({
+                                    type: 'success',
+                                    message: '成功添加优惠券: ' + value + '张'
+                                });
+                            }else{
+                                this.$message({
+                                    type: 'fail',
+                                    message: '添加失败, 请重试'
+                                });
+                            }
+                        }), function (res) {
+                            console.log(res);
+                        };
+
+                    }).catch(() => {
+                        this.$message({
+                            type: 'info',
+                            message: '取消优惠券添加'
+                        });
+                    });
                 }
             },
         })

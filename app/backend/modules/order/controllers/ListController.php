@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/3/4
  * Time: 上午9:09
  */
@@ -42,6 +42,13 @@ class ListController extends BaseController
         parent::preAction();
         $params = \YunShop::request()->get();
         $this->orderModel = $this->getOrder()->orders($params['search']);
+        $order_sn = \YunShop::request()->get('order_sn');
+
+        if ($order_sn)
+        {
+            $this->orderModel->where('order_sn',$order_sn)->get();
+        }
+
     }
 
     protected function getOrder()

@@ -15,7 +15,7 @@ class AddMemberFormToImsYzMember extends Migration
     {
         Schema::table('yz_member', function (Blueprint $table) {
             if (!Schema::hasColumn('yz_member', 'member_form')) {
-                $table->text('member_form')->nullable();
+                $table->text('member_form')->nullable()->comment('自定义表单');
             }
         });
     }

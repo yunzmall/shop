@@ -5,7 +5,7 @@
                 <li class="{{in_array($key,\app\backend\modules\menu\Menu::current()->getCurrentItems()) ? 'active' : ''}}">
                     <a href="javascript:void(0);">
                         <i class="fa {{array_get($value,'icon','fa-circle-o') ?: 'fa-circle-o'}}"></i>
-                        <span>{{$value['name'] or ''}}</span>
+                        <span>{{$value['name'] ?? ''}}</span>
                         <span class="pull-right-container">
                            <i class="fa fa-angle-left pull-right"></i>
                         </span>
@@ -14,9 +14,9 @@
                 </li>
             @elseif($value['menu'] == 1)
                 <li class="{{in_array($key,\app\backend\modules\menu\Menu::current()->getCurrentItems()) ? 'active' : ''}}">
-                    <a href="{{isset($value['url']) ? yzWebFullUrl($value['url']) : ''}}{{$value['url_params'] or ''}}">
+                    <a href="{{isset($value['url']) ? yzWebFullUrl($value['url']) : ''}}{{$value['url_params'] ?? ''}}">
                         <i class="fa {{array_get($value,'icon','fa-circle-o') ?: 'fa-circle-o'}}"></i>
-                        <span>{{$value['name'] or ''}}</span>
+                        <span>{{$value['name'] ?? ''}}</span>
                     </a>
                 </li>
             @endif

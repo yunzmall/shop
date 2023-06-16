@@ -11,6 +11,8 @@ namespace app\frontend\modules\goods\controllers;
 
 use app\common\components\ApiController;
 use app\frontend\modules\member\controllers\ServiceController;
+use Yunshop\Supplier\admin\models\Supplier;
+use Yunshop\Supplier\common\models\SupplierGoods;
 
 class CustomerServiceController extends ApiController
 {
@@ -25,8 +27,11 @@ class CustomerServiceController extends ApiController
 
         //1.商城客服设置
         $shopSet = \Setting::get('shop.shop');
-        $shop_cservice = $shopSet['cservice']?:'';
-
+		if (request()->input('type') == 2) {
+			$shop_cservice = $shopSet['cservice_mini'] ?: '';
+		} else {
+			$shop_cservice = $shopSet['cservice'] ?: '';
+		}
         //客服插件基础设置
         $this->apiData  = (new ServiceController())->index();
 
@@ -76,6 +81,9 @@ class CustomerServiceController extends ApiController
             //门店后台单独设置客服链接
             if(class_exists('\Yunshop\StoreCashier\store\models\StoreService')){
                 $store_id = \Yunshop\StoreCashier\common\models\StoreGoods::where('goods_id',$goods_id)->value('store_id');
+                if (!$store_id) {
+                    $store_id = \Yunshop\StoreCashier\common\models\Store::where('cashier_id', $goods_id)->value('id');
+                }
                 if ($store_id) {
                     $store_service = \Yunshop\StoreCashier\store\models\StoreService::where("store_id",$store_id)->first();
                     if($store_service) {
@@ -85,12 +93,27 @@ class CustomerServiceController extends ApiController
             }
         }
 
-
+        if (app('plugins')->isEnabled('supplier')) {
+            $supplierGood = SupplierGoods::where('goods_id',$goods_id)->first();
+            if ($supplierGood) {
+                $supplier = Supplier::getSupplierById($supplierGood->supplier_id);
+                $supplierSet = (new ServiceController())->supplier_set($supplier->uid, request()->type);
+                foreach ($supplierSet as $sk => $sv) {
+                    $this->apiData[$sk] = $sv;
+                }
+                //先将门店单独客服设置的cservice取出
+                if($supplierSet['cservice']) {
+                    $supplier_service = $supplierSet['cservice'];
+                }
+            }
+        }
 
 
         //满足1.门店独立设置 2.客服插件 3.人工客服 4.商城
         if($store_cservice){
             $this->apiData['cservice'] = $store_cservice;
+        }else if($supplier_service){
+            $this->apiData['cservice'] = $supplier_service;
         }else if($alonge_cservice){
             $this->apiData['cservice'] = $alonge_cservice;
         }else if ($rg_cservice){

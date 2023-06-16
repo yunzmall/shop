@@ -9,6 +9,7 @@ use app\common\traits\JsonTrait;
 use app\common\traits\MessageTrait;
 
 use app\framework\Support\Facades\Log;
+use app\frontend\modules\member\services\factory\MemberFactory;
 use Exception;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\QueryException;
@@ -64,7 +65,7 @@ class Handler extends ExceptionHandler
             Log::error($exception);
 
             //生产环境发送错误报告
-            if (app()->environment() == 'production') {
+            /*if (app()->environment() == 'production') {
                 if(class_exists(Curl::class)){
                     Curl::to('https://dev9.yunzmall.com/api/error-log/upload')->withData([
                         'post_data[domain]' => request()->getSchemeAndHttpHost(),
@@ -78,7 +79,7 @@ class Handler extends ExceptionHandler
                             ], true)
                     ])->post();
                 }
-            }
+            }*/
         } catch (Exception $ex) {
             dump($exception);
             dd($ex);
@@ -97,19 +98,26 @@ class Handler extends ExceptionHandler
      */
     public function render($request, Exception $exception)
     {
-
         if ($this->isRendered) {
             return;
         }
+
         $this->isRendered = true;
 
-        if ($exception instanceof MemberErrorMsgException) {
-            return $this->renderLoginErrorMsg($exception);
-        }
 
         // 会员登录
         if ($exception instanceof MemberNotLoginException) {
             return $this->renderMemberNotLoginException($exception);
+        }
+
+        //后台登录异常--修改密码，单点登录
+        if ($exception instanceof AuthenticationException) {
+            return $this->unauthenticated($request, $exception);
+        }
+
+
+        if ($exception instanceof MemberErrorMsgException) {
+            return $this->renderLoginErrorMsg($exception);
         }
 
         // sql异常啦
@@ -117,8 +125,13 @@ class Handler extends ExceptionHandler
             return $this->renderQueryException($exception);
         }*/
 
+        //接口异常
+        if ($exception instanceof ApiException) {
+            return $this->errorJson($exception->getMessage(), $exception->getData());
+        }
+
         // 商城异常
-        if ($exception instanceof ShopException) {
+        if ($exception instanceof ShopException || $exception instanceof AppException) {
             return $this->renderShopException($exception);
         }
         // 404
@@ -126,10 +139,12 @@ class Handler extends ExceptionHandler
             return $this->renderNotFoundException($exception);
 
         }
-		//后台登录异常--修改密码，单点登录
-		if ($exception instanceof AuthenticationException) {
-			return $this->unauthenticated($request, $exception);
-		}
+
+        /*if (app()->environment() === 'production') {
+            return $this->renderBackendError($exception);
+        }*/
+
+
         //开发模式异常
         if (app()->environment() !== 'production') {
             return $this->renderExceptionWithWhoops($exception);
@@ -138,6 +153,7 @@ class Handler extends ExceptionHandler
         if (\YunShop::isApi()) {
             return $this->errorJson($exception->getMessage());
         }
+
         //默认异常
         if ($this->isHttpException($exception)) {
             return $this->renderHttpException($exception);
@@ -216,7 +232,7 @@ class Handler extends ExceptionHandler
         $data = $exception->getData();
 
         if (request()->isFrontend() || request()->ajax()) {
-            $arr = [];
+        	$arr = [];
             $split_data = explode('&', $exception->getData());
             foreach ($split_data as $val) {
                 $temp = explode('=', $val);
@@ -241,18 +257,23 @@ class Handler extends ExceptionHandler
             if (Client::getType() == 8 && (app('plugins')->isEnabled('alipay-onekey-login'))) {
                 $type = 8;
             }
-
+			//清除session,注销会员需要清除
+			setcookie('Yz-Token', '', time() - 3600);
+			setcookie('Yz-appToken', '', time() - 3600);
+			setcookie(session_name(), '',time() - 3600, '/');
+			setcookie(session_name(), '',time() - 3600, '/addons/yun_shop');
+			session_destroy();
             $queryString = ['type' => $type, 'i' => $i, 'mid' => $mid, 'scope' => $scope];
 
             $data = ['login_status' => 0, 'login_url' => Url::absoluteApi('member.login.index', $queryString), 'extra' => $extra];
 
-            if (ApiController::MOBILE_TYPE == $type || ApiController::WEB_APP == $type || ApiController::NATIVE_APP == $type) {
+            if (in_array($type, [MemberFactory::LOGIN_MOBILE, MemberFactory::LOGIN_APP_YDB, MemberFactory::LOGIN_Native, MemberFactory::LOGIN_APP_ANCHOR, MemberFactory::LOGIN_APP_LSP_WALLET])) {
 
                 $data = ['login_status' => 1, 'login_url' => '', 'type' => $type, 'i' => \YunShop::app()->uniacid, 'mid' => $mid, 'scope' => $scope, 'extra' => $extra];
             }
         }
 
-        return $this->errorJson($exception->getMessage(), $data);
+        return $this->errorJson('请登录', $data);
     }
 
     protected function renderLoginErrorMsg(MemberErrorMsgException $exception)
@@ -265,7 +286,25 @@ class Handler extends ExceptionHandler
           <div style="padding-top: 20px;margin: auto; text-align: center; width:60%; font-size:40px; height: 40px; line-height: 40px;">{$exception->getMessage()}</div>
           </div>
 EOT;
+        exit;
+    }
 
+    protected function renderBackendError(Exception $exception)
+    {
+        $img = resource_get('static/500error.png');
+
+        Log::error($exception->getMessage().' error file in '.$exception->getFile().'('.$exception->getLine().')');
+        if (request()->isFrontend() || request()->ajax()) {
+
+            return $this->errorJson('数据错误');
+        }
+
+        echo <<<EOT
+          <div style="width:100%; ">
+          <div style="margin-top: 200px;">&nbsp;</div>
+          <div style="margin: auto; text-align: center; width:60%;"><img src="{$img}"></div>
+          </div>
+EOT;
         exit;
     }
 

@@ -56,6 +56,15 @@ class CouponLog extends \app\common\models\CouponLog
                 return $query->where('name', 'like', '%'.$searchData['coupon_name'].'%');
             });
         }
+        if(isset($searchData['member_keyword'])){
+            $res = $res->whereHas('member', function($query) use ($searchData){
+                return $query->where(function ($query1) use ($searchData) {
+                    $query1->where('nickname', 'like', '%'.$searchData['member_keyword'].'%')
+                        ->orWhere('uid', 'like', '%'.$searchData['member_keyword'].'%')
+                        ->orWhere('mobile', 'like', '%'.$searchData['member_keyword'].'%');
+                })->where('uniacid',\YunShop::app()->uniacid);
+            });
+        }
         if(isset($searchData['nickname'])){
             $res = $res->whereHas('member', function($query) use ($searchData){
                 return $query->where('nickname', 'like', '%'.$searchData['nickname'].'%')->where('uniacid',\YunShop::app()->uniacid);
@@ -66,6 +75,9 @@ class CouponLog extends \app\common\models\CouponLog
         }
         if($searchData['time_search_swtich'] == 1){
             $res = $res->whereBetween('createtime', [$searchData['time_start'], $searchData['time_end']]);
+        }
+        if(isset($searchData['member_id'])){
+            $res = $res->where('member_id', '=', $searchData['member_id']);
         }
 
         return $res->orderBy('createtime', 'desc')->orderBy('id', 'asc')

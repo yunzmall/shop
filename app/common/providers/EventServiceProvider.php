@@ -8,8 +8,10 @@ use app\backend\modules\charts\listeners\OrderStatistics;
 use app\backend\modules\charts\modules\member\listeners\MemberLowerListener;
 use app\backend\modules\charts\modules\phone\listeners\PhoneAttribution;
 use app\backend\modules\goods\listeners\LimitBuy;
+use app\backend\modules\sysMsg\services\SystemMsgDestroyService;
 use app\common\events\member\MemberChangeRelationEvent;
 use app\common\events\member\MemberCreateRelationEvent;
+use app\common\events\member\MemberNewOfflineEvent;
 use app\common\events\order\AfterOrderCreatedEvent;
 use app\common\events\order\AfterOrderCreatedImmediatelyEvent;
 use app\common\events\PayLog;
@@ -17,16 +19,20 @@ use app\common\events\UserActionEvent;
 use app\common\events\WechatProcessor;
 use app\common\listeners\charts\OrderBonusListeners;
 use app\common\listeners\CollectHostListener;
+use app\common\listeners\income\WithdrawPayedListener;
 use app\common\listeners\member\MemberChangeRelationEventListener;
 use app\common\listeners\member\MemberCreateRelationEventListener;
+use app\common\listeners\member\MemberNewOfflineEventListener;
 use app\common\listeners\MemberCartListener;
 use app\common\listeners\order\LocationListener;
 use app\common\listeners\PayLogListener;
 use app\common\listeners\PluginCollectListener;
 use app\common\listeners\point\PointListener;
+use app\common\listeners\point\TimeParentReward;
 use app\common\listeners\UpdateCache;
 use app\common\listeners\UserActionListener;
 use app\common\listeners\WechatProcessorListener;
+use app\common\listeners\withdraw\WechatWithdrawV3Listener;
 use app\common\listeners\withdraw\WithdrawAuditListener;
 use app\common\listeners\withdraw\WithdrawPayListener;
 use app\common\listeners\withdraw\WithdrawSuccessListener;
@@ -41,6 +47,7 @@ use app\common\modules\status\StatusContainer;
 use app\frontend\modules\coupon\listeners\CouponExpired;
 use app\frontend\modules\coupon\listeners\CouponExpireNotice;
 use app\frontend\modules\coupon\listeners\CouponSend;
+use app\frontend\modules\coupon\listeners\CouponSysMessage;
 use app\frontend\modules\coupon\listeners\MonthCouponSend;
 use app\frontend\modules\coupon\listeners\OrderCouponSend;
 use app\frontend\modules\coupon\listeners\ShoppingShareCouponListener;
@@ -94,11 +101,12 @@ class EventServiceProvider extends ServiceProvider
 //        ],
         //微信接口回调触发事件进程
         WechatProcessor::class => [
-            WechatProcessorListener::class//示例监听类
+            WechatProcessorListener::class,//示例监听类
         ],
 
         WechatMessage::class => [
-            WechatMessageListener::class//示例监听类
+            WechatMessageListener::class,//示例监听类
+            \app\common\listeners\WechatMinPayNotifyListener::class, //微信小程序支付管理事件通知
         ],
 
         AfterProcessStatusChangedEvent::class => [
@@ -125,6 +133,9 @@ class EventServiceProvider extends ServiceProvider
         \app\common\events\ProfitEvent::class => [
             \app\common\listeners\ProfitEventListener::class
         ],
+        MemberNewOfflineEvent::class => [
+            MemberNewOfflineEventListener::class
+        ],
 
     ];
     /**
@@ -141,6 +152,10 @@ class EventServiceProvider extends ServiceProvider
         WithdrawAuditListener::class,
         WithdrawPayListener::class,
         WithdrawSuccessListener::class,
+        /**
+         * 收入提现奖励余额监听者
+         */
+        WithdrawPayedListener::class,
 
         /**
          * 余额提现监听者类
@@ -156,54 +171,24 @@ class EventServiceProvider extends ServiceProvider
         //订单支付后，获取分享优惠卷资格
         ShoppingShareCouponListener::class,
 
+        //订单赠送优惠卷监听
         \app\frontend\modules\coupon\listeners\CouponDiscount::class,
 
 
         //订单抵扣返还
         PointListener::class,
         \app\frontend\modules\finance\listeners\OrderDeductionRollback::class,
+        \app\common\listeners\point\PointChangeCreatingListener::class, // 监听会员等级赠送积分是否超限
 
         //商品预扣库存
         GoodsStock::class,
-
-        //余额充值按钮
-        \app\frontend\modules\payment\listeners\Alipay::class,
-        \app\frontend\modules\payment\listeners\Credit::class,
-        \app\frontend\modules\payment\listeners\Wechat::class,
-        \app\frontend\modules\payment\listeners\CloudPay::class,
-        \app\frontend\modules\payment\listeners\Wechat_App::class,
-        \app\frontend\modules\payment\listeners\Alipay_App::class,
-        \app\frontend\modules\payment\listeners\YunPay::class,
-        \app\frontend\modules\payment\listeners\Cloud_Alipay::class,
-        \app\frontend\modules\payment\listeners\Yun_Alipay::class,
-        \app\frontend\modules\payment\listeners\HuanxunPay::class,
-        \app\frontend\modules\payment\listeners\EupPayListener::class,
-        \app\frontend\modules\payment\listeners\PldPayListener::class,
-        \app\frontend\modules\payment\listeners\WftPay::class,
-        \app\frontend\modules\payment\listeners\WftAlipayListener::class,
-        \app\frontend\modules\payment\listeners\HuanxunWxPay::class,
-        \app\frontend\modules\payment\listeners\DianbangScan::class,
-        \app\frontend\modules\payment\listeners\ConvergeWechatPayListener::class,
-        \app\frontend\modules\payment\listeners\ConvergeAlipayPayListener::class,
-        \app\frontend\modules\payment\listeners\ConvergeWechatScanPayListener::class,
-        \app\frontend\modules\payment\listeners\ConvergeAlipayScanPayListener::class,
-        \app\frontend\modules\payment\listeners\ConvergeQuickPayListener::class,
-        \app\frontend\modules\payment\listeners\WechatScanPayListener::class,
-        \app\frontend\modules\payment\listeners\WechatFacePayListener::class,
-        \app\frontend\modules\payment\listeners\WechatJsapiPayListener::class,
-        \app\frontend\modules\payment\listeners\AlipayScan::class,
-        \app\frontend\modules\payment\listeners\AlipayFace::class,
-        \app\frontend\modules\payment\listeners\AlipayJsapi::class,
-        \app\frontend\modules\payment\listeners\ToutiaoAlipayPayListener::class,
-        \app\frontend\modules\payment\listeners\ToutiaoWechatPayListener::class,
-        \app\frontend\modules\payment\listeners\WechatH5Recharge::class,
-        \app\frontend\modules\payment\listeners\XfpayAlipayPayListener::class,
-        \app\frontend\modules\payment\listeners\XfpayWechatPayListener::class,
+		
 
         orderListener::class,
         IncomeWithdraw::class,
         CouponExpireNotice::class,
         CouponSend::class,
+        CouponSysMessage::class,
         CouponExpired::class,
         MemberLevelValidity::class,
         LimitBuy::class,
@@ -215,6 +200,7 @@ class EventServiceProvider extends ServiceProvider
         DisableUserAccount::class,
 //        PluginCollectListener::class,
         CollectHostListener::class,
+        WechatWithdrawV3Listener::class,
         MonthCouponSend::class,//购买商品按月发放优惠券
         OrderCouponSend::class,//购买商品订单完成发放优惠券
         //商品定时上下架
@@ -232,6 +218,19 @@ class EventServiceProvider extends ServiceProvider
 
         //商品下架、减库存发系统消息通知
         \app\common\listeners\goods\GoodsChangeListener::class,
+
+        //余额充值赠送积分
+        \app\common\listeners\balance\PointsRewardListener::class,
+
+        //商品默认好评
+        \app\backend\modules\goods\listeners\CommentServiceListener::class,
+
+        //每月发放上级购物赠送积分
+        TimeParentReward::class,
+
+        //定时删除系统消息
+        SystemMsgDestroyService::class,
+
     ];
 
     /**

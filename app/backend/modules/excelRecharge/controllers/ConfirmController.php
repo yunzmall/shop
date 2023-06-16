@@ -99,7 +99,7 @@ class ConfirmController extends PageController
         //插入充值详细记录
         DetailModel::insert($handleRechargeData);
 
-        return $this->message($this->messageContent(), Url::absoluteWeb('excelRecharge.records.index'));
+        return $this->successJson('充值成功');
     }
 
     /**
@@ -114,10 +114,16 @@ class ConfirmController extends PageController
 
     private function handleRecharge(&$recordsId)
     {
-        $this->uploadExcel();
+//        $this->uploadExcel();
+//        $values = $this->getRow();
+
+        $importData = \app\exports\ExcelService::importToArray($this->excelFile());
+
+        //表格数据
+        $values = $importData[0];
+        array_shift($values); // 删除标题
 
         $data = [];
-        $values = $this->getRow();
         if($this->genre() == 2){ //1 是会员ID， 2 是手机号
             $phones = array_column($values,null,0);
             $phone = array_keys($phones);
@@ -192,7 +198,7 @@ class ConfirmController extends PageController
      */
     private function typeError()
     {
-        return $this->errorMessage("错误的批量充值类型");
+        return $this->errorJson("错误的批量充值类型");
     }
 
     /**
@@ -202,7 +208,7 @@ class ConfirmController extends PageController
      */
     private function excelError()
     {
-        return $this->errorMessage("错误的Excel文件");
+        return $this->errorJson("错误的Excel文件");
     }
 
     /**
@@ -213,7 +219,7 @@ class ConfirmController extends PageController
      */
     private function errorMessage($message)
     {
-        $this->error($message);
+        $this->errorJson($message);
 
         return parent::index();
     }

@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2018/5/18
  * Time: 下午17:28
  */
@@ -16,7 +16,9 @@ class IndexController extends BaseController
     public function index()
     {
         $setting = \Setting::getByGroup('enoughReduce');
-
+        if (!empty($setting) && !isset($setting['freeFreight']['amount_type'])) {
+            $setting['freeFreight']['amount_type'] = 0;
+        }
         return view('goods.enoughReduce.index', [
             'setting' => json_encode($setting),
         ])->render();

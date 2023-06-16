@@ -5,10 +5,19 @@
 <style>
     .edit-i{display:none;}
     .el-table_1_column_2:hover .edit-i{font-weight:900;padding:0;margin:0;display:inline-block;}
+    .el-tabs__item,.is-top{font-size:16px}
+    .el-tabs__active-bar { height: 3px;}
+    .description .el-form-item__label{line-height:24px}
 </style>
 <div class="all">
     <div id="app" v-cloak>
-        
+        <div class="vue-nav" style="margin-bottom:15px">
+            <el-tabs v-model="activeName" @tab-click="handleClick">
+                <el-tab-pane label="基础设置" name="1"></el-tab-pane>
+                <el-tab-pane label="评价列表" name="2"></el-tab-pane>
+                <el-tab-pane label="审核列表" name="3"></el-tab-pane>
+            </el-tabs>
+        </div>
         <div class="vue-head">
             <div class="vue-main-title" style="margin-bottom:20px">
                 <div class="vue-main-title-left"></div>
@@ -21,6 +30,9 @@
                 <el-form :inline="true" :model="search_form" class="demo-form-inline">
                     <el-form-item label="">
                         <el-input v-model="search_form.keyword" placeholder="商品标题"></el-input>
+                    </el-form-item>
+                    <el-form-item label="">
+                        <el-input v-model="search_form.order_sn" placeholder="订单编号"></el-input>
                     </el-form-item>
                     <el-form-item label="">
                         <el-select v-model="search_form.fade" clearable placeholder="全部评价类型">
@@ -76,6 +88,13 @@
                             </div>
                         </template>
                     </el-table-column>
+                    <el-table-column label="订单编号" align="center">
+                        <template slot-scope="scope">
+                            <div>
+                                <a v-if="scope.row.order_id!=0" @click="orderDetails(scope.row.order_id)">[[scope.row.has_one_order.order_sn]]</a>
+                            </div>
+                        </template>
+                    </el-table-column>
                     <el-table-column label="评分等级" align="center">
                         <template slot-scope="scope">
                             <div>
@@ -85,6 +104,28 @@
                     </el-table-column>
 
                     <el-table-column label="时间" align="center" prop="created_at"></el-table-column>
+
+                    <el-table-column label="显示" align="center" width="90">
+                        <template slot-scope="scope">
+                            <el-switch
+                                    v-model="scope.row.is_show"
+                                    :active-value="1" :inactive-value="0"
+                                    active-color="#13ce66"
+                                    @change="Switch2(scope,'show')">
+                            </el-switch>
+                        </template>
+                    </el-table-column>
+
+                    <el-table-column label="置顶" align="center" width="90">
+                        <template slot-scope="scope">
+                            <el-switch
+                                    v-model="scope.row.is_top"
+                                    :active-value="1" :inactive-value="0"
+                                    active-color="#13ce66"
+                                    @change="Switch2(scope,'top')">
+                            </el-switch>
+                        </template>
+                    </el-table-column>
                     
                     <el-table-column prop="refund_time" label="操作" align="center" width="320">
                         <template slot-scope="scope">
@@ -154,6 +195,7 @@
                 current_page:1,
                 total:1,
                 per_page:1,
+                activeName:'2',
             }
         },
         created() {
@@ -163,7 +205,39 @@
             this.getData(1);
         },
         methods: {
-            
+            handleClick(val) {
+                console.log(val.name)
+                if(val.name == 1) {
+                    window.location.href = `{!! yzWebFullUrl('goods.comment.index') !!}`;
+                }
+                else if(val.name == 2) {
+                    window.location.href = `{!! yzWebFullUrl('goods.comment.list') !!}`;
+                }
+                else if(val.name == 3) {
+                    window.location.href = `{!! yzWebFullUrl('goods.comment.audit') !!}`;
+                }
+            },
+            Switch2(scope, type){
+                let json={
+                    comment_id:scope.row.id,
+                    is_show:scope.row.is_show,
+                    is_top:scope.row.is_top,
+                    type:type,
+                }
+                this.$http.post('{!! yzWebFullUrl('goods.comment.changeCommentStatus') !!}',json).then(function (response){
+                        if (response.data.result){
+                            this.$message.success("修改状态成功");
+                            this.searchRecharge(this.current_page)
+                        }
+                        else{
+                            this.$message({message: response.data.msg,type: 'error'});
+                        }
+                    },function (response) {
+                        console.log(response);
+                        this.loading = false;
+                    }
+                );
+            },
             getData(page) {
                 // let json = this.;
                 console.log(this.times);
@@ -172,6 +246,7 @@
                     keyword:this.search_form.keyword,
                     fade:this.search_form.fade,
                     searchtime:this.search_form.searchtime,
+                    order_sn:this.search_form.order_sn
                 };
                 if(this.times && this.times.length>0) {
                     json.starttime = this.times[0]/1000;
@@ -208,7 +283,13 @@
                     loading.close();
                 });
             },
-            
+
+            orderDetails(order_id){
+                let link = `{!! yzWebFullUrl('order.detail.vue-index') !!}`
+                link = link + '&id=' + order_id
+                window.open(link)
+            },
+
             search(val) {
                 this.getData(val);
             },

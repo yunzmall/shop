@@ -13,7 +13,7 @@ use app\frontend\models\MemberShopInfo;
 
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/3/25
  * Time: 上午11:57
  */
@@ -87,26 +87,36 @@ class SettingController extends BaseController
         if (!empty($register['top_img'])) {
             $register['top_img'] = yz_tomedia($register['top_img']);
         }
-
         $member = Setting::get('shop.member');
-
         $custom_field = [
             'is_custom'    => $member['is_custom'],
             'custom_title' => $member['custom_title'],
             'is_validity'  => $member['level_type'] == 2 ? true : false,
             'term'         => $member['term'] ? $member['term'] : 0,
         ];
-
         $form = Setting::get('shop.form');
-
         $data = Protocol::uniacid()
-            ->select('status as protocol', 'content', 'title')
+            ->select('status as protocol', 'content', 'title', 'default_tick')
             ->first();
         $data['content'] = html_entity_decode($data['content']);
+        if (!$register) {
+            $register = [
+                'top_img' => '',
+                'top_img_url' => '',
+                'is_password' => 1,
+                'title1' => '',
+                'title2' => '',
+                'protocol' => [
+                    'title' => '',
+                    'status' => 1,
+                ],
+            ];
+        }
         $data['register'] = $register;
         $data['form'] = json_decode($form, true);
         $data['custom_field'] = $custom_field;
-
+        $data['protocol'] = $data->protocol !== 0 ? 1 : $data->protocol;
+        $data['default_tick'] = $data->default_tick !== 0 ? 1 : $data->default_tick;
         $member = MemberShopInfo::uniacid()
             ->select(['member_id', 'province_name', 'city_name', 'area_name', 'address', 'custom_value', 'member_form'])
             ->where('member_id', \YunShop::app()->getMemberId())
@@ -114,11 +124,9 @@ class SettingController extends BaseController
         if ($member) {
             $member = $member->toArray();
         }
-
         if (!empty($member) && !is_null($member['member_form'])) {
             $member['member_form'] = json_decode($member['member_form']);
         }
-
         $mc_member = Member::uniacid()
             ->select(['uid', 'gender', 'birthyear', 'birthmonth', 'birthday'])
             ->where('uid', \YunShop::app()->getMemberId())
@@ -126,21 +134,16 @@ class SettingController extends BaseController
         if ($mc_member) {
             $mc_member = $mc_member->toArray();
         }
-
         $member_result = array_merge($member, $mc_member);
-
         $data['member'] = $member_result;
-
         if(empty($data)){
             $data = ['protocol' => 1, 'content' => '', 'title' => '', 'register' => [], 'form' => [], 'custom_field' => []];
         }
 	    $shop = Setting::get('shop.shop');
-	    
 		if ($shop['is_agreement']){
 			$data['new_agreement'] = RichText::get('shop.agreement');
 			$data['agreement_name'] = $shop['agreement_name'];
 		}
-	    
         if(is_null($integrated)){
             return $this->successJson('获取注册协议成功', $data);
         }else{

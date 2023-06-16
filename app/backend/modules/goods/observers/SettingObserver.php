@@ -15,7 +15,7 @@ use Illuminate\Database\Eloquent\Model;
 
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/2/28
  * Time: 上午11:24
  */
@@ -36,8 +36,8 @@ class SettingObserver extends \app\common\observers\BaseObserver
         }
         $log = new AdminOperationLog();
         $log->table_name = $model->getTable();
-
-        $log->table_id = $model->id ?: $model->getOriginal('id');
+        $primaryKey = $model->getKeyName();
+        $log->table_id = $model->$primaryKey ?: $model->getOriginal($primaryKey);
         $log->after = $model->getDirty();
         $log->before = collect($model->getDirty())->map(function($value,$key) use ($model){
             return $model->getOriginal($key);
@@ -64,6 +64,16 @@ class SettingObserver extends \app\common\observers\BaseObserver
 
     public function deleted(Model $model)
     {
+        $log = new AdminOperationLog();
+        $log->table_name = $model->getTable();
+        $primaryKey = $model->getKeyName();
+        $log->table_id = $model->$primaryKey ?: $model->getOriginal($primaryKey);
+        $log->after = 'deleted';
+        $log->before = $model->getOriginal();
+        $log->created_at = time();
+        $log->updated_at = time();
+
+        $log->save();
     }
 
 

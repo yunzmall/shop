@@ -5,7 +5,7 @@
  * Email:   livsyitian@163.com
  * QQ:      995265288
  * IDE:     PhpStorm
- * User:    芸众商城 www.yunzshop.com
+ * User:
  ****************************************************************/
 
 
@@ -36,6 +36,7 @@ class ExportController extends BaseController
                 $item->point,
                 $item->after_point,
                 $item->remark,
+                $this->getRemark($item),
             ];
         }
         $exportService->export($this->fileName(), $exportData, \Request::query('route'));
@@ -58,7 +59,8 @@ class ExportController extends BaseController
             '原有积分',
             '变动积分',
             '剩余积分',
-            '备注'
+            '备注',
+            '会员备注',
         ];
     }
 
@@ -98,5 +100,19 @@ class ExportController extends BaseController
     private function fileName()
     {
         return date('Y-m-d-h-i-s', time()) . '积分变动明细导出';
+    }
+
+    /**
+     * 获取会员备注
+     * @param $remark
+     * @return false|string
+     */
+    private function getRemark($item)
+    {
+        $member_remark = '';
+        if (in_array($item->point_mode,[13,14])) {
+            $member_remark = strstr($item->remark,'会员备注:') ? substr(strstr($item->remark,'会员备注:'),13) : null;
+        }
+        return $member_remark;
     }
 }

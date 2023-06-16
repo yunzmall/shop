@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/3/2
  * Time: 下午8:34
  */
@@ -28,7 +28,7 @@ class MemberAddress extends \app\common\models\MemberAddress
      * */
     public static function getAddressList($memberId)
     {
-        return static::select('id', 'username', 'mobile', 'zipcode', 'province', 'city', 'district', 'address', 'isdefault', 'latitude', 'longitude')
+        return static::select('id', 'username', 'mobile', 'zipcode', 'province', 'city', 'district', 'address', 'isdefault', 'latitude', 'longitude', 'country_code','position_address')
             ->uniacid()->where('uid', $memberId)->get()->toArray();
     }
 

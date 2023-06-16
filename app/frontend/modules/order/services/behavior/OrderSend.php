@@ -1,15 +1,18 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/3/3
  * Time: 下午3:43
  */
 
 namespace app\frontend\modules\order\services\behavior;
 
+use app\backend\modules\order\services\OrderPackageService;
+use app\common\events\order\AfterOrderPackageSentEvent;
 use app\common\models\DispatchType;
 use app\common\models\Order;
+use app\common\models\order\OrderPackage;
 use app\common\models\OrderGoods;
 use app\common\models\order\Express;
 use app\common\repositories\ExpressCompany;
@@ -55,7 +58,7 @@ class OrderSend extends ChangeStatusOperation
             // });
             //当code获取不到物流，并且 有传过来物流名称则使用传过来的（主要针对供应链）
             $express_company_name = array_get(ExpressCompany::create()->where('value', $data['express_code'])->first(), 'name', '其他快递');
-            if (empty($express_company_name) && !empty($data['express_company_name'])) $express_company_name = $data['express_company_name'];
+            if ($express_company_name == "其他快递" && !empty($data['express_company_name'])) $express_company_name = $data['express_company_name'];
 
             $db_express_model->express_company_name = $express_company_name;
 
@@ -66,18 +69,53 @@ class OrderSend extends ChangeStatusOperation
             $db_express_model->save();
             //修改所有这个订单的商品 快递信息为这个
             if (empty($data['order_goods_ids'])) {
-                OrderGoods::where('order_id', $order_id)->update(['order_express_id' => $db_express_model->id]);
-                //修改订单表是否全部发货 为全部发货
-//                Order::where('id',$order_id)->update(['is_all_send_goods'=>0]);
+                // 获取剩余未发货的商品
+                $where[] = ['order_id','=',$data['order_id']];
+                $order_goods = \app\frontend\models\OrderGoods::uniacid()->where($where)->whereNull('order_express_id')->get()->makeVisible('order_id');
+                $order_package = OrderPackage::getOrderPackage($data['order_id'])->where('order_express_id','!=',false);
+                $new_order_goods = OrderPackageService::filterGoods($order_goods,$order_package);
+
+                // 单包裹发货
+                OrderPackageService::saveOneOrderPackage((int)$data['order_id'],(int)$db_express_model->id,$new_order_goods);
             } else {
-                OrderGoods::where('order_id', $order_id)->whereIn('id', $data['order_goods_ids'])->update(['order_express_id' => $db_express_model->id]);
-                $where[] = ['order_id', '=', $order_id];
-                $where[] = ['order_express_id', '=', null];
-                $is_all_send = OrderGoods::where($where)->first();
-                //判断是否有还未发货的，如果没有状态变更为已全部发货
-                if (!empty($is_all_send)) {
-                    //修改订单表是否全部发货 为全部发货
-                    Order::where('id', $order_id)->update(['is_all_send_goods' => 1]);
+                // 新做的参数，可能有些地方没改到
+                if(empty($data['order_package'])){// 没有此参数，则将order_goods_ids里未发货的商品全部发货
+                    // 获取剩余未发货的商品
+                    $order_goods = \app\frontend\models\OrderGoods::uniacid()
+                        ->where('order_id',$data['order_id'])
+                        ->whereIn('id',$data['order_goods_ids'] ?: [])
+                        ->whereNull('order_express_id')
+                        ->get()
+                        ->makeVisible('order_id');
+                    $order_package = OrderPackage::getOrderPackage($data['order_id'])->where('order_express_id','!=',false);
+                    $new_order_goods = OrderPackageService::filterGoods($order_goods,$order_package);
+
+                    // 单包裹发货
+                    OrderPackageService::saveOneOrderPackage((int)$data['order_id'],(int)$db_express_model->id,$new_order_goods);
+                }else{// order_package数据结构[['order_goods_id' => int,'total' => int],['order_goods_id' => int,'total' => int]...]
+                    // 获取剩余未发货的商品
+                    $where[] = ['order_id','=',$data['order_id']];
+                    $order_goods = OrderGoods::uniacid()->where($where)->whereNull('order_express_id')->get()->makeVisible('order_id');
+                    $order_package = OrderPackage::getOrderPackage($data['order_id'])->where('order_express_id','!=',false);
+                    $new_order_goods = OrderPackageService::filterGoods($order_goods,$order_package);
+
+                    // 校验包裹商品
+                    $new_order_package = collect($data['order_package']);
+                    OrderPackageService::checkGoodsPackage($new_order_package,$new_order_goods);
+
+                    // 单包裹发货
+                    OrderPackageService::saveOneOrderPackage((int)$data['order_id'],(int)$db_express_model->id,$new_order_package);
+                    event(new AfterOrderPackageSentEvent(Order::find($data['order_id'])));
+                }
+
+                // 全部发货则改订单状态
+                $order_goods = \app\frontend\models\OrderGoods::uniacid()->where('order_id',$data['order_id'])->whereNull('order_express_id')->get()->makeVisible('order_id');
+                $order_package = OrderPackage::getOrderPackage($data['order_id'])->where('order_express_id','!=',false);
+                $new_order_goods = OrderPackageService::filterGoods($order_goods,$order_package);
+                if($new_order_goods->isEmpty()){
+                    $this->is_all_send_goods = 2;
+                }else{
+                    $this->is_all_send_goods = 1;
                 }
             }
         }

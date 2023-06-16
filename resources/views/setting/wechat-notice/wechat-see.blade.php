@@ -117,7 +117,7 @@ b{
         methods: {
          
             back(){
-                window.location.href = `{!! yzWebFullUrl('setting.wechat-notice.index1') !!}`;
+                window.location.href = `{!! yzWebFullUrl('setting.wechat-notice.index') !!}`;
             },
         },
     });

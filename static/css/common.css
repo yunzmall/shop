@@ -126,9 +126,11 @@ a:focus{outline:none; -moz-outline:none}
 .upgrade-tips span{display:inline-block; height:35px; line-height:35px; background:#328233; padding:0 10px; color:#FFF; cursor:pointer;border-radius: 0 4px 0 0;}
 
 /*多图上传*/
-.multi-img-details{margin-top:.5em;}
-.multi-img-details .multi-item{height: 150px; max-width: 150px; position:relative; float: left; margin-right: 18px;}
-.multi-img-details .multi-item img{max-width: 150px; max-height: 150px;}
+.multi-img-details{margin-top:.5em;position: relative;}
+.multi-img-details .items{position: absolute;left: 0;top: 0;}
+.multi-img-details .multi-item{max-width: 150px; position:relative; float: left; margin-right: 18px;}
+.multi-img-details .multi-item .img_box{width: 150px;height: 150px;}
+.multi-img-details .multi-item img{width: 100%; height: 100%;}
 .multi-img-details .multi-item em{position:absolute; top: 0; right: -14px;}
 
 .modal-dialog .avatar-browser{min-height:480px;line-height:0;color:#428bca;}

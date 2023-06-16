@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/3/4
  * Time: 上午9:09
  */
@@ -13,7 +13,9 @@ use app\backend\modules\order\models\OrderGoods;
 use app\backend\modules\goods\models\Goods;
 
 
+use app\backend\modules\order\services\OrderPackageService;
 use app\common\components\BaseController;
+use app\common\models\order\OrderPackage;
 
 class MultiplePackagesOrderGoodsController extends BaseController
 {
@@ -26,9 +28,12 @@ class MultiplePackagesOrderGoodsController extends BaseController
 
        //查询这个订单没有发货的商品
        $where[] = ['order_id','=',$order_id];
-       $where[] = ['order_express_id','=',null];
-       $select = ['id','goods_id','thumb','title','goods_option_title','goods_sn','goods_market_price','payment_amount','total'];
-       $order_goods = OrderGoods::where($where)->select($select)->get();
+//       $where[] = ['order_express_id','=',null];
+       $select = ['id','goods_id','order_id','thumb','title','goods_option_title','goods_sn','goods_market_price','payment_amount','total'];
+       $order_goods = OrderGoods::uniacid()->where($where)->whereNull('order_express_id')->select($select)->get()->makeVisible('order_id');
+       $order_package = OrderPackage::uniacid()->where($where)->whereNotNull('order_express_id')->get();
+       $order_goods = OrderPackageService::filterGoods($order_goods,$order_package);
+       $order_goods = array_values($order_goods->toArray());
        return $this->successJson('操作成功',$order_goods);
    }
 

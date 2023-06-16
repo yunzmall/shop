@@ -77,6 +77,8 @@ class  Coupon extends BaseModel
         'supplierids' => 'json',
         'storeids' => 'json',
         'storenames' => 'json',
+        'member_tags_ids' => 'json',
+        'member_tags_names' => 'json',
     ];
 
     /**
@@ -340,8 +342,13 @@ class  Coupon extends BaseModel
      * 是否可领取
      * @return bool
      */
-    public function available()
+    public function available($special_type = 0)
     {
-        return $this->status == 1 && $this->get_type == 1 && ($this->total == -1 || $this->total > 0);
+        $res = $this->status == 1 && ($this->total == -1 || $this->total > 0);
+        if ($special_type != 1){
+            $res = $res && $this->get_type == 1;
+        }
+        return $res;
+//        return $this->status == 1 && $this->get_type == 1 && ($this->total == -1 || $this->total > 0);
     }
 }

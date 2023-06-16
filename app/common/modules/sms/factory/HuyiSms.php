@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2021/2/2
  * Time: 14:50
  */
@@ -13,49 +13,6 @@ use app\common\modules\sms\Sms;
 
 class HuyiSms extends Sms
 {
-    public function sendCode($mobile, $state = '86')
-    {
-        if ($this->smsSendLimit($mobile)) {
-            $issendsms = $this->_sendCode($mobile, $state);
-
-            if ($issendsms['SubmitResult']['code'] == 2) {
-                $this->updateSmsSendTotal($mobile);
-                return $this->show_json(1);
-            } else {
-                return $this->show_json(0, $issendsms['SubmitResult']['msg']);
-            }
-
-        } else {
-            return $this->show_json(0, '发送短信数量达到今日上限');
-        }
-
-
-    }
-
-    public function sendPwd($mobile, $state = '86')
-    {
-        $issendsms = $this->_sendCode($mobile, $state);
-
-        if ($issendsms['SubmitResult']['code'] == 2) {
-            return $this->show_json(1);
-        } else {
-            return $this->show_json(0, $issendsms['SubmitResult']['msg']);
-        }
-
-    }
-
-    public function sendLog($mobile, $state = '86')
-    {
-        $issendsms = $this->_sendCode($mobile, $state);
-
-        if ($issendsms['SubmitResult']['code'] == 2) {
-            return $this->show_json(1);
-        } else {
-            return $this->show_json(0, $issendsms['SubmitResult']['msg']);
-        }
-
-    }
-
     public function sendBalance($mobile, $state)
     {
         return;
@@ -71,21 +28,9 @@ class HuyiSms extends Sms
         return;
     }
 
-    public function sendWithdrawSet($mobile, $state = '86',$key='')
+    public function _sendCode($mobile, $state,$key='')
     {
-        $issendsms = $this->_sendCode($mobile, $state,$key);
-
-        if ($issendsms['SubmitResult']['code'] == 2) {
-            return $this->show_json(1);
-        } else {
-            return $this->show_json(0, $issendsms['SubmitResult']['msg']);
-        }
-
-    }
-
-    private function _sendCode($mobile, $state,$key='')
-    {
-        $code = $this->getCode($mobile,$key);
+        $code = $this->getCode($mobile,$this->key);
 
         $content = "您的验证码是：" . $code . "。请不要把验证码泄露给其他人。如非本人操作，可不用理会！";
 
@@ -110,7 +55,12 @@ class HuyiSms extends Sms
             $smsrs = file_get_contents($url . '&' . $query);
         }
 
-        return xml_to_array($smsrs);
+        $res = xml_to_array($smsrs);
+
+        if ($res['SubmitResult']['code'] != 2) {
+            return $res['SubmitResult']['msg'];
+        }
+        return true;
     }
 
 }

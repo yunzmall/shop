@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/3/2
  * Time: 下午5:09
  */
@@ -71,7 +71,7 @@ class MemberCart extends \app\common\models\MemberCart
                 return $query->withTrashed()->select('id', 'thumb', 'price', 'market_price', 'title', 'deleted_at','plugin_id','stock','status','has_option');
             }])
             ->with(['goodsOption' => function ($query) {
-                return $query->select('id', 'goods_id','title', 'thumb', 'product_price', 'market_price','stock');
+                return $query->whereHas('goods')->select('id', 'goods_id','title', 'thumb', 'product_price', 'market_price','stock');
             }]);
     }
 

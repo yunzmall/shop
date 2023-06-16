@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/4/11
  * Time: 上午10:52
  */
@@ -12,6 +12,7 @@ use app\common\components\ApiController;
 use app\common\exceptions\AppException;
 use app\common\models\MemberCart;
 use app\framework\Support\Locker;
+use app\frontend\models\Member;
 use app\frontend\modules\memberCart\MemberCartCollection;
 
 
@@ -26,7 +27,8 @@ class CartBuyController extends ApiController
     {
 
         $this->validateParam();
-        $trade = $this->getMemberCarts()->getTrade();
+        $trade = $this->getMemberCarts()->getTrade(Member::current());
+
         return $this->successJson('成功', $trade);
     }
 
@@ -63,7 +65,8 @@ class CartBuyController extends ApiController
             $memberCarts->loadRelations();
         }
 
-        $memberCarts->validate();
+        //todo 这个验证方法在里面有调用为什么还有在这里调用，执行两次？？？
+//        $memberCarts->validate();
         if ($memberCarts->isEmpty()) {
             throw new AppException('未找到购物车信息');
         }

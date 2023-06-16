@@ -5,6 +5,7 @@ defined('IN_IA') or define('IN_IA',true);
 
 use app\console\Commands\FixMemberRelease;
 use app\console\Commands\MemberRelease;
+use app\console\Commands\VendorPublish;
 use app\framework\Redis\RedisServiceProvider;
 use app\console\Commands\WriteFrame;
 use app\framework\Foundation\Bootstrap\SetRequestForConsole;
@@ -30,11 +31,11 @@ class Kernel extends ConsoleKernel
         'app\console\Commands\MigrateMemberDistributor',
         'app\console\Commands\UpdateInviteCode',
         'app\console\Commands\CorrectionSupplierData',
+        'app\console\Commands\RetryCommand',
         WriteFrame::class,
         MemberRelease::class,
         FixMemberRelease::class,
-//        \app\console\Commands\ZhuzherCurl::class
-//        CreditSeed::class
+        VendorPublish::class,
     ];
     /**
      * The bootstrap classes for the application.

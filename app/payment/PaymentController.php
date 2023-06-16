@@ -17,7 +17,7 @@ use Yunshop\Gold\frontend\services\RechargeService;
 
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:  
  * Date: 24/03/2017
  * Time: 09:06
  */
@@ -30,7 +30,7 @@ class PaymentController extends BaseController
         $this->init();
     }
 
-    private function init()
+    protected function init()
     {
         $script_info = pathinfo($_SERVER['SCRIPT_NAME']);
         \Log::debug('init');
@@ -109,6 +109,7 @@ class PaymentController extends BaseController
 
         if ($pay_order_model) {
             $pay_order_model->status = 2;
+            $pay_order_model->pay_type_id = $data['pay_type_id'];
             $pay_order_model->trade_no = $data['trade_no'];
             $pay_order_model->third_type = $data['pay_type'];
             $pay_order_model->save();
@@ -121,10 +122,20 @@ class PaymentController extends BaseController
                 $orderPay = OrderPay::where('pay_sn', $data['out_trade_no'])->orderBy('id', 'desc')->first();
 
                 if ($data['unit'] == 'fen') {
-                    $orderPay->amount = $orderPay->amount * 100;
+                    $amount = $orderPay->amount * 100;
+                } else {
+                    $amount = $orderPay->amount;
                 }
 
-                if (bccomp($orderPay->amount, $data['total_fee'], 2) == 0) {
+                if (bccomp($amount, $data['total_fee'], 2) == 0) {
+
+
+                    //这里先验证支付号对应的订单状态是否关闭
+                    $bool = (new OrderPayException($data))->handle($orderPay);
+                    if ($bool) {
+                        \Log::debug('更新订单状态出现异常');
+                        break;
+                    }
                     \Log::debug('更新订单状态');
                     OrderService::ordersPay(['order_pay_id' => $orderPay->id, 'pay_type_id' => $data['pay_type_id']]);
 
@@ -192,6 +203,51 @@ class PaymentController extends BaseController
                     'total_fee' => $data['total_fee']
                 ]));
                 break;
+            case "auction_charge.succeeded":
+                \Log::debug('拍卖', ['auction_charge.succeeded', $data['out_trade_no']]);
+                event(new RechargeComplatedEvent([
+                    'order_sn'  => $data['out_trade_no'],
+                    'pay_sn'    => '',
+                    'unit'      => $data['unit'],
+                    'total_fee' => $data['total_fee']
+                ]));
+                break;
+
+            case "crowdfunding.succeeded":
+                \Log::debug('众筹活动', ['auction_charge.succeeded', $data['out_trade_no']]);
+                event(new ChargeComplatedEvent([
+                    'order_sn'  => $data['out_trade_no'],
+                    'unit'      => $data['unit'],
+                    'total_fee' => $data['total_fee']
+                ]));
+                break;
+            case "travel_around.succeeded":
+                \Log::debug('周边游支付', ['travel_around.succeeded', $data['out_trade_no']]);
+                event(new ChargeComplatedEvent([
+                    'order_sn'  => $data['out_trade_no'],
+                    'unit'      => $data['unit'],
+                    'total_fee' => $data['total_fee']
+                ]));
+                break;
+            case "third_party_pay.succeeded":
+                \Log::debug('嵌套H5支付', ['third_party_pay.succeeded', $data['out_trade_no']]);
+                event(new ChargeComplatedEvent([
+                    'order_sn'  => $data['out_trade_no'],
+                    'unit'      => $data['unit'],
+                    'total_fee' => $data['total_fee'],
+                    'pay_sn'    => $data['trade_no'],
+                ]));
+                break;
+            case "alipay_period_deduct_trade.succeeded":
+                \Log::debug('支付宝周期免密扣款支付', ['alipay_period_deduct_trade.succeeded', $data['out_trade_no']]);
+                event(new ChargeComplatedEvent([
+                    'order_sn'  => $data['out_trade_no'],
+                    'unit'      => $data['unit'],
+                    'total_fee' => $data['total_fee'],
+                    'pay_sn'    => $data['trade_no'],
+                ]));
+                break;
+
         }
     }
 
@@ -213,6 +269,19 @@ class PaymentController extends BaseController
         }
     }
 
+    public function payEvent($data)
+    {
+        try {
+            $this->_payResutl($data);
+            return ['code'=> true, 'msg' => '成功'];
+
+        } catch (\Exception $e) {
+            $msg = $e->getMessage();
+            \Log::debug('事件支付通知失败:', $msg);
+            return ['code'=> false, 'msg' => $msg];
+        }
+    }
+
     /**
      * 支付方式
      *
@@ -225,14 +294,24 @@ class PaymentController extends BaseController
             $tag = substr($order_id, 0, 2);
             if ('PN' == strtoupper($tag)) {
                 return 'charge.succeeded';
-            } elseif ('RV' == strtoupper($tag) || "RF" == strtoupper($tag) || "RL" == strtoupper($tag) || "KA" == strtoupper($tag) || "RI" == strtoupper($tag) || "RS" == strtoupper($tag)) {
+            } elseif ('RV' == strtoupper($tag) || "RF" == strtoupper($tag) || "RL" == strtoupper($tag) || "KA" == strtoupper($tag) || "RI" == strtoupper($tag) || "RS" == strtoupper($tag) || "RI" == strtoupper($tag)) {
                 return 'recharge.succeeded';
             } elseif ('RG' == strtoupper($tag)) {
                 return 'gold_recharge.succeeded';
             } elseif ('CI' == strtoupper($tag)) {
                 return 'card_charge.succeeded';
+            } elseif ('APR' == strtoupper(substr($order_id, 0, 3))) {
+                return 'auction_charge.succeeded';
             } elseif ('DS' == strtoupper($tag) || "PG" == strtoupper($tag)) {
                 return 'dashang_charge.succeeded';
+            } elseif ('CG' == strtoupper($tag)) {
+                return 'crowdfunding.succeeded';
+            }elseif ('ZBY' == strtoupper(substr($order_id, 0, 3))) {
+                return 'travel_around.succeeded';
+            } elseif ('TP' == strtoupper($tag)) {
+                return 'third_party_pay.succeeded';
+            } elseif ('AD' == strtoupper($tag)) {
+                return 'alipay_period_deduct_trade.succeeded';
             }
         }
 

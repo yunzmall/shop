@@ -20,6 +20,7 @@ class OrderGoodsCoupon extends BaseModel
 
     const MONTH_TYPE = 0;
     const ORDER_TYPE = 1;
+    const ORDER_PAID_TYPE = 2;
 
     const CLOSE_STATUS = -1;
     const WAIT_STATUS = 0;

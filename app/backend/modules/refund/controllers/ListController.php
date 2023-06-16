@@ -6,7 +6,7 @@ use app\backend\modules\order\controllers\OrderListController;
 /**
  * 退款申请列表
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/4/13
  * Time: 下午3:04
  */

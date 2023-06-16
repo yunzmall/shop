@@ -14,14 +14,15 @@ class CreateYzCronHeartbeatTable extends Migration
     public function up()
     {
         if (!Schema::hasTable('yz_cron_heartbeat')) {
-        Schema::create('yz_cron_heartbeat', function (Blueprint $table) {
-            $table->increments('id');
-            $table->integer('execution_time')->nullable()->comment('执行时间');
-            $table->integer('created_at')->nullable();
-            $table->integer('updated_at')->nullable();
-            $table->integer('deleted_at')->nullable();
-        });
-    }
+            Schema::create('yz_cron_heartbeat', function (Blueprint $table) {
+                $table->increments('id');
+                $table->integer('execution_time')->nullable()->comment('执行时间');
+                $table->integer('created_at')->nullable();
+                $table->integer('updated_at')->nullable();
+                $table->integer('deleted_at')->nullable();
+            });
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE " . app('db')->getTablePrefix() . "yz_cron_heartbeat comment '定时任务执行记录表'");//表注释
+        }
     }
 
     /**

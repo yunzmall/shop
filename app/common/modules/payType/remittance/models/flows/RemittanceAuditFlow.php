@@ -9,7 +9,9 @@
 namespace app\common\modules\payType\remittance\models\flows;
 
 
+use app\common\helpers\Cache;
 use app\common\models\Flow;
+use app\common\modules\payType\remittance\models\process\RemittanceAuditProcess;
 
 class RemittanceAuditFlow extends Flow
 {
@@ -22,5 +24,20 @@ class RemittanceAuditFlow extends Flow
         self::addGlobalScope(function ($query) {
             $query->where('code',self::CODE);
         });
+    }
+
+    public static function getCount()
+    {
+        if(Cache::has('remittance_audit_count')){
+            $count = Cache::get('remittance_audit_count');
+        }else{
+            $remittanceAuditFlow = self::first();
+            $count = RemittanceAuditProcess::where('flow_id', $remittanceAuditFlow->id)->uniacid()
+                ->where('status_id',6)
+                ->count();
+            Cache::put('remittance_audit_count',$count,0.2);
+        }
+        return $count;
+
     }
 }

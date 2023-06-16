@@ -19,6 +19,8 @@ class CheckoutController extends ApiController
         }
         $memberCarts = app('OrderManager')->make('MemberCart')->whereIn('id', $cartIds)->get();
 
+        event(new \app\common\events\cart\BeforeCartListVerify($memberCarts));
+
         $memberCarts = new MemberCartCollection($memberCarts);
         $memberCarts->loadRelations();
         $memberCarts->validate();

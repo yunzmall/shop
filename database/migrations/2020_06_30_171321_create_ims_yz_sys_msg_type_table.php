@@ -21,7 +21,8 @@ class CreateImsYzSysMsgTypeTable extends Migration
                 $table->string('type_name')->comment('类型名称');
                 $table->string('icon_src')->nullable()->comment('类型图标地址');
             });
-
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE `".app('db')->getTablePrefix()
+                ."yz_sys_msg_type` comment '商城--系统消息类型表'");
             \Illuminate\Support\Facades\DB::table('yz_sys_msg_type')->insert(array (
                 0 =>
                     array (

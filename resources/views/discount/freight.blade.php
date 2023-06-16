@@ -58,7 +58,6 @@
         el:"#app",
         delimiters: ['[[', ']]'],
             data() {
-                let batch_list = JSON.parse('{!! $category?:'{}' !!}');
                // let batch_list = [
                //      {
                //      category_ids: [
@@ -73,16 +72,9 @@
                //      // updated_at: "2019-02-19 13:43:28",
                //  }
                // ];
-                for(var i=0;i<batch_list.length;i++){
-                    batch_list[i].new_name=[];
-                    for(var j=0;j<batch_list[i].category_ids.length;j++){
-                        batch_list[i].new_name[j] = "[ID:"+batch_list[i].category_ids[j].id+"][分类:"+batch_list[i].category_ids[j].name+"]";
-                    }
-                    batch_list[i].new_name = batch_list[i].new_name.join(",");
-                }
                 return{
                     form:{
-                        batch_list:batch_list,
+                        batch_list:[],
                     },
                     activeName:'3',
                     loading: false,
@@ -143,6 +135,22 @@
                 //     window.location.href='{!! yzWebFullUrl('discount.batch-discount.store') !!}';
                 // },
             },
+            created(){
+                this.$http.get("{!! yzWebUrl('discount.batch-dispatch.get-set') !!}" ).then(response => {
+                    let batch_list=response.data.data
+                    for(let i=0;i<batch_list.length;i++){
+                        batch_list[i].new_name=[];
+                        for(let j=0;j<batch_list[i].category_ids.length;j++){
+                            batch_list[i].new_name[j] = "[ID:"+batch_list[i].category_ids[j].id+"][分类:"+batch_list[i].category_ids[j].name+"]";
+                        }
+                        batch_list[i].new_name = batch_list[i].new_name.join(",");
+                    }
+                    this.form.batch_list=batch_list
+                }, response => {
+                    console.log(response);
+                });
+            }
+
         });
     </script>
 @endsection

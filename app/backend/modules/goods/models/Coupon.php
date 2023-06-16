@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/7/13
  * Time: 上午16:45
  */
@@ -25,25 +25,25 @@ class Coupon extends GoodsCoupon
      */
     public function relationValidator($goodsId, $data, $operate)
     {
-        $couponModel = self::getModel($goodsId,$operate);
-        $array = [
-            'goods_id'      => $goodsId,
-            'is_give'       => $data['is_give']?:0,
-            'send_type'     => $data['send_type']?:0,
-            'send_num'      => $data['send_num']?:0,
-            'coupon'        => $couponModel->recombination($data),
-            'shopping_share'=> $data['shopping_share']?:'0',
-            'share_coupon'  => $couponModel->recombination($data['share_coupon']),
-            'no_use'        => $data['no_use']?1:0,
-            'is_use_num'    => $data['is_use_num']?1:0,
-            'use_num'       => intval($data['use_num']),
-        ];
-        $couponModel->fill($array);
-        $validator = $couponModel->validator();
-        if ($validator->fails()) {
-            $this->error($validator->messages());
-            return false;
-        }
+//        $couponModel = self::getModel($goodsId,$operate);
+//        $array = [
+//            'goods_id'      => $goodsId,
+//            'is_give'       => $data['is_give']?:0,
+//            'send_type'     => $data['send_type']?:0,
+//            'send_num'      => $data['send_num']?:0,
+//            'coupon'        => $couponModel->recombination($data),
+//            'shopping_share'=> $data['shopping_share']?:'0',
+//            'share_coupon'  => $couponModel->recombination($data['share_coupon']),
+//            'no_use'        => $data['no_use']?1:0,
+//            'is_use_num'    => $data['is_use_num']?1:0,
+//            'use_num'       => intval($data['use_num']),
+//        ];
+//        $couponModel->fill($array);
+//        $validator = $couponModel->validator();
+//        if ($validator->fails()) {
+//            $this->error($validator->messages());
+//            return false;
+//        }
         return true;
     }
 
@@ -67,9 +67,9 @@ class Coupon extends GoodsCoupon
             'is_give'       => $data['is_give'],
             'send_type'     => $data['send_type'],
             'send_num'      => $data['send_num'] ?: '0',
-            'coupon'        => $couponModel->recombination($data),
+            'coupon'        => $data['coupon'],
             'shopping_share'=> $data['shopping_share']?:'0',
-            'share_coupon'  => $couponModel->recombination($data['share_coupon']),
+            'share_coupon'  => $data['share_coupon'],
             'no_use'        => $data['no_use']?1:0,
             'is_use_num'    => $data['is_use_num']?1:0,
             'use_num'       => intval($data['use_num']),

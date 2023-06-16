@@ -4,41 +4,26 @@
 
 @section('title', trans('应用中心'))
 <style>
-    .main-panel>.content{
-        padding-left: 0px;
+    .main-panel {
+        padding: 20px 0px 20px 30px;
+        background-color: #EFF3F6;
     }
-    .el-button+.el-button{
+
+    .main-panel>.content {
+        padding-left: 0px;
+        padding-right: 32px;
+    }
+
+    .el-button+.el-button {
         margin-left: 0px;
     }
-    .plugin-span{
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        /* max-width: 150px; */
-        /* line-height: 1 !important; */
-        line-height: normal !important;
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-        width: 100%;
-    }
-    .description{
-        font-size: 13px;
-        margin: 3px 0;
-        white-space: nowrap;
-        text-overflow: ellipsis;
-        overflow: hidden;
-        word-break: break-all;
-    }
-    .icon_detail{
-        display: flex;
-        justify-content: flex-end;
-    }
-    .application-center{
+
+    .application-center {
         position: relative;
         top: 0;
     }
-    .left-box{
+
+    .left-box {
         position: fixed;
         top: 30px;
         bottom: 0;
@@ -53,7 +38,8 @@
         z-index: 100;
         background: #fff;
     }
-    .left-box div{
+
+    .left-box div {
         margin: 15px 0;
         width: 100%;
         display: flex;
@@ -61,15 +47,18 @@
         align-items: center;
         cursor: pointer;
     }
-    .left-box .nav-detail{
+
+    .left-box .nav-detail {
         display: flex;
         flex-direction: row;
         padding: 5px 20px;
     }
-    .left-box .nav-detail i{
+
+    .left-box .nav-detail i {
         margin-right: 5px;
     }
-    .rigth-box{
+
+    .rigth-box {
         position: relative;
         float: right;
         width: calc(100% - 148px);
@@ -77,40 +66,123 @@
         padding-top: 10px;
         min-height: 100%;
     }
-    .selected{
-        background-color: #eff3f6;
-        color: #42bea4;
-    }
-    .panel .panel-body{
+    .panel .panel-body {
         background: #eff3f6;
         display: flex;
         flex-wrap: wrap;
-    }
-    .panel-heading{
-        background: #eff3f6 !important;
-        border-bottom: 1px solid #eff3f6 !important;
-    }
-    .panel-title{
-        display: flex;
-        align-items: center;
-        margin-left: 20px;
-    }
-    .nav-line{
-        width: 3px;
-        height: 18px;
-        background: #42bea4;
-        margin-right: 5px;
-    }
-    .panel-default .panel-body a{
-        width: 100%;
     }
     @media (max-width: 991px) {
         .left-box {
             display: none;
         }
+
         .rigth-box {
             width: 100%;
         }
+    }
+
+    .top {
+        display: flex;
+        margin-bottom: 18px;
+    }
+
+    .item {
+        color: #707070;
+        width: 100px;
+        height: 38px;
+        line-height: 38px;
+        text-align: center;
+        cursor: pointer;
+        font-size: 16px;
+    }
+
+    .activeItem {
+        color: #353535;
+        font-size: 18px;
+        font-weight: bold;
+        background: #DBE1E6;
+        border-radius: 8px 8px 8px 8px;
+    }
+
+    .el-input__inner {
+        height: 32px;
+    }
+
+    .el-input__prefix,
+    .el-input__suffix {
+        top: -3px;
+    }
+
+    .el-input {
+        top: 2px;
+    }
+
+    .plugin-list {
+        display: flex;
+        flex-wrap: wrap;
+        padding: 18px 0 6px 0
+    }
+
+    .plugin-list-item {
+        width: calc((100% - 120px) / 6);
+        height: 80px;
+        border-radius: 12px;
+        background-color: #ffffff;
+        margin-right: 24px;
+        margin-bottom: 24px;
+        box-shadow: 0px 8px 16px 1px #DBE4EB;
+        cursor: pointer;
+    }
+    .plugin-list-item:nth-child(6n){
+        margin-right: 0;
+    }
+
+    .plugin-list-top {
+        background-color: #F9F9F9;
+        border-radius: 0px 12px 0px 12px;
+        position: absolute;
+        right: 0;
+        display: flex;
+        justify-content: space-around;
+    }
+
+    .plugin-list-item:hover {
+        box-shadow: 0px 14px 26px -12px rgba(34, 133, 233, 0.42), 0px 4px 23px 0px rgba(0, 0, 0, 0.12), 0px 8px 10px -5px rgba(38, 130, 233, 0.2);
+
+    }
+
+    .topping {
+        display: none;
+    }
+
+    .plugin-list-item:hover .topping {
+        display: block;
+    }
+    ::-webkit-scrollbar {
+        display: none;
+    }
+    a:hover  {
+       color:#707070; 
+       text-decoration:none; 
+       cursor:pointer;  
+    }
+    a { color: inherit; } 
+
+    .installed_list{
+        margin:0 0 12px 0;
+        max-height:220px;
+    }
+     .el-scrollbar .el-scrollbar__wrap{
+		max-height: 220px; 
+		overflow-x: hidden;
+}
+    .el-popover{
+       top: 40px;
+    }
+    .plugin_class_name{
+        font-weight: bold;
+        font-size: 18px;
+        color: #353535;
     }
 </style>
 <div class="w1200 m0a application-center">
@@ -119,80 +191,270 @@
 
     <!--应用列表样式-->
     <link rel="stylesheet" type="text/css" href="{{static_url('yunshop/plugins/list-icon/css/list-icon.css')}}">
-    
-    <!-- 左侧导航栏 -->
-    <section class="left-box" id="plugins_list_left">
-        @foreach( $class as $key1 => $value)
-        @if(is_array($data[$key1]))
-        <div class="nav-detail" >
-            <i class="fa"></i><span>{{ $value['name'] }}</span>
-        </div>
-        @endif
-        @endforeach
-    </section>
-    <div class="rigth-box">
-        <!-- 新增加右侧顶部三级菜单 -->
 
-        <div style="position: fixed; right: 20px; top: 60px;z-index:999">
-            <input id="key" type="text" class="el-input__inner" style="width: 150px;height: 32px;line-height: 32px;" placeholder="请输入关键字" />
-            <input type="button" class="el-button el-button--small" value="下一个" onclick="next()" />
-            <input type="button" class="el-button el-button--small" value="上一个" onclick="previous()" />
-        </div>
-        <div class="row">
-            @foreach( $class as $key1 => $value)
-            @if(is_array($data[$key1]))
-            <div class="panel panel-default">
-                <div class="panel-heading" style="background-color: #f6f6f6">
-                    <h3 class="panel-title">
-                        <div class="nav-line"></div>
-                        {{ $value['name'] }}
-                    </h3>
+
+    <script src="{{resource_get('resources/views/admin/pluginslist.js?time='.time())}}"></script>
+    <div id="plugins">
+        <!-- <template>
+        </template> -->
+        <div class="plugins_content">
+            <div class="top">
+                <div :class="{item:true,activeItem:active_item == -1}" @click="chooseCategory(-1)">全部应用</div>
+                <div :class="{item:true,activeItem:active_item == index}" v-for="(item,index,keys) in item_show_list" :key="index" @click="chooseCategory(index)">[[item.name]]</div>
+             <el-popover placement="bottom-end" width="300" trigger="manual"  v-model="visiblepop" >
+                    <div style="font-size:12px;color:#8C8C8C" v-if="installed_list.length > 0">已安装应用  共[[installed_list.length]]个 点击进入插件!</div>
+                <div  class="installed_list" v-if="installed_list.length > 0">
+                    <el-scrollbar >
+                     <div v-for="(item,index) in installed_list" :key="index" style="position: relative;cursor: pointer;margin-top:12px" @click="toPlugin(item.jump_url)">
+                            <img :src="item.imageUrl" alt="" style="width: 32px;height:32px;border-radius: 8px ;">
+                            <span style="margin-left: 6px;font-size:12px;font-weight: bold;color:#353535">[[item.title]]</span>
+                         </div>
+                    </el-scrollbar>
                 </div>
-                <div class="panel-body">
-                    @foreach($data[$key1] as $key => $plugin)
-                    @if(can($key))
-                    <div class=" col-lg-3 col-md-4 col-sm-4" style="display:flex; align-items: center;">
-                        <a href="{{yzWebFullUrl($plugin['url']).'&'.$plugin['url_params']}}" class="plugin-a col-md-10 col-sm-12" style="display:flex;">
-                            <div class="plugin-i-div" style="flex: 0 0 50px;">
-                                <i class="plugin-i" style="background-color: {{$value['color']}}; background-image: url({{ $plugin['icon_url'] }})"></i>
-                            </div>
-                            <div class="plugin-span">
-                                <div style="display: flex;">
-                                    <span style="overflow: hidden;text-overflow: ellipsis;white-space: nowrap;max-width: 150px; display:block;">{{$plugin['name']}}</span>
-                                    <object style="height:0px" style="flex: 0 0 20px;">
-                                        <a class="top_show" style="display: none;position:relative;top:3px;padding-left:5px;" href="{{yzWebUrl('plugins.setTopShow',['name'=>$key,'action'=>(app('plugins')->isTopShow($key) ? 1 : 0)])}}">
-                                            <i class="fa fa-tags" @if(app('plugins')->isTopShow($key))style="color: red" @endif
-                                                data-toggle="tooltip" data-placement="top"
-                                                @if(app('plugins')->isTopShow($key))title="取消顶部显示?" @else title="选择顶部显示?"@endif></i>
-                                        </a>
-                                    </object>
-                                </div>
-                                <div class="description">{{$plugin['description']}}</div>
-                                <!-- <span class="description">{{$plugin['description']}}</span> -->
-                                <span class="icon_detail">
-                                    @if(in_array('wechat',$plugin['terminal']))  <i class="iconfont icon-all_wechat_public" style="margin-left: 10px;color: #0cb287;"></i> @endif</i>
-                                    @if(in_array('min',$plugin['terminal']))  <i class="iconfont icon-all_smallprogram" style="margin-left: 10px;color: #52b459;"></i> @endif</i>
-                                    @if(in_array('wap',$plugin['terminal']))  <i class="iconfont icon-ht_btn_wap" style="margin-left: 10px;color: #5632f4;"></i> @endif</i>
-                                </span> 
-                            </div>
-                            {{--<span class="plugin-span-down">{{$plugin['description']}}</span>--}}
-                        </a>
+                    <div style="font-size:12px;color:#8C8C8C" v-if="has_founder && not_installed_list.length > 0">更多应用</div>
+                <div style="margin:12px 0px;position: relative;display:flex" v-for="(item,index) in not_installed_list" :key="index" v-if="has_founder">
+                    <img :src="item.imageUrl" alt="" style="width: 32px;height:32px;border-radius: 8px ;">
+                    <div style="margin-left: 6px;">
+                    <span style="font-size:12px;font-weight: bold;color:#353535">[[item.title]]</span>
+                    <div style="font-size: 11px;white-space: nowrap;text-overflow: ellipsis;overflow: hidden;word-break: break-all;width: 150px;">[[item.description]]</div>
                     </div>
-                    @endif
-                    @endforeach
+                    <el-button style="border-radius:4px;background: #29BA9C;color:#ffffff;right: 0px;position: absolute;top: 5px;" size="mini" @click="install(item)">安装</el-button>
                 </div>
+                    <div style="color: #29BA94;font-size:13px;cursor: pointer;width:100px" @click="installApp" v-if="has_founder && not_installed_list.length > 0">搜索更多应用</div>
+                    <el-input slot="reference" placeholder="输入关键词，按回车搜索 " style="width: 220px;height: 32px !important;margin-left:32px" v-model="search_word" @input="search" @blur="searchBlur" @focus="focus" ref="search" >
+                        <i slot="prefix" class="el-input__icon el-icon-search"></i>
+                    </el-input>
+            </el-popover>
+                <el-button style="background-color:#29ba9c;color:#ffffff;position: absolute;border-radius: 8px;right: 0px;" @click="installApp" v-if="has_founder">安装应用</el-button>
             </div>
-            @endif
-            @endforeach
-            <div>
-            </div>
+                <div  v-for="(class_item,index,key) in plugin_show_list " :key="index" class="plugin" >
+                     <div v-if="is_show_class" class="plugin_class_name">
+                        [[  className(class_item)  ]]
+                     </div>
+             <div class="plugin-list">
+                <div v-for="(item,index,keys) in class_item" :key="index" class="plugin-list-item" @click="toPlugin(item.url,item.url_params)">
+                    <a  :href="item.url">
+                    <div style="position: relative">
+                        <div class="plugin-list-top" style="color:#6B7285">
+                            <i v-if=" item.terminal?item.terminal.find( (item) => { return item == 'wechat' }  ):'' " class="iconfont icon-ht_btn_gongzhonghao" style="font-size: 13px;margin-right:5px"></i>
+                            <i v-if=" item.terminal?item.terminal.find( (item) => { return item == 'wap' }  ):'' " class="iconfont icon-a-2" style="font-size: 13px;margin-right:5px"></i>
+                            <i v-if=" item.terminal?item.terminal.find( (item) => { return item == 'min' }  ):'' " class="iconfont icon-ht_btn_smallprogram" style="font-size: 13px;margin-right:5px"></i>
+                        </div>
+                    </div>
+                    <div style="padding: 20px 16px;display:flex">
+                    <div><img :src="item.icon_url" alt="" style="width: 40px;height:40px;border-radius: 12px;position: relative" ></div>
+                        <div style="margin-left: 10px;width: calc(100% - 48px);">
+                            <div style="font-size: 15px;color:#353535;font-weight:bold">
+                            <span style="overflow: hidden;text-overflow: ellipsis;white-space: nowrap;max-width: 150px;display: block;">[[item.name]]</span>
+                            </div>
+                            <div style="font-size:12px;white-space: nowrap;text-overflow: ellipsis;overflow: hidden;word-break: break-all;color:#999999">[[item.description]]</div>
+                        </div>
+                    </div>
+                    </a>
+                    <div style="position: relative" class="topping" >
+                        <div style="position: absolute;padding: 2px 5px;background: rgb(41, 186, 156,0.1);border-radius: 12px 0px;color: #29BA94;line-height: 16px;right:0px;bottom:1px" @click.stop="setTopping(item,index,keys)">
+                            <i class="iconfont icon-fontclass-zhiding" style="font-size:11px"></i>
+                            <span style="font-size:11px" v-if="!item.top_show">置顶</span>
+                            <span style="font-size:11px" v-else>取消置顶</span>
+                        </div>
+                    </div>
+                </div>    
+             </div>                
+                </div> 
         </div>
 
-        <!-- <script src="{{static_url('js/pluginslist.js')}}"></script> -->
-        <script src="{{resource_get('resources/views/admin/pluginslist.js')}}"></script>
+    </div>
+    <script>
+        var vm = new Vue({
+            el: "#plugins",
+            delimiters: ['[[', ']]'],
 
-        @endsection
-        <style type="text/css">
+            data() {
+                return {
+                    value: '',
+                    item_list: {},
+                    active_item: -1,
+                    show_list: {},
+                    item_show_list: {},
+                    plugin_show_list: {},
+                    search_word: '',
+                    timer:null,
+                    installed_list:[],
+                    not_installed_list:[],
+                    visiblepop:false,
+                    has_founder:false,
+                    is_show_class:true
+                }
+            },
+            created() {
+                this.getCategory()
+            },
+            mounted() {
+            },
+            methods: {
+                //选择插件类型
+                chooseCategory(index) {
+                    this.active_item = index
+                    if(index == -1){
+                        this.is_show_class =true
+                        this.plugin_show_list = this.show_list
+                    }else{
+                        this.is_show_class = false
+                        this.plugin_show_list = {}
+                        this.plugin_show_list[index] = this.show_list[index]
+                    }
+                },
+                //获取插件列表
+                getCategory() {
+                    this.$http.post('{!! yzWebFullUrl('plugins.get-plugin-list') !!}', {}).then(function(response) {
+                        if (response.data.result) {
+                            this.item_list = response.data.data.class
+                            this.show_list = response.data.data.data
+                            this.plugin_show_list = response.data.data.data
+                            this.has_founder = response.data.data.has_founder
+                            for (const key in this.item_list) {
+                                for (const keys in this.show_list) {
+                                    if (key == keys) {
+                                        this.$set(this.item_show_list, keys, this.item_list[key])
+                                    }
+                                }
+                            }
+                        } else {
+                            this.$message({
+                                message: response.data.msg,
+                                type: 'error'
+                            });
+                        }
+                    }, function(response) {
+                        console.log(response);
+                    });
+                },
+                //跳转相对应插件页面
+                toPlugin(urls,url_params) {
+                    if(urls){
+                    window.location.href = urls
+                    }else{
+                        this.$message({
+                                message: '该插件未开启',
+                                type: 'error'
+                            });
+                    }
+                },
+                //插件置顶
+                setTopping(item,keys) {                 
+                    this.$http.post('{!! yzWebFullUrl('plugins.setTopShow') !!}', {
+                            action: item.top_show,
+                            name: keys
+                        }).then(function(response) {
+                        if (response.data.result) {
+                            this.$message({
+                                message: response.data.msg,
+                                type: 'success'
+                            });
+                            let url = "{!! yzWebUrl('plugins.get-plugin-list') !!}"
+                            window.location.href = url
+                        } else {
+                            this.$message({
+                                message: response.data.msg,
+                                type: 'error'
+                            });
+                        }
+                    }, function(response) {
+                        console.log(response);
+                    });
+                },
+                //跳转安装页面
+                installApp() {
+                    let url = "{!! yzWebUrl('plugins.jump') !!}"
+                    window.location.href = url
+                },
+                searchApp() {
+                    this.$http.post('{!! yzWebFullUrl('plugins.search-plugin-list') !!}', {
+                            keyword: this.search_word
+                        }).then(function(response) {
+                        if (response.data.result) {
+                              this.installed_list  = response.data.data.installed_list
+                              this.not_installed_list = response.data.data.not_installed_list
+                              if(!this.has_founder){
+                                this.not_installed_list = []
+                              }
+                              if(this.installed_list.length !== 0 || this.not_installed_list.length !==0){
+                                        this.visiblepop = true
+                              }else{
+                                       this.visiblepop = false
+                              }
+                              window.dispatchEvent(new Event('resize'))
+                        } else {
+                            this.$message({
+                                message: response.data.msg,
+                                type: 'error'
+                            });
+                        }
+                    }, function(response) {
+                        console.log(response);
+                    });
+                },
+                //搜索防抖
+                _debounce(fn, delay) {
+                   var delay = delay || 200;
+                  return function () {
+                  var th = this;
+                   var args = arguments;
+                   if (this.timer) {
+                    clearTimeout(timer);
+                  }
+                 this.timer = setTimeout(function () {
+                  this.timer = null;
+                    fn.apply(th, args);
+                }, delay);
+                };
+                },
+                //关键字搜索插件
+                search(){
+                 this._debounce(this.searchApp,500)()
+                 },
+                //安装应用
+                install(item){
+                    this.$refs.search.focus()
+                    this.$http.post('{!! yzWebFullUrl('plugins.install-plugin') !!}', {
+                            version: item.version,
+                            name: item.name
+                        }).then(function(response) {
+                        if (response.data.result) {
+                            this.$message({
+                                message: response.data.msg,
+                                type: 'success'
+                            });
+                        } else {
+                            this.$message({
+                                message: response.data.msg,
+                                type: 'error'
+                            });
+                        }
+                        this.search()
+                        this.getCategory()
+                    }, function(response) {
+                        console.log(response);
+                    });                    
+                },
+                searchBlur(){
+                    this.visiblepop = false
+                },
+                //点击搜索聚焦 判断是否展示弹出框
+                focus(){
+                    if(this.installed_list.length !== 0 || this.not_installed_list.length !==0){
+                                        this.visiblepop = true
+                            }                    
+                },
+                className(class_item){
+                   return this.item_list[Object.values(class_item)[0].type].name
+                }
+            },
+            computed:{}
+        });
+    </script>
+    @endsection
+    <!-- <style type="text/css">
             .res {
                 color: Red;
             }
@@ -200,8 +462,8 @@
             .result {
                 background: yellow;
             }
-        </style>
-        <script type="text/javascript">
+        </style> -->
+    <!-- <script type="text/javascript">
             var oldKey = "";
             var index = -1;
             var pos = new Array(); //用于记录每个关键词的位置，以方便跳转
@@ -234,7 +496,7 @@
                 $('.nav-detail').eq(0).addClass('selected');
                 // 监听滚动添加选中
                 $('.panel-title').each(function (i,ele) {
-                    if ($(document).scrollTop() >= $(ele).offset().top - 60){
+                    if ($(document).scrollTop() >= $(ele).offset().top - 100){
                         $('.nav-detail').eq(i).addClass('selected').siblings().removeClass('selected')
                     }
                 })
@@ -292,9 +554,9 @@
                 // console.log(pos[index]);
                 // console.log(index);
             }
-        </script>
-        <!-- 左侧导航栏 -->
-        <script type="text/javascript">
+        </script> -->
+    <!-- 左侧导航栏 -->
+    <!-- <script type="text/javascript">
             window.onload = function() {
                 // 循环添加图标
                 for(let index=0; index<$('.nav-detail').length; index++) {
@@ -333,4 +595,4 @@
                     }
                 })
             }
-        </script>
+        </script> -->

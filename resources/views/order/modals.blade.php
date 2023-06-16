@@ -566,13 +566,15 @@
                 <h3>查看物流</h3>
             </div>
             <div class="modal-body" style='max-height:500px;width:100%'>
-                <div class="" id="data" >
+                <div class="form-group" id="module-menus-express">
+                </div>
+                {{--<div class="" id="data" >--}}
                     {{--<p class='form-control-static' id="module-menus-express"></p>--}}
                     {{--<div style=" white-space:normal; width:100%;">--}}
                     {{--20191111-08-01 18:24:48] ]【佛山市】  快件已在 【顺德乐从】 签收, 签收人: 同事/同学, 如有疑问请电联:18688290757 / 0757-28857568, 您的快递已经妥投。风里来雨里去, 只为客官您满意--}}
                     {{--</div>--}}
                     {{--<p  style="white-space:normal; width:100%">[20191111-08-01 18:24:48] ]【佛山市】  快件已在 【顺德乐从】 签收, 签收人: 同事/同学, 如有疑问请电联:18688290757 / 0757-28857568, 您的快递已经妥投。风里来雨里去, 只为客官您满意。上有老下有小, 赏个好评好不好？【请在评价快递员处帮忙点亮五颗星星哦~】]</p>--}}
-                </div>
+                {{--</div>--}}
             </div>
             <div class="modal-footer"><a href="#" class="btn btn-default" data-dismiss="modal" aria-hidden="true">关闭</a>
             </div>
@@ -584,10 +586,15 @@
     function express_find(btn, orderid) {
         $(btn).button('loading');
         $.ajax({
-            url: "{php echo $this->createWebUrl('order/list',array('op'=>'deal','to'=>'express'))}&id=" + orderid,
+            url: "{!! yzWebUrl('order.detail.ajax') !!}" +"&id="+orderid,
             cache: false,
             success: function (html) {
-                $('#module-menus-express').html(html);
+                if (html.data.data != null && html.data.data.length > 0){
+                    html.data.data.forEach(v=>{
+                        $('#module-menus-express').append(` <p style="white-space:normal; width:100%">[`+v.time+`] ]`+ v.context+`]</p>`);
+                    });
+                }
+                // $('#module-menus-express').html(html);
                 $('#modal-express').modal();
                 $(btn).button('reset');
             }
@@ -595,12 +602,13 @@
     }
 
     function refundexpress_find(btn, orderid, flag) {
-        {{--console.log("{!! yzWebUrl('order.list',array('op'=>'deal','to'=>'refundexpress')) !!}&id=" + orderid + "&flag=" + flag)--}}
-        {{--console.log(orderid)--}}
+
+
+        let refund_value = (flag == 2) ? 30 : 20;
 
         $(btn).button('loading');
         $.ajax({
-            url: "{!! yzWebUrl('order.detail.express') !!}" +"&id="+orderid,//"{php echo $this->createWebUrl('order/list',array('op'=>'deal','to'=>'refundexpress'))}&id=" + orderid + "&flag=" + flag,
+            url: "{!! yzWebUrl('order.detail.refund-express') !!}" +"&order_id="+orderid +"&refund_value="+refund_value, //"{php echo $this->createWebUrl('order/list',array('op'=>'deal','to'=>'refundexpress'))}&id=" + orderid + "&flag=" + flag,
             cache: false,
             success: function (html) {
                 console.log(html.data.data)
@@ -609,8 +617,7 @@
                         $('#data').append(` <p style="white-space:normal; width:100%">[`+v.time+`] ]`+ v.context+`]</p>`);
                     });
                 }
-                console.log(html)
-                $('#module-menus-express').html(html);
+                // $('#module-menus-express').html(html);
                 $('#modal-express').modal();
                 $(btn).button('reset');
             }

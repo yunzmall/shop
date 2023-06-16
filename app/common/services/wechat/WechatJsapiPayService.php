@@ -8,17 +8,17 @@
 
 namespace app\common\services\wechat;
 
-
 use app\common\exceptions\AppException;
-use app\common\helpers\Client;
 use app\common\helpers\Url;
 use app\common\models\Member;
+use app\common\models\OrderPay;
 use app\common\models\PayType;
 use app\common\services\Pay;
 use app\common\services\wechat\lib\WxPayApi;
 use app\common\services\wechat\lib\WxPayConfig;
 use app\common\services\wechat\lib\WxPayException;
 use app\common\services\wechat\lib\WxPayJsApiPay;
+use app\common\services\wechat\lib\WxPayRefund;
 use app\common\services\wechat\lib\WxPayUnifiedOrder;
 
 class WechatJsapiPayService extends Pay
@@ -44,10 +44,14 @@ class WechatJsapiPayService extends Pay
         }
 
         $client_type = \YunShop::request()->type ?: $payType;
+        $is_h5 = request()->type == 5 ? 1 : 0;
 
         $config = new WxPayConfig();
         $openid = Member::getOpenIdForType(\YunShop::app()->getMemberId(), $client_type);
         $data['trade_type'] = 'JSAPI';
+        if ($is_h5){
+            $data['trade_type'] = 'MWEB';
+        }
         /* 支付请求对象 */
         $wxPay = new WxPayUnifiedOrder();
         //设置商品或支付单简要描述
@@ -82,7 +86,11 @@ class WechatJsapiPayService extends Pay
             throw new AppException($result['return_msg']);
         }
 
-        $config = $this->GetJsApiParameters($result, $config);
+        if ($is_h5){
+            $config = $result;
+        }else{
+            $config = $this->GetJsApiParameters($result, $config);
+        }
 
 //        $url = 'https://'.$_SERVER['HTTP_HOST'].$_SERVER['REQUEST_URI'];
 //        $nonce = WxPayApi::getNonceStr();
@@ -116,9 +124,46 @@ class WechatJsapiPayService extends Pay
      * @param $refundmoney 退款金额
      * @return mixed
      */
-    function doRefund($out_trade_no, $totalmoney, $refundmoney)
+    public function doRefund($out_trade_no, $totalmoney, $refundmoney)
     {
-        // TODO: Implement doRefund() method.
+        $totalmoney = intval(bcmul($totalmoney, 100, 0));
+        $refundmoney = intval(bcmul($refundmoney, 100, 0));
+        $this->getSubMchId($out_trade_no);
+
+        $wxPayApi = new WxPayApi;
+        $config = new WxPayConfig;
+        $wxPayRefund = new WxPayRefund;
+
+        $wxPayRefund->SetOut_trade_no($out_trade_no);
+        $wxPayRefund->SetTotal_fee($totalmoney);
+        $wxPayRefund->SetRefund_fee($refundmoney);
+        $outRefundNo = createNo('RN', 20, true); //生产唯一的订单号;
+        $wxPayRefund->SetOut_refund_no($outRefundNo);
+
+        if (!$config->GetSubMerchantId()) {
+            throw new AppException('请先配置门店子商户参数');
+        }
+
+        $wxPayRefund->SetSubMchId($config->GetSubMerchantId());
+        $payTypeId = OrderPay::get_paysn_by_pay_type_id($out_trade_no);
+        $payTypeName = PayType::get_pay_type_name($payTypeId);
+        $op = '微信退款 订单号：' . $out_trade_no . '退款单号：' . $outRefundNo . '退款总金额：' . $totalmoney;
+        $payOrderModel = $this->refundlog(Pay::PAY_TYPE_REFUND, $payTypeName, $refundmoney, $op, $out_trade_no, Pay::ORDER_STATUS_NON, 0);
+
+        $result = $wxPayApi::refund($config, $wxPayRefund);
+
+        \Log::debug('微信服务商退款记录', $result);
+
+        if ($result['return_code'] == 'SUCCESS' && $result['result_code'] == 'SUCCESS') {
+            $payOrderModel->status = Pay::ORDER_STATUS_COMPLETE;
+            $payOrderModel->trade_no = $result['transaction_id'];
+            $payOrderModel->save();
+            return true;
+        } elseif ($result['return_code'] == 'SUCCESS') {
+            throw new AppException($result['err_code_des']);
+        } else {
+            throw new AppException($result['return_msg']);
+        }
     }
 
     /**
@@ -180,5 +225,21 @@ class WechatJsapiPayService extends Pay
         $jsapi->SetPaySign($jsapi->MakeSign($config));
         $parameters = $jsapi->GetValues();
         return $parameters;
+    }
+
+    // 获取门店子商户号
+    private function getSubMchId($outTradeNo)
+    {
+        if (app('plugins')->isEnabled('store-cashier')) {
+            $orderPay = OrderPay::where('pay_sn', $outTradeNo)->first();
+            $storeId = \Yunshop\StoreCashier\common\models\StoreOrder::where('order_id', $orderPay->orders->first()->id)->value('store_id');
+            if ($storeId) {
+                request()->offsetSet('store_id', $storeId);
+            }
+        }
+
+        if (!isset($storeId)) {
+            throw new AppException('请确认订单是否属于门店订单');
+        }
     }
 }

@@ -26,12 +26,12 @@ class AdminUser extends Authenticatable
     protected $dateFormat = 'U';
     public static $base = '';
 
-    const ORIGINAL          = '原密码错误';
-    const NEW_AND_ORIGINAL  = '新密码与原密码一致';
-    const STORAGE           = '存储相关信息表失败';
-    const PARAM             = '参数错误';
-    const NO_DATA           = '未获取到数据';
-    const FAIL              = '失败';
+    const ORIGINAL = '原密码错误';
+    const NEW_AND_ORIGINAL = '新密码与原密码一致';
+    const STORAGE = '存储相关信息表失败';
+    const PARAM = '参数错误';
+    const NO_DATA = '未获取到数据';
+    const FAIL = '失败';
 
     /**
      * The attributes excluded from the model's JSON form.
@@ -99,19 +99,23 @@ class AdminUser extends Authenticatable
         if ($verify_res['sign'] == '0') {
             return $verify_res;
         }
-        $verify_res['re_password'] ? $verify_res['password'] = bcrypt($verify_res['password']) : null;
+
+        if (isset($data['re_password']) && !empty($data['re_password'])) {
+            $verify_res['password'] = bcrypt($verify_res['password']);
+        }
+
         unset($verify_res['re_password']);
-        \Log::info("----------管理员用户----------", "管理员:(uid:{$verify_res['uid']})-----用户信息-----".$verify_res.'-----参数-----'.json_encode($data));
+        \Log::info("----------管理员用户----------", "管理员:(uid:{$verify_res['uid']})-----用户信息-----" . $verify_res . '-----参数-----' . json_encode($data));
         if ($verify_res->save()) {
-        	if (request()->path() != "admin/user/modify_user" && request()->path() != "admin/user/change") {
+            if (request()->path() != "admin/user/modify_user" && request()->path() != "admin/user/change") {
                 if (self::saveProfile($data, $verify_res)) {
                     return self::returnData(0, self::STORAGE);
                 }
             }
-        	//如果修改了密码，清除其他登录态
-			if (isset($data['password']) && \Auth::guard()->id() == $verify_res->getAuthIdentifier()) {
-				\Auth::guard('admin')->logoutOtherDevices($data['password']);
-			}
+            //如果修改了密码，清除其他登录态
+            if (isset($data['password']) && \Auth::guard()->id() == $verify_res->getAuthIdentifier()) {
+                \Auth::guard('admin')->logoutOtherDevices($data['password']);
+            }
             return self::returnData(1);
         } else {
             return self::returnData(0, self::FAIL);
@@ -143,7 +147,7 @@ class AdminUser extends Authenticatable
             unset($data['old_password']);
         }
 
-        $data['lastvisit'] =time();
+        $data['lastvisit'] = time();
         $data['lastip'] = Utils::getClientIp();
 
         unset($data['avatar']);
@@ -171,7 +175,7 @@ class AdminUser extends Authenticatable
             $item['status'] == 3 ? $item['state'] = '已禁用' : null;
             if ($item['endtime'] == 0) {
                 $item['endtime'] = '永久有效';
-            }else {
+            } else {
                 if (time() > $item['endtime']) {
                     $item['state'] = '已过期';
                 }
@@ -227,7 +231,7 @@ class AdminUser extends Authenticatable
         if ($parame['search']['keyword']) {
             $result = $result->where(function ($query) use ($parame) {
                 $query->where('username', 'like', '%' . $parame['search']['keyword'] . '%')
-                    ->orWhereHas('hasOneProfile', function ($query) use ($parame)  {
+                    ->orWhereHas('hasOneProfile', function ($query) use ($parame) {
                         $query->where('mobile', 'like', '%' . $parame['search']['keyword'] . '%');
                     });
             });
@@ -278,7 +282,7 @@ class AdminUser extends Authenticatable
         $content = '添加用户';
         $profile_model = new YzUserProfile;
 
-        if (request()->path() == "admin/user/create") {
+        if (request()->path() == "admin/user/create" || request()->path() == "admin/register_admin") {
             $data['uid'] = $user->uid;
         } elseif (request()->path() == "admin/user/edit" || request()->path() == "admin/user/modify_mobile") {
             $type = 3;

@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/3/30
  * Time: 下午9:07
  */
@@ -10,6 +10,7 @@ namespace app\frontend\modules\finance\controllers;
 
 use app\common\components\ApiController;
 use app\common\components\BaseController;
+use app\common\models\Income;
 use app\common\models\Store;
 use app\frontend\modules\finance\models\Withdraw;
 use Yunshop\Auction\models\AuctioneerModel;
@@ -39,11 +40,18 @@ class WithdrawController extends ApiController
     public function withdrawInfo()
     {
         $id = \YunShop::request()->id;
-        $request = Withdraw::getWithdrawInfoById($id)->first();
+        $request = Withdraw::getWithdrawInfoById($id)
+            ->addSelect('reject_reason')
+            ->first();
 
         if ($request) {
-
-            return $this->successJson('获取数据成功!', $request->toArray());
+            $request = $request->toArray();
+            if ($request['status'] == 0) {//未审核
+                $request['actual_poundage'] = $request['poundage'];
+                $request['actual_servicetax'] = $request['servicetax'];
+                $request['actual_amounts'] = bcsub($request['amounts'],(bcadd($request['poundage'],$request['servicetax'],2)),2);
+            }
+            return $this->successJson('获取数据成功!', $request);
         }
         return $this->errorJson('未检测到数据!');
     }
@@ -83,6 +91,8 @@ class WithdrawController extends ApiController
                 if (app('plugins')->isEnabled('auction')) {
                     return $this->auction($date,$status);
                 }
+            default:
+                return $this->errorJson('withdrawal_type参数错误');
             break;
         }
 
@@ -329,5 +339,19 @@ class WithdrawController extends ApiController
             return $this->successJson('查询成功',$data);
         }
         return $this->successJson('查询失败',$data);
+    }
+
+    /**
+     * 提现收入列表
+     * @return mixed
+     */
+    public function incomeList()
+    {
+        $id = \YunShop::request()->id;
+        $request = Withdraw::getWithdrawInfoById($id)
+            ->first();
+        $incomeModels = Income::getIncomeByIds($request->type_id)
+            ->select(['id','pay_status','amount','created_at'])->paginate(15);
+        return $this->successJson('success',$incomeModels);
     }
 }

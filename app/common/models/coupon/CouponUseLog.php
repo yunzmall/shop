@@ -29,6 +29,8 @@ class CouponUseLog extends BaseModel
     const TYPE_TRANSFER = 2;
     const TYPE_WRITE_OFF = 3;
     const TYPE_SHARE = 4;
+    const TYPE_CART_SHARE = 5;
+    const TYPE_BACKEND_DEL = 6;
 
     /**
      * @var array
@@ -43,6 +45,9 @@ class CouponUseLog extends BaseModel
         self::TYPE_TRANSFER => '会员转赠',
         self::TYPE_WRITE_OFF => '核销',
         self::TYPE_SHARE => '分享',
+        self::TYPE_CART_SHARE => '购物车分享',
+        self::TYPE_CART_SHARE => '购物车分享',
+        self::TYPE_BACKEND_DEL => '后台作废',
     ];
 
     public function getTypeNameAttribute()
@@ -52,6 +57,12 @@ class CouponUseLog extends BaseModel
 
     public static function getRecords($search){
         $merModel=self::uniacid()->with(['belongsToMember','hasOneCoupon']);
+
+        if (!empty($search['member_id'])) {
+            $merModel->whereHas('belongsToMember', function ($query) use ($search) {
+                return $query->where('member_id', $search['member_id']);
+            });
+        }
 
         if (!empty($search['member'])) {
             $merModel->whereHas('belongsToMember', function ($query) use ($search) {

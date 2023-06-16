@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/3/30
  * Time: 下午8:59
  */
@@ -9,19 +9,22 @@
 namespace app\common\helpers;
 
 
+use app\frontend\modules\member\services\factory\MemberFactory;
+use app\frontend\modules\member\services\MemberOfficeAccountService;
+
 class Client
 {
-    const DEVICE_MOBILE  = 1;
+    const DEVICE_MOBILE = 1;
     const DEVICE_DESKTOP = 2;
     const DEVICE_UNKNOWN = -1;
 
-    const BROWSER_TYPE_IPHONE  = 1;
-    const BROWSER_TYPE_IPAD    = 2;
-    const BROWSER_TYPE_IPOD	   = 3;
+    const BROWSER_TYPE_IPHONE = 1;
+    const BROWSER_TYPE_IPAD = 2;
+    const BROWSER_TYPE_IPOD = 3;
     const BROWSER_TYPE_ANDROID = 4;
     const BROWSER_TYPE_UNKNOWN = -1;
 
-    const OS_TYPE_IOS	  = 1;
+    const OS_TYPE_IOS = 1;
     const OS_TYPE_ANDROID = 2;
     const OS_TYPE_UNKNOWN = -1;
 
@@ -40,11 +43,11 @@ class Client
     public static function getDeviceInfo()
     {
         return array(
-            'deviceType'  => self::deviceType(),
+            'deviceType' => self::deviceType(),
             'browserType' => self::browserType(),
-            'isRetina' 	  => self::isRetina(),
-            'osType' 	  => self::osType(),
-            'isIos6' 	  => self::isIos6(),
+            'isRetina' => self::isRetina(),
+            'osType' => self::osType(),
+            'isIos6' => self::isIos6(),
         );
     }
 
@@ -177,7 +180,7 @@ class Client
 
     public static function is_app()
     {
-        if(defined('__MODULE_NAME__') && __MODULE_NAME__ == 'app/api'){
+        if (defined('__MODULE_NAME__') && __MODULE_NAME__ == 'app/api') {
             return true;
         }
         $agent = strtolower($_SERVER['HTTP_USER_AGENT']);
@@ -196,9 +199,18 @@ class Client
         }
         return true;
     }
+
     public static function is_alipay()
     {
         if (!empty($_SERVER['HTTP_USER_AGENT']) && strpos(strtolower($_SERVER['HTTP_USER_AGENT']), 'alipay') !== false && (app('plugins')->isEnabled('alipay-onekey-login'))) {
+            return true;
+        }
+        return false;
+    }
+
+    static function is_wxwork()
+    {
+        if (!empty($_SERVER['HTTP_USER_AGENT']) && strpos($_SERVER['HTTP_USER_AGENT'], 'wxwork') !== false && (app('plugins')->isEnabled('wechat-chat-sidebar'))) {
             return true;
         }
         return false;
@@ -210,7 +222,8 @@ class Client
      * @param boolean $numeric 是否为纯数字
      * @return string
      */
-     static function random($length, $numeric = FALSE) {
+    static function random($length, $numeric = FALSE)
+    {
         $seed = base_convert(md5(microtime() . $_SERVER['DOCUMENT_ROOT']), 16, $numeric ? 10 : 35);
         $seed = $numeric ? (str_replace('0', '', $seed) . '012340567890') : ($seed . 'zZ' . strtoupper($seed));
         if ($numeric) {
@@ -226,33 +239,38 @@ class Client
         return $hash;
     }
 
-    static function getType()
+    public static function getType(): int
     {
-        //微信浏览器
-        if (self::is_weixin()) {
-            return 1;
-            //app浏览器
+        if (self::is_wxwork()) {
+            return MemberFactory::LOGIN_WORK; //企业微信浏览器
+        } elseif (self::is_weixin()) {
+            return MemberFactory::LOGIN_OFFICE_ACCOUNT; //微信浏览器
         } elseif (self::is_app()) {
-            return 7;
+            return MemberFactory::LOGIN_APP_YDB;  //app浏览器
         } elseif (self::is_alipay()) {
-            return 8;
+            return MemberFactory::LOGIN_ALIPAY;
+        } else {
+            return MemberFactory::LOGIN_MOBILE;
         }
-        return 5;
     }
 
     public static function getOS()
     {
         switch (true) {
-            case stristr(PHP_OS, 'DAR'): return 'OS_OSX';
-            case stristr(PHP_OS, 'WIN'): return 'OS_WIN';
-            case stristr(PHP_OS, 'LINUX'): return 'OS_LINUX';
-            default : return self::OS_UNKNOWN;
+            case stristr(PHP_OS, 'DAR'):
+                return 'OS_OSX';
+            case stristr(PHP_OS, 'WIN'):
+                return 'OS_WIN';
+            case stristr(PHP_OS, 'LINUX'):
+                return 'OS_LINUX';
+            default :
+                return self::OS_UNKNOWN;
         }
     }
 
     public static function is_nativeApp()
     {
-        if(defined('__MODULE_NAME__') && __MODULE_NAME__ == 'app/api'){
+        if (defined('__MODULE_NAME__') && __MODULE_NAME__ == 'app/api') {
             return true;
         }
         $agent = strtolower($_SERVER['HTTP_USER_AGENT']);
@@ -277,8 +295,8 @@ class Client
         $data .= $_SERVER['REMOTE_PORT'];
         $hash = strtoupper(hash('ripemd128', $uid . $guid . md5($data)));
 
-        $token = substr($hash,  0,  8) . substr($hash,  8,  4) . substr($hash, 12,  4) .
-            substr($hash, 16,  4) . substr($hash, 20, 12);
+        $token = substr($hash, 0, 8) . substr($hash, 8, 4) . substr($hash, 12, 4) .
+            substr($hash, 16, 4) . substr($hash, 20, 12);
 
         return $token;
     }
@@ -292,10 +310,9 @@ class Client
      */
     public static function setWechatByMobileLogin($type)
     {
-        if(1 == $type && \Setting::get('shop.member.wechat_login_mode') == 1){
+        if ($type == MemberOfficeAccountService::LOGIN_TYPE && \Setting::get('shop.member.wechat_login_mode') == 1) {
             return true;
         }
-
         return false;
     }
 }

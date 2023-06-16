@@ -134,15 +134,16 @@ class IncomePageFactory
             'mark' => $this->getMark(),
             'title' => $this->getTitle(),
             'level' => $level ? $this->_income->getLevel() : '',    //新增参数控制是否获取等级信息
-            'value' => $this->getValue(),
+            'value' => round($this->getValue(), 2),
             'is_agent' => $this->isAgent(),
             'is_relation' => $this->isRelation(),
             'mini_url' => $this->getMiniUrl(),
+            'isDiy' => $this->isDiy(),
         ];
     }
 
 
-    private function getMark()
+    public function getMark()
     {
         return $this->_income->getMark();
     }
@@ -211,7 +212,7 @@ class IncomePageFactory
 	private function calculation()
 	{
 		$value = Income::getIncomes()->where('member_id', \YunShop::app()->getMemberId())
-			->where('incometable_type', $this->_income->getTypeValue())
+			->where('incometable_type', (string)$this->_income->getTypeValue())
 			->where('status', 0)->sum('amount');
 		return $value;
 	}
@@ -249,6 +250,14 @@ class IncomePageFactory
             return $this->is_agent;
         }
         return true;
+    }
+
+    private function isDiy(): bool
+    {
+        if (method_exists($this->_income, 'isDiy')) {
+            return $this->_income->isDiy();
+        }
+        return false;
     }
 
 }

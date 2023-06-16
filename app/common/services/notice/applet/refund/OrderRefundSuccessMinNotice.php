@@ -37,7 +37,7 @@ class OrderRefundSuccessMinNotice extends BaseMessageBody
             //'keyword2'=>['value'=> $this->refund->refund_sn],//退款单号
             //'keyword4'=>['value'=> $this->order->pay_type_name],// 退款方式
             //'keyword6'=>['value'=> $this->refund->reason],// 退款原因,
-            'amount2'=>['value'=> $this->order->price],// 退款金额
+            'amount2'=>['value'=> $this->refund->price],// 退款金额
             'character_string1'=>['value'=> $this->checkDataLength($this->order->order_sn,32)],
             'thing4'=>['value'=>$this->checkDataLength($this->refund->reason,20)],
             'time3' => ['value'=> $this->refund->create_time->toDateTimeString()],

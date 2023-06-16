@@ -23,6 +23,7 @@ class CreateAdminPermissionsTable extends Migration
                 $table->string('icon')->comment('图标');
                 $table->timestamps();
             });
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE " . app('db')->getTablePrefix() . "yz_admin_permissions comment '角色管理-权限表'");//表注释
         }
     }
 

@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 07/03/2017
  * Time: 16:13
  */
@@ -15,6 +15,7 @@ use app\common\helpers\Cache;
 use app\common\helpers\PaginationHelper;
 use app\common\helpers\Url;
 use app\common\models\user\User;
+use app\common\models\user\UserProfile;
 use app\common\models\user\YzRole;
 use app\common\services\Utils;
 use app\common\models\user\YzUserRole;
@@ -143,7 +144,10 @@ class UserController extends BaseController
             ]);
         }
 
-        return view('user.user.form')->render();
+        return view('user.user.form', [
+            'roleList'    => json_encode(($roleList?:[])),
+            'permissions' => json_encode(($permissions?:[])),
+        ])->render();
     }
 
     /*
@@ -218,10 +222,18 @@ class UserController extends BaseController
     public function destroy()
     {
         $userModel = User::find(request()->id);
+        $profileModel = UserProfile::where('uid',$userModel->uid)->first();
 
-        if (!$userModel) return $this->errorJson("记录不存在或已删除！");
+        if (!$userModel and !$profileModel) return $this->errorJson("记录不存在或已删除！");
 
-        if (!$userModel->delete()) return $this->errorJson('删除失败，请重试!');
+        DB::beginTransaction();
+        $res = $userModel->delete();
+        $res2 = $profileModel->delete();
+        if (!($res and $res2)){
+            DB::rollBack();
+            return $this->errorJson('删除失败，请重试!');
+        }
+        DB::commit();
 
         $this->debugLog();
 

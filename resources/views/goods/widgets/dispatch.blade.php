@@ -51,6 +51,21 @@
     </div>
 
 </div>
+@if(app('plugins')->isEnabled('electronics-bill'))
+<div class="form-group" id="dispatch_info">
+    <label class="col-xs-12 col-sm-3 col-md-2 control-label">商品简称</label>
+    <div class="col-sm-6 col-xs-6">
+        <div class="form-group">
+            <div class="col-sm-8 col-xs-12">
+                <label class="radio-inline">
+                    <input type="text" name="widgets[dispatch][abbreviation]"
+                           value="{{$dispatch['abbreviation']}}"/>
+                </label>
+            </div>
+        </div>
+    </div>
+</div>
+@endif
 {{--@section('supplier_show_dispatch')--}}
 {{--<div class="form-group">--}}
 {{--<label class="col-xs-12 col-sm-3 col-md-2 control-label">是否支持货到付款</label>--}}

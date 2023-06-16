@@ -16,12 +16,16 @@ class CreateImsYzGoodsCategoryTable extends Migration {
             Schema::create('yz_goods_category', function (Blueprint $table) {
                 $table->increments('id');
                 $table->integer('goods_id')->nullable();
-                $table->integer('category_id')->nullable();
-                $table->string('category_ids')->nullable();
+                $table->integer('category_id')->nullable()->comment('分类ID');
+                $table->string('category_ids')->nullable()->comment('层级分类ID');
                 $table->integer('updated_at')->nullable();
                 $table->integer('created_at')->nullable();
                 $table->integer('deleted_at')->nullable();
             });
+
+
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE `".app('db')->getTablePrefix()."yz_goods_category` comment'商品--分类关联'");//表注释
+
         }
 	}
 

@@ -20,6 +20,9 @@ class CreateYzOrderCouponReturn extends Migration
                 $table->integer('order_coupon_id')->default(0)->comment('订单优惠券id');
                 $table->integer('return_time')->default(0)->nullable();
             });
+
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE `".app('db')->getTablePrefix()."yz_order_coupon_return` comment'订单--返还优惠券记录'");//表注释
+
         }
     }
 

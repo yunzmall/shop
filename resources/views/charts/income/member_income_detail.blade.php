@@ -28,7 +28,7 @@
                                  style='width:100px;height:100px;border:1px solid #ccc;padding:1px'/>
                         </div>
 
-                        <div style='float:left;height:auto;overflow: hidden; width: 100px; font-size:16px;'>
+                        <div style='float:left;height:auto;overflow: hidden; line-height: 2;font-size:16px;'>
                             <p>
                                 <b>会员id:</b>
                                 {{$member['uid']}}

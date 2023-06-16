@@ -14,18 +14,30 @@ abstract class BaseGoodsPriceAdapter
 {
     protected $goods;
 
-
     protected $dealPrice;
+
+
+    protected $appoint_price;
 
     public function __construct($goods)
     {
         $this->goods = $goods;
     }
 
+    final public function setAppointPrice($price)
+    {
+        $this->appoint_price = $price;
+    }
 
     //成交价
     public function getDealPrice()
     {
+
+        //指定成交价格
+        if (isset($this->appoint_price)) {
+            return $this->appoint_price;
+        }
+
         $this->dealPrice = $this->_getDealPrice();
 
         if (is_null($this->dealPrice)) {

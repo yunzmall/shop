@@ -31,5 +31,10 @@ class Never
         return true;
     }
 
+	public function createReduce()
+	{
+		return false;
+	}
+
 
 }

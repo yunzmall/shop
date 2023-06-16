@@ -19,6 +19,7 @@ use app\common\helpers\Url;
 use app\common\models\AccountWechats;
 use app\common\models\MemberGroup;
 use app\common\models\Store;
+use app\common\models\SynchronizedBinder;
 use app\common\services\api\WechatApi;
 use app\frontend\models\Member;
 use app\frontend\models\MemberShopInfo;
@@ -30,11 +31,13 @@ use app\frontend\modules\member\models\SubMemberModel;
 use Illuminate\Support\Str;
 use app\common\services\Session;
 use Yunshop\AggregationCps\services\FreeLoginSign;
+use Yunshop\AggregationCps\services\SettingManageService;
 
 class MemberTjpCpsService extends MemberService
 {
     private $appId;
     private $appSecret;
+    private $uniqueCode;
     private $expires = 120;
     private $error = false;
     /**
@@ -61,75 +64,51 @@ class MemberTjpCpsService extends MemberService
      */
     public function verify($data)
     {
-
         $this->getAppData();
-
         if ($this->error) {
             return false;
         }
-
         $hfSign = new FreeLoginSign();
         $hfSign->setKey($this->appSecret);
-
-        if ($hfSign->verify($data)) {
-
-            $yzMember = MemberShopInfo::getMemberShopInfo($data['mob_user']);
-
-            if (is_null($yzMember)) {
+        $hfSign->setUniqueCode($this->uniqueCode ? : '');
+        $yzMember = MemberShopInfo::getMemberShopInfo($data['mob_user']);
+        if (!$yzMember) {
+            $bind_member = SynchronizedBinder::uniacid()->where('old_uid', $data['mob_user'])->first();
+            if (!$bind_member) {
                 return false;
             }
-            $uid = $yzMember->member_id;
-//            $MemberModel = MemberModel::getId($data['i'], $data['mob_user']);
-//            if (is_null($MemberModel)) {
-//                $uid = $this->addMcMember(request()->input());
-//
-//                if ($uid) {
-//                    $this->addYzMember($uid, request()->input('i'));
-//                }
-//            } else {
-//                $yzMember = MemberShopInfo::getMemberShopInfo($MemberModel->uid);
-//
-//                if (is_null($yzMember)) {
-//                    $this->addYzMember($MemberModel->uid, request()->input('i'));
-//                }
-//
-//                $uid = $MemberModel->uid;
-//            }
-
-            Session::set('member_id', $uid);
-
-            return true;
+            $yzMember = MemberShopInfo::getMemberShopInfo($bind_member->new_uid);
+            if (!$yzMember) {
+                return false;
+            }
         }
-
-        return false;
+        if (!$data['app_token'] || $data['app_token'] != $yzMember->access_token_2) {
+            return false;
+        }
+        $uid = $yzMember->member_id;
+        Session::set('member_id', $uid);
+        return true;
     }
 
     private function getAppData()
     {
         $appData = \Setting::get('plugin.aggregation-cps');
-
-        if (is_null($appData)) {
+        if (is_null($appData) || !app('plugins')->isEnabled('aggregation-cps')) {
             $this->error = true;
             throw new ShopException('应用未启用');
         }
-
-        if (empty($appData['app_key']) || empty($appData['app_secret'])) {
+        if (!empty($appData['plat_unique_code']) && $appData['unique_mode']) {
+            $appData['app_key'] = SettingManageService::getDefaultKey();
+            $appData['app_secret'] = SettingManageService::getDefaultSecret();
+            $this->uniqueCode = trim($appData['plat_unique_code']) ?: '';
+        } elseif (empty($appData['app_key']) || empty($appData['app_secret'])) {
             $this->error = true;
             throw new ShopException('应用未启用');
         }
-
         if ($appData['app_key'] != request()->input('appid')) {
             $this->error = true;
             throw new ShopException('访问身份异常');
         }
-
-        if (!\YunShop::app()->getMemberId()) {
-//            if (time() - request()->input('timestamp') > $this->expires) {
-//                $this->error = true;
-//                throw new ShopException('访问超时');
-//            }
-        }
-
         $this->appId     = $appData['app_key'];
         $this->appSecret = $appData['app_secret'];
     }

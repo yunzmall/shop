@@ -34,6 +34,8 @@ class CreateWebsiteInfo extends Migration
                 $table->integer('created_at')->nullable();
                 $table->integer('updated_at')->nullable();
             });
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE " . app('db')->getTablePrefix()
+                . "yz_website_info comment '工单管理--加密信息'");
         }
     }
 

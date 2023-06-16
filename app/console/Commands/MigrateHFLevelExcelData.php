@@ -5,7 +5,7 @@
  * Email:   livsyitian@163.com
  * QQ:      995265288
  * IDE:     PhpStorm
- * User:    芸众商城 www.yunzshop.com
+ * User:     
  ****************************************************************/
 namespace app\Console\Commands;
 

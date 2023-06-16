@@ -64,12 +64,15 @@ class MessageNoticeJob implements  ShouldQueue
 				return true;
 			}
 			$app = EasyWeChat::officialAccount();
-			$app->template_message->send([
+			$res = $app->template_message->send([
 				'touser' => $this->openId,
 				'template_id' => $this->templateId,
 				'url' => $this->url,
 				'data' => $this->noticeData,
 			]);
+            if ($res['errcode']) {
+                \Log::debug('-------消息发送失败-----',[$res,$this->noticeData]);
+            }
 			return true;
 		} catch (\Exception $e) {
 			\Log::debug('消息发送失败',$e->getMessage());

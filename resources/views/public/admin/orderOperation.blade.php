@@ -21,6 +21,10 @@ Vue.component('orderOperation', {
             type:Number,
             default:0,
         },
+        pay_skip:{
+            type:Number,
+            default:0,
+        },
     },
     delimiters: ['[[', ']]'],
     data(){
@@ -32,7 +36,7 @@ Vue.component('orderOperation', {
             cancel_send_id:'',
             confirm_send_show:false,// 确认发货弹窗
             confirm_send_id:"",
-            
+
             address_info:{},
 
             //发货提交信息
@@ -42,13 +46,14 @@ Vue.component('orderOperation', {
                 express_sn:"",
             },
             send_rules:{
-                
+
             },
             // 多包裹发货
             more_send_show:false,
             order_goods_send_list:[],
+            order_goods_send_list2:[],// 临时
             send_order_goods_ids:[],
-            
+
             readonly:false,
 
             web_url: "{!! yzWebUrl('') !!}",
@@ -66,24 +71,129 @@ Vue.component('orderOperation', {
                 this.cancelSend(this.operationOrder.id);
             } else if (this.operationType == 'separate_send') {
                 this.separateSend(this.operationOrder.id, this.operationOrder);
+            } else if (this.operationType == 'city_delivery_push') {
+                this.cityDeliveryPush(this.operationOrder);
+            } else if (this.operationType == 'city_delivery_cancel') {
+                this.cityDeliveryCancel(this.operationOrder);
+            } else if (this.operationType == 'city_delivery_refresh') {
+                this.cityDeliveryRefresh(this.operationOrder);
+            } else if (this.operationType == 'public_request') {
+                this.public_request(this.operationOrder);
             }
         },
     },
     mounted: function(){
-        
-        
+
+
     },
     methods:{
+        public_request(order) {
+            let operationType = this.operationType;
+            let obj = this.operationOrder.backend_button_models.find(item => {
+                return item.value == operationType;
+            });
+            let loading = this.$loading({target: document.querySelector(".content"), background: 'rgba(0, 0, 0, 0)'});
+            this.$http.post(this.web_url + obj.api, {order_id: order.id}).then(function (response) {
+                    if (response.data.result) {
+                        this.$message({type: 'success', message: response.data.msg});
+                        location.reload();
+                    } else {
+                        this.$message({type: 'error', message: response.data.msg});
+                    }
+                    loading.close();
+                    this.$emit('search');
+                }, function (response) {
+                    this.$message({type: 'error', message: response.data.msg});
+                    loading.close();
+                }
+            );
+
+        },
+        cityDeliveryRefresh(order) {
+            let obj = this.operationOrder.backend_button_models.find(item => {
+                return item.value == 'city_delivery_refresh'
+            });
+            let loading = this.$loading({target: document.querySelector(".content"), background: 'rgba(0, 0, 0, 0)'});
+            this.$http.post(this.web_url + obj.api, {order_id: order.id}).then(function (response) {
+                    if (response.data.result) {
+                        this.$message({type: 'success', message: '操作成功'});
+                        location.reload();
+                    } else {
+                        this.$message({type: 'error', message: response.data.msg});
+                    }
+                    loading.close();
+                    this.$emit('search');
+                }, function (response) {
+                    this.$message({type: 'error', message: response.data.msg});
+                    loading.close();
+                }
+            );
+
+        },
+        cityDeliveryCancel(order){
+            let obj = this.operationOrder.backend_button_models.find(item => {
+                return item.value == 'city_delivery_cancel'
+            });
+            this.$confirm('确定取消第三方订单吗？', '提示', {confirmButtonText: '确定',cancelButtonText: '取消',type: 'warning'}).then(() => {
+                let loading = this.$loading({target:document.querySelector(".content"),background: 'rgba(0, 0, 0, 0)'});
+                this.$http.post(this.web_url+obj.api,{order_id:order.id}).then(function (response) {
+                        if (response.data.result) {
+                            this.$message({type: 'success',message: '操作成功'});
+                            location.reload();
+                        }
+                        else{
+                            this.$message({type: 'error',message: response.data.msg});
+                        }
+                        loading.close();
+                        this.$emit('search');
+                    },function (response) {
+                        this.$message({type: 'error',message: response.data.msg});
+                        loading.close();
+                    }
+                );
+            }).catch(() => {
+                this.$message({type: 'info',message: '已取消操作'});
+            });
+        },
+        //同城配送推送订单到第三方
+        cityDeliveryPush(order){
+            let obj = this.operationOrder.backend_button_models.find(item => {
+                return item.value == 'city_delivery_push'
+            });
+            this.$confirm('确定推送此订单到第三方吗？', '提示', {confirmButtonText: '确定',cancelButtonText: '取消',type: 'warning'}).then(() => {
+                let loading = this.$loading({target:document.querySelector(".content"),background: 'rgba(0, 0, 0, 0)'});
+                this.$http.post(this.web_url+obj.api,{order_id:order.id}).then(function (response) {
+                        if (response.data.result) {
+                            this.$message({type: 'success',message: '操作成功'});
+                            location.reload();
+                        }
+                        else{
+                            this.$message({type: 'error',message: response.data.msg});
+                        }
+                        loading.close();
+                        this.$emit('search');
+                    },function (response) {
+                        this.$message({type: 'error',message: response.data.msg});
+                        loading.close();
+                    }
+                );
+            }).catch(() => {
+                this.$message({type: 'info',message: '已取消操作'});
+            });
+        },
         // 确认付款
         confirmPay(id) {
             let obj = this.operationOrder.backend_button_models.find(item => {
                 return item.value == 1
-            })
+            });
             this.$confirm('确认此订单已付款吗？', '提示', {confirmButtonText: '确定',cancelButtonText: '取消',type: 'warning'}).then(() => {
-                let loading = this.$loading({target:document.querySelector(".content"),background: 'rgba(0, 0, 0, 0)'});
+                let loading = this.$loading({background: 'rgba(0, 0, 0, 0)'});
                 this.$http.post(this.web_url+obj.api,{order_id:id}).then(function (response) {
                     if (response.data.result) {
                         this.$message({type: 'success',message: '操作成功'});
+                        if(this.pay_skip == 1) {
+                            location.reload();
+                        }
                     }
                     else{
                         this.$message({type: 'error',message: response.data.msg});
@@ -99,13 +209,13 @@ Vue.component('orderOperation', {
                 this.$message({type: 'info',message: '已取消操作'});
             });
         },
-        
+
         // 取消发货
         cancelSend(id) {
             this.cancel_send_show = true;
             this.cancel_send_con = "";
             this.cancel_send_id = id;
-            console.log(id)
+            // console.log(id)
         },
         // 确认取消发货
         sureCancelSend() {
@@ -117,11 +227,11 @@ Vue.component('orderOperation', {
             let obj = this.operationOrder.backend_button_models.find(item => {
                 return item.value == 'cancel_send'
             })
-            console.log(json);
+            // console.log(json);
             let loading = this.$loading({target:document.querySelector("#cancel-send"),background: 'rgba(0, 0, 0, 0)'});
             this.$http.post(this.web_url+obj.api,json).then(function (response) {
                 if (response.data.result) {
-                    this.$message({type: 'success',message: '关闭订单成功!'});
+                    this.$message({type: 'success',message: '取消发货成功!'});
                 }
                 else{
                     this.$message({type: 'error',message: response.data.msg});
@@ -141,7 +251,7 @@ Vue.component('orderOperation', {
                 return item.value == 3
             })
             this.$confirm('确认订单收货吗？', '提示', {confirmButtonText: '确定',cancelButtonText: '取消',type: 'warning'}).then(() => {
-                let loading = this.$loading({target:document.querySelector(".content"),background: 'rgba(0, 0, 0, 0)'});
+                let loading = this.$loading({background: 'rgba(0, 0, 0, 0)'});
                 this.$http.post(this.web_url+obj.api,{order_id:id}).then(function (response) {
                     if (response.data.result) {
                         this.$message({type: 'success',message: '操作成功'});
@@ -221,12 +331,12 @@ Vue.component('orderOperation', {
                 express_sn:this.send.express_sn,
                 order_id:this.confirm_send_id,
             };
-            
+
             let obj = this.operationOrder.backend_button_models.find(item => {
                 return item.value == 2
             })
-            console.log(obj);
-            console.log(json);
+            // console.log(obj);
+            // console.log(json);
             // if(this.send.express_sn == "") {
             //     this.$message.error("快递单号不能为空！");
             //     return;
@@ -257,26 +367,41 @@ Vue.component('orderOperation', {
                 express_code:"",
                 express_sn:"",
             };
-            
+
             this.address_info = item.address || {};
             this.getSeparateSendOrderGoods(id);
         },
         // 多包裹确认发货 选择商品
         moreSendChange(selection) {
             let arr = [];
-            for(let j = 0,len = selection.length; j < len; j++){
-                console.log(selection[j].id);
-                arr.push(selection[j].id);
+            for (let value of selection){
+                arr.push(value.id);
             }
             this.send_order_goods_ids = arr;
         },
+        getOneOrderPackage()
+        {
+            let arr = [];
+            for (let value of this.send_order_goods_ids){
+                for (let item of this.order_goods_send_list2){
+                    if(item.id == value){
+                        arr.push({
+                            order_goods_id:value,
+                            total:item.total
+                        });
+                    }
+                }
+            }
+
+            return arr ? arr : [];
+        },
         // 获取可选择的商品 多包裹发货
         getSeparateSendOrderGoods(id) {
-            
+
             this.$http.post('{!! yzWebFullUrl('order.multiple-packages-order-goods.get-order-goods') !!}', {order_id:id}).then(function (response) {
                 if (response.data.result) {
                     this.order_goods_send_list = response.data.data;
-                    // console.log(this.order_goods_send_list);
+                    this.order_goods_send_list2 = JSON.parse(JSON.stringify(response.data.data));
                 } else{
                     this.$message({type: 'error',message: response.data.msg});
                 }
@@ -303,12 +428,13 @@ Vue.component('orderOperation', {
                 express_sn:this.send.express_sn,
                 order_id:this.confirm_send_id,
                 order_goods_ids:this.send_order_goods_ids,
+                order_package:this.getOneOrderPackage()
             };
-            console.log(json);
+            // console.log(json);
             let obj = this.operationOrder.backend_button_models.find(item => {
                 return item.value == 'separate_send'
             })
-            console.log(obj.api)
+            // console.log(obj.api)
             let loading = this.$loading({target:document.querySelector("#separate-send"),background: 'rgba(0, 0, 0, 0)'});
             this.$http.post(this.web_url+obj.api,json).then(function (response) {
                 if (response.data.result) {
@@ -325,7 +451,7 @@ Vue.component('orderOperation', {
                 this.more_send_show = false;
             })
         },
-    
+
     },
     template: `
         <div>
@@ -390,13 +516,19 @@ Vue.component('orderOperation', {
                         <el-table-column type="selection" width="55"></el-table-column>
                         <el-table-column width="550">
                             <template slot-scope="scope">
-                                <div style="display:flex;width: 88%;">
-                                    <div style="width:50px;height:50px">
-                                        <img :src="scope.row.thumb" alt="" style="width:50px;height:50px">
+                                <div style="display:flex;">
+                                    <div style="display:flex;flex:1;">
+                                        <div style="width:50px;height:50px">
+                                            <img :src="scope.row.thumb" alt="" style="width:50px;height:50px">
+                                        </div>
+                                        <div style="margin:0 20px;display: flex;flex-direction: column;justify-content: space-between;">
+                                            <div style="display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:5;overflow: hidden;text-overflow: ellipsis;">[[scope.row.title]]</div>
+                                            <div style="color:#999">[[scope.row.goods_id]]</div>
+                                        </div>
                                     </div>
-                                    <div style="margin-left:20px;display: flex;flex-direction: column;justify-content: space-between;">
-                                        <div style="white-space: nowrap;overflow: hidden;text-overflow: ellipsis;">[[scope.row.title]]</div>
-                                        <div style="color:#999">[[scope.row.goods_id]]</div>
+                                    <div>
+                                        <el-input-number size="small" controls-position="right" v-model="order_goods_send_list2[scope.$index].total" :min="1" :max="scope.row.total" label="数量"></el-input-number>
+                                        <div style="color:#999">最大数量999 * [[scope.row.total]]</div>
                                     </div>
                                 </div>
                             </template>
@@ -406,6 +538,7 @@ Vue.component('orderOperation', {
                                 <div style="color:#999">[[scope.row.goods_option_title]]</div>
                             </template>
                         </el-table-column>
+
                     </el-table>
 
                 </div>
@@ -414,13 +547,13 @@ Vue.component('orderOperation', {
                         <el-button type="primary" @click="confirmMoreSend()">确认发货 </el-button>
                     </span>
             </el-dialog>
-            
-            
+
+
         </div>
     `,
-    
 
-    
+
+
 });
-    
+
 </script>

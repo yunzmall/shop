@@ -27,6 +27,7 @@ class CreateImsYzCoreAttachmentTagsTable extends Migration {
                 $table->string('timeline')->nullable()->default(null);
 
             });
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE " . app('db')->getTablePrefix() . "yz_core_attachment_tags comment '本地文件分组名称表'");//表注释
         }
 	}
 

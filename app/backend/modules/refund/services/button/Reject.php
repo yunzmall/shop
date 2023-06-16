@@ -13,7 +13,7 @@ class Reject extends RefundButtonBase
 {
     public function getApi()
     {
-        return 'refund.operation.reject';
+        return 'refund.vue-operation.reject';
     }
 
     public function getName()

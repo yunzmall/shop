@@ -1,6 +1,6 @@
 <?php
 /**
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/6/19
  * Time: 下午12:00
  */
@@ -8,7 +8,9 @@
 namespace app\common\events\payment;
 
 
-class RechargeComplatedEvent extends GetOrderPaymentTypeEvent
+use app\common\events\Event;
+
+class RechargeComplatedEvent extends Event
 {
     protected $data;
 

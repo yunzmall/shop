@@ -38,9 +38,40 @@
                             <el-input v-model="form.nick_name" style="width:70%;"></el-input>
                             <div class="tip">用户昵称，如果不填写，默认从粉丝表中随机读取</div>
                         </el-form-item>
+                        <el-form-item label="会员等级">
+                            <template>
+                                <el-select v-model="form.level_set" placeholder="请选择会员等级">
+                                    <el-option
+                                            v-for="(item,i) in levels"
+                                            :label="item.level_name"
+                                            :value="item.id"
+                                            :key="i">
+
+                                    </el-option>
+                                </el-select>
+                            </template>
+                        </el-form-item>
                         <el-form-item label="评分等级" prop="level">
                             <div style="padding-top:10px">
                                 <el-rate v-model="form.level" show-score></el-rate>
+                            </div>
+                        </el-form-item>
+
+                        <el-form-item v-show="form.is_score_latitude" label="描述/包装" prop="score_latitude_describe">
+                            <div style="padding-top:10px">
+                                <el-rate v-model="form.score_latitude.score_latitude_describe" show-score></el-rate>
+                            </div>
+                        </el-form-item>
+
+                        <el-form-item v-show="form.is_score_latitude" label="物流服务/配送" prop="score_latitude_delivery">
+                            <div style="padding-top:10px">
+                                <el-rate v-model="form.score_latitude.score_latitude_delivery" show-score></el-rate>
+                            </div>
+                        </el-form-item>
+
+                        <el-form-item v-show="form.is_score_latitude" label="服务态度/质量" prop="score_latitude_service">
+                            <div style="padding-top:10px">
+                                <el-rate v-model="form.score_latitude.score_latitude_service" show-score></el-rate>
                             </div>
                         </el-form-item>
 
@@ -85,6 +116,14 @@
                                     ></i>
                                 </div>
                             </div> -->
+                        </el-form-item>
+
+                        <el-form-item label="显示" prop="is_show">
+                            <el-switch v-model="form.is_show" :active-value="1" :inactive-value="0"></el-switch>
+                        </el-form-item>
+
+                        <el-form-item label="置顶" prop="is_top">
+                            <el-switch v-model="form.is_top" :active-value="1" :inactive-value="0"></el-switch>
                         </el-form-item>
                     </el-form>
                 </div>
@@ -147,6 +186,8 @@
             data() {
                 let id = {!! $id?:0 !!};
                 let goods_id = {!! $goods_id?:0 !!};
+                let default_level = {!! json_encode($default_level) !!};
+                let levels = {!! json_encode($levels)?:'{}' !!}
                 console.log(id);
                 console.log(goods_id);
                 return{
@@ -154,6 +195,7 @@
                     goods_id:goods_id,
                     form:{
                         level:5,
+                        level_set:'',
                         content:'',
                         head_img_url:'',
                         head_img_url_url:'',
@@ -162,7 +204,15 @@
                         image:[],
                         image_url:[],
                         comment_time:new Date().getTime(),
-                        time_state:0
+                        time_state:0,
+                        score_latitude:{
+                            score_latitude_describe:5,
+                            score_latitude_delivery:5,
+                            score_latitude_service:5,
+                        },
+                        is_score_latitude:false,
+                        is_show:0,
+                        is_top:0
                     },
                     goods_list:[],
                     goodsShow:false,
@@ -170,7 +220,8 @@
                     keyword:'',
                     submit_url:'',
                     showVisible:false,
-
+                    default_level:default_level,
+                    levels:levels,
                     uploadShow:false,
                     chooseImgName:'',
 
@@ -185,12 +236,15 @@
                     },
                     type:'',
                     selNum:'',
-
-
                 }
             },
             created() {
-
+                console.log(this.level);
+                this.levels.unshift({
+                    id:0,
+                    level:0,
+                    level_name:this.default_level
+                })
             },
             mounted() {
                 // this.getData();
@@ -215,6 +269,25 @@
                                 this.form.images = response.data.data.comment?response.data.data.comment.images:[];
                                 this.form.images_url = response.data.data.comment?response.data.data.comment.images_url:[];
                                 this.form.comment_time = response.data.data.comment ? response.data.data.comment.comment_time*1000 : new Date().getTime();
+                                this.form.is_show = response.data.data.comment.is_show ?  response.data.data.comment.is_show : 0;
+                                this.form.is_top = response.data.data.comment.is_top ?  response.data.data.comment.is_top : 0;
+                                this.form.level_set = response.data.data.comment.level_set ?  response.data.data.comment.level_set : 0;
+                                console.log(response.data.data.score_latitude);
+                                if (this.id) {
+                                    if (response.data.data.score_latitude) {
+                                        console.log(11);
+                                        this.form.score_latitude = response.data.data.score_latitude;
+                                    }
+                                }
+
+                                // this.form.score_latitude = response.data.data.score_latitude.length > 0 || response.data.data.score_latitude ? response.data.data.score_latitude : this.form.score_latitude;
+                                // if (this.id && response.data.data.score_latitude) {
+                                //     this.form.score_latitude = response.data.data.score_latitude ? response.data.data.score_latitude : this.form.score_latitude;
+                                // } else {
+                                //     this.form.score_latitude = response.data.data.score_latitude ? response.data.data.score_latitude : this.form.score_latitude;
+                                // }
+
+                                this.form.is_score_latitude = response.data.data.is_score_latitude ? response.data.data.is_score_latitude : false;
                                 if(response.data.data.goods && response.data.data.goods.id && response.data.data.goods != [] && response.data.data.goods.length!=0) {
                                     this.chooseGoodsItem = JSON.parse(JSON.stringify(response.data.data.goods));
                                     this.chooseGoodsItem.title = this.escapeHTML(this.chooseGoodsItem.title);
@@ -281,10 +354,18 @@
                             head_img_url:this.form.head_img_url,
                             nick_name:this.form.nick_name,
                             level:this.form.level,
+                            level_set:this.form.level_set,
                             content:this.form.content,
                             images:this.form.images,
                             time_state:this.form.time_state,
-                            comment_time:this.form.comment_time
+                            comment_time:this.form.comment_time,
+                            score_latitude:{
+                                score_latitude_describe:this.form.score_latitude.score_latitude_describe,
+                                score_latitude_delivery:this.form.score_latitude.score_latitude_delivery,
+                                score_latitude_service:this.form.score_latitude.score_latitude_service
+                            },
+                            is_show:this.form.is_show,
+                            is_top:this.form.is_top,
                         },
                         
                     };

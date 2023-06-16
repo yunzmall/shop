@@ -189,8 +189,8 @@ $redis[\'password\'] = \'' . $pwd . '\';
         $result['sysytem_environment'] = [
             [
                 'name' => 'PHP版本',
-                'need' => '7.2',
-                'optimum' => '7.2',
+                'need' => '7.4',
+                'optimum' => '7.4',
                 'check' => $ret['php_version_remark'],
                 'value' => $ret['php_version'],
             ],
@@ -330,15 +330,11 @@ $redis[\'password\'] = \'' . $pwd . '\';
         $filename = base_path().'/.env';
         $env = file_get_contents($filename);
 
-        $validatePassword = validatePassword($user['password']);
-
         // 验证超级管理员信息
         if (!$user['username'] || !$user['password']) {
             return $this->errorJson('用户名或密码不能为空');
         } elseif ($user['password'] !== $user['repassword']) {
             return $this->errorJson('两次密码不一致');
-        } elseif ($validatePassword !== true) {
-            return $this->errorJson($validatePassword);
         }
 
         foreach ($set as $item=>$value) {
@@ -349,16 +345,16 @@ $redis[\'password\'] = \'' . $pwd . '\';
             // 得出两个位置之间的内容进行替换
             $num = $check_env_value - $check_env_key;
             if ((bool)$check_env_key) {
-                $env = substr_replace($env, "{$item}={$value}", $check_env_key, $num);
+                $env = substr_replace($env, "{$item}='{$value}'", $check_env_key, $num);
             } else {
-                $env .= "\n{$item}=$value\n";
+                $env .= "\n{$item}='$value'\n";
             }
         }
 
         try{
-            $link = new \PDO("mysql:host=".$set['DB_HOST'].";post=".$set['DB_PORT'], $set['DB_USERNAME'], $set['DB_PASSWORD']);
+            $link = new \PDO("mysql:host=".$set['DB_HOST'].";port=".$set['DB_PORT'], $set['DB_USERNAME'], $set['DB_PASSWORD']);
             $link->exec("CREATE DATABASE IF NOT EXISTS `{$set['DB_DATABASE']}` DEFAULT CHARACTER SET utf8");
-            new \PDO("mysql:host=".$set['DB_HOST'].";dbname=".$set['DB_DATABASE'].";post=".$set['DB_PORT'], $set['DB_USERNAME'], $set['DB_PASSWORD']);
+            new \PDO("mysql:host=".$set['DB_HOST'].";dbname=".$set['DB_DATABASE'].";port=".$set['DB_PORT'], $set['DB_USERNAME'], $set['DB_PASSWORD']);
         } catch (\Exception $e){
             return $this->errorJson($e->getMessage());
         }
@@ -371,7 +367,7 @@ $redis[\'password\'] = \'' . $pwd . '\';
 
         fopen($this->user_txt, 'w+');
             file_put_contents($this->user_txt, serialize($user));
-
+        $this->mvenv($set);
         if ($redis) {
             if(strtolower($redis['password']) == 'null' || empty($redis['password'])) {
                 $redis['password'] = null;
@@ -398,7 +394,8 @@ $redis[\'cache_database\'] = \'' . $redis['cache_database']. '\';
             config(['database.redis.cache.database' => $redis['database']]);
 
             app()->singleton('redis', function ($app) {
-                return new Database($app['config']['database.redis']);
+                $redisConfig = $app->make('config')->get('database.redis', []);
+                return new \app\framework\Redis\Database($app,$redisConfig['client'],$redisConfig);
             });
 
             //检测redis连接
@@ -407,6 +404,33 @@ $redis[\'cache_database\'] = \'' . $redis['cache_database']. '\';
         }
 
         return $this->successJson('成功');
+    }
+
+    /**
+     * 迁移数据库信息
+     */
+    public function mvenv($set)
+    {
+            $str = '<?php
+$config = array();
+
+$config[\'db\'][\'master\'][\'host\'] = \'' . $set['DB_HOST'] . '\';
+$config[\'db\'][\'master\'][\'username\'] = \'' . $set['DB_USERNAME'] . '\';
+$config[\'db\'][\'master\'][\'password\'] = \'' .$set['DB_PASSWORD'] . '\';
+$config[\'db\'][\'master\'][\'port\'] = \'' .$set['DB_PORT'] . '\';
+$config[\'db\'][\'master\'][\'database\'] = \'' . $set['DB_DATABASE'] . '\';
+$config[\'db\'][\'master\'][\'tablepre\'] = \'' . $set['DB_PREFIX'] . '\';
+
+$config[\'db\'][\'slave_status\'] = false;
+$config[\'db\'][\'slave\'][\'1\'][\'host\'] = \'\';
+$config[\'db\'][\'slave\'][\'1\'][\'username\'] = \'\';
+$config[\'db\'][\'slave\'][\'1\'][\'password\'] = \'\';
+$config[\'db\'][\'slave\'][\'1\'][\'port\'] = \'\';
+$config[\'db\'][\'slave\'][\'1\'][\'database\'] = \'\';
+$config[\'db\'][\'slave\'][\'1\'][\'tablepre\'] = \'\';
+';
+            app(\Illuminate\Filesystem\Filesystem::class)->put(base_path('database/config.php'), $str);
+
     }
 
     /**
@@ -429,7 +453,7 @@ $redis[\'cache_database\'] = \'' . $redis['cache_database']. '\';
             \Artisan::call('migrate',['--force' => true]);
             \Artisan::call('db:seed', ['--force' => true, '--class' => 'YzSystemSettingTableSeeder']);
         }catch (\Exception $e) {
-            return $this->errorJson($e->getMessage());
+            return $this->errorJson('创建数据失败,请重新安装');
         }
 
         $user_model = new AdminUser;
@@ -442,7 +466,7 @@ $redis[\'cache_database\'] = \'' . $redis['cache_database']. '\';
         // 保存站点名称
         $site_name = SystemSetting::settingSave(['name' => $user['name']], 'copyright', 'system_copyright');
         if (!$site_name) {
-            return $this->errorJson('失败', '');
+            return $this->errorJson('创建数据失败,请重新安装');
         }
 
         $user['password'] = bcrypt($user['password']);
@@ -458,21 +482,27 @@ $redis[\'cache_database\'] = \'' . $redis['cache_database']. '\';
         $user_model->fill($user);
 
         if (!$user_model->save()) {
-            $this->errorJson('创建数据失败');
+            $this->errorJson('创建数据失败,请重新安装');
         }
 
         // 保存用户信息关联表信息
         $user_profile = YzUserProfile::create(['uid' => $user_model['uid'], 'mobile' => $mobile]);
         if (!$user_profile) {
-            $this->errorJson('创建数据失败');
+            $this->errorJson('创建数据失败,请重新安装');
         }
+
 
         @unlink(base_path().'/app/platform/controllers/user.txt');
 
         fopen(base_path()."/bootstrap/install.lock", "w+");
 
+        \Artisan::call('key:generate', ['--force' => true]);
+
+
         return $this->successJson('成功');
     }
+
+
 
     public function downloadFree()
     {
@@ -530,6 +560,7 @@ $redis[\'cache_database\'] = \'' . $redis['cache_database']. '\';
             if (!class_exists('Predis\Client')) {
                 return $this->errorJson('Predis未安装');
             }
+
             $res = \Illuminate\Support\Facades\Redis::ping() == 'PONG';
 
             if ($res) {

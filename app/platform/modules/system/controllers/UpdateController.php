@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:  
  * Date: 18/04/2017
  * Time: 11:13
  */
@@ -10,54 +10,110 @@ namespace app\platform\modules\system\controllers;
 
 
 use app\common\components\BaseController;
-use app\common\facades\Option;
 use app\common\facades\Setting;
-use app\common\helpers\Cache;
-use app\common\models\UniAccount;
 use app\common\services\AutoUpdate;
-use app\common\services\Utils;
-use Illuminate\Filesystem\Filesystem;
-use vierbergenlars\SemVer\version;
+use app\common\services\systemUpgrade;
+use app\host\HostManager;
 
 class UpdateController extends BaseController
 {
+    private $set;
+    private $key;
+    private $secret;
 
-    public function index()
+    public $systemUpgrade;
+    public $update;
+
+    public function __construct()
+    {
+        $this->set = Setting::getNotUniacid('platform_shop.key');
+        $this->key = $this->set['key'];
+        $this->secret = $this->set['secret'];
+
+        $this->systemUpgrade = new systemUpgrade($this->key, $this->secret);
+        $this->update = new AutoUpdate(null, null, 300);
+
+        $this->__init();
+    }
+
+    private function __init()
+    {
+        if (!$this->key || !$this->secret) {
+            return;
+        }
+
+        $this->update->setBasicAuth($this->key, $this->secret);
+        $this->update->setUpdateUrl(config('auto-update.checkUrl')); //Replace with your server update directory
+    }
+
+    public function systemInfo()
+    {
+        //删除非法文件
+        $this->systemUpgrade->deleteFile();
+        //执行迁移文件
+        $this->systemUpgrade->runMigrate();
+        //清理缓存
+        $this->systemUpgrade->createCache();
+
+        $result = $this->systemUpgrade->systemCheck($this->update);
+
+        $data = [
+            'result' => 1,
+            'msg' => 'ok',
+            'data' => $result
+        ];
+        response()->json($data)->send();
+    }
+
+    public function log()
+    {
+        $page = \YunShop::request()->page ?: 1;
+
+        $log = $this->systemUpgrade->showLog($this->update, $page);
+        $log = json_decode($log);
+
+        $data = [
+            'result' => 1,
+            'msg' => 'ok',
+            'data' => $log->result
+        ];
+        response()->json($data)->send();
+    }
+
+    /**
+     * 废弃
+     *
+     * @return array|string
+     * @throws \Throwable
+     */
+    public function upgrade()
     {
         $list = [];
 
         //删除非法文件
-        $this->deleteFile();
+        $this->systemUpgrade->deleteFile();
         //执行迁移文件
-        $this->runMigrate();
+        $this->systemUpgrade->runMigrate();
 
-        $key = Setting::getNotUniacid('platform_shop.key')['key'];
-        $secret = Setting::getNotUniacid('platform_shop.key')['secret'];
-
-        $update = new AutoUpdate(null, null, 300);
-        $update->setUpdateFile('check_app.json');
+        $this->update->setUpdateFile('check_app.json');
 
         if (is_file(base_path() . '/' . 'config/front-version.php')) {
-            $update->setCurrentVersion(config('front-version'));
+            $this->update->setCurrentVersion(config('front-version'));
             $version = config('front-version');
         } else {
-            $update->setCurrentVersion(config('version'));
+            $this->update->setCurrentVersion(config('version'));
             $version = config('version');
         }
 
-        $update->setUpdateUrl(config('auto-update.checkUrl')); //Replace with your server update directory
+        $this->update->checkUpdate();
 
-        $update->setBasicAuth($key, $secret);
-
-        $update->checkUpdate();
-
-        if ($update->newVersionAvailable()) {
-            $list = $update->getUpdates();
+        if ($this->update->newVersionAvailable()) {
+            $list = $this->update->getUpdates();
         }
 
         krsort($list);
 
-        if (!empty($list[0]['php_version']) && !$this->checkPHPVersion($list[0]['php_version'])) {
+        if (!empty($list[0]['php_version']) && !$this->systemUpgrade->checkPHPVersion($list[0]['php_version'])) {
             $list = [];
         }
 
@@ -75,20 +131,11 @@ class UpdateController extends BaseController
     public function check()
     {
         $result = ['msg' => '', 'last_version' => '', 'updated' => 0];
-        $key = Setting::getNotUniacid('platform_shop.key')['key'];
-        $secret = Setting::getNotUniacid('platform_shop.key')['secret'];
-        if (!$key || !$secret) {
-            return;
-        }
 
-        $update = new AutoUpdate(null, null, 300);
-        $update->setUpdateFile('check_app.json');
-        $update->setCurrentVersion(config('version'));
-        $update->setUpdateUrl(config('auto-update.checkUrl')); //Replace with your server update directory
-        $update->setBasicAuth($key, $secret);
-        //$update->setBasicAuth();
+        $this->update->setUpdateFile('check_app.json');
+        $this->update->setCurrentVersion(config('version'));
 
-        $res = $update->checkUpdate();
+        $res = $this->update->checkUpdate();
 
         //Check for a new update
         if ($res === false) {
@@ -102,8 +149,8 @@ class UpdateController extends BaseController
             return response()->json($res)->send();
         }
 
-        if ($update->newVersionAvailable()) {
-            $result['last_version'] = $update->getLatestVersion()->getVersion();
+        if ($this->update->newVersionAvailable()) {
+            $result['last_version'] = $this->update->getLatestVersion()->getVersion();
             $result['updated'] = 1;
             $result['current_version'] = config('version');
         }
@@ -120,51 +167,38 @@ class UpdateController extends BaseController
     {
         set_time_limit(0);
 
-        //删除非法文件
-        $this->deleteFile();
         //执行迁移文件
-        $this->runMigrate();
-        //清理缓存
-        $this->createCache();
-
-        $filesystem = app(Filesystem::class);
-        $update = new AutoUpdate(null, null, 300);
+        $this->systemUpgrade->runMigrate();
 
         $filter_file = ['composer.json', 'README.md'];
-        $plugins_dir = $update->getDirsByPath('plugins', $filesystem);
+        $plugins_dir = $this->update->getDirsByPath('plugins', $this->systemUpgrade->filesystem);
 
-        $result = ['result' => 0, 'msg' => '网络请求超时', 'version' => ''];
-        $key = Setting::getNotUniacid('platform_shop.key')['key'];
-        $secret = Setting::getNotUniacid('platform_shop.key')['secret'];
-        if (!$key || !$secret) {
+        $result = ['result' => -2, 'msg' => '网络请求超时', 'version' => ''];
+
+        if (!$this->key || !$this->secret) {
             return response()->json(['result' => -1, 'msg' => '商城未授权', 'data' => []]);
         }
 
         //前端更新文件检测
-        $frontendUpgrad = $this->frontendUpgrad($key, $secret);
+        $frontendUpgrad = $this->systemUpgrade->frontendUpgrad($this->key, $this->secret);
 
         //后台更新文件检测
-        $update = new AutoUpdate(null, null, 300);
-        $update->setUpdateFile('backcheck_app.json');
-        $update->setCurrentVersion(config('version'));
-
-        $update->setUpdateUrl(config('auto-update.checkUrl')); //Replace with your server update directory
-
-        $update->setBasicAuth($key, $secret);
-        //$update->setBasicAuth();
+        $this->update->setUpdateFile('backcheck_app.json');
+        $this->update->setCurrentVersion(config('version'));
 
         //Check for a new update
-        $ret = $update->checkBackUpdate();
+        $ret = $this->update->checkBackUpdate();
 
         if ($ret == 'unknown') {
             $result = ['result' => -1];
         }
 
         if (is_array($ret)) {
-            if (!empty($ret['php-version']) && !$this->checkPHPVersion($ret['php-version'])) {
+            if (!empty($ret['php-version']) && !$this->systemUpgrade->checkPHPVersion($ret['php-version'])) {
                 $result = ['result' => 98, 'msg' => '服务器php版本(v' . PHP_VERSION . ')过低,不符合更新条件,建议升级到php版本>=(v' . $ret['php-version'] . ')', 'last_version' => ''];
 
                 response()->json($result)->send();
+                exit;
             }
 
             if (1 == $ret['result']) {
@@ -195,7 +229,8 @@ class UpdateController extends BaseController
                         //忽略前后端版本号记录文件
                         if (($file['path'] == 'config/front-version.php'
                                 || $file['path'] == 'config/backend_version.php'
-                                || $file['path'] == 'config/wq-ersion.php')
+                                || $file['path'] == 'config/wq-ersion.php'
+                                || $file['path'] == 'config/business_version.php')
                             && is_file(base_path() . '/' . $file['path'])) {
                             continue;
                         }
@@ -203,7 +238,7 @@ class UpdateController extends BaseController
                         $entry = base_path() . '/' . $file['path'];
 
                         if ($file['path'] == 'composer.lock' && md5_file($entry) != $file['md5']) {
-                            $this->setComposerStatus();
+                            $this->systemUpgrade->setComposerStatus();
                         }
 
                         //如果本地没有此文件或者文件与服务器不一致
@@ -221,7 +256,7 @@ class UpdateController extends BaseController
 
                 $tmpdir = storage_path('app/public/tmp/' . date('ymd'));
                 if (!is_dir($tmpdir)) {
-                    $filesystem->makeDirectory($tmpdir, 0755, true);
+                    $this->systemUpgrade->filesystem->makeDirectory($tmpdir, 0755, true);
                 }
 
                 $ret['files'] = $files;
@@ -234,14 +269,16 @@ class UpdateController extends BaseController
                     $version = $ret['version'];
                 }
 
-                $this->mvenv();
+                $this->systemUpgrade->mvenv();
+
+                //business更新
+                $this->systemUpgrade->business($ret['business_version']);
 
                 $result = [
                     'result' => 1,
                     'version' => $version,
                     'files' => $ret['files'],
                     'filecount' => count($files),
-                    'log' => $ret['log'],
                     'frontendUpgrad' => count($frontendUpgrad),
                     'list' => $frontendUpgrad
                 ];
@@ -258,7 +295,16 @@ class UpdateController extends BaseController
 
     public function fileDownload()
     {
-        $filesystem = app(Filesystem::class);
+        $protocol = \YunShop::request()->protocol;
+
+        /*if (!$protocol['file'] || !$protocol['update']) {
+            response()->json([
+                'result' => 0,
+                'msg' => '未同意更新协议，禁止更新',
+                'data' => []
+            ])->send();
+            exit;
+        }*/
 
         $tmpdir = storage_path('app/public/tmp/' . date('ymd'));
         $f = file_get_contents($tmpdir . "/file.txt");
@@ -268,8 +314,6 @@ class UpdateController extends BaseController
         $path = "";
         $nofiles = \YunShop::request()->nofiles;
         $status = 1;
-
-        $update = new AutoUpdate(null, null, 300);
 
         //找到一个没更新过的文件去更新
         foreach ($files as $f) {
@@ -292,7 +336,7 @@ class UpdateController extends BaseController
                     $upgrade['files'] = $files;
                     $tmpdir = storage_path('app/public/tmp/' . date('ymd'));
                     if (!is_dir($tmpdir)) {
-                        $filesystem->makeDirectory($tmpdir, 0755, true);
+                        $this->systemUpgrade->filesystem->makeDirectory($tmpdir, 0755, true);
                     }
                     file_put_contents($tmpdir . "/file.txt", json_encode($upgrade));
 
@@ -300,30 +344,20 @@ class UpdateController extends BaseController
                 }
             }
 
-            $key = Setting::getNotUniacid('platform_shop.key')['key'];
-            $secret = Setting::getNotUniacid('platform_shop.key')['secret'];
-            if (!$key || !$secret) {
-                return;
-            }
-
-            $update->setUpdateFile('backdownload_app.json');
-            $update->setCurrentVersion(config('version'));
-
-            $update->setUpdateUrl(config('auto-update.checkUrl')); //Replace with your server update directory
-
-            $update->setBasicAuth($key, $secret);
+            $this->update->setUpdateFile('backdownload_app.json');
+            $this->update->setCurrentVersion(config('version'));
 
             //Check for a new download
-            $ret = $update->checkBackDownload([
+            $ret = $this->update->checkBackDownload([
                 'path' => urlencode($path)
             ]);
 
-            $this->setSysUpgrade($ret);
-            $this->setVendorZip($ret);
+            $this->systemUpgrade->setSysUpgrade($ret);
+            $this->systemUpgrade->setVendorZip($ret);
 
             //下载vendor
-            if ($this->isVendorZip()) {
-                $this->downloadVendorZip();
+            if ($this->systemUpgrade->isVendorZip()) {
+                $this->systemUpgrade->downloadVendorZip();
             }
 
             //预下载
@@ -333,7 +367,7 @@ class UpdateController extends BaseController
                 $save_path = storage_path('app/auto-update/shop') . '/' . $dirpath;
 
                 if (!is_dir($save_path)) {
-                    $filesystem->makeDirectory($save_path, 0755, true);
+                    $this->systemUpgrade->filesystem->makeDirectory($save_path, 0755, true);
                 }
 
                 //新建
@@ -356,7 +390,7 @@ class UpdateController extends BaseController
                 $tmpdir = storage_path('app/public/tmp/' . date('ymd'));
 
                 if (!is_dir($tmpdir)) {
-                    $filesystem->makeDirectory($tmpdir, 0755, true);
+                    $this->systemUpgrade->filesystem->makeDirectory($tmpdir, 0755, true);
                 }
 
                 file_put_contents($tmpdir . "/file.txt", json_encode($upgrade));
@@ -371,7 +405,7 @@ class UpdateController extends BaseController
                 $file_dir = dirname($path);
 
                 if (!is_dir(base_path($file_dir))) {
-                    $filesystem->makeDirectory(base_path($file_dir), 0755, true);
+                    $this->systemUpgrade->filesystem->makeDirectory(base_path($file_dir), 0755, true);
                 }
 
                 $content = file_get_contents(storage_path('app/auto-update/shop') . '/' . $path);
@@ -383,6 +417,10 @@ class UpdateController extends BaseController
                     @unlink(storage_path('app/auto-update/shop') . '/' . $path);
                 }
             }
+
+            //执行迁移文件
+            $this->systemUpgrade->runMigrate();
+
             $status = 2;
             $success = $total;
             $response = response()->json([
@@ -391,28 +429,29 @@ class UpdateController extends BaseController
                 'success' => $success
             ]);
 
-            if ($this->isVendorZip() && $this->validateVendorZip()) {
-                $this->delConfig();
-                $this->renameVendor();
-                $res = $this->unVendorZip();
+            if ($this->systemUpgrade->isVendorZip() && $this->systemUpgrade->validateVendorZip()) {
+                $this->systemUpgrade->delConfig();
+                $this->systemUpgrade->renameVendor();
+                $res = $this->systemUpgrade->unVendorZip();
 
                 if (!$res) {
-                    $this->renameVendor($res);
+                    $this->systemUpgrade->renameVendor($res);
                 }
             }
 
             //清理缓存
-            $this->clearCache($filesystem);
+            $this->systemUpgrade->clearCache($this->systemUpgrade->filesystem);
 
             \Log::debug('----Queue Restarth----');
             app('supervisor')->restart();
+            (new HostManager())->restart();
 
-            if ($this->isVendorZip()) {
-                if ($this->validateVendorZip()) {
-                    $this->delVendor(base_path('vendor_' . date('Y-m-d')));
+            if ($this->systemUpgrade->isVendorZip()) {
+                if ($this->systemUpgrade->validateVendorZip()) {
+                    $this->systemUpgrade->delVendor(base_path('vendor_' . date('Y-m-d')));
                 }
 
-                $this->delVendorZip();
+                $this->systemUpgrade->delVendorZip();
             }
 
             $response->send();
@@ -435,36 +474,28 @@ class UpdateController extends BaseController
         $resultArr = ['msg' => '', 'status' => 0, 'data' => []];
         set_time_limit(0);
 
-        $key = Setting::getNotUniacid('platform_shop.key')['key'];
-        $secret = Setting::getNotUniacid('platform_shop.key')['secret'];
-
-        $update = new AutoUpdate(null, null, 300);
-        $update->setUpdateFile('check_app.json');
+        $this->update->setUpdateFile('check_app.json');
 
         if (is_file(base_path() . '/' . 'config/front-version.php')) {
-            $update->setCurrentVersion(config('front-version'));
+            $this->update->setCurrentVersion(config('front-version'));
         } else {
-            $update->setCurrentVersion(config('version'));
+            $this->update->setCurrentVersion(config('version'));
         }
 
-        $update->setUpdateUrl(config('auto-update.checkUrl')); //Replace with your server update directory
-        \app\common\facades\Setting::get('auth.key');
-        $update->setBasicAuth($key, $secret);
-
         //Check for a new update
-        if ($update->checkUpdate() === false) {
+        if ($this->update->checkUpdate() === false) {
             $resultArr['msg'] = 'Could not check for updates! See log file for details.';
             response()->json($resultArr)->send();
             return;
         }
 
-        if ($update->newVersionAvailable()) {
-            $result = $update->update();
+        if ($this->update->newVersionAvailable()) {
+            $result = $this->update->update();
 
             if ($result === true) {
-                $list = $update->getUpdates();
+                $list = $this->update->getUpdates();
                 if (!empty($list)) {
-                    $this->setSystemVersion($list);
+                    $this->systemUpgrade->setSystemVersion($list);
                     if (!is_dir(base_path('config/shop-foundation'))) {
                         \Artisan::call('config:cache');
                     }
@@ -475,7 +506,7 @@ class UpdateController extends BaseController
             } else {
                 $resultArr['msg'] = '更新失败: ' . $result;
                 if ($result = AutoUpdate::ERROR_SIMULATE) {
-                    $resultArr['data'] = $update->getSimulationResults();
+                    $resultArr['data'] = $this->update->getSimulationResults();
                 }
             }
         } else {
@@ -494,29 +525,23 @@ class UpdateController extends BaseController
         $resultArr = ['msg' => '', 'status' => 0, 'data' => []];
         set_time_limit(0);
 
-        $key = Setting::getNotUniacid('platform_shop.key')['key'];
-        $secret = Setting::getNotUniacid('platform_shop.key')['secret'];
-
-        $update = new AutoUpdate(null, null, 300);
-        $update->setUpdateFile('check_fromework.json');
-        $update->setCurrentVersion(config('backend_version'));
-        $update->setUpdateUrl(config('auto-update.checkUrl')); //Replace with your server update directory
-        $update->setBasicAuth($key, $secret);
+        $this->update->setUpdateFile('check_fromework.json');
+        $this->update->setCurrentVersion(config('backend_version'));
 
         //Check for a new update
-        if ($update->checkUpdate() === false) {
+        if ($this->update->checkUpdate() === false) {
             $resultArr['msg'] = 'Could not check for updates! See log file for details.';
             response()->json($resultArr)->send();
             return;
         }
 
-        if ($update->newVersionAvailable()) {
-            $result = $update->update(2);
+        if ($this->update->newVersionAvailable()) {
+            $result = $this->update->update(2);
 
             if ($result === true) {
-                $list = $update->getUpdates();
+                $list = $this->update->getUpdates();
                 if (!empty($list)) {
-                    $this->setSystemVersion($list, 2);
+                    $this->systemUpgrade->setSystemVersion($list, 2);
                 }
 
                 $resultArr['status'] = 1;
@@ -525,7 +550,7 @@ class UpdateController extends BaseController
             } else {
                 $resultArr['msg'] = '---------后台框架更新失败---------: ' . $result;
                 if ($result = AutoUpdate::ERROR_SIMULATE) {
-                    $resultArr['data'] = $update->getSimulationResults();
+                    $resultArr['data'] = $this->update->getSimulationResults();
                 }
 
                 response()->json($resultArr)->send();
@@ -536,425 +561,8 @@ class UpdateController extends BaseController
         }
     }
 
-    /**
-     * 更新本地前端版本号
-     *
-     * @param $updateList
-     */
-    private function setSystemVersion($updateList, $type = 1)
-    {
-        $version = $this->getFrontVersion($updateList);
-
-        $str = file_get_contents(base_path('config/') . 'front-version.php');
-        $str = preg_replace('/"[\d\.]+"/', '"' . $version . '"', $str);
-
-        switch ($type) {
-            case 1:
-                file_put_contents(base_path('config/') . 'front-version.php', $str);
-                break;
-            case 2:
-                file_put_contents(base_path('config/') . 'backend_version.php', $str);
-                break;
-        }
-    }
-
-    /**
-     * 获取前端版本号
-     *
-     * @param $updateList
-     * @return mixed
-     */
-    private function getFrontVersion($updateList)
-    {
-        rsort($updateList);
-        $version = $updateList[0]['version'];
-
-        return $version;
-    }
-
-    /**
-     * 删除文件
-     *
-     */
-    private function deleteFile()
-    {
-        $filesystem = app(Filesystem::class);
-
-        //file-删除指定文件，file-空 删除目录下所有文件
-        $files = [
-            [
-                'path' => base_path('config'),
-                'ext' => ['php'],
-                'file' => [
-                    base_path('database/migrations/main-menu.php'),
-                    base_path('database/migrations/notice-template.php'),
-                    base_path('database/migrations/notice.php'),
-                    base_path('database/migrations/observer.php'),
-                    base_path('database/migrations/widget.php'),
-                ]
-            ],
-            [
-                'path' => base_path('database/migrations'),
-                'ext' => ['php'],
-                'file' => [
-                    base_path('database/migrations/2018_10_18_150312_add_unique_to_yz_member_income.php')
-                ]
-            ],
-            [
-                'path' => base_path('plugins/store-cashier/migrations'),
-                'ext' => ['php'],
-                'file' => [
-                    base_path('plugins/store-cashier/migrations/2018_11_26_174034_fix_address_store.php'),
-                    base_path('plugins/store-cashier/migrations/2017_08_03_170658_create_ims_yz_cashier_goods_table.php')
-                ]
-            ],
-            [
-                'path' => base_path('plugins/supplier/migrations'),
-                'ext' => ['php'],
-                'file' => [
-                    base_path('plugins/supplier/migrations/2018_11_26_155528_update_ims_yz_order_and_goods.php')
-                ]
-            ],
-            [
-                'path' => base_path(),
-                'file' => [
-                    base_path('manifest.xml'),
-                    base_path('map.json')
-                ]
-            ],
-            [
-                'path' => base_path('vendor/james-heinrich/getid3/demos'),
-            ],
-            [
-                'path' => base_path('storage/app/auto-update/shop/vendor/james-heinrich/getid3/demos'),
-            ]
-        ];
-
-        foreach ($files as $rows) {
-            if (!is_dir($rows['path'])) {
-                continue;
-            }
-
-            $scan_file = $filesystem->files($rows['path']);
-
-            if (!empty($scan_file)) {
-                foreach ($scan_file as $item) {
-                    if (!empty($rows['file'])) {
-                        foreach ($rows['file'] as $val) {
-                            if ($val == $item) {
-                                @unlink($item);
-                            }
-                        }
-                    } else {
-                        $file_info = pathinfo($item);
-
-                        if (!in_array($file_info['extension'], $rows['ext'])) {
-                            @unlink($item);
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    private function dataSecret()
-    {
-        $uniAccount = UniAccount::get();
-
-        foreach ($uniAccount as $u) {
-            \YunShop::app()->uniacid = $u->uniacid;
-            \Setting::$uniqueAccountId = $u->uniacid;
-
-            $pay = \Setting::get('platform_shop.pay');
-
-            if (!isset($pay['secret'])) {
-                foreach ($pay as $key => &$val) {
-                    if (!empty($val)) {
-                        switch ($key) {
-                            case 'alipay_app_id':
-                            case 'rsa_private_key':
-                            case 'rsa_public_key':
-                            case 'alipay_number':
-                            case 'alipay_name':
-                                $val = encrypt($val);
-                                break;
-                        }
-                    }
-                }
-
-                $pay['secret'] = 1;
-                \Setting::set('platform_shop.pay', $pay);
-            }
-        }
-    }
-
     public function pirate()
     {
         return view('update.pirate', [])->render();
-    }
-
-    private function runMigrate()
-    {
-        \Log::debug('----CLI----');
-        $update = new AutoUpdate();
-        $filesystem = app(Filesystem::class);
-
-        $plugins_dir = $update->getDirsByPath('plugins', $filesystem);
-
-        if (!empty($plugins_dir)) {
-            \Artisan::call('update:version', ['version' => $plugins_dir]);
-        }
-    }
-
-    private function frontendUpgrad($key, $secret)
-    {
-        $update = new AutoUpdate(null, null, 300);
-
-        //前端更新文件检测
-        $update->setUpdateFile('check_app.json');
-        $update->setCurrentVersion(config('front-version'));
-        $update->setUpdateUrl(config('auto-update.checkUrl')); //Replace with your server update directory
-        $update->setBasicAuth($key, $secret);
-        $update->checkUpdate();
-
-        if ($update->newVersionAvailable()) {
-            $list = $update->getUpdates();
-        }
-
-        krsort($list);
-
-        return $list;
-    }
-
-
-    private function checkPHPVersion($php_version)
-    {
-        if (version::lt($php_version, PHP_VERSION)) {
-            return true;
-        }
-
-        return false;
-    }
-
-    private function mvenv()
-    {
-        if (config('app.APP_Framework', false) == 'platform' && !empty(env('DB_HOST'))) {
-            $str = '<?php
-$config = array();
-
-$config[\'db\'][\'master\'][\'host\'] = \'' . env('DB_HOST') . '\';
-$config[\'db\'][\'master\'][\'username\'] = \'' . env('DB_USERNAME') . '\';
-$config[\'db\'][\'master\'][\'password\'] = \'' . env('DB_PASSWORD') . '\';
-$config[\'db\'][\'master\'][\'port\'] = \'3306\';
-$config[\'db\'][\'master\'][\'database\'] = \'' . env('DB_DATABASE') . '\';
-$config[\'db\'][\'master\'][\'tablepre\'] = \'' . env('DB_PREFIX') . '\';
-
-$config[\'db\'][\'slave_status\'] = false;
-$config[\'db\'][\'slave\'][\'1\'][\'host\'] = \'\';
-$config[\'db\'][\'slave\'][\'1\'][\'username\'] = \'\';
-$config[\'db\'][\'slave\'][\'1\'][\'password\'] = \'\';
-$config[\'db\'][\'slave\'][\'1\'][\'port\'] = \'\';
-$config[\'db\'][\'slave\'][\'1\'][\'database\'] = \'\';
-$config[\'db\'][\'slave\'][\'1\'][\'tablepre\'] = \'\';
-';
-            app(Filesystem::class)->put(base_path('database/config.php'), $str);
-
-            if (file_exists(base_path('database/config.php'))) {
-                $str = "APP_ENV=production
-APP_KEY=base64:2q7s0Z714xS1L1WNN/8dsB69XDqOb4Qdptgh4X2ZtZU=
-APP_DEBUG=true
-APP_LOG_LEVEL=debug
-
-APP_Framework=platform
-IS_WEB=/admin/shop
-ROOT_PATH=''
-EXTEND_DIR=''";
-                app(Filesystem::class)->put(base_path('.env'), $str);
-            }
-
-        }
-    }
-
-    private function downloadVendorZip()
-    {
-        $url = 'https://downloads.yunzmall.com/' . $this->getSysUpgrade() . '.zip';
-
-        $tmp_path = base_path($this->getSysUpgrade() . '_' . date('Y-m-d') . '.zip');
-
-        if (file_exists($tmp_path)) {
-            return;
-        }
-
-        try {
-            Utils::download($url, $tmp_path);
-            \Log::debug('----vendor zip 下载ok----');
-        } catch (\Exception $e) {
-            \Log::debug('----vendor zip 下载失败----');
-        }
-    }
-
-    private function unVendorZip()
-    {
-        ini_set("memory_limit", "-1"); //不限制内存
-        ini_set('max_execution_time', '0');
-
-        $path = base_path($this->getSysUpgrade() . '_' . date('Y-m-d') . '.zip');
-
-        if (file_exists($path)) {
-            $zip = new \ZipArchive();
-            $res = $zip->open($path);
-
-            if ($res === true) {
-                try {
-                    $zip->extractTo(base_path());
-                } catch (\Exception $e) {
-                    $zip->close();
-                    \Log::debug('----vendor zip 解压失败----');
-                    return false;
-                }
-            } else {
-                $zip->close();
-                \Log::debug('----vendor zip 下载失败----');
-                return false;
-            }
-            $zip->close();
-
-            \Log::debug('----vendor zip 解压ok----');
-            return true;
-        }
-    }
-
-    private function delVendorZip()
-    {
-        $path = base_path($this->getSysUpgrade() . '_' . date('Y-m-d') . '.zip');
-
-        if (file_exists($path)) {
-            @unlink($path);
-            \Log::debug('----vendor zip 删除ok----');
-        }
-    }
-
-    private function delConfig()
-    {
-        $path = base_path('bootstrap/cache/config.php');
-
-        if (file_exists($path)) {
-            @unlink($path);
-            \Log::debug('----config 删除ok----');
-        }
-    }
-
-    private function clearCache(Filesystem $filesystem = null)
-    {
-        \Log::debug('----View Cache Flush----');
-        if (is_null($filesystem)) {
-            $filesystem = app(Filesystem::class);
-        }
-
-        $allfiles = $filesystem->allFiles(storage_path('framework/views'));
-
-        foreach ($allfiles as $rows) {
-            @unlink($rows->getPathname());
-        }
-    }
-
-    private function createCache()
-    {
-        $request = request();
-        \Artisan::call('config:cache');
-        \Cache::flush();
-        app()->instance('request', $request);
-    }
-
-    private function renameVendor($res = true)
-    {
-        \Log::debug('------renameVendor-------', [$res]);
-
-        if ($res) {
-            rename(base_path('vendor'), base_path('vendor_' . date('Y-m-d')));
-        } else {
-            rename(base_path('vendor_' . date('Y-m-d')), base_path('vendor'));
-        }
-    }
-
-    private function delVendor($path)
-    {
-        \Log::debug('------delVendor-------');
-
-        if (is_dir($path)) {
-            $p = scandir($path);
-            if (count($p) > 2) {
-                foreach ($p as $val) {
-                    if ($val != "." && $val != "..") {
-                        if (is_dir($path . '/' . $val)) {
-                            $this->delVendor($path . '/' . $val . '/');
-                        } else {
-                            unlink($path . '/' . $val);
-                        }
-                    }
-                }
-            }
-        }
-
-        return rmdir($path);
-    }
-
-    private function setSysUpgrade($ret)
-    {
-        Cache::put('sys_upgrade', $ret['upgrade'], 60);
-    }
-
-    private function getSysUpgrade()
-    {
-        if (Cache::has('sys_upgrade')) {
-            return Cache::get('sys_upgrade');
-        }
-
-        return 'vendor';
-    }
-
-    private function setVendorZip($ret)
-    {
-        Cache::put('sys_vendor_zip', $ret['is_vendor_zip'], 60);
-    }
-
-    private function isVendorZip()
-    {
-        if (!$this->getComposerStatus()) {
-            return false;
-        }
-
-        if (Cache::has('sys_vendor_zip')) {
-            return Cache::get('sys_vendor_zip');
-        }
-
-        return false;
-    }
-
-    private function setComposerStatus()
-    {
-        Cache::put('sys_composer_status', 1, 60);
-    }
-
-    private function getComposerStatus()
-    {
-        if (Cache::has('sys_composer_status')) {
-            return Cache::get('sys_composer_status');
-        }
-
-        return false;
-    }
-
-    private function validateVendorZip()
-    {
-        $path = base_path($this->getSysUpgrade() . '_' . date('Y-m-d') . '.zip');
-
-        if (file_exists($path) && filesize($path) > 0) {
-            \Log::debug('--------validateVendorZip------');
-            return true;
-        }
-        \Log::debug('--------no validateVendorZip------');
-
-        return false;
     }
 }

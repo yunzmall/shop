@@ -126,7 +126,7 @@
                     <div class="title"><div style="display:flex;align-items:center;"><span style="width: 4px;height: 18px;background-color: #29ba9c;margin-right:15px;display:inline-block;"></span><b>登录列表</b></div></div>
                 </div>
                 <template style="margin-top:-10px;">
-                    <el-table :data="tableData">
+                    <el-table :data="tableData" v-loading="loading" element-loading-text="加载中">
                         <el-table-column prop="created_at" align="center" label="登录时间" ></el-table-column>
 
                         <el-table-column prop="remark" label="账号类型" align="center">
@@ -165,7 +165,7 @@
                 </template>
 
                 <el-row style="background-color:#fff;">
-                    <el-col :span="24" align="center" migra style="padding:15px 5% 15px 0" v-loading="loading">
+                    <el-col :span="24" align="center" migra style="padding:15px 5% 15px 0">
                         <el-pagination background  @current-change="currentChange"
                                        :current-page="current_page"
                                        layout="prev, pager, next"
@@ -277,6 +277,7 @@
                     );
                 },
                 getData(){
+                    this.loading = true
                     this.$http.post('{!! yzWebFullUrl('user.admin-log.index') !!}').then(function (response){
                         if (response.data.result) {
                             let datas = response.data.data.list;

@@ -28,14 +28,14 @@ class AuditRejectedController extends PreController
         if ($result == true) {
              event(new BalanceWithdrawRejectEvent($this->withdrawModel));
 //            BalanceNoticeService::withdrawRejectNotice($this->withdrawModel);
-            return $this->message('驳回成功', yzWebUrl("withdraw.detail.index", ['id' => $this->withdrawModel->id]));
+            return $this->successJson('驳回成功');
         }
-        return $this->message('驳回失败，请刷新重试', yzWebUrl("withdraw.detail.index", ['id' => $this->withdrawModel->id]), 'error');
+        return $this->errorJson('驳回失败，请刷新重试');
     }
 
     public function validatorWithdrawModel($withdrawModel)
     {
-        if (!in_array($withdrawModel->status, [Withdraw::STATUS_INITIAL, Withdraw::STATUS_INVALID])) {
+        if (!in_array($withdrawModel->status, [Withdraw::STATUS_INITIAL, Withdraw::STATUS_AUDIT, Withdraw::STATUS_INVALID])) {
             throw new ShopException('状态错误，不符合驳回规则！');
         }
     }
@@ -73,6 +73,7 @@ class AuditRejectedController extends PreController
     private function updateWithdrawStatus()
     {
         $this->withdrawModel->status = Withdraw::STATUS_REBUT;
+        $this->withdrawModel->reject_reason = request()->reject_reason ? : '';
         $this->withdrawModel->arrival_at = time();
 
         return $this->withdrawModel->save();

@@ -1,9 +1,9 @@
 <?php
 /**
  * Created by PhpStorm.
- * Name: 芸众商城系统
- * Author: 广州市芸众信息科技有限公司
- * Profile: 广州市芸众信息科技有限公司位于国际商贸中心的广州，专注于移动电子商务生态系统打造，拥有芸众社交电商系统、区块链数字资产管理系统、供应链管理系统、电子合同等产品/服务。官网 ：www.yunzmall.com  www.yunzshop.com
+ *
+ *
+ *
  * Date: 2021-04-26
  * Time: 15:59
  */
@@ -21,6 +21,7 @@ class UploadService
     private $originalName;
     private $realPath;
     private $ext;
+    private $mime_type;
     private $fileSize;
     private $diyFileName;
     private $is_remote;
@@ -29,6 +30,7 @@ class UploadService
     private $file_type;
     private $relative_path;
     private $harm_type = array('asp', 'php', 'jsp', 'js', 'css', 'php3', 'php4', 'php5', 'ashx', 'aspx', 'exe', 'cgi');
+
     private $default_audio_types = array(
         'avi', 'asf', 'wmv', 'avs', 'flv', 'mkv', 'mov', '3gp', 'mp4', 'mpg', 'mpeg', 'dat', 'ogm', 'vob', 'rm', 'rmvb', 'ts', 'tp', 'ifo', 'nsv',
     );
@@ -38,6 +40,19 @@ class UploadService
     private $default_image_types = array(
         'jpg', 'bmp', 'eps', 'gif', 'mif', 'miff', 'png', 'tif', 'tiff', 'svg', 'wmf', 'jpe', 'jpeg', 'dib', 'ico', 'tga', 'cut', 'pic'
     );
+    private $default_file_types = array(
+        'pdf', 'xlsx', 'xls', 'doc', 'docx', 'txt', 'ppt', 'pptx', 'xml', 'wps', 'rtf', 'md', 'rar', 'zip', 'et', 'json',
+    );
+    private $default_file_mime_type = [
+        'audio/aac', 'video/x-msvideo', 'image/bmp', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'image/gif',
+        'image/vnd.microsoft.icon', 'image/jpeg', 'audio/midi', 'audio/x-midi', 'audio/mpeg', 'video/mpeg', 'image/png', 'application/pdf', 'application/vnd.ms-powerpoint',
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation', 'application/x-rar-compressed', 'application/rtf', 'image/svg+xml', 'image/tiff',
+        'text/plain', 'audio/wav', 'image/webp', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/xml', 'text/xml',
+        'video/3gpp', 'audio/3gpp', 'video/x-ms-asf', 'video/x-ms-wmv', 'video/x-flv', 'video/quicktime', 'video/mp4', 'audio/x-wav', 'audio/x-m4a', 'audio/mid', 'audio/ogg',
+        'audio/x-realaudio', 'application/postscript', 'application/x-msmetafile', 'image/x-icon', 'application/vnd.ms-works', 'application/rar', 'application/zip', 'application/x-rar',
+        'application/octet-stream', 'application/x-font-gdos'
+    ];
+
     public function __construct()
     {
 
@@ -50,7 +65,6 @@ class UploadService
             $this->dir = $dir;
         }
         $this->file_type = $file_type;
-        $this->checkDiskExist();
         $this->diyFileName = $diy_file_name;
         $this->is_remote = $is_remote;
         $this->setting = $this->getSetting();
@@ -59,7 +73,7 @@ class UploadService
         $this->handleFile();
         $this->localUpload();
         $this->rotatePic();
-        if ($this->setting['remote']['type'] != 0) {
+        if ($this->setting['remote']['type'] != 0 && $is_remote) {
             $this->remoteUpload();
         }
         $url = $this->getUrl();
@@ -70,15 +84,6 @@ class UploadService
             'file_name' => $this->getFileName(),
         ];
     }
-    private function checkDiskExist()
-    {
-        $disks = config('filesystems.disks');
-        $disk_keys = array_keys($disks);
-        if ($this->dir && !in_array($this->dir, $disk_keys)) {
-            throw new ShopException('不存在存储磁盘设置');
-        }
-        return true;
-    }
     private function getDirByType($upload_type)
     {
         switch ($upload_type) {
@@ -87,6 +92,9 @@ class UploadService
                 break;
             case 'audio' :
                 $dir = 'audios';
+                break;
+            case 'file' :
+                $dir = 'files';
                 break;
             default :
                 $dir = 'image';
@@ -157,7 +165,7 @@ class UploadService
             return change_to_local_url($this->getDiskUrl());
         }
     }
-    public function getSetting()
+    public static function getSetting()
     {
         if (config('app.framework') == 'platform') {
             $global_setting = SystemSetting::settingLoad('global', 'system_global');
@@ -199,7 +207,16 @@ class UploadService
         if ($this->file_type == 'image') {
             $this->ext = strtolower($file->getClientOriginalExtension()) ?: 'png';
         }
+        if (!$this->ext && !empty($file->getMimeType())) {//兼容上传文件为前端转过格式的文件，获取不了后缀名情况
+            $type = explode('/',$file->getMimeType());
+            !empty($type[1]) || $type[1] = '';
+            switch ($type[1]) {
+                case 'x-wav':
+                    $this->ext = 'wav';break;
+            }
+        }
         $this->fileSize = $file->getClientSize(); //文件大小
+        $this->mime_type = $file->getMimeType();
     }
     private function handelMimeType($file)
     {
@@ -216,10 +233,13 @@ class UploadService
     }
     private function checkFile()
     {
+        if (!in_array($this->mime_type, $this->default_file_mime_type)) {
+            throw new ShopException('无法识别的文件mime类型：'.$this->mime_type);
+        }
         if (in_array($this->ext, $this->harm_type)) {
             throw new ShopException('请上传正确的文件格式');
         }
-        if (!in_array($this->ext, array_merge($this->default_image_types, $this->default_video_types, $this->default_audio_types))) {
+        if (!in_array($this->ext, array_merge($this->default_image_types, $this->default_video_types, $this->default_audio_types, $this->default_file_types))) {
             throw new ShopException('非规定类型的文件默认格式.');
         }
         if ($this->file_type == 'image' && !in_array($this->ext, $this->setting['upload']['image_ext'])) {
@@ -327,10 +347,6 @@ class UploadService
     }
     private function mkDir($dir)
     {
-        if (!is_dir($dir)) {
-            $this->mkDir(dirname($dir));
-            mkdir($dir);
-        }
-        return is_dir($dir);
+        return is_dir($dir) or self::mkDir(dirname($dir)) and mkdir($dir, 0777);
     }
 }

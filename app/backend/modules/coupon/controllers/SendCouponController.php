@@ -132,7 +132,11 @@ class SendCouponController extends BaseController
                 default:
                     $memberIds = '';
             }
-
+            foreach ($memberIds as $uid) {
+                if (!is_numeric($uid)) {
+                    return $this->errorJson('会员id输入格式错误，请用“英文逗号“隔开会员ID');
+                }
+            }
             //获取发放的数量
             $sendTotal = request()->send_total;
             $getTotal = MemberCoupon::uniacid()->where("coupon_id", $couponModel->id)->count();

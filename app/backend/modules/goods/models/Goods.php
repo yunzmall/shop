@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/2/22
  * Time: 下午18:16
  */
@@ -10,11 +10,16 @@ namespace app\backend\modules\goods\models;
 use app\backend\modules\goods\observers\GoodsObserver;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
+use Yunshop\Producer\models\ProducerGoods;
 
 class Goods extends \app\common\models\Goods
 {
     public $widgets = [];
 
+    public function hasOneProducerGoods()
+    {
+        return $this->hasOne(ProducerGoods::class, 'goods_id', 'id');
+    }
 
     //todo 兼容后端模拟支付时，调用
     public function hasOneSale()
@@ -34,9 +39,9 @@ class Goods extends \app\common\models\Goods
         //注册观察者
         static::observe(new GoodsObserver);
 
-        static::addGlobalScope(function (Builder $builder) {
-            $builder->isPlugin();
-        });
+//        static::addGlobalScope(function (Builder $builder) {
+//            $builder->isPlugin();
+//        });
     }
 
     public function scopeGoods($query){
@@ -62,5 +67,10 @@ class Goods extends \app\common\models\Goods
                         ->first();
         }
         return $res;
+    }
+
+    public function getThumbAttribute($value)
+    {
+        return yz_tomedia($value);
     }
 }

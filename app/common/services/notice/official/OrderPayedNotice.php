@@ -20,10 +20,12 @@ class OrderPayedNotice extends BaseMessageBody
     use OrderNoticeData,OfficialNoticeTemplate,BackstageNoticeMember;
 
     public $orderModel;
+    protected $orderStatus;//订单状态
 
-    public function __construct($order)
+    public function __construct($order, $status)
     {
         $this->orderModel = $order;
+        $this->orderStatus = $status;
     }
 
     public function organizeData()
@@ -33,7 +35,7 @@ class OrderPayedNotice extends BaseMessageBody
             ['name' => '粉丝昵称', 'value' => $this->member->nickname],
             ['name' => '订单号', 'value' => $this->order->order_sn],
             ['name' => '下单时间', 'value' => $this->timeData['create_time']],
-            ['name' => '支付时间', 'value' => $this->timeData['pay_time']],
+            ['name' => '支付时间', 'value' => $this->timeData['pay_time'] ?: date('Y-m-d H:i:s')],
             ['name' => '支付方式', 'value' => $this->order->pay_type_name],
             ['name' => '订单金额', 'value' => $this->order['price']],
             ['name' => '运费', 'value' => $this->order['dispatch_price']],
@@ -52,6 +54,14 @@ class OrderPayedNotice extends BaseMessageBody
         $this->getBackMember();
         $this->organizeData();
 
+        // 卖家支付消息验证
+        if(
+            (empty(\Setting::get('shop.notice')['notice_enable']['created']) && $this->orderStatus == 1) ||
+            (empty(\Setting::get('shop.notice')['notice_enable']['paid']) && $this->orderStatus == 2) ||
+            (empty(\Setting::get('shop.notice')['notice_enable']['received']) && $this->orderStatus == 3)
+        ){
+            return;
+        }
         \Log::debug("新版公众号消息-卖家支付1",$this->template_id);
         \Log::debug("新版公众号消息-卖家支付2",$this->openids);
         \Log::debug("新版公众号消息-卖家支付3",$this->data);

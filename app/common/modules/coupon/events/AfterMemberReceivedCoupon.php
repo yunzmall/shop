@@ -23,14 +23,21 @@ class AfterMemberReceivedCoupon extends Event
      * @var MemberCoupon
      */
     private $memberCoupon;
+    private $couponTotal;
 
-    public function __construct(MemberCoupon $memberCoupon)
+    public function __construct(MemberCoupon $memberCoupon,$couponTotal=1)
     {
         $this->memberCoupon = $memberCoupon;
+        $this->couponTotal = $couponTotal;
     }
 
     public function memberCoupon()
     {
         return $this->memberCoupon;
+    }
+
+    public function couponTotal()
+    {
+        return $this->couponTotal;
     }
 }

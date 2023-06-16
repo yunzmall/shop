@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 02/03/2017
  * Time: 18:19
  */
@@ -12,6 +12,7 @@ namespace app\common\models\user;
 use app\backend\modules\user\observers\UserObserver;
 use app\common\helpers\Cache;
 use app\common\models\BaseModel;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Validation\Rule;
 
 class User extends BaseModel
@@ -164,9 +165,15 @@ class User extends BaseModel
      */
     public function scopeRecords($query)
     {
-        return $query->whereHas('uniAccount', function ($query) {
-            return $query->uniacid()->where('role', '!=', 'clerk');
-        })
+//        return $query->whereHas('uniAccount', function ($query) {
+//            return $query->uniacid()->where('role', '!=', 'clerk');
+//        })
+
+        // 平台商城的系统权限页面之前会显示管理员，现改为只显示操作员。全局搜没发现此方法在其他地方有用到，若要更改，请在Backend->modules->user->UserController->Index添加判断
+//        $role_list = UniAccountUser::uniacid()->where('role', '!=', 'clerk')->pluck('uid')->toArray() ? : [-1];
+        $role_list = UniAccountUser::uniacid()->where('role','operator')->pluck('uid')->toArray() ? : [-1];
+
+        return $query->whereIn('uid',$role_list)
             ->with(['userProfile' => function ($profile) {
                 return $profile->select('uid', 'realname', 'mobile');
             }])

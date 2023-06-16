@@ -74,7 +74,7 @@ class Attachment extends BaseModel
      * @param $remote
      * @return array
      */
-    public static function saveRemote($alioss, $cos, $remote)
+    public static function saveRemote($alioss, $cos, $obs, $remote)
     {
         switch($cos['local']) {
             case '南京':
@@ -108,7 +108,6 @@ class Attachment extends BaseModel
                 $cos['local'] = 'ap-hongkong';
                 break;
         }
-
         $remotes = array(
             'type' => intval(request()->type),
             'alioss' => array(
@@ -125,9 +124,15 @@ class Attachment extends BaseModel
                 'bucket' => trim($cos['bucket']),
                 'local' => trim($cos['local']),
                 'url' => trim($cos['url'])
+            ),
+            'obs' => array(
+                'key' => trim($obs['key']),
+                'secret' => !(strpos(trim($obs['secret']), '*') === FALSE) ? $remote['obs']['secret'] : trim($obs['secret']),
+                'endpoint' => trim($obs['endpoint']),
+                'bucket' => trim($obs['bucket']),
+                'url' => trim($obs['url'])
             )
         );
-        
         if ($remotes['type'] == '2') {
             $buckets = attachment_alioss_buctkets($remotes['alioss']['key'], $remotes['alioss']['secret']);
             if (is_error($buckets)) {
@@ -166,8 +171,17 @@ class Attachment extends BaseModel
             if (is_error($auth)) {
                 return ['msg' => $auth['message']];
             }
+        } elseif ($remotes['type'] == '5') {
+            $remotes['obs']['bucket'] = trim($remotes['obs']['bucket']);
+            if (!$remotes['obs']['url']) {
+                $remotes['obs']['url'] = sprintf('https://%s.%s', $remotes['obs']['bucket'], $remotes['obs']['endpoint']);
+            }
+            $remotes['obs']['url'] = rtrim($remotes['obs']['url'], '/');
+            $auth = attachment_obs_auth($remotes['obs']['key'], $remotes['obs']['secret'], $remotes['obs']['endpoint'], $remotes['obs']['bucket']);
+            if (is_error($auth)) {
+                return ['msg' => $auth['message']];
+            }
         }
-
         return SystemSetting::settingSave($remotes, 'remote', 'system_remote') ? ['result' => 1] : ['msg' => '失败'];
     }
 }

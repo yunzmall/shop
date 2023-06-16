@@ -4,7 +4,7 @@
  * Date:    2017/9/25 下午2:15
  * Email:   livsyitian@163.com
  * QQ:      995265288
- * User:    芸众商城 www.yunzshop.com
+ * User:
  ****************************************************************/
 
 namespace app\frontend\modules\coupon\services;
@@ -238,6 +238,9 @@ class CouponSendService
                 break;
             case '9':
                 $remark = '直播主播奖励: 会员【ID:' . $this->memberId . '】获得优惠券 1张【优惠券ID:' . $this->couponId . '】';
+                break;
+            case '10':
+                $remark = '会员合并转入: 会员【ID:' . $this->memberId . '】获得优惠券 1张【优惠券ID:' . $this->couponId . '】';
                 break;
             default:
                 $remark = '未知优惠券变动：会员【ID:' . $this->memberId . '】优惠券变动 1张【优惠券ID:' . $this->couponId . '】';

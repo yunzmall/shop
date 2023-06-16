@@ -17,10 +17,25 @@ use app\common\services\Utils;
  */
 class GoodsVideo extends \app\common\models\goods\GoodsVideo
 {
-//     public static function relationValidator($goodsId, $data, $operate)
-//     {
-//         return true;
-//     }
+
+    public static function store($goods_id, $data)
+    {
+        $model = static::where('goods_id', $goods_id)->first();
+        if (is_null($model)) {
+            $model = new static;
+        }
+
+        $attr['goods_id'] = $goods_id;
+        //商品视频地址
+        $attr['goods_video'] = $data['goods_video']?:'';
+
+        $attr['video_image'] = $data['video_image']?:'';
+
+        $model->setRawAttributes($attr);
+
+        return $model->save();
+
+    }
 
     public static function relationSave($goodsId, $data, $operate = '')
     {

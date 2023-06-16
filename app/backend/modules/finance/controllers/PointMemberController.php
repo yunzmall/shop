@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/4/11
  * Time: 上午11:44
  */
@@ -9,6 +9,7 @@
 namespace app\backend\modules\finance\controllers;
 
 
+use app\backend\modules\finance\services\PointService;
 use app\backend\modules\member\models\MemberGroup;
 use app\backend\modules\member\models\MemberLevel;
 use app\common\components\BaseController;
@@ -25,27 +26,40 @@ class PointMemberController extends BaseController
      */
     private $recordsModels;
 
+    private $shopSet;
+
     public function preAction()
     {
         parent::preAction();
-        $this->recordsModels = $this->recordsModels();
+        $this->recordsModels = $this->recordsModels()->paginate()->toArray();
+        $this->shopSet = Setting::get('shop.member');
+        $this->shopSet['level_name'] = $this->shopSet['level_name'] ?: '普通会员';
+        $this->shopSet['group_name'] = '无分组';
+        foreach ($this->recordsModels['data'] as &$item) {
+            $item['member']['avatar'] =  $item['member']['avatar'] ? tomedia($item['member']['avatar'] ) : tomedia($this->shopSet['headimg']);
+            $item['member']['nickname'] = $item['member']['nickname'] ?: '未更新';
+        }
     }
 
     public function index()
     {
-        return view('finance.point.point_member', $this->resultData());
+        if (request()->ajax()) {
+            return $this->successJson('ok', $this->resultData());
+        }
+        return view('finance.point.point_member');
     }
 
     private function resultData()
     {
         $data = [
-            'search'        => $this->searchParams(),
-            'memberList'    => $this->recordsModels,
-            'page'         => $this->page(),
-            'amount'        => Member::uniacid()->withoutDeleted()->sum('credit1'),
+            'search' => $this->searchParams(),
+            'memberList' => $this->recordsModels,
+            'amount' => $this->recordsModels()->sum('credit1'),
             'transfer_love' => $this->isShow(),
-            'memberGroup'   => MemberGroup::getMemberGroupList(),
-            'memberLevel'   => MemberLevel::getMemberLevelList()
+            'memberGroup' => MemberGroup::getMemberGroupList(),
+            'memberLevel' => MemberLevel::getMemberLevelList(),
+            'tab_list' => PointService::getVueTags(),
+            'shopSet' => $this->shopSet
         ];
         return $data;
     }
@@ -66,9 +80,9 @@ class PointMemberController extends BaseController
     private function recordsModels()
     {
         if ($search = \YunShop::request()) {
-            return Member::searchMembers($search, 'credit1')->paginate();
+            return Member::searchMembers($search, 'credit1');
         }
-        return Member::getMembers()->withoutDeleted()->paginate();
+        return Member::getMembers()->withoutDeleted();
     }
 
     /**

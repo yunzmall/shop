@@ -17,7 +17,7 @@ class AddTopShowToOptionsTable extends Migration
             Schema::table('yz_options',
                 function (Blueprint $table) {
                     if (!Schema::hasColumn('yz_options', 'top_show')) {
-                        $table->boolean('top_show')->default(0);
+                        $table->boolean('top_show')->default(0)->comment('是否置顶1是0否');
                     }
                 });
         }

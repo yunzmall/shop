@@ -17,7 +17,7 @@ use app\common\modules\express\expressCompany\KdnLogistics;
 class Logistics
 {
 
-    public function getTraces($comCode, $expressSn, $orderSn = '',$order_id = '')
+    public function getTraces($comCode, $expressSn, $orderSn = '',$phoneLastFour = '')
     {
         $set = LogisticsSet::uniacid()->first();//查询物流配置
         if (!$set){
@@ -32,8 +32,10 @@ class Logistics
                 $result = new YqLogistics($data);
                 break;
         }
+        //todo trim无法处理中文的半角圆角等空格只能用正则
+        $expressSn = preg_replace("/(\s|\ \;|　|\xc2\xa0)/","",$expressSn);
 
-        $result =  $result->getTraces($comCode, $expressSn, $orderSn,$order_id);
+        $result =  $result->getTraces($comCode, $expressSn, $orderSn,$phoneLastFour);
         return $result;
     }
 

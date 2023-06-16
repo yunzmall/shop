@@ -1,12 +1,13 @@
 <?php
 /**
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2018/3/30
  */
 
 namespace app\common\models\goods;
 
 use app\common\models\BaseModel;
+use app\common\models\SearchFiltering;
 
 class GoodsFiltering extends BaseModel
 {
@@ -20,5 +21,10 @@ class GoodsFiltering extends BaseModel
     public function scopeOfGoodsId($query, $goodsId)
     {
         return $query->where('goods_id', $goodsId);
+    }
+
+    public function hasOneSearchFilter()
+    {
+        return $this->hasOne(SearchFiltering::class,'id','filtering_id');
     }
 }

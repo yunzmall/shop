@@ -22,7 +22,7 @@ trait BackendButtonTrait
             /**
              * @var OrderOperationInterface $operation
              */
-            $operation = new $operationName($this->getOrder(),$this);
+            $operation = new $operationName($this->getOrder(), $this);
             if (!$operation->enable()) {
                 return null;
             }
@@ -38,6 +38,29 @@ trait BackendButtonTrait
         return array_values($operations) ?: [];
     }
 
+    //加载插件按钮到商店订单列表
+    protected function getPluginOperations($status, $arr = [])
+    {
+        $plugin_arr = empty(\app\common\modules\shop\ShopConfig::current()->get('backend_order_list_plugin_button.' . $status)) ? [] : \app\common\modules\shop\ShopConfig::current()->get('backend_order_list_plugin_button.' . $status);
+        $arr = array_merge($arr, $plugin_arr);
+        if ($plugin_arr) {
+            foreach ($plugin_arr as $v) {
+                $class = new $v($this->getOrder(), $this);
+                if (!method_exists($class, 'replace')) {
+                    continue;
+                }
+                if (!$replace_class = $class->replace()) {
+                    continue;
+                }
+                $key = array_search($replace_class, $arr);
+                if ($key !== false) {
+                    unset($arr[$key]);
+                }
+            }
+        }
+        return array_values($arr);
+    }
+
     //根据订单状态获取当前操作按钮
     protected function getCurrentOperations()
     {
@@ -49,40 +72,40 @@ trait BackendButtonTrait
     //0 待支付
     protected function waitPayOperations()
     {
-        return [
+        return $this->getPluginOperations(0, [
             \app\backend\modules\order\operations\Pay::class,
-        ];
+        ]);
     }
 
     //1 待发货
     protected function waitSendOperations()
     {
-        return [
+        return $this->getPluginOperations(1, [
             \app\backend\modules\order\operations\Send::class,
             \app\backend\modules\order\operations\SeparateSend::class,
-        ];
+        ]);
     }
 
     //2 待收货
     protected function waitReceiveOperations()
     {
-        return [
+        return $this->getPluginOperations(2, [
             \app\backend\modules\order\operations\SeparateSend::class,
             \app\backend\modules\order\operations\Receive::class,
             \app\backend\modules\order\operations\CancelSend::class,
-        ];
+        ]);
     }
 
     //3 已完成
     protected function completeOperations()
     {
-        return [];
+        return $this->getPluginOperations(3, []);
     }
 
     // -1 已关闭
     protected function closeOperations()
     {
-        return [];
+        return $this->getPluginOperations(-1, []);
     }
 
     /**

@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2021/2/2
  * Time: 14:09
  */
@@ -9,12 +9,17 @@ namespace app\common\modules\sms;
 
 use app\common\services\Session;
 use app\frontend\modules\member\models\smsSendLimitModel;
+use app\common\helpers\Cache;
 
 abstract class Sms
 {
     public $sms;
 
-    private $smsDeadLine = 5;
+    private $smsDeadLine = 1000;//说改成不限制，（保留限制功能）
+
+    public $template; //发送模板
+
+    public $key = '';
 
     public function __construct($sms)
     {
@@ -22,27 +27,111 @@ abstract class Sms
     }
 
     //通用(注册）
-    abstract function sendCode($mobile, $state);
+    public function sendCode($mobile, $state = '86')
+    {
+        $this->template = 'register';
+        if ($this->smsSendLimit($mobile)) {
+            $res = $this->_sendCode($mobile, $state);
+            if ($res === true) {
+                $this->updateSmsSendTotal($mobile);
+                return $this->show_json(1);
+            } else {
+                return $this->show_json(0, $res);
+            }
+        } else {
+            return $this->show_json(0,  '发送短信数量达到今日上限');
+        }
+    }
 
     //登录
-    abstract function sendLog($mobile, $state);
+    public function sendLog($mobile, $state = '86')
+    {
+        $this->template = 'login';
+        $res = $this->_sendCode($mobile, $state);
+        if ( $res === true) {
+            return $this->show_json(1);
+        } else {
+            return $this->show_json(0,  $res);
+        }
+    }
 
     //找回密码
-    abstract function sendPwd($mobile ,$state);
+    public function sendPwd($mobile ,$state)
+    {
+        $this->template = 'password';
+        $res = $this->_sendCode($mobile, $state);
+        if ( $res === true) {
+            return $this->show_json(1);
+        } else {
+            return $this->show_json(0,  $res);
+        }
+    }
 
     //余额定时提醒
-    abstract function sendBalance($mobile, $ext);
+    public function sendBalance($mobile, $ext)
+    {
+        $this->template = 'balance';
+        $res = $this->_sendCode($mobile, '86',$ext);
+        if ( $res === true) {
+            return $this->show_json(1);
+        } else {
+            return $this->show_json(0,  $res);
+        }
+    }
 
     //商品发货提醒
-    abstract function sendGoods($mobile, $ext);
+    public function sendGoods($mobile, $ext)
+    {
+        $this->template = 'goods';
+        $res = $this->_sendCode($mobile, '86',$ext);
+        if ( $res === true) {
+            return $this->show_json(1);
+        } else {
+            return $this->show_json(0,  $res);
+        }
+    }
 
     //会员充值提醒
-    abstract function sendMemberRecharge($mobile, $ext);
+    public function sendMemberRecharge($mobile, $ext)
+    {
+        $this->template = 'member_recharge';
+        $res = $this->_sendCode($mobile, '86',$ext);
+        if ( $res === true) {
+            return $this->show_json(1);
+        } else {
+            return $this->show_json(0,  $res);
+        }
+    }
+
+    public function sendWithdrawSet($mobile, $state = '86',$key='')
+    {
+        $this->key = $key;
+        $this->template = 'withdraw_set';
+        if ($this->smsSendLimit($mobile)) {
+            $res = $this->_sendCode($mobile, $state);
+            if ( $res === true) {
+                $this->updateSmsSendTotal($mobile);
+                return $this->show_json(1);
+            } else {
+                return $this->show_json(0,  $res);
+            }
+        } else {
+            return $this->show_json(0,  '发送短信数量达到今日上限');
+        }
+    }
+
+    /**
+     * @param $mobile
+     * @param $state
+     * @param null $ext
+     * @return string|bool
+     */
+    abstract function _sendCode($mobile, $state, $ext = null);
 
     /**
      * 更新发送短信条数
-     *
      * 每天最多5条
+     * @param $mobile
      */
     protected function updateSmsSendTotal($mobile)
     {
@@ -93,7 +182,9 @@ abstract class Sms
         Session::set('code'.$key, $code);
         Session::set('code_mobile'.$key, $mobile);
 
-        \Cache::put('app_login_'.$mobile, $code, 1);
+        Cache::put('app_login_'.$mobile, $code, 5);
+		Cache::forget('code_num_'.$mobile);
+
         return $code;
     }
 

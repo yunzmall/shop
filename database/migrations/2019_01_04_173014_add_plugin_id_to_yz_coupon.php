@@ -16,7 +16,7 @@ class AddPluginIdToYzCoupon extends Migration
         if (Schema::hasTable('yz_coupon')) {
             if (!Schema::hasColumn('yz_coupon', 'plugin_id')) {
                 Schema::table('yz_coupon', function (Blueprint $table) {
-                    $table->integer('plugin_id')->default(0);
+                    $table->integer('plugin_id')->default(0)->comment('插件id');
                 });
             }
         }

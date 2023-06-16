@@ -23,6 +23,7 @@ class CreateYzOrderExpeditingDelivery extends Migration
                 $table->integer('updated_at')->nullable()->comment('修改时间');
                 $table->integer('deleted_at')->nullable()->comment('删除时间');
             });
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE " . app('db')->getTablePrefix() . "yz_order_expediting_delivery comment '催发货表'");//表注释
         }
     }
 

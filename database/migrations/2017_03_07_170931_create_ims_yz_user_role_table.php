@@ -14,10 +14,12 @@ class CreateImsYzUserRoleTable extends Migration {
 	{
         if (!Schema::hasTable('yz_user_role')) {
             Schema::create('yz_user_role', function (Blueprint $table) {
-                $table->integer('user_id');
-                $table->integer('role_id');
+                $table->integer('user_id')->comment('操作员id');
+                $table->integer('role_id')->comment('角色id');
                 $table->primary(['user_id', 'role_id']);
             });
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE " . app('db')->getTablePrefix()
+                . "yz_user_role comment '商城--角色与操作员中间表'");//表注释
         }
 	}
 

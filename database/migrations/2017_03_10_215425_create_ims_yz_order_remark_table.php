@@ -21,6 +21,8 @@ class CreateImsYzOrderRemarkTable extends Migration {
                 $table->integer('created_at')->default(0);
                 $table->integer('deleted_at')->default(0);
             });
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE `".app('db')->getTablePrefix()."yz_order_remark` comment'订单--商家注释'");//表注释
+
         }
 	}
 

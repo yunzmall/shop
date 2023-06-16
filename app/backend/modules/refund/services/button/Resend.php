@@ -15,7 +15,7 @@ class Resend extends RefundButtonBase
 {
     public function getApi()
     {
-        return 'refund.operation.resend';
+        return 'refund.vue-operation.resend';
     }
 
     public function getName()
@@ -32,7 +32,8 @@ class Resend extends RefundButtonBase
 
     public function enable()
     {
-        return  RefundApply::REJECT < $this->refund->status &&  $this->refund->status < RefundApply::WAIT_RESEND_GOODS;
+        return  (RefundApply::WAIT_CHECK < $this->refund->status &&  $this->refund->status < RefundApply::WAIT_RESEND_GOODS) &&
+            $this->refund->status != RefundApply::WAIT_RESEND_GOODS;
     }
 
     public function getType()

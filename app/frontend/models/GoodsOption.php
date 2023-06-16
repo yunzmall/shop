@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/4/14
  * Time: 下午10:57
  */
@@ -32,6 +32,8 @@ class GoodsOption extends \app\common\models\GoodsOption
     public $vipDiscountLog;
 
     private $priceManager;
+
+    //public $appends = ['vip_price'];
 
     public function getPriceManager()
     {

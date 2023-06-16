@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:  
  * Date: 2017/3/11
  * Time: 上午10:00
  */
@@ -12,6 +12,7 @@ use app\common\events\order\AfterOrderCanceledEvent;
 use app\common\events\order\AfterOrderCloseEvent;
 use app\common\events\order\AfterOrderCreatedEvent;
 use app\common\events\order\AfterOrderReceivedEvent;
+use app\common\events\order\AfterOrderRefundSuccessEvent;
 use app\common\facades\Setting;
 use app\common\models\coupon\OrderGoodsCoupon;
 use app\common\services\finance\PointService;
@@ -81,10 +82,24 @@ class CouponDiscount
         $this->event = $event;
         $orderModel = $this->event->getOrderModel();
         $orderGoods = $orderModel->hasManyOrderGoods;//订单商品
-        foreach ($orderGoods as $good)
-        {
+        foreach ($orderGoods as $good) {
             OrderGoodsCoupon::uniacid()
                 ->where(['order_goods_id'=>$good->id,'status'=>OrderGoodsCoupon::WAIT_STATUS])
+                ->update(['status'=>OrderGoodsCoupon::CLOSE_STATUS]);
+        }
+    }
+
+    //退款成功监听
+    public function onOrderRefund(AfterOrderRefundSuccessEvent $event)
+    {
+        $refund = $event->getModel();
+
+        $order_goods_ids = $refund->refundOrderGoods->pluck('order_goods_id')->all();
+
+        if ($order_goods_ids) {
+            OrderGoodsCoupon::uniacid()
+                ->whereIn('order_goods_id', $order_goods_ids)
+                ->where('status', OrderGoodsCoupon::WAIT_STATUS)
                 ->update(['status'=>OrderGoodsCoupon::CLOSE_STATUS]);
         }
     }
@@ -96,13 +111,18 @@ class CouponDiscount
     public function subscribe($events)
     {
         $events->listen(
+            AfterOrderRefundSuccessEvent::class,
+            CouponDiscount::class . '@onOrderRefund'
+        );
+
+        $events->listen(
             AfterOrderCreatedEvent::class,
             CouponDiscount::class . '@onOrderCreated'
         );
-        $events->listen(
-            AfterOrderReceivedEvent::class,
-            CouponDiscount::class . '@onOrderReceived'
-        );
+//        $events->listen(
+//            AfterOrderReceivedEvent::class,
+//            CouponDiscount::class . '@onOrderReceived'
+//        );
         $events->listen(
             AfterOrderReceivedEvent::class,
             CouponDiscount::class . '@deductionAwardPoint'

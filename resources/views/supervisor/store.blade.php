@@ -69,6 +69,8 @@
                         <el-form-item label="服务器类型" prop="service_type">
                             <el-radio v-model="form.service_type" :label="0">单服</el-radio>
                             <el-radio v-model="form.service_type" :label="1">集群</el-radio>
+                            <el-radio v-model="form.service_type" :label="2">kubernetes</el-radio>
+
                         </el-form-item>
                         <el-form-item v-if="!form.service_type" label="ip 地址">
                             <el-form-item prop="address.ip">

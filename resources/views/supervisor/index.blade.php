@@ -58,6 +58,13 @@
         margin-top:20px;
         float:right;
     }
+    .system-situation .el-button .el-icon-s-opportunity {
+    font-size: 30px;
+    }
+    .row-sty p{
+        margin: 0;
+    }
+
 </style>
 @section('content')
     <div class="w1200 m0a">
@@ -65,20 +72,70 @@
 
             @include('layouts.newTabs')
             <div id="app">
+                <el-card class="box-card">
+                    <div class="vue-head system-situation">
+                        <div class="vue-main-title">
+                            <div class="vue-main-title-left"></div>
+                            <div class="vue-main-title-content"><span
+                                        style="width: 4px;height: 10px;background-color: #29ba9c;margin-right:15px;display:inline-block;">
+                                    </span><b>系统运行情况</b></div>
+                        </div>
+                        <div class="system-situation_tips">
+                            如果为红色图标，表示系统运营异常，10分钟左右刷新未恢复正常的，请第一时间联系客服处理！
+                        </div>
+                        <el-row style="margin-top: 25px" type="flex" justify="center" :gutter="20" align="center" class="row-sty">
+                            <el-col :span="5">
+                                <div class="" style="text-align: center;">
+                                    <p v-for="(item,index) in queue_color" :key="index">
+                                        <el-button v-if="queue_hearteat.daemon.queue_status == item.color" :type="item.value" :title="queue_hearteat.daemon.title" icon="el-icon-s-opportunity" circle></el-button>
+                                    </p>
+                                    <p style="margin-top:10px;"> 守护进程 <span v-if="queue_hearteat.daemon.queue_status != 'green'" style="color: red;">${queue_hearteat.daemon.msg}</span></p>
+                                </div>
+                            </el-col>
+                            <el-col :span="5">
+                                <div class="" style="text-align: center;">
+                                    <p v-for="(item,index) in queue_color" :key="index">
+                                        <el-button v-if="queue_hearteat.job.queue_status == item.color" :type="item.value" :title="item.label" icon="el-icon-s-opportunity" circle></el-button>
+                                    </p>
+                                    <p style="margin-top:10px;">队列 <span v-if="queue_hearteat.job.queue_status != 'green'" style="color: red">${queue_hearteat.job.msg}</span> <span v-if="queue_hearteat.job.is_repeat > 1" style="color: red">重复执行</span> </p>
+                                </div>
+                            </el-col>
+                            <el-col :span="5">
+                                <div class="" style="text-align: center;">
+                                    <p v-for="(item,index) in queue_color" :key="index">
+                                        <el-button v-if="queue_hearteat.cron.queue_status == item.color" :type="item.value" :title="item.label" icon="el-icon-s-opportunity" circle></el-button>
+                                    </p>
+                                    <p style="margin-top:10px;"> 定时任务 <span v-if="queue_hearteat.cron.queue_status != 'green'" style="color: red">${queue_hearteat.cron.msg}</span> <span v-if="queue_hearteat.cron.is_repeat > 1" style="color: red">重复执行</span></p>
+                                </div>
+                            </el-col>
+                            <el-col :span="5">
+                                <div style="text-align: center;">
+                                    <p v-for="(item,index) in queue_color" :key="index">
+                                        <el-button v-if="queue_hearteat.redis.queue_status == item.color" :type="item.value" :title="item.label" icon="el-icon-s-opportunity" circle></el-button>
+                                    </p>
+                                    <p style="margin-top:10px;"> Redis <span v-if="queue_hearteat.redis.queue_status != 'green'" style="color: red">${queue_hearteat.redis.msg}</span></p>
+                                </div>
+                            </el-col>
+                        </el-row>
+                    </div>
+                </el-card>
+
 
                 <el-card class="box-card">
                     <div slot="header" class="clearfix">
                         <span style="float: right;">
-                <el-button size="small" v-if="stopAllState" disabled type="info"><i style="" class="el-icon-loading"></i>停止进程中...</el-button>
+                            <el-tag v-if="service_type!=2">
+                <el-button size="small"  v-if="stopAllState" disabled type="info"><i style="" class="el-icon-loading"></i>停止进程中...</el-button>
                 <el-button size="small" v-else @click="stopAll" type="info">停止所有进程<i style="" class="el-icon-caret-right el-icon--right"></i></el-button>
                 <el-button  size="small" v-if="startAllState" disabled type="success"><i style="" class="el-icon-loading"></i>启动进程中...</el-button>
                 <el-button size="small" v-else  @click="startAll" type="success">启动所有进程<i style="" class="el-icon-caret-right el-icon--right"></i></el-button>
+                            </el-tag>
                 <el-button size="small" v-if="restartState" disabled type="primary"><i style="" class="el-icon-loading"></i>重启中...</el-button>
                 <el-button size="small" v-else @click="restart" type="primary">重启<i style="" class="el-icon-caret-right el-icon--right"></i></el-button>
                 </span>
                     </div>
                     <div v-for="(process, hostname) in list" class="host item">
-                        <el-span style="width:35%" v-if="state">ip地址：${hostname}</el-span>
+                        <span style="width:35%" v-if="state">ip地址：${hostname}</span>
                         <el-tag v-if="state[hostname].val.statecode == 1" type="success">运行中</el-tag>
                         <el-tag v-else-if="state[hostname].val.statecode == 2"><i style="" class="el-icon-loading"></i>加载中...</el-tag>
                         <el-tag v-else type="danger">未运行</el-tag>
@@ -89,9 +146,9 @@
                         <el-button round v-else type="danger" size="small">已停止<i style="" class="el-icon-circle-close-outline el-icon--right"></i></el-button>
                     </span>
                             <span style="width:42%; float:right;text-align:right;">
-                        <el-button @click="stop(supervisor,hostname)" v-if="supervisor.statename == 'RUNNING'" type="info" size="small">停止<i style="" class="el-icon-close el-icon--right"></i></el-button>
-                        <el-button @click="start(supervisor,hostname)" v-else type="success" size="small">启动<i style="" class="el-icon-caret-right el-icon--right"></i></el-button>
-                        <el-button v-if="!supervisor.cstate" @click="showlog(supervisor,key,hostname)" type="info" size="small">日志<i style="" class="el-icon-search el-icon--right"></i></el-button>
+                        <el-button @click="start(supervisor,hostname)" v-if="supervisor.statename != 'RUNNING'" type="success" size="small">启动<i style="" class="el-icon-caret-right el-icon--right"></i></el-button>
+                        <el-button @click="stop(supervisor,hostname)" v-if="service_type!=2 && supervisor.statename == 'RUNNING'"   type="info" size="small">停止<i style="" class="el-icon-close el-icon--right"></i></el-button>
+                         <el-button v-if="!supervisor.cstate" @click="showlog(supervisor,key,hostname)" type="info" size="small">日志<i style="" class="el-icon-search el-icon--right"></i></el-button>
                         <el-button v-else disabled type="primary" size="small"><i style="" class="el-icon-loading"></i>加载中...</el-button>
                     </span>
                         </div>
@@ -118,9 +175,11 @@
 
 @section('js')
     <script>
+        let service_type = {{$service_type}};
         new Vue({
             el: '#app',
             delimiters: ['${', '}'],
+
             data: {
                 list:[],
                 log:'',
@@ -133,6 +192,58 @@
                 startAllState: false,
                 restartState: false,
                 logIndex:'',
+                service_type:service_type,
+                queue_color: [{
+                    color: 'green',
+                    value: 'success',
+                    label: '正常'
+                }, {
+                    color: 'yellow',
+                    value: 'warning',
+                    label: '延迟'
+                }, {
+                    color: 'red',
+                    value: 'danger',
+                    label: '阻塞'
+                }, {
+                    color: 'not_open',
+                    value: '',
+                    label: '无'
+                }, {
+                    color: 'unconnection',
+                    value: 'danger',
+                    label: '连接失败'
+                }, {
+                    color: 'unexecute',
+                    value: 'danger',
+                    label: '无法使用'
+                }, {
+                    color: 'uninstall',
+                    value: 'danger',
+                    label: '未安装'
+                }, {
+                    color: 'not_running',
+                    value: 'danger',
+                    label: '未运行'
+                }],
+                queue_hearteat: {
+                    'daemon': {
+                        queue_status: 'not_running',
+                        is_repeat: 0,
+                    },
+                    'cron': {
+                        queue_status: 'not_open',
+                        is_repeat: 0,
+                    },
+                    'job': {
+                        queue_status: 'not_open',
+                        is_repeat: 0,
+                    },
+                    'redis': {
+                        queue_status: 'not_open',
+                        is_repeat: 0,
+                    }
+                },
             },
 
             methods: {
@@ -149,6 +260,8 @@
                             console.log(that.list);
                             that.state = response.data.state;
                             console.log('that.state:', that.state);
+                            that.queue_hearteat = response.data.queue_hearteat;
+                            that.queue_hearteat_icon = response.data.queue_hearteat_icon;
                         })
                         .catch(function (error) {
                             console.log('error:', error);

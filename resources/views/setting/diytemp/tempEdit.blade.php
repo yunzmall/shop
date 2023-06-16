@@ -139,39 +139,40 @@ b{
                 <el-form-item label="模板消息ID">
                     <el-input v-model="form.template_id"  style="width:80%;" disabled></el-input>
                 </el-form-item>
-                <el-form-item label="头部标题">
-                    <el-input  type="textarea"  v-model="form.first"  @focus="addName('first')" style="width:80%;" ref="first"></el-input>
-                </el-form-item>
-                <el-form-item label="文字颜色">
-                <div><el-color-picker v-model="form.first_color" @change="change"></el-color-picker></div>
-                </el-form-item>
+{{--                <el-form-item label="头部标题">--}}
+{{--                    <el-input  type="textarea"  v-model="form.first"  @focus="addName('first')" style="width:80%;" ref="first"></el-input>--}}
+{{--                </el-form-item>--}}
+{{--                <el-form-item label="文字颜色">--}}
+{{--                <div><el-color-picker v-model="form.first_color" @change="change"></el-color-picker></div>--}}
+{{--                </el-form-item>--}}
                 <el-form-item label="键值设置">
                   <div class="tabel-data" style="width:80%;">
                     <div class="head">
-                      <div style="width:25%;text-align:center;">键名</div>
-                      <div style="width:50%;text-align:center;">描述</div>
-                      <div style="width:25%;text-align:center;">颜色</div>
+                      <div style="width:33%;text-align:center;">键名</div>
+                      <div style="width:67%;text-align:center;">描述</div>
+{{--                      <div style="width:25%;text-align:center;">颜色</div>--}}
                      
                     </div>
                     <div class="data">
                      <div v-for="(item,index,key) in block" style="display:flex;align-items:center;margin-top:20px;">
-                        <div style="width:25%;text-align:center;">[[item.title]]</div>
-                        <div style="width:50%;text-align:center;">
+                        <div style="width:33%;text-align:center;">[[item.title]]</div>
+                        <div style="width:67%;text-align:center;">
                           <el-input  type="textarea"  v-model="item.value"  @focus="addName(item)" ></el-input>
                         </div>
-                          <div style="width:25%;text-align:center;display:flex;align-items:center;justify-content:center;"><el-color-picker v-model="item.color" @change="change"></el-color-picker></div>
+{{--                          <div style="width:25%;text-align:center;display:flex;align-items:center;justify-content:center;"><el-color-picker v-model="item.color" @change="change"></el-color-picker></div>--}}
                       </div>
+                        <span>注意：单个描述内容建议不超过20个字，且不支持换行</span>
                     </div>
                   </div>
                 </el-form-item>
                 </el-form-item>
               
-                <el-form-item label="尾部描述">
-                    <el-input  type="textarea"  v-model="form.remark"  @focus="addName('remark')" style="width:80%;" ref="remark"></el-input>
-                </el-form-item>
-                <el-form-item label="文字颜色">
-                <div><el-color-picker v-model="form.remark_color" @change="change"></el-color-picker></div>
-                </el-form-item>
+{{--                <el-form-item label="尾部描述">--}}
+{{--                    <el-input  type="textarea"  v-model="form.remark"  @focus="addName('remark')" style="width:80%;" ref="remark"></el-input>--}}
+{{--                </el-form-item>--}}
+{{--                <el-form-item label="文字颜色">--}}
+{{--                <div><el-color-picker v-model="form.remark_color" @change="change"></el-color-picker></div>--}}
+{{--                </el-form-item>--}}
                 <el-form-item label="跳转链接地址">
                     <el-input v-model="form.news_link" @focus="addName('new_link')" style="width:70%;" ref="new_link"></el-input><el-button @click="show=true" style="margin-left:10px;">选择链接</el-button>
                 </el-form-item>
@@ -210,10 +211,10 @@ b{
                   tp_value:[],
                   title:'',
                   template_id:'',
-                  first:'',
-                  first_color:"",
-                  remark:'',
-                  remark_color:"",
+                  // first:'',
+                  // first_color:"",
+                  // remark:'',
+                  // remark_color:"",
                   news_link:'',
                 },
            }
@@ -314,11 +315,11 @@ b{
                             this.info.data.forEach((item,index,key)=>{
                               this.block.push({title:item.keywords,color:item.color,value:item.value})
                             })
-                            this.form.first_color=this.info.first_color
-                            this.form.first=this.info.first
+                            // this.form.first_color=this.info.first_color
+                            // this.form.first=this.info.first
                             this.form.news_link=this.info.news_link
-                            this.form.remark=this.info.remark
-                            this.form.remark_color=this.info.remark_color
+                            // this.form.remark=this.info.remark
+                            // this.form.remark_color=this.info.remark_color
                             this.form.template_id=this.info.template_id
                             this.form.title=this.info.title
                             this.temp=response.data.data.wechat_temp

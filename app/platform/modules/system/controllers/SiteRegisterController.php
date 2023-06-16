@@ -1,13 +1,14 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:  
  * Date: 2019/5/9
  * Time: 14:57
  */
 
 namespace app\platform\modules\system\controllers;
 
+use app\common\services\systemUpgrade;
 use app\platform\controllers\BaseController;
 use app\common\facades\Setting;
 use app\common\models\Address;
@@ -17,232 +18,235 @@ use app\common\models\Setting as SettingModel;
 
 class SiteRegisterController extends BaseController
 {
-    public function __construct()
-    {
-        $this->_log = app('log');
-    }
+	public function __construct()
+	{
+		$this->_log = app('log');
+	}
 
-    /**
-     * 密钥填写
-     *
-     * @return \Illuminate\Http\JsonResponse|string
-     * @throws \Throwable
-     * @return mixed
-     */
-    public function index()
-    {
-        $upgrade  = Setting::getNotUniacid('platform_shop.key');
-        $page     = 'auth';
+	/**
+	 * 密钥填写
+	 *
+	 * @return \Illuminate\Http\JsonResponse|string
+	 * @return mixed
+	 * @throws \Throwable
+	 */
+	public function index()
+	{
+		$key = '';
+		$province = [];
+		$plugins = '';
+		$unauthorized = '';
+		$page = 'auth';
+		$domain = request()->getHttpHost();
+		$url = config('auto-update.registerUrl') . '/check_domain.json';
 
-        if (empty($upgrade['key']) && empty($upgrade['secret'])) {
-            $domain = request()->getHttpHost();
-            $url = config('auto-update.registerUrl') . '/check_domain.json';
+		$auth_str = Curl::to($url)
+			->withData(['domain' => $domain])
+			->asJsonResponse(true)
+			->get();
 
-            $auth_str = Curl::to($url)
-                ->withData(['domain' => $domain])
-                ->asJsonResponse(true)
-                ->get();
 
-            if (empty($auth_str['data']['key']) && empty($auth_str['data']['secret'])) {
-                $page = 'free';
-            } else {
-                $upgrade = $auth_str['data'];
+		if (empty($auth_str['data']['key']) && empty($auth_str['data']['secret'])) {
+			$page = 'free';
+			$province = Address::getProvince()->toArray();
+		} else {
+			$key = $auth_str['data']['key'];
+			Setting::set('platform_shop.key', $auth_str['data']);
 
-                $this->processingKey($upgrade, 'create');
+			$systemUpgrade = new systemUpgrade($auth_str['data']['key'], $auth_str['data']['secret']);
+			$update = new AutoUpdate(null, null, 300);
+			$update->setBasicAuth($auth_str['data']['key'], $auth_str['data']['secret']);
+			$update->setUpdateUrl(config('auto-update.checkUrl'));
 
-                $free_plugins = SettingModel::where('group', 'free')->where('key', 'plugin')->first();
+			$pluginsInfo = $systemUpgrade->getPluginsInfo($update);
 
-                if (!is_null($free_plugins)) {
-                    Setting::set('free.plugin', unserialize($free_plugins->value));
-                }
-            }
-        }
+			if ($pluginsInfo['localNoAuthPluginsTitle']) {
+				$unauthorized = implode($pluginsInfo['localNoAuthPluginsTitle'], ',');
+			}
 
-        $auth_url = '';     //yzWebFullUrl('setting.key.index', ['page' => 'auth']);
-        $free_url = '';     //yzWebFullUrl('setting.key.index', ['page' => 'free']);
+			$pluginManager = app('app\common\services\PluginManager');
+			$plugins = $pluginManager->getPluginsByCategory();
+		}
 
-        $btn = empty($upgrade['key']) || empty($upgrade['secret']) ? 1 : 0;
+		return $this->successJson('成功', [
+			'domain' => $domain,
+			'province' => ['data' => $province],
+			'page' => ['type' => $page],
+			'set' => ['key' => $key],
+			'plugins' => $plugins,
+			'unauthorized' => $unauthorized
+		]);
+	}
 
-        // 获取省级列表
-        $province = Address::getProvince();
+	/**
+	 * 处理信息
+	 *
+	 * @param $requestModel
+	 * @param $type
+	 * @return bool
+	 */
+	private function processingKey($requestModel, $type)
+	{
+		$domain = request()->getHttpHost();
+		$data = [
+			'key' => $requestModel['key'],
+			'secret' => $requestModel['secret'],
+			'domain' => $domain
+		];
 
-        return $this->successJson('成功', [
-            'province' => ['data' => $province->toArray()],
-            'page' => ['type' => $page],
-            'url' => ['free' => $free_url, 'auth' =>$auth_url],
-            'set' => ['key' => $upgrade['key'], 'secret' => $upgrade['secret'], 'btn' => $btn]
-        ]);
-    }
+		if ($type == 'create') {
 
-    /**
-     * 处理信息
-     *
-     * @param $requestModel
-     * @param $type
-     * @return bool
-     */
-    private function processingKey($requestModel, $type)
-    {
-        $domain = request()->getHttpHost();
-        $data = [
-            'key' => $requestModel['key'],
-            'secret' => $requestModel['secret'],
-            'domain' => $domain
-        ];
+			$content = Curl::to(config('auto-update.checkUrl') . '/app-account/create')
+				->withData($data)
+				->get();
+			$writeRes = Setting::set('platform_shop.key', $requestModel);
 
-        if($type == 'create') {
+			\Cache::forget('app_auth');
 
-            $content = Curl::to(config('auto-update.checkUrl').'/app-account/create')
-                ->withData($data)
-                ->get();
-            $writeRes = Setting::set('platform_shop.key', $requestModel);
+			return $writeRes && $content;
 
-            \Cache::forget('app_auth');
+		} else if ($type == 'cancel') {
 
-            return $writeRes && $content;
+			$content = Curl::to(config('auto-update.checkUrl') . '/app-account/cancel')
+				->withData($data)
+				->get();
 
-        } else if($type == 'cancel') {
+			$writeRes = Setting::set('platform_shop.key', '');
 
-            $content = Curl::to(config('auto-update.checkUrl').'/app-account/cancel')
-                ->withData($data)
-                ->get();
+			\Cache::forget('app_auth');
 
-            $writeRes = Setting::set('platform_shop.key', '');
+			return $writeRes && $content;
+		}
+	}
 
-            \Cache::forget('app_auth');
+	/*
+	 * 检测是否有数据存在
+	 */
+	public function isExist($data)
+	{
+		$type = request()->type;
+		$domain = request()->getHttpHost();
 
-            return $writeRes && $content ;
-        }
-    }
+		$filename = config('auto-update.checkUrl') . '/check_isKey.json';
+		$postData = [
+			'type' => $type,
+			'domain' => $domain
+		];
+		$update = new AutoUpdate();
+		$res = $update->isKeySecretExists($filename, $data, $postData, 'auto_update');
+		return $res;
+	}
 
-    /*
-     * 检测是否有数据存在
-     */
-    public function isExist($data)
-    {
-        $type = request()->type;
-        $domain = request()->getHttpHost();
+	/**
+	 * 获取城市
+	 * @return \Illuminate\Http\JsonResponse
+	 */
+	public function getCity()
+	{
+		$data = request()->data;
 
-        $filename = config('auto-update.checkUrl').'/check_isKey.json';
-        $postData = [
-            'type' => $type,
-            'domain' => $domain
-        ];
-        $update = new AutoUpdate();
-        $res = $update->isKeySecretExists($filename, $data, $postData, 'auto_update');
-        return $res;
-    }
+		$addressData = Address::getCityByParentId($data['id']);
 
-    /**
-     * 获取城市
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function getCity()
-    {
-        $data = request()->data;
+		return $this->successJson('ok', $addressData);
+	}
 
-        $addressData = Address::getCityByParentId($data['id']);
+	/**
+	 * 获取地区
+	 * @return \Illuminate\Http\JsonResponse
+	 */
+	public function getArea()
+	{
+		$data = request()->data;
 
-        return $this->successJson('ok', $addressData);
-    }
+		$addressData = Address::getAreaByParentId($data['id']);
 
-    /**
-     * 获取地区
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function getArea()
-    {
-        $data = request()->data;
+		return $this->successJson('ok', $addressData);
+	}
 
-        $addressData = Address::getAreaByParentId($data['id']);
+	public function register()
+	{
+		$data = request()->setdata;
 
-        return $this->successJson('ok', $addressData);
-    }
+		$auth_url = '/admin/system/siteRegister/index';
 
-    public function register()
-    {
-        $data = request()->setdata;
+		$key = 'free';
+		$secret = request()->getSchemeAndHttpHost();
 
-        $auth_url = '/admin/system/siteRegister/index';
+		$url = config('auto-update.registerUrl') . "/free/{$data['name']}/{$data['trades']}/{$data['province']['areaname']}/{$data['city']['areaname']}/{$data['area']['areaname']}/{$data['address']}/{$data['mobile']}/{$data['captcha']}";
 
-        $key = 'free';
-        $secret = request()->getSchemeAndHttpHost();
+		$register = Curl::to($url)
+			->withHeader(
+				"Authorization: Basic " . base64_encode("{$key}:{$secret}")
+			)
+			->asJsonResponse(true)
+			->get();
 
-        $url = config('auto-update.registerUrl') . "/free/{$data['name']}/{$data['trades']}/{$data['province']['areaname']}/{$data['city']['areaname']}/{$data['area']['areaname']}/{$data['address']}/{$data['mobile']}/{$data['captcha']}";
+		if (!is_null($register)) {
+			if (1 == $register['result']) {
+				//检测数据是否存在
+				$res = $this->isExist($register['data']['shop']);
+				//var_dump($res);exit();
+				if (!$res['isExists']) {
+					if ($res['message'] == 'amount exceeded')
+						$this->errorJson('您已经没有剩余站点数量了，如添加新站点，请取消之前的站点或者联系我们的客服人员！');
+					else
+						$this->errorJson('Key或者密钥出错了！');
+				} else {
+					if ($this->processingKey($register['data']['shop'], 'create')) {
+						if ($register['data']['plugins']) {
+							Setting::set('free.plugin', $register['data']['plugins']);
+						}
+						return $this->successJson("商城注册成功", ['url' => $auth_url]);
+					}
+				}
+			} else {
+				return $this->errorJson($register['msg']);
+			}
+		}
 
-        $register = Curl::to($url)
-            ->withHeader(
-                "Authorization: Basic " . base64_encode("{$key}:{$secret}")
-            )
-            ->asJsonResponse(true)
-            ->get();
+		return $this->errorJson("商城注册失败");
+	}
 
-        if (!is_null($register)) {
-            if (1 == $register['result']) {
-                //检测数据是否存在
-                $res = $this ->isExist($register['data']['shop']);
-                //var_dump($res);exit();
-                if(!$res['isExists']) {
-                    if($res['message'] == 'amount exceeded')
-                        $this->errorJson('您已经没有剩余站点数量了，如添加新站点，请取消之前的站点或者联系我们的客服人员！');
-                    else
-                        $this->errorJson('Key或者密钥出错了！');
-                } else {
-                    if ($this->processingKey($register['data']['shop'], 'create')) {
-                        if ($register['data']['plugins']) {
-                            Setting::set('free.plugin', $register['data']['plugins']);
-                        }
-                        return $this->successJson("商城注册成功", ['url' => $auth_url]);
-                    }
-                }
-            } else {
-                return $this->errorJson($register['msg']);
-            }
-        }
+	/**
+	 * 获取手机验证码
+	 * @return \Illuminate\Http\JsonResponse
+	 */
+	public function sendSms()
+	{
+		$key = 'free';
+		$secret = request()->getHttpHost();
+		$mobile = request()->mobile;
 
-        return $this->errorJson("商城注册失败");
-    }
+		$url = config('auto-update.registerUrl') . "/sendsms/{$mobile}";
 
-    /**
-     * 获取手机验证码
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function sendSms()
-    {
-        $key = 'free';
-        $secret = request()->getHttpHost();
-        $mobile = request()->mobile;
+		$res = Curl::to($url)
+			->withHeader(
+				"Authorization: Basic " . base64_encode("{$key}:{$secret}")
+			)
+			->asJsonResponse(true)
+			->get();
 
-        $url = config('auto-update.registerUrl') . "/sendsms/{$mobile}";
+		if ($res['result'] == 1) {
+			return $this->successJson('验证码已发送');
+		} else {
+			return $this->errorJson($res['msg']);
+		}
+	}
 
-        $res = Curl::to($url)
-            ->withHeader(
-                "Authorization: Basic " . base64_encode("{$key}:{$secret}")
-            )
-            ->asJsonResponse(true)
-            ->get();
+	public function resetSecretKey()
+	{
+		$data = request()->data;
 
-        if ($res['result'] == 1) {
-            return $this->successJson('验证码已发送');
-        } else {
-            return $this->errorJson($res['msg']);
-        }
-    }
+		$setting = Setting::getNotUniacid('shop.key');
 
-    public function resetSecretKey()
-    {
-        $data = request()->data;
+		if ($data['key'] && $data['secret']) {
+			try {
+				Setting::setNotUniacid('platform_shop.key', $data);
+			} catch (\Exception $e) {
+				return $this->errorJson($e->getMessage());
+			}
+		}
 
-        $setting = Setting::getNotUniacid('shop.key');
-
-        if ($data['key'] && $data['secret']) {
-            try {
-                Setting::setNotUniacid('platform_shop.key', $data);
-            }  catch (\Exception $e) {
-                return $this->errorJson($e->getMessage());
-            }
-        }
-
-        return $this->successJson('成功', $setting);
-    }
+		return $this->successJson('成功', $setting);
+	}
 }

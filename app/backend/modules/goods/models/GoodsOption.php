@@ -1,16 +1,21 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/2/22
  * Time: 下午18:16
  */
 namespace app\backend\modules\goods\models;
 
 
+use app\backend\modules\goods\observers\GoodsOptionObserver;
+use app\framework\Database\Eloquent\Builder;
+
 class GoodsOption extends \app\common\models\GoodsOption
 {
     static protected $needLog = true;
+
+    protected $appends = ['withhold_stock'];
 
     public static function saveOption($optionPost, $goods_id, $spec_items, $uniacid)
     {

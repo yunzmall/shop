@@ -166,6 +166,20 @@
                         <el-form-item label="会员充值提醒" v-if="form.type==3">
                             <el-input v-model="form.aly_templatereChargeCode"  style="width:70%;" placeholder="例如:SMS_5057806"></el-input>
                         </el-form-item>
+                        @if(app('plugins')->isEnabled('audit-debt'))
+                            <el-form-item label="审核成功提醒" v-if="form.type==3">
+                                <el-input v-model="form.audit_debt_confirm"  style="width:70%;" placeholder="例如:SMS_5057806"></el-input>
+                                <div>短信参数：number--姓名</div>
+                            </el-form-item>
+                            <el-form-item label="审核驳回提醒" v-if="form.type==3">
+                                <el-input v-model="form.audit_debt_reject"  style="width:70%;" placeholder="例如:SMS_5057806"></el-input>
+                                <div>短信参数：number--姓名，remark--驳回原因</div>
+                            </el-form-item>
+                            <el-form-item label="提交资料短信验证码" v-if="form.type==3">
+                                <el-input v-model="form.audit_debt_submit"  style="width:70%;" placeholder="例如:SMS_5057806"></el-input>
+                                <div>短信参数：number--验证码</div>
+                            </el-form-item>
+                        @endif
                         <el-form-item v-if="form.type==5" style="margin-top:-30px;">
                             <span>请到 腾讯云 去申请开通。</span>
                         </el-form-item>
@@ -196,6 +210,7 @@
                         <el-form-item label="会员充值提醒" v-if="form.type==5">
                             <el-input v-model="form.tx_templatereChargeCode"  style="width:70%;" placeholder="例如5057806"></el-input>
                         </el-form-item>
+                        
 
                     </div>
             </div>
@@ -227,6 +242,9 @@
                         aly_templateBalanceCode:'',
                         aly_templateSendMessageCode:'',
                         aly_templatereChargeCode:'',
+                        audit_debt_submit:'',
+                        audit_debt_confirm:'',
+                        audit_debt_reject:'',
                         tx_sdkappid:'',
                         tx_appkey:'',
                         tx_signname:'',
@@ -248,7 +266,7 @@
                         forget:'',
                         templateCodeLogin:'',
                         login:'',
-
+                        time:1,
                     },
                 }
             },

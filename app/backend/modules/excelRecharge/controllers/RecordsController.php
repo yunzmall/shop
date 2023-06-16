@@ -24,15 +24,17 @@ class RecordsController extends BaseController
     //会员excel充值记录
     public function index()
     {
-        $this->recordsModels = $this->pageList();
+        if (request()->ajax()) {
+            $this->recordsModels = $this->pageList();
+            return $this->successJson('ok', $this->resultData());
+        }
 
-        return view('excelRecharge.records', $this->resultData());
+        return view('excelRecharge.records');
     }
 
     private function resultData()
     {
         return [
-            'page'     => $this->page(),
             'pageList' => $this->recordsModels
         ];
     }

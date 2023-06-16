@@ -13,7 +13,7 @@ use app\backend\modules\coupon\services\MessageNotice;
 use app\common\models\MemberCoupon;
 
 /**
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/7/12
  * Time: 下午4:28
  */

@@ -11,7 +11,7 @@ use app\backend\modules\goods\observers\GoodsDispatchObserver;
 
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/2/22
  * Time: 下午5:54
  */
@@ -112,17 +112,17 @@ class GoodsDispatch extends BaseModel
         return DispatchType::goodsEnableDispatchTypeIds($this->getDispatchTypeIds());
     }
 
-    public function dispatchTypesSettingV2()
+    public function dispatchTypesSettingV2($plugin=0)
     {
         //$dispatchTypes = DispatchType::where('plugin', 0)->where('enable', 1)->get();
 
-        $dispatchTypes = DispatchType::getCurrentUniacidSet();
+        $dispatchTypes = DispatchType::getCurrentUniacidSet($plugin);
 
 
         //过滤未开启的
         $dispatchTypes = $dispatchTypes->filter(function ($dispatchType) {
             return $dispatchType->enable == 1;
-        });
+        })->values();
 
 
 

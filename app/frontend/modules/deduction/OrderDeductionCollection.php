@@ -38,7 +38,7 @@ class OrderDeductionCollection extends Collection
     {
         $this->items = $this->filter(function (PreOrderDeduction $orderDeduction) {
             return $orderDeduction->deductible();
-        })->all();
+        })->values()->all();
         return $this;
     }
 

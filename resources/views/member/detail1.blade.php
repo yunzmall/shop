@@ -1,21 +1,26 @@
 @extends('layouts.base')
 @section('title', '会员详情')
 @section('content')
+    <link rel="stylesheet" type="text/css" href="{{static_url('yunshop/goods/vue-goods1.css')}}"/>
     <style>
+
         .content{
             background: #eff3f6;
 
         }
         .con{
-            padding:40px 0;
+            padding:20px 0;
             border-radius: 8px;
             position:relative;
         }
         .con  .block{
-            padding:10px;
+            padding: 10px;
             background-color:#fff;
             border-radius: 8px;
-            margin-bottom:10px;
+            margin-bottom: 20px;
+        }
+        .con  .block:last-child{
+            margin-bottom: 60px;
         }
         .con  .block .title{
             font-size:18px;
@@ -36,27 +41,39 @@
             background-color:#fff;
             text-align:center;
         }
+        .upload-boxed .el-icon-close {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            color: #fff;
+            background: #333;
+            border-radius: 50%;
+            cursor: pointer;
+        }
         b{
             font-size:14px;
         }
     </style>
     <!-- tab -->
-
     <div id='re_content'>
         <div class="con" >
-            <div class="barcumb" style="background-color:#fff;padding:10px 20px;margin-bottom:10px;border-radius: 8px;">
-                <span style="display:inline-block;margin-right:20px;">会员管理</span><span style="display:inline-block;margin-right:20px;">》</span><span>会员详情</span>
-            </div>
             <el-form ref="form" :model="form" label-width="15%">
-
                 <div class="block">
                     <div class="title"><span style="width: 4px;height: 18px;background-color: #29ba9c;margin-right:15px;display:inline-block;"></span><b>基本信息</b></div>
-                    <el-form-item label="粉丝">
-                        <div class="image" style="border:solid 1px #ccc;width:100px;height:100px;margin-left:30px;display: inline-block;">
-                            <img :src="info.avatar_image" style="width: 100%;height:100%;">
-                        </div>
-                        <div style="display: inline-block;vertical-align: text-top;margin-left:10px;">[[info.nickname]]</div>
-                    </el-form-item>
+                        <el-form-item label="粉丝">
+                                <div class="upload-box" @click="openUpload('avatar','1','one')" v-if="!info.avatar" style="padding-left: 32px">
+                                    <i class="el-icon-plus" style="font-size:32px"></i>
+                                </div>
+                                <div @click="openUpload('avatar','1','one')" class="upload-boxed" v-if="info.avatar" style="height:150px;padding-left: 32px">
+                                    <img :src="info.avatar" alt="" style="width:150px;height:150px;border-radius: 5px;cursor: pointer;">
+                                    <div class="upload-boxed-text">点击重新上传</div>
+                                </div>
+                        </el-form-item>
+                        <upload-multimedia-img :upload-show="uploadShow" :name="chooseImgName" @replace="changeProp" :type="type" @sure="sureImg"></upload-multimedia-img>
+                        <el-form-item label="会员昵称">
+                                <el-input v-model="form.nickname" style="margin-left:30px;width:60%;"></el-input>
+                            <div style="margin-left:30px;">若开启微信授权登录，修改后会被微信的头像昵称替换</div>
+                        </el-form-item>
                     <el-form-item label="会员ID">
                         <div style="margin-left:30px;">
                             [[info.uid]]
@@ -67,6 +84,7 @@
                             [[info.createtime]]
                         </div>
                     </el-form-item>
+
                     <el-form-item label="真实姓名">
                         <el-input v-model="form.realname" style="margin-left:30px;width:60%;"></el-input>
                     </el-form-item>
@@ -101,13 +119,12 @@
                     </el-form-item>
                 </div>
 
-
                 @foreach(\app\common\modules\widget\Widget::current()->getItem('member') as $key=>$value)
                     {!! widget($value['class'], ['id'=> $member['uid']])!!}
                 @endforeach
-                <div class="block">
+                <div class="block" v-show="myform && myform.length">
                     <div class="title"><span style="width: 4px;height: 18px;background-color: #29ba9c;margin-right:15px;display:inline-block;"></span><b>自定义会员资料信息</b></div>
-                    <el-form-item :label="item.name" v-for="(item,index) in myform" >
+                    <el-form-item :label="item.name" v-for="(item,index) in myform" :key="index">
                             <el-input v-model="item.value" style="margin-left:30px;width:60%;"></el-input>
                             {{--[[item.value]]--}}
                     </el-form-item>
@@ -164,9 +181,11 @@
                         <template>
                             <el-select v-model="form.level_id" placeholder="请选择" style="margin-left:30px;">
                                 <el-option
-                                        v-for="item in levels"
+                                        v-for="(item,i) in levels"
                                         :label="item.level_name"
-                                        :value="item.id">
+                                        :value="item.id" 
+                                        :key="i">
+                                        
                                 </el-option>
                             </el-select>
                         </template>
@@ -197,9 +216,10 @@
                         <template>
                             <el-select v-model="form.group_id" placeholder="请选择" style="margin-left:30px;">
                                 <el-option
-                                        v-for="item in groups"
+                                        v-for="(item,i) in groups"
                                         :label="item.group_name"
-                                        :value="item.id">
+                                        :value="item.id"
+                                        :key="i">
                                 </el-option>
                             </el-select>
                         </template>
@@ -331,7 +351,7 @@
         </el-dialog>
     </div>
     </div>
-
+    @include('public.admin.uploadMultimediaImg')
     <script>
 
         var vm = new Vue({
@@ -346,6 +366,8 @@
                     let set={!! json_encode($set)?:'{}' !!}
 
                     return {
+                        uploadShow:false,
+                        chooseImgName:'',
                         record:[],
                         parentRecord:[],
                         parent_record:false,
@@ -364,6 +386,8 @@
                             group_id:member.yz_member?member.yz_member.group_id:0,
                             validity:member.yz_member?member.yz_member.validity:'',
                             realname:member.realname,
+                            nickname:member.nickname,
+                            avatar:member.avatar,
                             wechat:member.yz_member?member.yz_member.wechat:'',
                             alipayname:member.yz_member?member.yz_member.alipayname:'',
                             alipay:member.yz_member?member.yz_member.alipay:'',
@@ -379,6 +403,8 @@
                         validity_time:'',//有限期
                         validity_day:'',
                         changeDayNumShow:false,
+                        type:'',
+                        selNum:'',
                     }
             },
             created () {
@@ -405,6 +431,28 @@
 
             },
             methods: {
+                openUpload(str,type,sel) {
+                    this.chooseImgName = str;
+                    this.uploadShow = true;
+                    this.type = type;
+                    this.selNum = sel;
+                },
+                changeProp(val) {
+                    if(val == true) {
+                        this.uploadShow = false;
+                    }
+                    else {
+                        this.uploadShow = true;
+                    }
+                },
+                sureImg(name,uploadShow,fileList) {
+                    if(fileList.length <= 0) {
+                        return
+                    }
+                    this.form[name] = fileList[0].url;
+                    this.info[name] = fileList[0].url;
+                    this.info[name+'_image'] = fileList[0].url;
+                },
                 getParent(){
                     this.parent_record=true;
                     this.$http.post("{!! yzWebUrl('member.member.member_record') !!}",{uid:this.info.uid}).then(response => {

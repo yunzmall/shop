@@ -12,15 +12,58 @@ use app\backend\modules\goods\models\Dispatch;
 use app\common\models\goods\GoodsDispatch;
 use app\common\modules\orderGoods\OrderGoodsCollection;
 use app\frontend\models\OrderGoods;
+use app\frontend\modules\order\models\PreOrder;
 use app\frontend\modules\orderGoods\models\PreOrderGoods;
 
-class TemplateFreight extends BaseFreight
+class TemplateFreight
 {
     protected $code = 'template';
 
     protected $name = '运费模板';
 
 
+    /**
+     * @var PreOrder
+     */
+    protected $order;
+
+    /**
+     * 金额
+     * @var float
+     */
+    protected $freightAmount;
+
+
+    /*
+     * 排序：数值越低权重越大
+     */
+    protected $weight;
+
+    /**
+     * BaseFreight constructor.
+     * @param PreOrder $order
+     * @param $weight
+     */
+    public function __construct(PreOrder $order, $weight = 0)
+    {
+        $this->order = $order;
+
+        $this->weight = $weight;
+    }
+
+
+
+    /**
+     * 返回运费金额
+     * @return float|mixed
+     */
+    public function getAmount()
+    {
+        if (!isset($this->freightAmount)) {
+            $this->freightAmount = $this->_getAmount();
+        }
+        return $this->freightAmount;
+    }
 
     public function needDispatch()
     {
@@ -220,16 +263,13 @@ class TemplateFreight extends BaseFreight
         }
         $piece_data = unserialize($dispatchModel->piece_data);
 
-        // 存在
-        if ($piece_data) {
+        //根据配送地址匹配区域数据
+        $city_id = isset($this->order->orderAddress->city_id) ? $this->order->orderAddress->city_id : 0;
+
+        //todo 修改如没有收货地址按全国默认计算
+        if ($piece_data && $city_id) {
             $dispatch = '';
 
-            // 根据配送地址匹配区域数据
-            $city_id = isset($this->order->orderAddress->city_id) ? $this->order->orderAddress->city_id : 0;
-
-            if (!$city_id) {
-                return 0;
-            }
             foreach ($piece_data as $key => $piece) {
                 $area_ids = explode(';', $piece['area_ids']);
                 if (in_array($this->order->orderAddress->city_id, $area_ids)) {
@@ -237,7 +277,6 @@ class TemplateFreight extends BaseFreight
                     break;
                 }
             }
-
             if ($dispatch) {
                 // 找到匹配的数量数据
                 if ($goods_total > $dispatch['first_piece']) {
@@ -274,16 +313,13 @@ class TemplateFreight extends BaseFreight
         }
         $weight_data = unserialize($dispatchModel->weight_data);
 
-        // 存在重量数据
-        if ($weight_data) {
+        //根据配送地址匹配区域数据
+        $city_id = isset($this->order->orderAddress->city_id) ? $this->order->orderAddress->city_id : '';
+
+        //todo 修改如没有收货地址按全国默认计算
+        //存在重量数据
+        if ($weight_data && $city_id) {
             $dispatch = '';
-
-            // 根据配送地址匹配区域数据
-            $city_id = isset($this->order->orderAddress->city_id) ? $this->order->orderAddress->city_id : '';
-            if (!$city_id) {
-                return 0;
-            }
-
             foreach ($weight_data as $key => $weight) {
                 //dd($weight['area_ids']);
                 $area_ids = explode(';', $weight['area_ids']);

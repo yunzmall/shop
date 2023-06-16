@@ -1,12 +1,16 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:  
  * Date: 2017/4/5
  * Time: 上午10:00
  */
 
 namespace app\common\models;
+
+
+
+use Illuminate\Support\Facades\Cache;
 
 class AccountWechats extends BaseModel
 {
@@ -14,17 +18,21 @@ class AccountWechats extends BaseModel
 
     public function __construct(array $attributes = [])
     {
-        parent::__construct($attributes);
+		parent::__construct($attributes);
 
         if (config('app.framework') == 'platform') {
-            $this->table = 'yz_uniacid_app';
+			$this->table = 'yz_uniacid_app';
         }
-    }
+	}
 
     public static function getAccountByUniacid($uniacid)
     {
         if (!config('app.framework') == 'platform' || file_exists(base_path().'/bootstrap/install.lock')) {
-            return self::where('uniacid', $uniacid)->first();
+			//这里使用laravel Cache是因为商城cache调用了Yunshop::app()->uniacid导致死循环
+			return Cache::remember('account_app_'.$uniacid,3600,function () use ($uniacid) {
+				return self::where('uniacid', $uniacid)->first();
+			});
+
         }
     }
 
@@ -42,4 +50,6 @@ class AccountWechats extends BaseModel
         }
         return;
     }
+
+
 }

@@ -2,147 +2,290 @@
 
 @section('content')
     <link href="{{static_url('yunshop/balance/balance.css')}}" media="all" rel="stylesheet" type="text/css"/>
-    <div id="member-blade" class="rightlist">
-        <!-- 新增加右侧顶部三级菜单 -->
-
-        <div class="right-titpos">
-            @include('layouts.tabs')
+    <link rel="stylesheet" type="text/css" href="{{static_url('yunshop/goods/vue-goods1.css')}}"/>
+    <style>
+        .content {
+            background: #eff3f6;
+            padding: 10px !important;
+        }
+        .el-dropdown-menu__item{
+            padding: 0;
+        }
+        .el-dropdown-menu{
+            padding: 0;
+        }
+        .vue-main-form {
+            margin-top: 0;
+        }
+    </style>
+    <div id="app" v-cloak class="main">
+        <div class="block">
+            @include('layouts.vueTabs')
         </div>
-        <!-- 新增加右侧顶部三级菜单结束 -->
-        <div class="panel panel-info">
-            <div class="panel-heading">筛选</div>
-            <div class="panel-body">
-                <form action="" method="get" class="form-horizontal" role="form" id="form1">
-                    <input type="hidden" name="c" value="site" />
-                    <input type="hidden" name="a" value="entry" />
-                    <input type="hidden" name="m" value="yun_shop" />
-                    <input type="hidden" name="do" value="5201" />
-                    <input type="hidden" name="route" value="point.recharge-records.index" id="route" />
-                    <div style="display: flex;flex-direction: row;flex-wrap: wrap">
-                        <div style="width: 15%;margin-left: 2%">
-                            <input class="form-control" name="search[order_sn]" type="text" value="{{ $search['order_sn'] or ''}}" placeholder="充值单号">
-                        </div>
-                        <div style="width: 15%;margin-left: 2%">
-                            <input class="form-control" name="search[member]" type="text" value="{{ $search['member'] or ''}}" placeholder="会员ID/会员姓名/昵称/手机号">
-                        </div>
-                        <div style="width: 50%;margin-left: 2%;display: flex;flex-direction: row;">
-                            <div style="width: 20%;">
-                                <select name='search[search_time]' class='form-control'>
-                                    <option value='' @if(empty($search['search_time'])) selected @endif>不搜索</option>
-                                    <option value='1' @if($search['search_time']==1) selected @endif >搜索</option>
-                                </select>
-                            </div>
-                            <div style="margin-left: 2%">
-                                {!! app\common\helpers\DateRange::tplFormFieldDateRange('search[time]', [
-                                    'starttime'=>date('Y-m-d H:i', strtotime($search['time']['start']) ?: strtotime('-1 month')),
-                                    'endtime'=>date('Y-m-d H:i',strtotime($search['time']['end']) ?: time()),
-                                    'start'=>0,
-                                    'end'=>0
-                                ], true) !!}
-                            </div>
-                            <div class="form-group  col-xs-12 col-sm-7 col-lg-4">
-                                <div style="width: 200px">
-                                    <input type="hidden" name="token" value="{{$var['token']}}" />
-                                    <button class="btn btn-success ">
-                                        <i class="fa fa-search"></i>
-                                        搜索
-                                    </button>
-                                    <button type="button" name="export" value="1" id="export" class="btn btn-primary excel back ">
-                                        导出 EXCEL
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
+        <div class="block">
+            <div class="vue-head">
+                <div class="vue-main-title" style="margin-bottom:20px">
+                    <div class="vue-main-title-left"></div>
+                    <div class="vue-main-title-content">充值记录</div>
+                    <div class="vue-main-title-button">
                     </div>
-                </form>
-            </div>
-        </div>
-        <div class="clearfix">
-            <div class="panel panel-default">
-                <div class="panel-heading">总数：{{ $pageList->total() }}</div>
-                <div class="panel-body">
-                    <table class="table table-hover" style="overflow:visible;">
-                        <thead class="navbar-inner">
-                        <tr>
-                            <th style='width:15%; text-align: center;'>充值单号</th>
-                            <th style='width:10%; text-align: center;'>粉丝</th>
-                            <th style='width:10%; text-align: center;'>会员信息<br/>手机号</th>
-                            <th style='width:12%; text-align: center;'>充值时间</th>
-                            <th style='width:10%; text-align: center;'>充值方式</th>
-                            <th style='width:10%; text-align: center;'>充值金额<br/>状态</th>
-                            <th style='width:13%; text-align: center;'>备注信息</th>
-                            <th style='width:10%; text-align: center;'>操作</th>
-                        </tr>
-                        </thead>
-                        <tbody>
-                        @foreach($pageList as $list)
-                            <tr style="text-align: center;">
-                                <td>{{ $list->order_sn }}</td>
-                                <td>
-                                    @if($list->member->avatar || $shopSet['headimg'])
-                                        <img src='{{ $list->member->avatar ? tomedia($list->member->avatar) : tomedia($shopSet['headimg'])}}'
-                                             style='width:30px;height:30px;padding:1px;border:1px solid #ccc'/>
-                                        <br/>
-                                    @endif
-                                    {{ $list->member->nickname ? $list->member->nickname : '未更新' }}
-                                </td>
-                                <td>
-                                    {{ $list->member->realname }}
-                                    <br/>
-                                    {{ $list->member->mobile }}
-                                </td>
-                                <td>{{ $list->created_at }}</td>
-                                <td>
-                                    @if($list->type == 0)
-                                        <span class='label label-default'>{{ $list->type_name }}</span>
-                                    @elseif($list->type ==1)
-                                        <span class='label label-success'>{{ $list->type_name }}</span>
-                                    @elseif($list->type == 2)
-                                        <span class='label label-warning'>{{ $list->type_name }}</span>
-                                    @elseif($list->type == 9 || $list->type == 10)
-                                        <span class='label label-info'>{{ $list->type_name }}</span>
-                                    @else
-                                        <span class='label label-primary'>{{ $list->type_name }}</span>
-                                    @endif
-
-                                </td>
-                                <td>
-                                    {{ $list->money }}
-                                    <br/>
-                                    @if($list->status == 1)
-                                        <span class='label label-success'>充值成功</span>
-                                    @elseif($list->status == '-1')
-                                        <span class='label label-warning'>充值失败</span>
-                                    @else
-                                        <span class='label label-default'>申请中</span>
-                                    @endif
-
-                                </td>
-                                <td><a style="color: #0a0a0a" title="{{ $list->remark }}">{{ $list->remark }}</a></td>
-                                <td>
-                                    <a class='btn btn-default'
-                                       href="{{ yzWebUrl('member.member.detail', array('id' => $list->member_id)) }}"
-                                       style="margin-bottom: 2px">用户信息</a>
-                                </td>
-                            </tr>
-                        @endforeach
-                        </tbody>
-                    </table>
-
-                    {!! $page !!}
-
+                </div>
+                <div class="vue-search">
+                    <el-form :inline="true" :model="search_form" class="demo-form-inline">
+                        <el-form-item label="">
+                            <el-input
+                                    style="width: 270px"
+                                    placeholder="充值单号"
+                                    v-model="search_form.order_sn"
+                                    clearable>
+                            </el-input>
+                        </el-form-item>
+                        <el-form-item label="">
+                            <el-input
+                                    style="width: 270px"
+                                    placeholder="会员ID／会员姓名／昵称／手机号"
+                                    v-model="search_form.member"
+                                    clearable>
+                            </el-input>
+                        </el-form-item>
+                        <el-form-item label="">
+                            <el-date-picker
+                                    value-format="timestamp"
+                                    v-model="search_time"
+                                    type="datetimerange"
+                                    range-separator="至"
+                                    start-placeholder="开始日期"
+                                    end-placeholder="结束日期">
+                            </el-date-picker>
+                        </el-form-item>
+                        <el-form-item label="">
+                            <el-button type="primary" @click="search(1)">搜索</el-button>
+                        </el-form-item>
+                        <el-form-item label="">
+                            <el-button type="primary" @click="exportList()">导出 EXCEL</el-button>
+                        </el-form-item>
+                    </el-form>
                 </div>
             </div>
         </div>
+        <div class="block">
+            <div class="vue-main">
+                <div class="vue-main-form">
+                    <div class="vue-main-title" style="margin-bottom:20px">
+                        <div class="vue-main-title-left"></div>
+                        <div class="vue-main-title-content">
+                            记录列表
+                            <span style="margin-left:20px;font-size: 10px;font-weight: 0;color: #9b9da4">
+                               总数：[[total]] &nbsp;
+                               积分总合计：[[amount]]
+                            </span>
+                        </div>
+                    </div>
+
+                    <el-table :data="record_list.data" style="width: 100%">
+                        <el-table-column label="充值单号" align="center" prop="" width="auto">
+                            <template slot-scope="scope">
+                                [[scope.row.order_sn]]
+                            </template>
+                        </el-table-column>
+                        <el-table-column label="粉丝" align="center" prop="created_at" width="auto">
+                            <template slot-scope="scope">
+                                <div>
+                                    <el-image
+                                              style='width:30px;height:30px;padding:1px;border:1px solid #ccc'
+                                              :src="scope.row.member.avatar"
+                                              alt="">
+                                    </el-image>
+                                </div>
+                                <div>
+                                    <el-button type="text" @click="memberNav(scope.row.member_id)">
+                                        [[scope.row.member.nickname]]
+                                    </el-button>
+                                </div>
+                            </template>
+                        </el-table-column>
+                        <el-table-column label="会员信息/手机号" align="center" prop="">
+                            <template slot-scope="scope">
+                                [[scope.row.member.realname]] <br>
+                                [[scope.row.member.mobile]]
+                            </template>
+                        </el-table-column>
+                        <el-table-column label="充值时间" align="center" prop="" width="auto">
+                            <template slot-scope="scope">
+                                [[scope.row.created_at]]
+                            </template>
+                        </el-table-column>
+                        <el-table-column label="充值方式" align="center" prop="" width="auto">
+                            <template slot-scope="scope">
+                                <span v-if="scope.row.type==0" class='label label-default'>[[ scope.row.type_name ]]</span>
+                                <span v-else-if="scope.row.type==1"
+                                      class='label label-success'>[[ scope.row.type_name ]]</span>
+                                <span v-else-if="scope.row.type==2"
+                                      class='label label-warning'>[[ scope.row.type_name ]]</span>
+                                <span v-else-if="scope.row.type==9||scope.row.type==10"
+                                      class='label label-info'>[[ scope.row.type_name ]]</span>
+                                <span v-else class='label label-primary'>[[ scope.row.ype_name </span>
+                            </template>
+                        </el-table-column>
+                        <el-table-column label="充值金额/状态" align="center" prop="" width="auto">
+                            <template slot-scope="scope">
+                                [[scope.row.money]] <br>
+                                <span v-if="scope.row.status==1" class='label label-success'>充值成功</span>
+                                <span v-else-if="scope.row.status==-1" class='label label-warning'>充值失败</span>
+                                <span v-else class='label label-default'>申请中</span>
+                            </template>
+                        </el-table-column>
+                        <el-table-column label="备注信息" align="center" prop="" width="auto">
+                            <template slot-scope="scope">
+                                [[scope.row.remark]]
+                            </template>
+                        </el-table-column>
+                    </el-table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 分页 -->
+        <div class="vue-page">
+            <el-row>
+                <el-col align="right">
+                    <el-pagination layout="prev, pager, next,jumper" @current-change="search" :total="total"
+                                   :page-size="per_page" :current-page="current_page" background
+                    ></el-pagination>
+                </el-col>
+            </el-row>
+        </div>
     </div>
     <script>
-        $(function () {
-            $('#export').click(function(){
-                $('#route').val("point.recharge-export.index");
-                $('#form1').submit();
-                $('#route').val("point.recharge-records.index");
-            });
-        });
+        var vm = new Vue({
+            el: '#app',
+            // 防止后端冲突,修改ma语法符号
+            delimiters: ['[[', ']]'],
+            data() {
+                return {
+                    search_form: {
+                        member: '',
+                        order_sn: '',
+                        time: {
+                            start: 0,
+                            end: 0,
+                        }
+                    },
+                    activeName: 'recharge_record',
+                    record_list: {},
+                    total: 0,
+                    per_page: 0,
+                    current_page: 0,
+                    pageSize: 0,
+                    amount: 0,
+                    search_time: [],
+                    tab_list:[]
+
+                }
+            },
+            created() {
+                this.getData(1)
+            },
+            //定义全局的方法
+            beforeCreate() {
+            },
+            filters: {},
+            methods: {
+                getData(page) {
+                    let search = this.search_form
+                    let loading = this.$loading({
+                        target: document.querySelector(".content"),
+                        background: 'rgba(0, 0, 0, 0)'
+                    });
+                    if(typeof this.search_time[0] != 'undefined' && typeof this.search_time[1] != 'undefined') {
+                        search.time.start = this.search_time[0]/1000
+                        search.time.end = this.search_time[1]/1000
+                    }
+                    this.$http.post('{!! yzWebFullUrl('point.recharge-records.index') !!}', {
+                        search: search,
+                        page: page
+                    }).then(function (response) {
+                        if (response.data.result) {
+                            this.record_list = response.data.data.pageList
+                            this.total = response.data.data.pageList.total
+                            this.per_page = response.data.data.pageList.per_page
+                            this.current_page = response.data.data.pageList.current_page
+                            this.amount = response.data.data.amount
+
+                            this.tab_list = response.data.data.tab_list
+                            loading.close();
+                        } else {
+                            this.$message({
+                                message: response.data.msg,
+                                type: 'error'
+                            });
+                        }
+
+                        loading.close();
+                    }, function (response) {
+                        this.$message({
+                            message: response.data.msg,
+                            type: 'error'
+                        });
+                        loading.close();
+                    });
+                },
+                search(page) {
+                    this.getData(page)
+                },
+                exportList() {
+                    let json = this.search_form;
+                    let url = '{!! yzWebFullUrl('point.recharge-export.index') !!}';
+
+
+                    for (let i in json) {
+                        if (json[i]) {
+                            if (i === 'time') {
+                                url += "&search[" + i + "][start]=" + json[i]['start']
+                                url += "&search[" + i + "][end]=" + json[i]['end']
+                            } else {
+                                url += "&search[" + i + "]=" + json[i]
+                            }
+                        }
+                    }
+                    window.location.href = url + '&export=1';
+                },
+                memberNav(uid) {
+                    let url = '{!! yzWebFullUrl('member.member.detail') !!}';
+                    window.open(url + "&id=" + uid)
+                },
+                handleClick() {
+                    window.location.href = this.getUrl()
+                },
+                getUrl() {
+                    let url = ''
+                    switch (this.activeName) {
+                        case 'member_point' :
+                            url = '{!! yzWebFullUrl('finance.point-member.index') !!}';
+                            break;
+                        case 'basic_set' :
+                            url = '{!! yzWebFullUrl('finance.point-set.index') !!}';
+                            break;
+                        case 'recharge_record' :
+                            url = '{!! yzWebFullUrl('point.recharge-records.index') !!}';
+                            break;
+                        case 'point_detailed' :
+                            url = '{!! yzWebFullUrl('point.records.index') !!}';
+                            break;
+                        case 'point_queue' :
+                            url = '{!! yzWebFullUrl('point.queue.index') !!}';
+                            break;
+                        case 'queue_detailed' :
+                            url = '{!! yzWebFullUrl('point.queue-log.index') !!}';
+                            break;
+                        case 'superior_queue' :
+                            url = '{!! yzWebFullUrl('point.queue-log.parentIndex') !!}';
+                            break;
+                    }
+                    return url
+                },
+            },
+        })
     </script>
 @endsection
 

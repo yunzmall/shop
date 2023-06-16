@@ -26,6 +26,8 @@ class CreateYzShoppingShareCouponTable extends Migration
                 $table->integer('created_at')->nullable();
                 $table->integer('updated_at')->nullable();
             });
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE " . app('db')->getTablePrefix() . "yz_shopping_share_coupon comment '优惠券--优惠券分享领取表'");//表注释
+
         }
     }
 

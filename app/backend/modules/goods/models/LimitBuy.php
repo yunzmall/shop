@@ -19,7 +19,6 @@ class LimitBuy extends GoodsLimitBuy
 
     public static function relationSave($goodsId, $data, $operate)
     {
-//        dd($data);
         if (!$goodsId) {
             return false;
         }
@@ -27,30 +26,28 @@ class LimitBuy extends GoodsLimitBuy
             return false;
         }
         $saleModel = self::getModel($goodsId, $operate);
-
         if ($operate == 'deleted') {
             return $saleModel->delete();
         }
-        $data['goods_id'] = $goodsId;
-        $data['uniacid'] = \YunShop::app()->uniacid;
-        $data['status'] = empty($data['status']) ? 0 : $data['status'];
-        $data['start_time'] = strtotime($data['time']['start']);
-        $data['end_time'] = strtotime($data['time']['end']);
-
-        unset($data['time']);
-
+        $saveData['goods_id'] = $goodsId;
+        $saveData['uniacid'] = \YunShop::app()->uniacid;
+        $saveData['status'] = empty($data['status']) ? 0 : $data['status'];
+        $saveData['start_time'] = $data['start_time'];
+        $saveData['end_time'] = $data['end_time'];
+        $saveData['display_name'] = $data['display_name'];
         $changeTime = 0;
-        if($saleModel->end_time <> $data['end_time'] && $data['end_time'] >= time() && $data['status']){
+        if($saleModel->end_time <> $saveData['end_time'] && $saveData['end_time'] >= time() && $saveData['status']){
             $changeTime = 1;
         }
-
-        $saleModel->setRawAttributes($data);
-
-//        dd($saleModel);
+        $saleModel->setRawAttributes($saveData);
+        if ($saleModel->getOriginal('start_time') != $saveData['start_time'] || $saleModel->getOriginal('end_time') != $saveData['end_time']) {
+            $goods = self::getGoodsById($goodsId);
+            $saleModel->original_stock = $goods->stock;
+        }
         $res = $saleModel->save();
         if($res && $changeTime){
             //触发限时购延时队列任务（用于后续触发限时购商品下架事件）
-            $diff = ($data['end_time'] - time()) + 30;
+            $diff = ($saveData['end_time'] - time()) + 30;
             $job = (new LimitBuyEndJob($saleModel->toArray()))->delay(Carbon::now()->addSeconds(intval($diff)));
             dispatch($job);
         }
@@ -68,18 +65,8 @@ class LimitBuy extends GoodsLimitBuy
         return $model;
     }
 
-    public static function relationValidator($goodsId, $data, $operate)
+    public function getGoodsById($goodsId)
     {
-//        dd($data);
-        $flag = false;
-        $model = new static;
-        $validator = $model->validator($data);
-        if($validator->fails()){
-            $model->error($validator->messages());
-        }else{
-            $flag = true;
-        }
-        return $flag;
+        return Goods::find($goodsId);
     }
-
 }

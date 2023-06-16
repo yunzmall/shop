@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2021/2/2
  * Time: 11:49
  */
@@ -35,6 +35,14 @@ class SmsFactory
      * 腾讯云
      */
     const SMS_TX_YUN = 5;
+    /**
+     * elisoftsms
+     */
+    const SMS_ELISOFTSMS = 6;
+    /**
+     * 乐信
+     */
+    const SMS_LX = 7;
 
     public static function getSmsFactory($type = 0)
     {
@@ -66,6 +74,14 @@ class SmsFactory
 
             case self::SMS_TX_YUN:
                 $className = new TxYunSms($sms);
+                break;
+
+            case self::SMS_ELISOFTSMS:
+                $className = new ElisoftSms($sms);
+                break;
+
+            case self::SMS_LX:
+                $className = new LxSms($sms);
                 break;
         }
 

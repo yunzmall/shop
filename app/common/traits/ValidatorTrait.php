@@ -3,7 +3,7 @@
 /**
  * 验证Trait类.
  *
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 26/02/2017
  * Time: 18:55
  */

@@ -236,6 +236,8 @@ class PreOrderGoodsDeduction extends OrderGoodsDeduction
         if (isset($this->minLimitBuyCoin)) {
             return $this->minLimitBuyCoin;
         }
+
+
         return $this->minLimitBuyCoin = $this->_getMinLimitBuyCoin();
     }
 
@@ -252,7 +254,13 @@ class PreOrderGoodsDeduction extends OrderGoodsDeduction
 
         $amount = $this->getOrderGoodsMinDeductionAmount()->getMinAmount();
 
+        $handleType =  $this->getOrderDeduction()->getDeduction()->getAffectDeductionAmount();
+        if ($handleType == 'integer') {
+            $amount = intval($amount);
+        }
+
         $coin = $this->newCoin()->setMoney($amount);
+
         trace_log()->deduction("订单抵扣", "{$this->name} 商品{$this->orderGoods->goods_id}最少需要抵扣{$coin->getMoney()}元");
         return $coin;
     }
@@ -307,12 +315,22 @@ class PreOrderGoodsDeduction extends OrderGoodsDeduction
         // 订单商品最低抵扣
         $amount = $this->getMinLimitBuyCoin()->getMoney();
         // 订单所有同类型的剩余抵扣
-        $restAllDeductionAmount = $this->getOrderDeduction()->getMaxOrderGoodsDeduction()->getMoney() - $this->getOrderDeduction()->getMinDeduction()->getMoney();
+        $restAllDeductionAmount = $this->getOrderDeduction()->getMaxOrderGoodsDeduction()->getMoney()
+            - $this->getOrderDeduction()->getMinDeduction()->getMoney();
 
-        $restDeductionAmount = $this->getOrderDeduction()->getOrderGoodsDeductionAmount() - $this->getOrderDeduction()->getMinDeduction()->getMoney();
+//        dump($this->getOrderDeduction()->getCode().'--'.$this->orderGoods->goods_id);
+
+        $restDeductionAmount = $this->getOrderDeduction()->getOrderGoodsDeductionAmount()
+            - $this->getOrderDeduction()->getMinDeduction()->getMoney()
+            - $this->getOrderDeduction()->getUsableFreightDeduction()->getMoney();
+
+//        dump($restAllDeductionAmount, $restDeductionAmount);
         if ($restDeductionAmount) {
+//            dump($this->getUsableCoin()->getMoney(), $restAllDeductionAmount, $restDeductionAmount);
             // 订单商品的剩余抵扣/      订单所有同类型的剩余抵扣     获取订单商品占用的抵扣金额-d
             $amount += ($this->getUsableCoin()->getMoney() - $this->getMinLimitBuyCoin()->getMoney()) / $restAllDeductionAmount * $restDeductionAmount;
+
+//            dump($amount, '------');
         }
 
         return $this->newCoin()->setMoney($amount);

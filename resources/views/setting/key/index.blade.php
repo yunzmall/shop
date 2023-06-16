@@ -4,19 +4,6 @@
 
 @section('content')
     <script src="{{resource_get('static/yunshop/js/industry.js', 1)}}"></script>
-    <script type="text/javascript">
-        function formcheck(event) {
-
-            if ($(':input[name="upgrade[key]"]').val() == '' || $(':input[name="upgrade[secret]"]').val() == '') {
-                if($(':input[name="upgrade[key]"]').val() == '')
-                    Tip.focus(':input[name="upgrade[key]"]', 'Key 不能为空');
-                else
-                    Tip.focus(':input[name="upgrade[secret]"]', '密钥不能为空')
-                return false;
-            }
-            return true
-        }
-    </script>
     <div class="w1200 m0a">
         <div class="rightlist">
             <!-- 新增加右侧顶部三级菜单 -->
@@ -39,29 +26,50 @@
 
                     <div id="register">
                         <template>
-                            <el-row v-show="page=='register'">
-                                <el-button type="info" @click="redirect(1)" plain>免费版</el-button>
-                                <el-button type="primary" @click="redirect(2)" plain>授权版</el-button>
-                            </el-row><!--register end-->
-
                             <el-form ref="form" :model="form" label-width="100px" class="demo-ruleForm" v-show="page=='auth'">
+                                <el-form-item label="当前域名" prop="domain">
+                                    <span>[[ domain ]]</span>
+                                </el-form-item>
+                                <el-form-item label="授权状态">
+                                    <span style="color:coral">已授权</span>
+                                </el-form-item>
                                 <el-form-item label="key" prop="key">
                                     <el-input v-model="key" placeholder="请输入key" autocomplete="off"></el-input>
                                 </el-form-item>
 
-                                <el-form-item label="密钥" prop="secret">
-                                    <el-input v-model="secret" placeholder="请输入密钥" autocomplete="off"></el-input>
+                                <el-form-item label="密钥">
+                                    <el-input value="**************" placeholder="请输入密钥" autocomplete="off"></el-input>
                                 </el-form-item>
-                                <el-form-item>
-                                <el-button type="primary" @click.native="tapclickPas" >重置密钥</el-button>
+
+                                <el-form-item prop="plugins" v-if="plugins != ''">
+                                    <span slot="label">
+                                        <span>已授权插件:</span>
+                                    </span>
+                                    <div v-for="(item, index, key) in plugins" :key="item.id">
+                                        [[ index +1  ]]、[[ item.name]] <span style="color: #0b1eee">(已授权 [[ item.count ]] 个): </span> [[ item.text]]
+                                </div>
                                 </el-form-item>
-                                <el-form-item>
-                                    {{--<el-button type="primary" @click="reg_shop('cancel')" v-loading="formLoading" v-if="btn == 0">取消商城</el-button>--}}
-                                    <el-button type="primary" @click="reg_shop('create')" :disabled="formLoading" v-if="btn == 1">注册商城</el-button>
+
+                                <el-form-item prop="unauthorized" v-if="unauthorized != ''">
+                                    <span slot="label">
+                                        <span style="color:coral">未授权插件:</span>
+                                    </span>
+                                    <div style="color:coral">[[ unauthorized ]]</div>
+                                    <div style="color: #ff0000; font-weight: bold">
+                                        商城系统授权包含应用授权、插件授权两部分，使用未授权的商城系统应用或者插件都不具备合法性！我司保留对其使用系统停止升级、关闭、甚至对其媒体曝光和追究法律责任的起诉权利。
+                                        <br>
+                                        我国《中华人民共和国刑法》第二百一十七条规定： 以营利为目的，有下列侵犯著作权情形之一，违法所得 数额较大或者有其他严重情节的，处三年以下有期徒刑 或者拘役，并处或者单处罚金；违法所得数额巨大或者 有其他特别严重情节的，处三年以上七年以下有期徒刑， 并处罚金： （一）未经著作权人许可，复制发行其文字作品、音乐、 电影、电视、录像作品、计算机软件及其他作品的； （二）出版他人享有专有出版权的图书的； （三）未经录音录像制作者许可，复制发行其制作的录 音录像的； （四）制作、出售假冒他人署名的美术作品的。
+                                    </div>
                                 </el-form-item>
                             </el-form><!--auth end-->
 
                             <el-form ref="form" :model="form" :rules="rules" label-width="100px" class="demo-ruleForm" v-show="page=='free'">
+                                <el-form-item label="当前域名" prop="domain">
+                                    <span>[[ domain ]]</span>
+                                </el-form-item>
+                                <el-form-item label="授权状态">
+                                    <span style="color:coral">未授权，请填写下方信息，提交后自动完成商城授权!</span>
+                                </el-form-item>
                                 <el-form-item label="公司名称" prop="name">
                                     <el-input v-model="form.name" placeholder="请输入公司名称" autocomplete="off"></el-input>
                                 </el-form-item>
@@ -138,10 +146,12 @@
             delimiters: ['[[', ']]'],
             data() {
                 // 默认数据
-                let redirectUrl = JSON.parse('{!! $url !!}');
-                let page = JSON.parse('{!!  $page !!}');
-                let province = JSON.parse('{!! $province !!}');
-                let set = JSON.parse('{!! $set !!}');
+                let domain = ({!!  $domain !!});
+                let page = ({!!  $page !!});
+                let province = ({!! $province !!});
+                let set = ({!! $set !!});
+                let unauthorized = ({!! $unauthorized !!});
+                let plugins = ({!! $plugins !!});
 
                 var validateMobile = (rule, value, callback) => {
                     if (!(/^1\d{10}$/.test(value))) {
@@ -153,7 +163,6 @@
 
                 return {
                     page: page.type,
-                    redirectUrl:redirectUrl,
                     form: {
                         name: '',
                         trades: '',
@@ -164,9 +173,10 @@
                         mobile: '',
                         captcha: ''
                     },
+                    domain: domain.data,
+                    unauthorized: unauthorized.data,
+                    plugins: plugins.data,
                     key: set.key,
-                    secret: set.secret,
-                    btn: set.btn,
                     opt_trades: industry,
                     opt_province: province.data,
                     opt_city:'',
@@ -207,16 +217,6 @@
             mounted: function () {
             },
             methods: {
-                redirect:function (type) {
-                    switch (type) {
-                        case 1:
-                            location.href = this.redirectUrl.free;
-                            break;
-                        case 2:
-                            location.href = this.redirectUrl.auth;
-                            break;
-                    }
-                },
                 sendSms:function () {
                     let that = this;
                     let rTime = that.t;

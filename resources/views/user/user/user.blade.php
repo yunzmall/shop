@@ -80,7 +80,7 @@
         <div class="con">
             <div class="setting">
                 <div class="block">
-                    <div class="title"><div style="display:flex;align-items:center;"><span style="width: 4px;height: 18px;background-color: #29ba9c;margin-right:15px;display:inline-block;"></span><b>操作员</b><span></div></div>
+                    <div class="title"><div style="display:flex;align-items:center;"><span style="width: 4px;height: 18px;background-color: #29ba9c;margin-right:15px;display:inline-block;"></span><b>操作员</b></div></div>
                     <template>
                         <el-select v-model="search_form.role_id" placeholder="请选择" style="margin-right:16px;">
                             <el-option
@@ -108,6 +108,8 @@
                     <div class="title"><div style="display:flex;align-items:center;"><span style="width: 4px;height: 18px;background-color: #29ba9c;margin-right:15px;display:inline-block;"></span><b>操作员列表</b><span><a href="{{ yzWebFullUrl('user.user.store') }}"><el-button style="margin-left:30px;" type="primary" size="mini">添加操作员</el-button></a></div></div>
                 </div>
                 <el-table
+                        v-loading="loading"
+                        element-loading-text="加载中"
                         :data="tableData"
                         style="padding:0 10px"
                         style="width: 100%">
@@ -168,7 +170,7 @@
                 </el-table>
                 </template>
                 <el-row style="background-color:#fff;">
-                    <el-col :span="24" align="center" migra style="padding:15px 5% 15px 0" v-loading="loading">
+                    <el-col :span="24" align="center" migra style="padding:15px 5% 15px 0">
                         <el-pagination background  @current-change="currentChange"
                                        layout="prev, pager, next"
                                        :page-size="page_size" :current-page="current_page" :total="page_total"></el-pagination>
@@ -205,7 +207,7 @@
                             label: '禁用'
                         }
                     ],
-                    tableData: []
+                    tableData: [],
                 }
             },
             mounted () {
@@ -307,6 +309,7 @@
                 },
 
                 getData(){
+                    this.loading = true
                     this.$http.post('{!! yzWebFullUrl('user.user.index') !!}').then(function (response){
                         if (response.data.result) {
                             let datas = response.data.data.userList;

@@ -52,8 +52,8 @@ class PreOrderGoodsCoinExchange extends OrderGoodsCoinExchange
         if (isset($this->memberCoin)) {
             return $this->memberCoin;
         }
-
-        return app('CoinManager')->make('MemberCoinManager')->make($this->code, [$this->orderGoods->order->belongsToMember]);
+        return \app\frontend\modules\deduction\EnableDeductionService::getInstance()->getMemberCoin($this->code);
+        //return app('CoinManager')->make('MemberCoinManager')->make($this->code, [$this->orderGoods->order->belongsToMember]);
     }
 
 }

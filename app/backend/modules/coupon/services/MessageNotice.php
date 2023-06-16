@@ -20,8 +20,8 @@ class MessageNotice extends MessageService
 {
     public static function couponNotice($couponDate,$memberId)
     {
-        //【系统消息通知】
-        (new SystemMsgService())->couponNotice($couponDate);
+//        //【系统消息通知】
+//        (new SystemMsgService())->couponNotice($couponDate);
 
         $couponNotice = Setting::get('coupon.coupon_notice');
         $member = Member::getMemberInfoById($memberId);

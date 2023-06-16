@@ -24,6 +24,8 @@ class CreateImsYzPointTransferTable extends Migration {
                 $table->integer('updated_at');
                 $table->string('order_sn', 45);
             });
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE `" . app('db')->getTablePrefix()
+                . "yz_point_transfer` comment '积分--积分转让表'");
         }
 	}
 

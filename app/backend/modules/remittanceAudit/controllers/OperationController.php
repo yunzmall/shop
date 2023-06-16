@@ -11,6 +11,8 @@ namespace app\backend\modules\remittanceAudit\controllers;
 use app\backend\modules\process\controllers\Operate;
 use app\common\components\BaseController;
 use app\common\exceptions\AppException;
+use app\common\helpers\Cache;
+use app\common\modules\payType\remittance\models\flows\RemittanceAuditFlow;
 use app\common\modules\payType\remittance\models\process\RemittanceAuditProcess;
 
 class OperationController extends BaseController
@@ -33,6 +35,9 @@ class OperationController extends BaseController
                 throw new AppException("未找到id为{$processId}的审核进程记录");
             }
         }
+        $menuListCacheKey = "menuList_" . \YunShop::app()->uid;
+        Cache::forget('remittance_audit_count');
+        Cache::forget($menuListCacheKey);
         return $this->process;
     }
 

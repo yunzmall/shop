@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:  
  * Date: 2017/4/6
  * Time: 下午4:35
  */
@@ -48,7 +48,7 @@ class Order extends \app\common\models\Order
             return $query;
         }
 
-        $query->join('yz_order_address','yz_order_address.order_id', '=', 'yz_order.id');
+        $query->leftJoin('yz_order_address','yz_order_address.order_id', '=', 'yz_order.id');
 
         $query->join('yz_order_goods','yz_order_goods.order_id', '=', 'yz_order.id');
 
@@ -56,7 +56,8 @@ class Order extends \app\common\models\Order
         $query->where(function ($where) use ($keyword) {
             return $where->where('yz_order_address.mobile', 'like', '%' . $keyword . '%')
                 ->orWhere('yz_order_address.realname', 'like', '%' . $keyword . '%')
-                ->orWhere('yz_order_goods.title', 'like', '%' . $keyword . '%');
+                ->orWhere('yz_order_goods.title', 'like', '%' . $keyword . '%')
+                ->orWhere('yz_order.order_sn','like',"%{$keyword}%");
         });
         //$query->addSelect('yz_order.*');
 
@@ -74,7 +75,9 @@ class Order extends \app\common\models\Order
 
         return $query->with([
             'hasManyOrderGoods'=> function($query){
-                return $query->select(['order_id','goods_id','goods_price','total','price','thumb','title','goods_option_id','goods_option_title','comment_status']);
+                return $query->with(['hasOneComment' => function($comment_query){
+                    $comment_query->select('id','order_id','goods_id','level','content');
+                }])->select(['id','order_id','goods_id', 'refund_id', 'is_refund','goods_price','total','price', 'payment_amount','thumb','title','goods_option_id','goods_option_title','comment_status','comment_id','vip_price']);
             },
             'hasOnePayType',
             'process',
@@ -91,7 +94,11 @@ class Order extends \app\common\models\Order
 
     public function getDispatchTypeNameAttribute()
     {
-        return $this->hasOneDispatchType ? $this->hasOneDispatchType->name : '';
+        $name = $this->hasOneDispatchType ? $this->hasOneDispatchType->name : '';
+        if ($name == '快递') {
+            $name = \Setting::get('shop.lang.zh_cn.order.express')?:'快递';
+        }
+        return $name;
     }
 
     public function belongsToMember()
@@ -204,5 +211,22 @@ class Order extends \app\common\models\Order
 //            return $arr;
         }
         return [];
+    }
+
+    /**
+     * 订单状态汉字 （因为前端不想显示锁定字样，所以在前端模型重写这个）
+     * @return string
+     */
+    public function getStatusNameAttribute()
+    {
+        if (!$this->isClose() && $this->currentProcess()) {
+            return $this->currentProcess()->status_name;
+        }
+        $statusName = $this->getStatusService()->getStatusName();
+//        if ($this->isPending()) {
+//            $statusName .= ' : 锁定';
+//        }
+
+        return $statusName;
     }
 }

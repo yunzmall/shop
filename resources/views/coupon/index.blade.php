@@ -18,6 +18,7 @@
             <el-tab-pane label="分享领取记录" name="4"></el-tab-pane>
             <el-tab-pane label="使用记录" name="5"></el-tab-pane>
             <el-tab-pane label="领券中心幻灯片" name="6"></el-tab-pane>
+            <el-tab-pane label="会员优惠券" name="7"></el-tab-pane>
         </el-tabs>
         </div>
         <div class="vue-head">
@@ -139,6 +140,11 @@
                             <el-link title="发放优惠券" :underline="false" :href="'{{ yzWebUrl('coupon.send-coupon', array('id' => '')) }}'+[[scope.row.id]]" style="width:50px;">
                                 <i class="iconfont icon-supplier_release"></i>
                             </el-link>
+
+                            <el-link title="添加优惠券" :underline="false" style="width:50px;">
+                                <i v-if="scope.row.lasttotal > 0" class="el-icon-s-ticket" @click="couponAddCount(scope.row.id)"></i>
+                            </el-link>
+
                         </template>
                     </el-table-column>
                 </el-table>
@@ -350,12 +356,51 @@
                 else if(val.name == 6) {
                     window.location.href = `{!! yzWebFullUrl('coupon.slide-show') !!}`;
                 }
+                else if(val.name == 7) {
+                    window.location.href = `{!! yzWebFullUrl('coupon.member-coupon.index') !!}`;
+                }
             },
             // 字符转义
             escapeHTML(a) {
                 a = "" + a;
                 return a.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, "\"").replace(/&apos;/g, "'");;
             },
+            couponAddCount(id) {
+                const that = this
+                this.$prompt('输入增加的优惠劵数量', '提示', {
+                    confirmButtonText: '确定',
+                    cancelButtonText: '取消',
+                    inputPattern: /^[0-9]*$/,
+                    inputErrorMessage: '请输入整型'
+                }).then(({ value }) => {
+                    let params = {
+                        id: id,
+                        total: value
+                    }
+                    that.$http.post("{!! yzWebFullUrl('coupon.coupon.add-coupon-count') !!}", params).then(response => {
+                        if (response.data.result === 1) {
+                            this.$message({
+                                type: 'success',
+                                message: '成功添加优惠券: ' + value + '张'
+                            });
+                            that.search(1);
+                        }else{
+                            this.$message({
+                                type: 'fail',
+                                message: '添加失败, 请重试'
+                            });
+                        }
+                    }), function (res) {
+                        console.log(res);
+                    };
+
+                }).catch(() => {
+                    this.$message({
+                        type: 'info',
+                        message: '取消优惠券添加'
+                    });
+                });
+            }
             
         },
     })

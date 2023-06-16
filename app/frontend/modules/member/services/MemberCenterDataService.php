@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:  
  * Date: 2017/4/1
  * Time: 下午4:37
  */
@@ -41,10 +41,18 @@ class MemberCenterDataService
         if ($plugin) {
             $plugin = collect($plugin);
             foreach ($memberCenter->sortPluginData() as $item) {
-                $data = $plugin->where('name',$item)->first();
-                if ($data) {
-                    $arr['plugins'][] = $data;
+                $data = $plugin->where('name',$item);
+                //存在相同name的入口，改为循环
+                if ($data->isNotEmpty()) {
+                    $data->each(function ($v) use (&$arr) {
+                        if (count($arr['plugins']) < 19) {
+                            $arr['plugins'][] = $v;
+                        }
+                    });
                 }
+//                if ($data) {
+//                    $arr['plugins'][] = $data;
+//                }
                 if (count($arr['plugins']) >= 19) {
                     break;
                 }
@@ -153,6 +161,7 @@ class MemberCenterDataService
             if ($set['is_open'] == 1) {
                 if (request()->type == 2) {
                     $arr = [
+                        'cservice'=>$set['mini_link'],
                         'customer_open'=>$set['mini_open'],
                         'service_QRcode' => yz_tomedia($set['mini_QRcode']),
                         'service_mobile' => $set['mini_mobile']

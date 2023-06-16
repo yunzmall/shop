@@ -51,7 +51,8 @@ class GoodsAndStoreScope extends CouponUseScope
             $appoint_store_good_ids = StoreGoods::whereIn('store_id', $store_ids)->pluck('goods_id')->all(); //指定门店（商品id）
             $cashier_good_ids = Store::uniacid()->whereIn('id', $store_ids)->pluck('cashier_id')->all(); //收银台id（商品id）
             if ($use_conditions['is_all_good'] == 1) {
-                $appoint_good_ids = Goods::uniacid()->where('plugin_id', 0)->pluck('id')->all();
+                $except_plugin_id = [92,101];
+                $appoint_good_ids = Goods::uniacid()->where('status', 1)->whereNotIn('plugin_id', $except_plugin_id)->pluck('id')->all();
             } else {
                 $appoint_good_ids = $use_conditions['good_ids']; //指定商品id
             }

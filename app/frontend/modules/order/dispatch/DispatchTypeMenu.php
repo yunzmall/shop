@@ -11,6 +11,7 @@ namespace app\frontend\modules\order\dispatch;
 
 use app\common\models\DispatchType;
 use app\frontend\modules\memberCart\models\DispatchTypeOrder;
+use Yunshop\PackageDeliver\service\CustomizeNameService;
 
 abstract class DispatchTypeMenu
 {
@@ -91,6 +92,21 @@ abstract class DispatchTypeMenu
             'dispatch_type_id' => $this->dispatchType['id'],
             'name' => $this->dispatchType['name'],
         ];
+    }
+
+    /**
+     * 门店自提点名称
+     * @param $storeId
+     * @return mixed|string
+     */
+    public function getStoreDeliverName($storeId)
+    {
+        //开启自提点插件
+        if(app('plugins')->isEnabled('package-deliver') && $storeId){
+            return CustomizeNameService::getStoreDeliverName($storeId) ?? $this->getName();
+        }else{
+            return $this->getName();
+        }
     }
 
 }

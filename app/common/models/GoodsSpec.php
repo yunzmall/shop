@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/3/1
  * Time: 09:41
  */
@@ -21,6 +21,12 @@ class GoodsSpec extends \app\common\models\BaseModel
     public $guarded = [];
 
     //public $timestamps = false;
+
+    protected $hidden = [
+        'created_at',
+        'updated_at',
+        'deleted_at'
+    ];
 
     public function hasManySpecsItem()
     {

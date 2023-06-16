@@ -41,7 +41,7 @@ class OrderReceivedMinNotice extends BaseMessageBody
         $this->data = [
             'thing6'=>['value'=> $this->goodsTitle],//  商品名称
             'thing4'=>['value'=> \Setting::get('shop.shop')['name']],//商户名称
-            'number1'=>['value'=>  $this->order->order_sn],// 订单编号
+            'character_string8'=>['value'=>  $this->order->order_sn],// 订单编号
             'date7'=>['value'=> $this->timeData['finish_time']],//  收货时间
             'phrase3'=>['value'=> "已收货"]//  订单状态
         ];

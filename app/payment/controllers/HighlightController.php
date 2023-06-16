@@ -1,9 +1,9 @@
 <?php
 /**
  * Created by PhpStorm.
- * Name: 芸众商城系统
- * Author: 广州市芸众信息科技有限公司
- * Profile: 广州市芸众信息科技有限公司位于国际商贸中心的广州，专注于移动电子商务生态系统打造，拥有芸众社交电商系统、区块链数字资产管理系统、供应链管理系统、电子合同等产品/服务。官网 ：www.yunzmall.com  www.yunzshop.com
+ *
+ *
+ *
  * Date: 2021/5/26
  * Time: 17:13
  */
@@ -94,11 +94,13 @@ class HighlightController extends PaymentController
         switch ($data['status']) {
             case 100:
             case 200:
-                if ($data['status'] == 100 && $data['is_verification']) {
+                if ($data['status'] == 100  && !$data['is_verification']) {
+                    WithdrawService::setWithdraw($this->withdraw,-1,'结算单创建失败:'.($data['check_error_info'] ? : $data['fail_reason']),null,null,$data['status']);
+                } elseif ($data['status'] == 100 && $data['is_verification']) {
                     WithdrawService::setWithdraw($this->withdraw,1,'结算单校验中',null,null,$data['status']);
-                    break;
+                } elseif ($data['status'] == 200) {
+                    WithdrawService::setWithdraw($this->withdraw,-1,'结算单创建失败已删除:'.$data['fail_reason'],null,null,$data['status']);
                 }
-                WithdrawService::setWithdraw($this->withdraw,-1,'结算单创建失败:'.$data['fail_reason'],null,null,$data['status']);
                 break;
             case 300:
                 WithdrawService::setWithdraw($this->withdraw,1,'商户余额不足,充值后状态会自动流转！如需停止支付，需在商户结算后台【财务管理】找到对应结算单-【删除】',null,null,$data['status']);
@@ -141,7 +143,7 @@ class HighlightController extends PaymentController
             //------------------------------
             case 1000://打款成功
                 WithdrawService::setWithdraw($this->withdraw,2,'',null,null,$data['status']);
-                event(new WithdrawSuccessEvent($this->withdraw->withdraw_sn));
+                WithdrawService::withdrawSuccess($this->withdraw->withdraw_sn);
                 break;
             case 750:
             case 5000:

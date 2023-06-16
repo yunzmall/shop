@@ -17,9 +17,11 @@ class CreateImsYzPayTypeGroupTable extends Migration
         if (!Schema::hasTable('yz_pay_type_group')) {
             Schema::create('yz_pay_type_group', function (Blueprint $table) {
                 $table->increments('id');
-                $table->string('name', 100)->default('');
+                $table->string('name', 100)->default('')->comment('分组名称');
                 $table->timestamps();
             });
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE " . app('db')->getTablePrefix()
+                . "yz_pay_type_group comment '商城--支付方式分组表'");//表注释
         }
     }
 

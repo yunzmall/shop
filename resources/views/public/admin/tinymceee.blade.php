@@ -1,6 +1,6 @@
 <template id="tinymceee">
     <div style="position: relative;">
-        <div style="text-align: right;position: absolute;z-index: 999;right: 0;">
+        <div style="text-align: right;position: absolute;z-index: 999;right: 0;top: 4px;">
             <el-button size="small" type="primary" @click="openUploadOnlyTextArea()">上传图片</el-button>
         </div>
         <textarea :id="id_name" style="height:600px" v-model="value"></textarea>
@@ -81,7 +81,7 @@
                             <div v-if="resourceList.length <= 0" style="text-align:center;margin-top:20px">
                                 暂没有数据~
                             </div>
-                            <div v-if="type == 1" class='img-source fl' v-for="(item,index) in resourceList">
+                            <div v-if="type == 1" class='img-source fl' v-for="(item,index) in resourceList" @click.stop="handChecked('click',item.id,item)">
                                 <img :src="item.url" alt="">
                                 <p>[[item.filename]]</p>
                                 <div class="img-mark" :style="{ display: item.is_choose ? 'block' : '' }">
@@ -122,10 +122,14 @@
                     </div>
                 </el-tab-pane>
             </el-tabs>
-            <div class="img-hint">
-                <el-upload :action="uploadLink" ref="upload" :multiple="multipleTag" :on-success="handleSucesss" :on-exceed="handleExceed" :on-preview="handlePreview" :before-upload="beforeUpload">
+            <div class="img-hint" v-loading="uploadImgLoading" >
+                <!-- <el-upload :action="uploadLink" ref="upload" :multiple="multipleTag" accept="image/*" :on-success="handleSucesss" :on-exceed="handleExceed" :before-upload="beforeUpload">
                     <el-button size="small" type="primary">点击上传</el-button>
-                </el-upload>
+                </el-upload> -->
+                <div>
+                    <label for="uploadImgInput" class="uploadImgInput">点击上传</label>
+                    <input type="file" id="uploadImgInput" @change="onChange" accept="image/*" :multiple="multipleTag">
+                </div>
             </div>
             <div class="uploading-btn">
                 <span>已选择</span>
@@ -141,7 +145,7 @@
 <script>
     const upload_url = '{!! yzWebFullUrl('upload.uploadV2.upload-vue') !!}';
     Vue.component('tinymceee', {
-        props: ['value'],
+        props: ['value','porp_id_name'],
         delimiters: ['[[', ']]'],
         data() {
             let self2 = this;
@@ -151,12 +155,13 @@
                 hasInit: false,
                 hasChange: false,
 
-                // imgLoading: false,
+                uploadImgLoading: false,
                 // ImgList: [],
                 //弹框上传图片的路径
                 uploadImg: "",
                 uploadImgUrl: "",
                 netImgUrl: "",
+                readlyImgList: [],
 
                 // chooseImg: "",
                 // radio1: "", //年
@@ -228,9 +233,13 @@
                 window.onbeforeunload = null
             });
             this.getGroupList(this.type)
-            this.uploadLink = '{!! yzWebFullUrl('upload.uploadV3.upload') !!}'+'&upload_type='+'image'+'&tag_id='+ ''
+            this.uploadLink = "{!! yzWebFullUrl('upload.uploadV3.upload') !!}"+'&upload_type='+'image'+'&tag_id='+ ''
         },
         mounted: function() {
+            if(this.porp_id_name) {
+                // 如果外部定义了id名称 就采用外部的porp_id_name
+                this.id_name = this.porp_id_name
+            }
             var component = this;
             tinymce.init({
                 selector: "#" + component.id_name,
@@ -239,7 +248,7 @@
                 hasInit: false,
                 menubar: false,
                 body_class: 'panel-body ',
-                object_resizing: false, //调整尺寸
+                object_resizing: true, //调整尺寸
                 end_container_on_empty_block: true,
                 powerpaste_word_import: 'merge',
                 powerpaste_html_import: 'merge',
@@ -247,17 +256,20 @@
                 code_dialog_height: 450,
                 code_dialog_width: 1000,
                 max_height: 1000,
+                height:600,
                 advlist_bullet_styles: 'square',
                 advlist_number_styles: 'default',
                 imagetools_cors_hosts: ['www.tinymce.com', 'codepen.io'],
-                fontsize_formats: "8px 10px 12px 14px 18px 24px 36px",
+                fontsize_formats: "8px 10px 12px 14px 16px 18px 20px 22px 24px 28px 30px 36px",
                 default_link_target: '_blank',
                 link_title: false,
+                autosave_ask_before_unload: false,
+                autosave_interval: '20s',
                 nonbreaking_force_tab: true, // inserting nonbreaking space &nbsp; need Nonbreaking Space Plugin
                 // plugins: ['advlist anchor autolink autosave code codesample colorpicker colorpicker contextmenu directionality emoticons fullscreen hr image imagetools insertdatetime link lists media nonbreaking noneditable pagebreak powerpaste preview print save searchreplace spellchecker tabfocus table template textcolor textpattern visualblocks visualchars wordcount'],
                 // toolbar: ['searchreplace bold italic underline strikethrough fontsizeselect alignleft aligncenter alignright outdent indent  blockquote undo redo removeformat subscript superscript code codesample', 'hr bullist numlist link image charmap preview anchor pagebreak insertdatetime media table emoticons forecolor backcolor fullscreen'],
-                plugins: ['advlist anchor autolink autoresize code codesample colorpicker contextmenu directionality emoticons fullscreen hr image imagetools insertdatetime link charmap lists media nonbreaking noneditable pagebreak preview print save searchreplace spellchecker tabfocus table template textcolor textpattern visualblocks visualchars wordcount bdmap powerpaste'],
-                toolbar: ['forecolor backcolor searchreplace bold italic underline strikethrough fontsizeselect', ' alignleft aligncenter alignright outdent indent  ltr rtl blockquote undo redo removeformat subscript superscript code codesample', 'hr bullist numlist link image charmap preview anchor pagebreak print insertdatetime media table emoticons fullscreen bdmap'],
+                plugins: ['autosave advlist anchor autolink autoresize code codesample colorpicker contextmenu directionality emoticons fullscreen hr image imagetools insertdatetime link charmap lists media nonbreaking noneditable pagebreak preview print save searchreplace spellchecker tabfocus table template textcolor textpattern visualblocks visualchars wordcount bdmap powerpaste formatpainter'],
+                toolbar: ['restoredraft forecolor backcolor searchreplace bold italic underline strikethrough fontsizeselect', ' alignleft aligncenter alignright outdent indent  ltr rtl blockquote undo redo removeformat subscript superscript code codesample', 'hr bullist numlist link image charmap preview anchor pagebreak print insertdatetime media table emoticons fullscreen formatpainter'],
                 image_advtab: true,
                 relative_urls: false,
                 remove_script_host: false,
@@ -265,7 +277,7 @@
                 // image_dimensions:false,
                 // object_resizing: true,
                 // paste_webkit_styles: true ,
-                // inline_styles: true, 
+                // inline_styles: true,
                 // schema: 'html5',
                 // valid_elements: 'img[]',
                 // extended_valid_elements: 'img[style|class|src|border|alt|title|hspace|vspace|width|height|align|name|loading]',
@@ -358,12 +370,15 @@
                         this.$emit('input', editor.getContent())
                     })
                 },
+                save_onsavecallback() {
+                    console.log('阻止默认保存')
+                },
                 // setup: function(editor) {
                 //     editor.on('input undo redo execCommand blur', function(e) {
                 //         console.log("111111111111111111")
                 //         component.flag=false;
                 //         component.$emit('input', editor.getContent());
-                //     }) 
+                //     })
                 // }
             });
         },
@@ -399,11 +414,13 @@
             //     this.currentChange(1);
             // },
             openUploadOnlyTextArea() {
+                tinymce.editors[0].editorManager.get(this.id_name).focus();
                 this.uploadShow = true
                 this.uploadImgUrl = "";
                 this.netImgUrl = "";
                 this.centerDialogVisible = true;
                 this.initData();
+                this.getGroupList(1);
                 this.currentChange(1);
             },
             sureImg() {
@@ -411,7 +428,7 @@
                 //     tinyMCE.activeEditor.insertContent(`<img src="${this.uploadImgUrl}" >`)
                 // }
                 this.fileList.forEach((item, index) => {
-                    tinyMCE.activeEditor.insertContent(`<img src="${item.url}" >`)
+                    tinyMCE.activeEditor.insertContent(`<p style="margin: 0;"><img style="max-width: 100%;vertical-align: middle;" src="${item.url}" ></p>`)
                 })
                 this.centerDialogVisible = false;
                 this.uploadShow = false //新增
@@ -517,6 +534,7 @@
             //     return isLt2M;
             // },
             initData() {
+                this.uploadImgLoading = false;
                 this.imgLoading = false;
                 this.ImgList = [];
                 //弹框上传图片的路径
@@ -559,7 +577,7 @@
                 });
             },
 
-            getMultimediaList(id, pageSize, page) {
+            getMultimediaList(id, pageSize, page, flag) {
                 let url = ''
                 if (this.type == 1) { //图片
                     url = '{!! yzWebFullUrl('upload.uploadV3.getImage') !!}'
@@ -577,9 +595,21 @@
                         this.resourceTotal = response.data.data.total
                         this.resourceList = response.data.data.data
                         this.imgLoading = true
-                        this.resourceList.forEach((item, index) => {
-                            item['is_choose'] = 0
-                        });
+                        if(flag == 'upload') {
+                            // 上传图片之后回显
+                            this.resourceList.forEach((item, index) => {
+                                if(index<this.readlyImgList.length) {
+                                    this.handChecked(null,item.id,item)
+                                }
+                            });
+                            $('#uploadImgInput').val('');
+                            this.uploadImgLoading = false;
+                            this.readlyImgList = [];
+                        }else {
+                            this.resourceList.forEach((item, index) => {
+                                item['is_choose'] = 0
+                            });
+                        }
                     } else {
                         this.$message({
                             message: response.data.msg,
@@ -728,11 +758,80 @@
                 this.activeName = 'first'
                 this.uploadShow = false
             },
-
+            // compare (prop) {
+            //     // 根据prop参数排序
+            //     return function (obj1, obj2) {
+            //         var val1 = obj1[prop];
+            //         var val2 = obj2[prop];
+            //         if (!isNaN(Number(val1)) && !isNaN(Number(val2))) {
+            //             val1 = Number(val1);
+            //             val2 = Number(val2);
+            //         }
+            //         if (val1 < val2) {
+            //             return -1;
+            //         } else if (val1 > val2) {
+            //             return 1;
+            //         } else {
+            //             return 0;
+            //         }            
+            //     } 
+            // },
+            onChange(event) {
+                this.readlyImgList = event.target.files;
+                console.log(this.readlyImgList)
+                let arr = Object.values(this.readlyImgList);
+                // arr= arr.sort(this.compare("lastModified"))
+                arr.reverse();
+                // if (arr.length > 5) {
+                //     this.$message.error("不能一次上传超过5个文件！");
+                //     return
+                // }
+                this.readlyImgList = arr;
+                if(this.readlyImgList.length > 0) {
+                    this.uploadImgRequest(this.readlyImgList[0],0)
+                }
+            },
+            uploadImgRequest(file,index) {
+                // console.log(file,index)
+                if(index > this.readlyImgList.length-1 || !file) {
+                    this.getMultimediaList(this.groupId, this.page_size, this.page,'upload')
+                    this.getSelect()
+                    this.getGroupList(this.type)
+                    return
+                }
+                this.uploadImgLoading = true;
+                let fd = new FormData();
+                fd.append("file", file);
+                $.ajax({
+                    url: this.uploadLink,
+                    method: 'POST',
+                    data: fd,
+                    processData: false,
+                    contentType: false,
+                }).then((res)=>{
+                    if(res.result == 1) {
+                        this.uploadImgRequest(this.readlyImgList[index+1],index+1)
+                        // res.data.is_choose = true
+                        // this.resourceList.unshift(res.data)
+                        // let arr = this.resourceList.slice(0, this.page_size)
+                        // this.resourceList = arr
+                        this.$message({
+                            message: res.msg,
+                            type: 'success'
+                        });
+                    }else {
+                        console.log('上传失败',file,index)
+                        this.$message.error(res.msg);
+                        this.uploadImgRequest(this.readlyImgList[index+1],index+1)
+                    }
+                })
+            },
             beforeUpload(file) {
+                console.log(file,"file",new Date().getTime())
                 this.resourceList.forEach(item => {
                     return item.is_choose = false
                 })
+
                 // this.imgLoading = true;
                 // const isLt2M = file.size / 1024 / 1024 < 4;
                 // if (!isLt2M) {
@@ -751,7 +850,6 @@
                     let arr = this.resourceList.slice(0, this.page_size)
                     this.resourceList = arr
                     console.log(this.resourceList, '12435435')
-                    console.log(this, 'oooooooooooo')
                     this.handChecked(null, response.data.id, response.data)
                     // this.$refs.upload.clearFiles()
                     // if(this.resourceList.length >= 8) {
@@ -799,22 +897,22 @@
                 } else {
                     this.$message.error(response.msg);
                 }
-                console.log(this.$refs);
             },
 
-            // // 文件超出个数限制时的钩子
+            // 文件超出个数限制时的钩子
             handleExceed(files) {
                 if (files.length > 5) {
                     this.$message.error("不能一次上传超过5个文件！");
                     return
                 }
             },
-
-            // 点击文件列表中已上传的文件时的钩子
-            handlePreview(file) {
-
-            },
             handChecked(val, id, item) {
+                if(val == 'click') {
+                    item.is_choose = !item.is_choose
+                }
+                if(item.is_choose == undefined) {
+                    item.is_choose = true;
+                }
                 this.uploadImgUrl = item.url;
                 let arr = []
                 let data = []
@@ -1250,7 +1348,26 @@
         line-height: 22px;
     } */
 
+    .uploadImgInput {
+        color: #FFF;
+        background-color: #29BA9C;
+        border-color: #29BA9C;
+        font-size: 12px;
+        border-radius: 3px;
+        padding: 8px 15px;
+        cursor: pointer;
+    }
+
     .tox-dialog__body .tox-dialog__body-nav-item:nth-child(3) {
         display: none;
     }
+    
+    /* 隐藏上传图标 */
+    /* .tox .tox-button.tox-button--icon .tox-tbtn__icon-wrap svg {
+        display: none ;
+    }
+    
+    .tox-form__controls-h-stack .tox-browse-url {
+        display: none ;
+    } */
 </style>

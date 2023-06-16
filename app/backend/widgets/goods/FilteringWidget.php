@@ -1,6 +1,6 @@
 <?php
 /**
- * Author 芸众商城 www.yunzshop.com
+ * Author
  * Date: 2018/3/30
  */
 

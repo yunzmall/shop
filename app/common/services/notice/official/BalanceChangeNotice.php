@@ -54,6 +54,7 @@ class BalanceChangeNotice extends BaseMessageBody
         \Log::debug("新版公众号消息-余额1",$this->template_id);
         \Log::debug("新版公众号消息-余额2",$this->member->hasOneFans->openid);
         \Log::debug("新版公众号消息-余额3",$this->data);
+        $this->url = $this->url ? : yzAppFullUrl('/member/detailed');
         $result = (new OfficialMessageNotice($this->temp_id,$this->member->hasOneFans->openid,$this->data,[],1,$this->url))->sendMessage();
 
         if (app('plugins')->isEnabled('instation-message')) {

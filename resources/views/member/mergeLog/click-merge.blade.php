@@ -30,11 +30,11 @@
                                 <div class='input-group'>
                                     <div class='form-input'>
                                         <p class="input-group-addon" >合并前会员ID</p>
-                                        <input class="form-control price" style="width: 45%;" type="text" name="search[member_id]" value="{{ $search['member_id'] or ''}}">
+                                        <input class="form-control price" style="width: 45%;" type="text" name="search[member_id]" value="{{ $search['member_id'] ?? ''}}">
                                     </div>
                                     <div class='form-input'>
                                         <p class="input-group-addon" >合并后会员ID</p>
-                                        <input class="form-control price" style="width: 30%;" type="text" name="search[mark_member_id]" value="{{ $search['mark_member_id'] or ''}}">
+                                        <input class="form-control price" style="width: 30%;" type="text" name="search[mark_member_id]" value="{{ $search['mark_member_id'] ?? ''}}">
                                     </div>
                                     {{--<div class=''>--}}
                                     {{--<p class="" align="center">注：每天凌晨1点执行数据统计，统计截止到前一天的数据；建议不要再同一时间设置数据自动备份、快照等计划任务！</p>--}}

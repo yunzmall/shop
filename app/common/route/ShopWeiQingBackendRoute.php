@@ -1,9 +1,9 @@
 <?php
 /**
  * Created by PhpStorm.
- * Name: 芸众商城系统
- * Author: 广州市芸众信息科技有限公司
- * Profile: 广州市芸众信息科技有限公司位于国际商贸中心的广州，专注于移动电子商务生态系统打造，拥有芸众社交电商系统、区块链数字资产管理系统、供应链管理系统、电子合同等产品/服务。官网 ：www.yunzmall.com  www.yunzshop.com
+ *
+ *
+ *
  * Date: 2021/8/20
  * Time: 14:23
  */
@@ -11,11 +11,15 @@
 namespace app\common\route;
 
 
+use app\common\middleware\AdminPermission;
+use app\common\services\Check;
 use Illuminate\Support\Str;
 
 class ShopWeiQingBackendRoute extends AbstractShopRoute
 {
 	public $namespace = 'app\\backend';
+
+	protected $middleware = [AdminPermission::class];
 
 	public function __construct($path)
 	{
@@ -41,28 +45,31 @@ class ShopWeiQingBackendRoute extends AbstractShopRoute
 				$entry = module_entry($eid);
 				switch ($entry['do']) {
 					case 'shop':
-						return redirect('?c=site&a=entry&do=shop&m=yun_shop&route=index.index')->send();
-						break;
+						redirect('?c=site&a=entry&do=shop&m=yun_shop&route=index.index')->send();
+						exit;
 					case 'member':
-						return redirect('?c=site&a=entry&do=shop&m=yun_shop&route=member.member.index')->send();
-						break;
+						redirect('?c=site&a=entry&do=shop&m=yun_shop&route=member.member.index')->send();
+						exit;
 					case 'order':
-						return redirect('?c=site&a=entry&do=shop&m=yun_shop&route=order.order-list.index')->send();
-						break;
+						redirect('?c=site&a=entry&do=shop&m=yun_shop&route=order.order-list.index')->send();
+						exit;
 					case 'finance':
-						return redirect('?c=site&a=entry&do=shop&m=yun_shop&route=finance.withdraw-set.see')->send();
-						break;
+						redirect('?c=site&a=entry&do=shop&m=yun_shop&route=finance.withdraw-set.see')->send();
+						exit;
 					case 'plugins':
-						return redirect('?c=site&a=entry&do=shop&m=yun_shop&route=plugins.get-plugin-data')->send();
-						break;
+						redirect('?c=site&a=entry&do=shop&m=yun_shop&route=plugins.get-plugin-data')->send();
+						exit;
 					case 'system':
-						return redirect('?c=site&a=entry&do=shop&m=yun_shop&route=setting.shop.index')->send();
-						break;
+						redirect('?c=site&a=entry&do=shop&m=yun_shop&route=setting.shop.index')->send();
+						exit;
 					default:
-						return redirect('?c=site&a=entry&do=shop&m=yun_shop&route=index.index')->send();
+						redirect('?c=site&a=entry&do=shop&m=yun_shop&route=index.index')->send();
+						exit;
 				}
 			}
 		}
+		//验证密钥
+		Check::setKey();
 	}
 
 	public function shopMatch($routes, $first)

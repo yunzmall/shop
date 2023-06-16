@@ -15,10 +15,9 @@ class UpdateYzGoodsCouponTable230311 extends Migration
     {
         if (Schema::hasTable('yz_goods_coupon')) {
             Schema::table('yz_goods_coupon', function (Blueprint $table) {
-                if (!Schema::hasColumn('yz_goods_coupon', 'is_use')) {
+                if (!Schema::hasColumn('yz_goods_coupon', 'no_use')) {
                     $table->tinyInteger('no_use')->default(0)->comment('禁止使用优惠券,1开启（不可使用），0关闭');
                 }
-
             });
         }
     }

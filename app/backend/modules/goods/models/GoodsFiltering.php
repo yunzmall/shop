@@ -1,6 +1,6 @@
 <?php
 /**
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2018/3/30
  */
 
@@ -21,6 +21,11 @@ class GoodsFiltering extends \app\common\models\goods\GoodsFiltering
         if (!$goodsId) {
             return false;
         }
+
+        if (is_null($data['goods_filter'])) {
+            return false;
+        }
+
         //判断deleted
         if ($operate == 'deleted') {
             return GoodsFiltering::where('goods_id', $goodsId)->delete();
@@ -28,7 +33,7 @@ class GoodsFiltering extends \app\common\models\goods\GoodsFiltering
         if ($operate != 'created') {
             GoodsFiltering::where('goods_id', $goodsId)->delete();
         }
-        $data = array_filter($data);
+        $data = array_filter($data['goods_filter']);
         if ($data) {
             foreach ($data as $key => $value) {
                 GoodsFiltering::insert([
@@ -36,9 +41,9 @@ class GoodsFiltering extends \app\common\models\goods\GoodsFiltering
                     'filtering_id' => $value
                 ]);         
             }
-            
         }
 
+        return true;
     }
    
 }

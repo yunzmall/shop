@@ -1,0 +1,43 @@
+.all {
+  width: 100%;
+}
+.goods-page_header-buttons .el-button {
+  margin-right: 40px;
+  padding: 12px 10px;
+}
+.goods-page_header-buttons .goods-page_header-current-button {
+  color: #FFF !important;
+  background-color: #29BA9C;
+  border-color: #29BA9C;
+}
+.goods-page_header-buttons .el-button--text {
+  color: #333;
+}
+
+.form-item_tips {
+  margin-top:8px;
+  line-height:26px;
+  color: #b5b5b5;
+  font-size: 13px;
+}
+
+.upload-boxed {
+  display:inline-block;
+  vertical-align:top;
+  cursor:pointer;
+}
+.upload-boxed .el-icon-plus {
+  line-height:136px;
+  width:150px;
+  font-size:54px;
+  text-align:center;
+  color:#ccc;
+  border:1px dashed #ccc;
+  border-bottom:0px;
+  border-radius:5px;
+}
+.upload-boxed img {
+  width:150px;
+  height:150px;
+  border-radius:5px;
+}

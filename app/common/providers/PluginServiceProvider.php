@@ -1,13 +1,14 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 01/03/2017
  * Time: 21:33
  */
 
 namespace app\common\providers;
 
+use app\common\helpers\Cache;
 use app\common\services\Plugin;
 use app\common\events;
 use Illuminate\Support\Str;
@@ -27,11 +28,9 @@ class PluginServiceProvider extends ServiceProvider
         /**
          * @var PluginManager $plugins
          */
-
         if (strpos(request()->path(), 'install')) {
             return;
         }
-
         // store paths of class files of plugins
         $srcPaths = [];
         $loader = $this->app->make('translation.loader');
@@ -40,9 +39,7 @@ class PluginServiceProvider extends ServiceProvider
         $finder = $this->app->make('view');
 
         $this->registerPluginCallbackListener();
-
         $plugins = app('plugins')->getEnabledPlugins();
-
         foreach ($plugins as $plugin) {
             // always add paths of translation files for namespace hints
             $loader->addNamespace($plugin->getNameSpace(), $plugin->getPath() . "/lang");
@@ -66,15 +63,18 @@ class PluginServiceProvider extends ServiceProvider
             events\PluginWasDeleted::class,
             events\PluginWasDisabled::class,
         ], function ($event) {
+             $event->plugin->app()->toPublishes();
+            \Artisan::call('vendor:publish', ['--tag' => $event->plugin->name, '--force' => true]);
 
             // call callback functions of plugin
             if (file_exists($filename = $event->plugin->getPath() . "/callbacks.php")) {
                 $callbacks = require $filename;
                 $callback = array_get($callbacks, get_class($event));
-                return $callback ? app()->call($callback, [$event->plugin]) : null;
+                return $callback ? app()->call($callback, ['plugins'=>$event->plugin]) : null;
             }
         });
     }
+
 
     /**
      * Register any application services.
@@ -115,5 +115,11 @@ class PluginServiceProvider extends ServiceProvider
             return false;
 
         });
+    }
+
+
+    public function toPublishes($paths,$name)
+    {
+        parent::publishes($paths, ['plugins',$name]);
     }
 }

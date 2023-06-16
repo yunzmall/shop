@@ -10,13 +10,57 @@ namespace app\frontend\modules\dispatch\freight;
 
 use app\common\models\goods\GoodsDispatch;
 use app\frontend\models\OrderGoods;
+use app\frontend\modules\order\models\PreOrder;
 
-class UnifyFreight extends BaseFreight
+class UnifyFreight
 {
     protected $code = 'unify';
 
     protected $name = '统一运费';
 
+
+    /**
+     * @var PreOrder
+     */
+    protected $order;
+
+    /**
+     * 金额
+     * @var float
+     */
+    protected $freightAmount;
+
+
+    /*
+     * 排序：数值越低权重越大
+     */
+    protected $weight;
+
+    /**
+     * BaseFreight constructor.
+     * @param PreOrder $order
+     * @param $weight
+     */
+    public function __construct(PreOrder $order, $weight = 0)
+    {
+        $this->order = $order;
+
+        $this->weight = $weight;
+    }
+
+
+
+    /**
+     * 返回运费金额
+     * @return float|mixed
+     */
+    public function getAmount()
+    {
+        if (!isset($this->freightAmount)) {
+            $this->freightAmount = $this->_getAmount();
+        }
+        return $this->freightAmount;
+    }
 
     protected function _getAmount()
     {

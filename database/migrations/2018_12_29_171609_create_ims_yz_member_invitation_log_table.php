@@ -18,10 +18,11 @@ class CreateImsYzMemberInvitationLogTable extends Migration
                 $table->increments('id');
                 $table->integer('uniacid')->default(0);
                 $table->integer('member_id')->nullable()->comment('会员id');
-                $table->string('invitation_code')->default()->comment('邀请码');
+                $table->string('invitation_code')->default('')->comment('邀请码');
                 $table->integer('created_at')->nullable();
                 $table->integer('updated_at')->nullable();
             });
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE `" . app('db')->getTablePrefix() . "yz_member_invitation_log` comment '会员--邀请码表'");
         }
     }
 

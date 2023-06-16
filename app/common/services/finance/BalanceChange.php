@@ -1,6 +1,6 @@
 <?php
 /**
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/5/24
  * Time: 下午5:08
  */
@@ -67,7 +67,7 @@ class BalanceChange extends Credit
         if ($this->memberModel->save()) {
             $this->sendSmsMessage();
             $this->sendMessage();
-            event(new MemberBalanceChangeEvent($this->memberModel,$this->new_value,$this->change_value,$this->source));
+            event(new MemberBalanceChangeEvent($this->memberModel,$this->new_value,$this->change_value,$this->source, $this->recordData));
             return true;
         }
         return '写入会员余额失败';
@@ -115,6 +115,19 @@ class BalanceChange extends Credit
         return $result === true ? $this->addition($data) : $result;
     }
 
+
+    //通用
+    public function universal(array $data)
+    {
+        if (!isset($data['source']) || !isset($data['type'])) {
+            throw new AppException('变动类型、业务类型必须设置');
+        }
+        $this->source = $data['source'];
+
+        // 1为收入 2为支出
+        return $data['type'] == 1 ? $this->addition($data) : $this->subtraction($data);
+    }
+
     /**
      *
      * 直播打赏
@@ -134,6 +147,13 @@ class BalanceChange extends Credit
         $money = floor(($data['change_value'] * ($data['code_proportion']/100))*100)/100;
         $data['change_value'] = $money;
         return $result === true ? parent::RoomRewardRecipient($data) : $result;
+    }
+
+    public function incomeWithdrawAward(array $data)
+    {
+        $this->source = ConstService::SOURCE_INCOME_WITHDRAW_AWARD;
+
+        return $this->addition($data);
     }
 
     public function pointTransfer(array $data)
@@ -236,6 +256,7 @@ class BalanceChange extends Credit
         return $ordersn;
     }
 
+    protected $recordData;
     /**
      * 明细记录 data 数组
      * @return array
@@ -244,7 +265,7 @@ class BalanceChange extends Credit
     {
         $thirdStatus = empty($this->data['thirdStatus']) ? 1 : $this->data['thirdStatus'];
 
-        return [
+        $this->recordData = [
             'uniacid'       => \YunShop::app()->uniacid,
             'member_id'     => $this->memberModel->uid,
             'old_money'     => $this->memberModel->credit2 ?: 0,
@@ -258,6 +279,8 @@ class BalanceChange extends Credit
             'remark'        => $this->data['remark'],
             'thirdStatus'   => $thirdStatus
         ];
+
+        return $this->recordData;
     }
 
     /**

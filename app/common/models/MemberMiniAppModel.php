@@ -1,6 +1,6 @@
 <?php
 /**
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/8/2
  * Time: 下午4:29
  */
@@ -29,6 +29,7 @@ class MemberMiniAppModel extends BaseModel
     {
         return self::uniacid()
             ->where('member_id', $memberId)
+            ->orderBy('mini_app_id', 'desc')
             ->first();
     }
 

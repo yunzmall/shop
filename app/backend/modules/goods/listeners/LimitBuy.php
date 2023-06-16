@@ -1,12 +1,12 @@
 <?php
 namespace app\backend\modules\goods\listeners;
-use app\common\models\Goods;
+use app\common\models\goods\GoodsLimitBuy;
 use app\common\models\UniAccount;
 use Illuminate\Foundation\Bus\DispatchesJobs;
 
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:  
  * Date: 2018/4/10 0010
  * Time: 下午 4:12
  */
@@ -17,31 +17,16 @@ class LimitBuy
     public function handle()
     {
         $uniAccount = UniAccount::getEnable() ?: [];
-
         foreach ($uniAccount as $u) {
             \YunShop::app()->uniacid = $u->uniacid;
             \Setting::$uniqueAccountId = $u->uniacid;
-
-            $goods_model = Goods::uniacid()
-                ->whereHas('hasOneGoodsLimitbuy', function ($query) {
-                    return $query->uniacid();
-                })
-                ->with(['hasOneGoodsLimitbuy'=> function ($query) {
-                    return $query->select('goods_id', 'end_time');
-                }])
-                ->get();
-            $current_time = time();
-
-            foreach ($goods_model as $key => $item) {
-                $end_time = $item->hasOneGoodsLimitbuy->end_time;
-                if ($end_time < $current_time && $item->hasOneGoodsLimitbuy->status == 1) {
-                    $item->status = 0;
-                    $item->save();
-                }
-            }
+            GoodsLimitBuy::uniacid()->select(['yz_goods.id','yz_goods_limitbuy.end_time','yz_goods.status'])
+                ->join('yz_goods', 'yz_goods_limitbuy.goods_id', 'yz_goods.id')
+                ->where('yz_goods.status', 1)->where('yz_goods_limitbuy.status', 1)
+                ->where("yz_goods_limitbuy.end_time", '<', time())
+                ->update(['yz_goods.status'=>0]);
         }
     }
-
 
     public function subscribe()
     {

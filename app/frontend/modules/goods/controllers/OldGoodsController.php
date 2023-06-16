@@ -49,11 +49,11 @@ use Yunshop\WxVideoLink\common\model\WxVideoLikeSetModel;
 
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/3/3
  * Time: 22:16
  */
-class OldGoodsController extends GoodsApiController
+class OldGoodsController extends GoodsController
 {
     protected $publicAction = ['getRecommendGoods'];
     protected $ignoreAction = ['getRecommendGoods'];
@@ -1781,14 +1781,23 @@ class OldGoodsController extends GoodsApiController
         foreach ($arrComment['images'] as &$image) {
             $image = yz_tomedia($image);
         }
+
+//        if ($arrComment['append']) {
+//            foreach ($arrComment['append'] as &$comment) {
+//                $comment['images'] = unserialize($comment['images']);
+//                foreach ($comment['images'] as &$image) {
+//                    $image = yz_tomedia($image);
+//                }
+//            }
+//        }
+
         if ($arrComment['append']) {
-            foreach ($arrComment['append'] as &$comment) {
-                $comment['images'] = unserialize($comment['images']);
-                foreach ($comment['images'] as &$image) {
-                    $image = yz_tomedia($image);
-                }
+            $arrComment['append']['images'] = unserialize($arrComment['append']['images']);
+            foreach ($arrComment['append']['images'] as &$image) {
+                $image = yz_tomedia($image);
             }
         }
+
         if ($arrComment['has_many_reply']) {
             foreach ($arrComment['has_many_reply'] as &$comment) {
                 $comment['images'] = unserialize($comment['images']);

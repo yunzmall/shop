@@ -8,6 +8,7 @@
 
 namespace app\common\modules\orderGoods\models;
 
+use app\backend\modules\goods\models\GoodsTradeSet;
 use app\common\exceptions\AppException;
 use app\common\models\OrderGoods;
 use app\common\models\BaseModel;
@@ -17,9 +18,12 @@ use app\frontend\models\goods\Sale;
 use app\frontend\models\GoodsOption;
 use app\frontend\modules\deduction\OrderGoodsDeductManager;
 use app\frontend\modules\deduction\OrderGoodsDeductionCollection;
+use app\frontend\modules\goods\services\TradeGoodsPointsServer;
 use app\frontend\modules\orderGoods\price\option\NormalOrderGoodsOptionPrice;
 use app\frontend\modules\orderGoods\price\option\NormalOrderGoodsPrice;
 use app\frontend\modules\order\models\PreOrder;
+use app\frontend\modules\orderGoods\taxFee\OrderGoodsTaxFeeManager;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
 /**
@@ -45,10 +49,12 @@ use Illuminate\Support\Collection;
  * @property string goods_option_title
  * @property string goods_sn
  * @property string thumb
+ * @property int type
  * @property string title
  * @property GoodsOption goodsOption
  * @property OrderGoodsDeductionCollection orderGoodsDeductions
  * @property Collection orderGoodsDiscounts
+ * @property Collection orderGoodsTaxFees
  * @property Sale sale
  */
 class PreOrderGoods extends OrderGoods
@@ -65,7 +71,7 @@ class PreOrderGoods extends OrderGoods
      */
     public $coupons;
 
-    protected $appends = ['pre_id'];
+    protected $appends = ['pre_id', 'points', 'show_time_word'];
 
     /**
      * @param $key
@@ -113,6 +119,7 @@ class PreOrderGoods extends OrderGoods
         $this->goods_id = (int)$this->goods_id;
         $this->title = (string)$this->title;
         $this->thumb = (string)$this->thumb;
+        $this->type = (int)$this->type;
         $this->goods_sn = (string)$this->goods_sn;
         $this->product_sn = (string)$this->product_sn;
         $this->goods_price = (string)$this->goods_price;
@@ -121,13 +128,40 @@ class PreOrderGoods extends OrderGoods
         $this->goods_market_price = (float)$this->goods_market_price;
         $this->coupon_price = (float)$this->coupon_price;
         $this->need_address = (float)$this->need_address;
-        $this->payment_amount = (float)$this->getPaymentAmount();
-
+        $this->payment_amount = round($this->getPaymentAmount(),2,PHP_ROUND_HALF_EVEN);
+        $this->vip_price = $this->getVipPrice();
         if ($this->isOption()) {
             $this->goods_option_id = (int)$this->goods_option_id;
             $this->goods_option_title = (string)$this->goods_option_title;
             $this->goods_sn = $this->goodsOption->goods_sn ? (string)$this->goodsOption->goods_sn : $this->goods_sn;
             $this->product_sn = $this->goodsOption->product_sn ? (string)$this->goodsOption->product_sn : $this->product_sn;
+        }
+    }
+
+    private function getShowTimeWord()
+    {
+        //商品交易设置
+        $goods_trade_set = GoodsTradeSet::where('goods_id', $this->goods_id)->first();
+        if (!$goods_trade_set || !$goods_trade_set->arrived_day || !app('plugins')->isEnabled('address-code')) {
+            return '';
+        } else {
+            $arrived_day = $goods_trade_set->arrived_day;
+            $arrived_word = $goods_trade_set->arrived_word;
+            if ($arrived_day > 1) {
+                $arrived_day -= 1;
+                $time_format = Carbon::createFromTimestamp(time())->addDays($arrived_day)->format('Y-m-d');
+            } else {
+                $time_format = Carbon::createFromTimestamp(time())->format('Y-m-d');
+            }
+            $time_format .= " {$goods_trade_set->arrived_time}:00";
+            $timestamp = strtotime($time_format);
+            if ($timestamp < time()) {
+                $timestamp += 86400;
+            }
+            $show_time = ltrim(date('m', $timestamp), '0').'月';
+            $show_time .= ltrim(date('d', $timestamp), '0').'日';
+            $show_time .= $goods_trade_set->arrived_time;
+            return str_replace('[送达时间]', $show_time, $arrived_word);
         }
     }
 
@@ -178,6 +212,25 @@ class PreOrderGoods extends OrderGoods
 
         }
         return $this->orderGoodsDiscounts;
+    }
+
+    public function getTaxFees()
+    {
+        $taxFees = collect();
+        foreach (\app\common\modules\shop\ShopConfig::current()->get('shop-foundation.goods-tax-fee') as $configItem) {
+            $taxFee = call_user_func($configItem['class'], $this);
+            $taxFee->setWeight($configItem['weight']);
+            $taxFees->push($taxFee);
+        }
+        return $taxFees;
+    }
+
+    public function getOrderGoodsTaxFees()
+    {
+        if (!$this->getRelation('orderGoodsTaxFees')) {
+            $this->setRelation('orderGoodsTaxFees', $this->newCollection());
+        }
+        return $this->orderGoodsTaxFees;
     }
 
     public function getOrderGoodsDeductions()
@@ -257,7 +310,7 @@ class PreOrderGoods extends OrderGoods
     {
         $this->touchPreAttributes();
         $this->loadConfigRelations();
-        $this->deduction_amount = (float)$this->getDeductionAmount();
+        $this->deduction_amount = round($this->getDeductionAmount(),2,PHP_ROUND_HALF_EVEN);
     }
 
     /**
@@ -308,6 +361,16 @@ class PreOrderGoods extends OrderGoods
         return $this->priceCalculator;
     }
 
+    public function getVipPrice()
+    {
+        //订单禁用优惠返回，商品现价
+        if ($this->order->isDiscountDisable()) {
+            return $this->getPrice();
+        }
+
+        return $this->getPriceCalculator()->getVipPrice();
+    }
+
     /**
      * @return mixed
      */
@@ -328,6 +391,8 @@ class PreOrderGoods extends OrderGoods
 
         return $this->getPriceCalculator()->getVipDiscountLog();
     }
+
+
 
     /**
      * @return float|mixed
@@ -377,6 +442,22 @@ class PreOrderGoods extends OrderGoods
     }
 
     /**
+     * @return string
+     */
+    public function getPointsAttribute()
+    {
+        return $this->getPoints();
+    }
+
+    /**
+     * @return string
+     */
+    public function getShowTimeWordAttribute()
+    {
+        return $this->getShowTimeWord();
+    }
+
+    /**
      * @param null $key
      * @return mixed
      */
@@ -389,5 +470,22 @@ class PreOrderGoods extends OrderGoods
         }
 
         return $result;
+    }
+
+    /**
+     * @description 获取积分
+     * @return mixed|string
+     */
+    public function getPoints()
+    {
+        $tradeGoodsPointsServer = new TradeGoodsPointsServer();
+        $tradeGoodsPointsServer->getPointSet($this->goods);
+
+        if ($tradeGoodsPointsServer->close(TradeGoodsPointsServer::SINGLE_PAGE)) {
+            return '';
+        }
+        $points = $tradeGoodsPointsServer->finalSetPoint();
+
+        return $tradeGoodsPointsServer->getPoint($points, $this->price, $this->goods_cost_price);
     }
 }

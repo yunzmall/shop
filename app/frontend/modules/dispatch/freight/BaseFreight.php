@@ -42,13 +42,12 @@ abstract class BaseFreight
 
 
     /*
-     * 按权重最大获取运费类型处理类型
-     * @param third_party 第三方独立运费
-     * @param max 取最大值运费
-     * @param sum 累加运费
+     * 按权重最大项获取运费计算方式
+     * @param third_party 第三方运费计算方式
+     * @param shop 默认商城运费计算方式
      *
      */
-    protected $priority = 'sum';
+    protected $priority = 'shop';
 
     /**
      * BaseFreight constructor.

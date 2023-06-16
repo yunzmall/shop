@@ -23,6 +23,8 @@ class CreateImsYzBalanceTransferTable extends Migration {
                 $table->boolean('status')->nullable();
                 $table->integer('updated_at');
             });
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE `" . app('db')->getTablePrefix()
+                . "yz_balance_transfer` comment '财务--余额转让表'");
         }
 	}
 

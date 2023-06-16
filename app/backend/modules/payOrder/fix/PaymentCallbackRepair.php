@@ -42,7 +42,7 @@ class PaymentCallbackRepair
         if(!$this->check()){
             return false;
         }
-        OrderService::ordersPay(['order_pay_id' => $this->payOrder->orderPay->id,'pay_type_id' => PayType::PAY_CLOUD_WEACHAT]);
+        OrderService::ordersPay(['order_pay_id' => $this->payOrder->orderPay->id,'pay_type_id'=>$this->payOrder->pay_type_id]);
 
         event(new ChargeComplatedEvent([
             'order_sn' => $this->payOrder->orderPay->pay_sn,

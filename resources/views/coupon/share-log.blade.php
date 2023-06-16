@@ -18,6 +18,7 @@
             <el-tab-pane label="分享领取记录" name="4"></el-tab-pane>
             <el-tab-pane label="使用记录" name="5"></el-tab-pane>
             <el-tab-pane label="领券中心幻灯片" name="6"></el-tab-pane>
+            <el-tab-pane label="会员优惠券" name="7"></el-tab-pane>
         </el-tabs>
         </div>
         <div class="vue-head">
@@ -122,6 +123,7 @@
 </div>
 
 <script>
+    let receive_uid = {!! $receive_uid?:'0' !!};
     var app = new Vue({
         el: "#app",
         delimiters: ['[[', ']]'],
@@ -131,7 +133,7 @@
                 activeName:'4',
                 list:[],
                 times:[],
-                
+                receive_uid:receive_uid,
                 search_form:{
 
                 },
@@ -165,6 +167,9 @@
                 if(this.times && this.times.length>0) {
                     json.time = [];
                     json.time = {start:this.times[0]/1000,end:this.times[1]/1000}
+                }
+                if (this.receive_uid) {
+                    json.receive_uid = this.receive_uid
                 }
                 console.log(json)
                 let loading = this.$loading({target:document.querySelector(".content"),background: 'rgba(0, 0, 0, 0)'});
@@ -239,6 +244,9 @@
                 }
                 else if(val.name == 6) {
                     window.location.href = `{!! yzWebFullUrl('coupon.slide-show') !!}`;
+                }
+                else if(val.name == 7) {
+                    window.location.href = `{!! yzWebFullUrl('coupon.member-coupon.index') !!}`;
                 }
             },
             // 字符转义

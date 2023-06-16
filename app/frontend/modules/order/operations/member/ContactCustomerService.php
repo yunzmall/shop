@@ -11,6 +11,8 @@ namespace app\frontend\modules\order\operations\member;
 
 use app\frontend\modules\order\operations\OrderOperation;
 use app\frontend\modules\member\controllers\ServiceController;
+use Yunshop\Supplier\admin\models\Supplier;
+use Yunshop\Supplier\common\models\SupplierOrder;
 
 class ContactCustomerService extends OrderOperation
 {
@@ -38,7 +40,35 @@ class ContactCustomerService extends OrderOperation
 
         }
 
-        return \Setting::get('shop.shop')['cservice'];
+        if (app('plugins')->isEnabled('supplier') && $this->order->plugin_id == 92) {
+            $supplierOrder = SupplierOrder::select('supplier_id')->where('order_id', $this->order->id)->first();
+            if ($supplierOrder) {
+                $supplier = Supplier::getSupplierById($supplierOrder->supplier_id);
+                $supplierSet = (new ServiceController())->supplier_set($supplier->uid, request()->type);
+                //先将门店单独客服设置的cservice取出
+                if($supplierSet['cservice']) {
+                    return $supplierSet['cservice'];
+                }
+            }
+        }
+
+        //新加客服插件
+        if (app('plugins')->isEnabled('customer-service')) {
+            $set = array_pluck(\Setting::getAllByGroup('customer-service')->toArray(), 'value', 'key');
+            if ($set['is_open'] == 1) {
+                if (request()->type == 2) {
+                    return $set['mini_link'];
+                } else {
+                    return $set['link'];
+                }
+            }
+        }
+
+        if (request()->type == 2) {
+            return \Setting::get('shop.shop')['cservice_mini'];
+        } else {
+            return \Setting::get('shop.shop')['cservice'];
+        }
     }
 
     public function getValue()
@@ -48,7 +78,9 @@ class ContactCustomerService extends OrderOperation
 
     public function getName()
     {
-        return '联系客服';
+        if ($this->order->uid == \YunShop::app()->getMemberId()) {
+            return '联系客服';
+        }
     }
 
     public function enable()

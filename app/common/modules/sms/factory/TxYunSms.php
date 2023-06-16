@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2021/2/2
  * Time: 17:52
  */
@@ -14,105 +14,52 @@ use app\common\services\txyunsms\SmsSingleSender;
 
 class TxYunSms extends Sms
 {
-    public function sendCode($mobile, $state)
+    public function _sendCode($mobile,$state,$ext = [])
     {
-        if ($this->smsSendLimit($mobile)) {
-            $response = $this->_sendCode($mobile, $state, 'tx_templateCode', [$this->getCode($mobile)]);
-            if ($response->result == 0 && $response->errmsg == 'OK') {
-                $this->updateSmsSendTotal($mobile);
-                return $this->show_json(1);
-            } else {
-                return $this->show_json(0, $response->errmsg);
-            }
-        } else {
-            return $this->show_json(0, '发送短信数量达到今日上限');
+        switch ($this->template) {
+            case 'register':
+                $template = 'tx_templateCode';
+                $ext = [$this->getCode($mobile)];
+                break;
+            case 'password':
+                $template = 'tx_templateCodeForget';
+                $ext = [$this->getCode($mobile)];
+                break;
+            case 'login':
+                if(empty($this->sms['tx_templateCodeLogin'])){
+                    $template = 'tx_templateCode';
+                }else{
+                    $template = 'tx_templateCodeLogin';
+                }
+                $ext = [$this->getCode($mobile)];
+                break;
+            case 'balance':
+                $template = 'tx_templateBalanceCode';
+                break;
+            case 'member_recharge':
+                $template = 'tx_templatereChargeCode';
+                break;
+            case 'goods':
+                $template = 'tx_templateSendMessageCode';
+                break;
+            case 'withdraw_set':
+                $template = 'tx_templateCode';
+                $ext = [$this->getCode($mobile,$this->key)];
+                break;
+            default:
+                return '短信发送失败：未知短信类型';
         }
-    }
-
-    public function sendPwd($mobile, $state)
-    {
-        $response = $this->_sendCode($mobile, $state, 'tx_templateCodeForget', [$this->getCode($mobile)]);
-
-        if ($response->result == 0 && $response->errmsg == 'OK') {
-            return $this->show_json(1);
-        } else {
-            return $this->show_json(0, $response->errmsg);
-        }
-    }
-
-    public function sendLog($mobile, $state)
-    {
-        if(empty($this->sms['tx_templateCodeLogin'])){
-            $response = $this->_sendCode($mobile, $state, 'tx_templateCode', [$this->getCode($mobile)]);
-        }else{
-            $response = $this->_sendCode($mobile, $state, 'tx_templateCodeLogin', [$this->getCode($mobile)]);
-        }
-
-        if ($response->result == 0 && $response->errmsg == 'OK') {
-            return $this->show_json(1);
-        } else {
-            return $this->show_json(0, $response->errmsg);
-        }
-
-    }
-
-    public function sendMemberRecharge($mobile, $ext)
-    {
         $ext = array_values($ext);
-        $response = $this->_sendCode($mobile, '86', 'tx_templatereChargeCode', $ext);
-
-        if ($response->result == 0 && $response->errmsg == 'OK') {
-            return $this->show_json(1);
-        } else {
-            return $this->show_json(0, $response->errmsg);
-        }
-
-    }
-
-    public function sendGoods($mobile, $ext)
-    {
-        $ext = array_values($ext);
-        $response = $this->_sendCode($mobile, '86', 'tx_templateSendMessageCode', $ext);
-
-        if ($response->result == 0 && $response->errmsg == 'OK') {
-            return $this->show_json(1);
-        } else {
-            return $this->show_json(0, $response->errmsg);
-        }
-
-    }
-
-    public function sendBalance($mobile, $ext)
-    {
-        $ext = array_values($ext);
-        $response = $this->_sendCode($mobile, '86', 'tx_templateBalanceCode', $ext);
-
-        if ($response->result == 0 && $response->errmsg == 'OK') {
-            return $this->show_json(1);
-        } else {
-            return $this->show_json(0, $response->errmsg);
-        }
-    }
-
-    public function sendWithdrawSet($mobile, $state,$key='')
-    {
-        $response = $this->_sendCode($mobile, $state, 'tx_templateCode', [$this->getCode($mobile,$key)]);
-
-        if ($response->result == 0 && $response->errmsg == 'OK') {
-            return $this->show_json(1);
-        } else {
-            return $this->show_json(0, $response->errmsg);
-        }
-    }
-
-    private function _sendCode($mobile, $state, $template, $ext = [])
-    {
         if(empty($this->sms[$template])){
-            return $this->show_json(0, '发送失败，请检查短信配置!');
+            return '发送失败，请检查短信配置!';
         }
         $sender = new SmsSingleSender(trim($this->sms['tx_sdkappid']), trim($this->sms['tx_appkey']));
         $response = $sender->sendWithParam($state, $mobile, $this->sms[$template], $ext, $this->sms['tx_signname'], "", "");  // 签名参数不能为空串
-        return json_decode($response);
+        $response = json_decode($response);
 
+        if ($response->result != 0 || $response->errmsg != 'OK') {
+            return $response->errmsg;
+        }
+        return true;
     }
 }

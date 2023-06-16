@@ -111,6 +111,10 @@ class MemberLowerOrderJob implements ShouldQueue
                 continue;
             }
             if (empty($this->insert_data[$kk])) {
+                if (empty($t['member_id'])) {
+                    //todo 有出现某会员在yz_member找不到（被删了），但有其他会员的parent_id还是该会员的id，导致下面uid为null，插入数据失败
+                    continue;
+                }
                 $this->insert_data[$kk] = [
                     'uid'=> $t['member_id'],
                     'uniacid'=>\YunShop::app()->uniacid,

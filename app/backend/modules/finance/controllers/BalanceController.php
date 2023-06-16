@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/3/30
  * Time: 下午3:56
  */
@@ -58,23 +58,48 @@ class BalanceController extends BaseController
      */
     public function transferRecord()
     {
-        $pageSize = 20;
+        if (request()->ajax()) {
+            $pageSize = 20;
 
-        $records = BalanceTransfer::records();
+            $records = BalanceTransfer::records();
 
-        $search = \YunShop::request()->search;
-        if ($search) {
-            $records = $records->search($search);
+            $search = \YunShop::request()->search;
+            if ($search) {
+                $records = $records->search($search);
+            }
+
+            $pageList = $records->orderBy('created_at', 'desc')->paginate($pageSize)->toArray();
+            $shopSet = Setting::get('shop.member');
+            foreach ($pageList['data'] as &$item) {
+                if ($item['transfer_info']) {
+                    $item['transfer_info']['avatar'] = $item['transfer_info']['avatar'] ? tomedia($item['transfer_info']['avatar']) : tomedia($shopSet['headimg']);
+                    $item['transfer_info']['nickname'] = $item['transfer_info']['nickname'] ?:
+                        ($item['recipient_info']['mobile'] ? substr($item['recipient_info']['mobile'], 0, 2) . '******' . substr($item['recipient_info']['mobile'], -2, 2) : '无昵称会员');
+                } else {
+                    $item['transfer_info'] = [
+                        'avatar' => tomedia($shopSet['headimg']),
+                        'nickname' => '该会员已被删除或者已注销',
+                    ];
+                }
+                if ($item['recipient_info']) {
+                    $item['recipient_info']['avatar'] = $item['recipient_info']['avatar'] ? tomedia($item['recipient_info']['avatar']) : tomedia($shopSet['headimg']);
+                    $item['recipient_info']['nickname'] = $item['recipient_info']['nickname'] ?:
+                        ($item['recipient_info']['mobile'] ? substr($item['recipient_info']['mobile'], 0, 2) . '******' . substr($item['recipient_info']['mobile'], -2, 2) : '无昵称会员');
+                } else {
+                    $item['recipient_info'] = [
+                        'avatar' => tomedia($shopSet['headimg']),
+                        'nickname' => '该会员已被删除或者已注销',
+                    ];
+                }
+            }
+
+            return $this->successJson('ok', [
+                'tansferList' => $pageList,
+                'search' => $search
+            ]);
         }
 
-        $pageList = $records->orderBy('created_at', 'desc')->paginate($pageSize);
-        $pager = PaginationHelper::show($pageList->total(), $pageList->currentPage(), $pageList->perPage());
-
-        return view('finance.balance.transferRecord', [
-            'tansferList' => $pageList,
-            'pager'       => $pager,
-            'search'      => $search
-        ])->render();
+        return view('finance.balance.transferRecord')->render();
     }
 
     private function rechargeStart()

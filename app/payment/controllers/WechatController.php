@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/3/28
  * Time: 上午6:50
  */
@@ -13,10 +13,12 @@ use app\common\helpers\Url;
 use app\common\models\AccountWechats;
 use app\common\models\Order;
 use app\common\models\OrderPay;
+use app\common\models\PayOrder;
 use app\common\modules\wechat\models\WechatPayOrder;
 use app\common\services\Pay;
 use app\common\services\PayFactory;
 use app\payment\PaymentController;
+use Yunshop\AuthPayment\services\ManageService;
 
 
 class WechatController extends PaymentController
@@ -99,19 +101,25 @@ class WechatController extends PaymentController
                 'pay_type_id'     => PayFactory::WECHAT_JSAPI_PAY
             ];
 
-            $orderPay = OrderPay::where('pay_sn', $data['out_trade_no'])->orderBy('id', 'desc')->first();
-            $order = $orderPay->orders->first();
             $attach = explode(':', $post['attach']);
             $WechatPayOrder = [
                 'uniacid' => \Yunshop::app()->uniacid,
-                'order_id' => $order->id,
-                'member_id' => $order->uid,
                 'account_id' => $attach[3],
                 'pay_sn' => $post['out_trade_no'],
                 'transaction_id' => $post['transaction_id'],
                 'total_fee' => $post['total_fee'],
                 'profit_sharing' => $attach[2] == 'Y' ? 1:0,
             ];
+            $orderPay = OrderPay::where('pay_sn', $data['out_trade_no'])->orderBy('id', 'desc')->first();
+            if ($orderPay && !$orderPay->orders->isEmpty()) {
+                $order = $orderPay->orders->first();
+                $WechatPayOrder['order_id'] = $order->id;
+                $WechatPayOrder['member_id'] = $order->uid;
+            } else {
+                $payOrder = PayOrder::where('out_order_no', $data['out_trade_no'])->first();
+                $WechatPayOrder['order_id'] = 0;
+                $WechatPayOrder['member_id'] = $payOrder->member_id;
+            }
             WechatPayOrder::create($WechatPayOrder);
             $this->payResutl($data);
             echo "success";
@@ -122,7 +130,7 @@ class WechatController extends PaymentController
 
     /**
      * @param $post
-     * @return mixed
+     * @return array|false
      */
     public function verifyH5Sign($post)
     {
@@ -372,5 +380,49 @@ class WechatController extends PaymentController
         Pay::payAccessLog();
         //保存响应数据
         Pay::payResponseDataLog($post['out_trade_no'], '微信支付', json_encode($post));
+    }
+
+    public function notifyAuth()
+    {
+        $post = $this->getResponseResult();
+        $verify_result = $this->verifyH5Sign($post);
+        \Log::debug('微信H5支付回调验证结果', $verify_result);
+
+        if ($verify_result && $verify_result['result_code'] == 'SUCCESS' && $verify_result['return_code'] == 'SUCCESS') {
+
+            $subOrder = \Yunshop\AuthPayment\models\SubOrder::where('sub_pay_sn', $verify_result['out_trade_no'])->first();
+            \Log::debug('打印微信H5支付子订单模型: ' . json_encode($subOrder, true));
+            if ($subOrder) {
+                $subOrder->update(['status' => 1]);
+
+                $json = [
+                    "data" => [
+                        "pay_sn" => $subOrder->sub_pay_sn,
+                        "uniacid" => $subOrder->belongsToManage->sub_uniacid,
+                        "amount" => $subOrder->amount
+                    ],
+                    "appid" => $subOrder->belongsToManage->appid,
+                ];
+
+                $manageService = new ManageService;
+                $json['sign'] = $manageService->sign($json, $subOrder->belongsToManage->secret);
+
+                // 每三秒循环5次发送通知给子平台 发送通知给子平台 $subOrder->belongsToManage
+                $count = 3;
+                for ($x = 0; $x < $count; $x++) {
+
+                    \Log::debug('借权支付子平台发送回调数据: ' . json_encode($json, true));
+                    $result = $subOrder->sendNotify(json_encode($json));
+                    if ($result['result'] == 1) {
+                        break;
+                    }
+                    sleep(3);
+                }
+            }
+
+            echo "success";
+        } else {
+            echo "fail";
+        }
     }
 }

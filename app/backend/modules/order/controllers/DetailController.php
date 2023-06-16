@@ -2,7 +2,7 @@
 /**
  * 订单详情
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/3/4
  * Time: 上午11:16
  */
@@ -11,6 +11,7 @@ namespace app\backend\modules\order\controllers;
 
 use app\backend\modules\member\models\Member;
 use app\backend\modules\order\models\Order;
+use app\backend\modules\order\models\OrderGoods;
 use app\backend\modules\order\models\VueOrder;
 use app\backend\modules\refund\models\RefundApply;
 use app\common\components\BaseController;
@@ -168,7 +169,7 @@ class DetailController extends BaseController
             $order['hasManyOrderGoods'][$key]['goods_price'] = bcdiv($order_goods['goods_price'],$order_goods['total'],2);
             $order['hasManyOrderGoods'][$key]['goods_market_price'] = bcdiv($order_goods['goods_market_price'],$order_goods['total'],2);
             $order['hasManyOrderGoods'][$key]['goods_cost_price'] = bcdiv($order_goods['goods_cost_price'],$order_goods['total'],2);
-        }
+         }
 
         $order = $order ? $order->toArray() : [];
         if (empty($order['belongs_to_member'])) {
@@ -239,22 +240,18 @@ class DetailController extends BaseController
             throw new AppException('订单参数为空');
         }
 
-        $order = VueOrder::detailOrders()->with([
-            'deductions',
-            'coupons',
-            'discounts',
-            'orderFees',
-            'orderServiceFees',
-            'orderInvoice',
-            'orderPays' => function ($query) {
-                $query->with('payType');
-            },
-            'hasOnePayType',
-            'hasOneExpeditingDelivery',
-            'hasManyMemberCertified',
-        ])
-            ->find($order_id);
+        /**
+         * @var VueOrder $order
+         */
+        $order = VueOrder::detailOrders()->find($order_id);
 
+
+        //todo 这里不在模型的 $appends 属性加动态显示，减少不必要的查询
+        $order->fixed_link = $order->getOrderType()->fixedLink();
+        $refundApply  = $order->getOrderType()->afterSales(); //订单售后
+
+//dd($order->hasOneRefundApply);
+//dd($order->toArray());
 
         $order->orderSteps =  (new \app\backend\modules\order\steps\OrderStatusStepManager($order))->getStepItems();
 
@@ -267,10 +264,11 @@ class DetailController extends BaseController
             if($order->is_all_send_goods==0){
                 $express = $order->express->getExpress($order->express->express_code, $order->express->express_sn);
                 $dispatch[0]['order_express_id'] = $order->expressmany[0]->id;
-                $dispatch[0]['express_sn'] =  $order->expressmany[0]->express_sn;
+                //过滤快递单号的空格，trim无法处理中文的半角圆角等空格，只能用正则
+                $dispatch[0]['express_sn'] = preg_replace("/(\s|\ \;|　|\xc2\xa0)/", "", $order->expressmany[0]->express_sn);
                 $dispatch[0]['company_name'] = $order->expressmany[0]->express_company_name;
                 $dispatch[0]['data'] = $express['data'];
-                $dispatch[0]['thumb'] = $order->hasManyOrderGoods[0]->thumb;
+                $dispatch[0]['thumb'] = $order->hasManyOrderGoods[0]['thumb'];
                 $dispatch[0]['tel'] = '95533';
                 $dispatch[0]['status_name'] = $express['status_name'];
                 $dispatch[0]['count'] = count($order->hasManyOrderGoods);
@@ -280,14 +278,24 @@ class DetailController extends BaseController
                 foreach ($expressmany as $k=>$v){
                     $express = $order->express->getExpress($v->express_code, $v->express_sn);
                     $dispatch[$k]['order_express_id'] = $v->id;
-                    $dispatch[$k]['express_sn'] = $v->express_sn;
+                    //过滤快递单号的空格，trim无法处理中文的半角圆角等空格，只能用正则
+                    $dispatch[$k]['express_sn'] = preg_replace("/(\s|\ \;|　|\xc2\xa0)/", "", $v->express_sn);
                     $dispatch[$k]['company_name'] = $v->express_company_name;
                     $dispatch[$k]['data'] = $express['data'];
-                    $dispatch[$k]['thumb'] = $v->ordergoods[0]->thumb;
                     $dispatch[$k]['tel'] = '95533';
                     $dispatch[$k]['status_name'] = $express['status_name'];
-                    $dispatch[$k]['count'] = count($v['ordergoods']);
-                    $dispatch[$k]['goods'] = $v['ordergoods'];
+                    $goods = $v->hasManyOrderPackage->map(function ($item){
+                        $goods = OrderGoods::where([
+                            'id' => $item->order_goods_id,
+                            'order_id' => $item->order_id
+                        ])->first();
+                        $goods and $goods->total = $item->total;
+                        return $goods ?: [];
+                    });
+                    $goods = $v->ordergoods->merge($goods);
+                    $dispatch[$k]['count'] = $goods->sum('total');
+                    $dispatch[$k]['goods'] = $goods;
+                    $dispatch[$k]['thumb'] = $goods[0]['thumb'];
                 }
             }
 
@@ -306,20 +314,11 @@ class DetailController extends BaseController
             $order->invoice = yz_tomedia($order->invoice);
         }
 
-        if ($order->hasOneRefundApply) {
-            $refundApply = $order->hasOneRefundApply;
-            $refundApply->backend_button_models = (new \app\backend\modules\refund\services\BackendRefundButtonService($refundApply))->getButtonModels();
-            $refundApply->refundSteps =  (new \app\backend\modules\refund\services\steps\RefundStatusStepManager($refundApply))->getStepItems();
-//            dd($refundApply);
-        }
-
-//dd($order->hasOneRefundApply->toArray());
-
         $order->hasManyOrderGoods->map(function ($order_goods) {
             $order_goods->goods_price =  bcdiv($order_goods->goods_price,$order_goods->total,2);
             $order_goods->goods_market_price = bcdiv($order_goods->goods_market_price,$order_goods->total,2);
             $order_goods->goods_cost_price = bcdiv($order_goods->goods_cost_price,$order_goods->total,2);
-
+            $order_goods->goods_vip_price =  bcdiv($order_goods->vip_price,$order_goods->total,2);
         });
 
 
@@ -328,7 +327,6 @@ class DetailController extends BaseController
             $yz_member = MemberShopInfo::withTrashed()->where('member_id', $order['uid'])->first();
         }
 
-//dd($refundApply->create_time);
         $data = [
             'order' => $order,
             'refundApply' => $refundApply,
@@ -389,6 +387,28 @@ class DetailController extends BaseController
 
 
         return $this->successJson('查询成功',$dispatch);
+    }
+
+    public function orderGoodsPartRefund()
+    {
+        $order_id = intval(request()->input('order_id'));
+
+        $order = VueOrder::uniacid()->with(['orderGoods'])->where('id',$order_id)->first();
+
+        if ($order->orderGoods->isEmpty()) {
+            return $this->errorJson('获取订单商品数据错误');
+        }
+
+        //处理订单可退款商品数量
+        $orderGoods = $order->orderGoods->map(function ($orderGoods) {
+            $orderGoods->refundable_total = $orderGoods->total - $orderGoods->getRefundTotal();
+            $orderGoods->unit_price = bankerRounding($orderGoods->payment_amount / $orderGoods->total);
+
+            return $orderGoods;
+        });
+
+
+        return $this->successJson('订单商品数据',$orderGoods);
     }
 
 }

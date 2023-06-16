@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/3/29
  * Time: 下午5:23
  */
@@ -11,6 +11,7 @@ namespace app\common\models\finance;
 
 use app\common\models\BaseModel;
 
+use app\common\models\Withdraw;
 use app\common\observers\balance\BalanceChangeObserver;
 use app\common\services\credit\ConstService;
 use function foo\func;
@@ -87,6 +88,11 @@ class Balance extends BaseModel
         return static::getBalanceComment($this->attributes['service_type']);
     }
 
+    public function withdraw()
+    {
+        return $this->hasOne(Withdraw::class, 'withdraw_sn', 'serial_number');
+    }
+
     public function balanceRecharge()
     {
         return $this->hasOne(BalanceRecharge::class, 'ordersn', 'serial_number');
@@ -137,18 +143,7 @@ class Balance extends BaseModel
     public function scopeWithMember($query)
     {
         return $query->with(['member' => function($query) {
-            return $query->select('uid', 'nickname', 'realname', 'avatar', 'mobile', 'credit2')
-                ->with(['yzMember' => function($yzMember){
-                    return $yzMember->select(['member_id', 'parent_id', 'is_agent', 'group_id', 'level_id', 'is_black'])
-                        ->uniacid()
-                        ->with(['group' => function ($query1) {
-                            return $query1->select(['id', 'group_name'])->uniacid();
-                        }, 'level' => function ($query2) {
-                            return $query2->select(['id', 'level', 'level_name'])->uniacid();
-                        }, 'agent' => function ($query3) {
-                            return $query3->select(['uid', 'avatar', 'nickname'])->uniacid();
-                        }]);
-                }]);
+            return $query->select('uid', 'nickname', 'realname', 'avatar', 'mobile', 'credit2');
         }]);
     }
 
@@ -160,27 +155,56 @@ class Balance extends BaseModel
         if ($search['type']) {
             $query->whereType($search['type']);
         }
+        if ($search['member_id']) {
+            $query->where('yz_balance.member_id', $search['member_id']);
+        }
         if ($search['order_sn']) {
             $query->where('serial_number', 'like', $search['order_sn'] . '%');
         }
         if ($search['search_time']) {
-            $query->whereBetween('created_at', [strtotime($search['time']['start']), strtotime($search['time']['end'])]);
+            if (!is_numeric($search['search_time'][0])) {
+                $search['search_time'][0] = strtotime($search['search_time'][0]);
+                $search['search_time'][1] = strtotime($search['search_time'][1]);
+            } elseif (is_string($search['search_time'])) {
+                $search['search_time'] = explode(',', $search['search_time']);
+                $search['search_time'][0] = $search['search_time'][0] / 1000;
+                $search['search_time'][1] = $search['search_time'][1] / 1000;
+            } else {
+                $search['search_time'][0] = $search['search_time'][0] / 1000;
+                $search['search_time'][1] = $search['search_time'][1] / 1000;
+            }
+            $query->whereBetween('yz_balance.created_at', [$search['search_time'][0], $search['search_time'][1]]);
         }
         return $query;
     }
 
     public function scopeSearchMember($query,$search)
     {
-        return $query->whereHas('member',function($query)use($search) {
-            return $query->search($search);
-        });
+        if ($search['member']) {
+            $query = $query->join('mc_members', function ($join) use ($search) {
+                $join->on('yz_balance.member_id', 'mc_members.uid')->where(function ($w) use ($search) {
+                    if ($search['member']) {
+                        $w->where('mc_members.realname', 'like', '%'.$search['member'].'%')
+                            ->orWhere('mc_members.mobile', 'like', '%'.$search['member'].'%')
+                            ->orWhere('mc_members.nickname', 'like', '%'.$search['member'].'%');
+                    }
+                });
+            });
+        }
+        if ($search['member_level'] || $search['member_group']) {
+            $query = $query->join('yz_member', function ($join_) use ($search) {
+                $join_->on('yz_balance.member_id', 'yz_member.member_id')->where(function ($w) use ($search) {
+                    if ($search['member_level']) {
+                        $w->where('yz_member.level_id', $search['member_level']);
+                    }
+                    if ($search['member_group']) {
+                        $w->where('yz_member.group_id', $search['member_group']);
+                    }
+                });
+            });
+        }
+        return $query;
     }
-
-
-
-
-
-
 
     /**
      * 获取分页列表
@@ -234,7 +258,7 @@ class Balance extends BaseModel
         if ($type == static::TYPE_INCOME || $type == static::TYPE_EXPENDITURE) {
             $query = $query->where('type', $type);
         }
-        return $query->orderBy('created_at','desc')->paginate(15);
+        return $query->orderBy('created_at','desc')->orderBy('id','desc')->paginate(15);
     }
 
     /**

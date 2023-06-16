@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/2/27
  * Time: 下午5:07
  */
@@ -15,7 +15,15 @@ use Illuminate\Support\Facades\DB;
 
 class Comment extends BaseModel
 {
+    const not_audit = 0;//不需要审核
+    const pass_audit = 1;//通过审核
+    const wait_audit = 2;//等待审核
+
     public $attributes = ['type' => 1];
+
+    protected $casts = [
+        'score_latitude' => 'json'
+    ];
     
     use SoftDeletes;
     public $table = 'yz_comment';
@@ -96,5 +104,31 @@ class Comment extends BaseModel
 
     public function hasOneGoods(){
         return $this->hasOne(Goods::class,'id','goods_id');
+    }
+
+    public function hasOneMember()
+    {
+        return $this->hasOne('app\common\models\Member', 'uid', 'uid');
+    }
+
+    public function getAfterContent($comment_id)
+    {
+        return self::uniacid()
+            ->select(['id','content','images','type'])
+            ->where('comment_id',$comment_id)
+            ->where('type',3)
+            ->where('audit_status','!=',2)
+            ->first();
+    }
+
+    /**
+     * 修改主评论追评ID
+     * @param int $comment_id 主评论ID
+     * @param int $additional_comment_id 追评ID
+     * @return bool
+     */
+    public static function updatedAdditionalCommentId($comment_id,$additional_comment_id)
+    {
+        return self::where('id', $comment_id)->update(['additional_comment_id' => $additional_comment_id]);
     }
 }

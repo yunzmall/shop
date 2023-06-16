@@ -17,7 +17,7 @@ class AddFieldWechatToYzMemberTable extends Migration
             Schema::table('yz_member',
                 function (Blueprint $table) {
                     if (!Schema::hasColumn('yz_member', 'wechat')) {
-                        $table->string('wechat')->nullable();
+                        $table->string('wechat')->nullable()->comment('微信号码');
                     }
                 });
         }

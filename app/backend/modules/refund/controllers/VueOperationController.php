@@ -9,6 +9,8 @@
 
 namespace app\backend\modules\refund\controllers;
 
+use app\backend\modules\refund\services\operation\RefundComplete;
+use app\backend\modules\refund\services\RefundOperationService;
 use app\common\components\BaseController;
 use app\backend\modules\refund\models\RefundApply;
 use app\common\events\order\AfterOrderRefundedEvent;
@@ -22,6 +24,11 @@ use Illuminate\Support\Facades\DB;
 use app\backend\modules\refund\services\RefundMessageService;
 
 
+/**
+ * 统一售后操作接口
+ * Class VueOperationController
+ * @package app\backend\modules\refund\controllers
+ */
 class VueOperationController extends BaseController
 {
     /**
@@ -41,6 +48,11 @@ class VueOperationController extends BaseController
         }
     }
 
+    public function test()
+    {
+
+    }
+
     /**
      * 拒绝
      * @param \Request $request
@@ -48,69 +60,51 @@ class VueOperationController extends BaseController
      */
     public function reject()
     {
-        $refundApply = $this->refundApply;
-        DB::transaction(function () use ($refundApply) {
-            $refundApply->reject(\Request::only(['reject_reason']));
-            $refundApply->order->refund_id = 0;
-            $refundApply->order->save();
-            RefundMessageService::rejectMessage($refundApply);//通知买家
-        });
-
-        event(new AfterOrderRefundRejectEvent($refundApply));
-
-        if (app('plugins')->isEnabled('instation-message')) {
-            //开启了站内消息插件
-            event(new \Yunshop\InstationMessage\event\RejectOrderRefundEvent($this->refundApply));
-        }
+        RefundOperationService::refundReject(['refund_id' => request()->input('refund_id')]);
 
         return $this->successJson('操作成功');
     }
+
 
     /**
      * 同意
-     * @param \Request $request
-     * @return mixed
+     * @return \Illuminate\Http\JsonResponse
+     * @throws AppException
      */
     public function pass()
     {
-        $this->refundApply->pass();
-
-        if (app('plugins')->isEnabled('instation-message')) {
-            //开启了站内消息插件
-            event(new \Yunshop\InstationMessage\event\PassOrderRefundEvent($this->refundApply));
-        }
+        RefundOperationService::refundPass(['refund_id' => request()->input('refund_id')]);
 
         return $this->successJson('操作成功');
     }
 
-    public function receiveReturnGoods()
+
+    /**
+     * @return \Illuminate\Http\JsonResponse
+     * @throws AppException
+     */
+    public function batchResend()
     {
-        $this->refundApply->receiveReturnGoods();
-        return $this->message('操作成功', '');
+        RefundOperationService::refundBatchResend(['refund_id' => request()->input('refund_id')]);
+        return $this->successJson('操作成功');
+
     }
 
+
+    /**
+     * @return \Illuminate\Http\JsonResponse
+     * @throws AppException
+     */
     public function resend()
     {
-        $resendExpress = new ResendExpress(request()->only('express_code', 'express_company_name', 'express_sn'));
-        $this->refundApply->resendExpress()->save($resendExpress);
-        $this->refundApply->resend();
-
+        RefundOperationService::refundResend(['refund_id' => request()->input('refund_id')]);
         return $this->successJson('操作成功');
 
     }
 
     public function close()
     {
-        $refundApply = $this->refundApply;
-        DB::transaction(function () use ($refundApply) {
-            $refundApply->close();
-            RefundMessageService::passMessage($refundApply);//通知买家
-
-            event(new AfterOrderRefundSuccessEvent($refundApply));
-            if (app('plugins')->isEnabled('instation-message')) {
-                event(new \Yunshop\InstationMessage\event\OrderRefundSuccessEvent($refundApply));
-            }
-        });
+        RefundOperationService::refundClose(['refund_id' => request()->input('refund_id')]);
         return $this->successJson('操作成功');
     }
 
@@ -121,18 +115,8 @@ class VueOperationController extends BaseController
      */
     public function consensus()
     {
+        RefundOperationService::refundConsensus(['refund_id' => request()->input('refund_id')]);
 
-        $refundApply = $this->refundApply;
-        DB::transaction(function () use ($refundApply) {
-            $refundApply->consensus();
-            $refundApply->order->close();
-            RefundMessageService::passMessage($refundApply);//通知买家
-
-            event(new AfterOrderRefundSuccessEvent($refundApply));
-            if (app('plugins')->isEnabled('instation-message')) {
-                event(new \Yunshop\InstationMessage\event\OrderRefundSuccessEvent($refundApply));
-            }
-        });
         return $this->successJson('操作成功');
     }
 
@@ -142,32 +126,14 @@ class VueOperationController extends BaseController
      */
     public function changePrice()
     {
-        $refund_change_price = request()->input('change_price');
+        $params = [
+            'refund_id' => request()->input('refund_id'),
+            'change_price' => request()->input('change_price'),
+        ];
 
-        $old_price = $this->refundApply->price;
-
-        $new_price = $this->refundApply->price + $refund_change_price;
-
-        if(bccomp($new_price, 0,2) != 1) {
-            throw new AppException('退款金额必须大于0！');
-        }
-
-        $this->refundApply->price = $new_price;
-
-        $bool =  $this->refundApply->save();
+        $bool = RefundOperationService::refundChangePrice($params);
 
         if ($bool) {
-            $data = [
-                'old_price' => $old_price,
-                'new_price' => $new_price,
-                'change_price' => $refund_change_price,
-                'username' => \Yunshop::app()->username,
-                'refund_id' => $this->refundApply->id,
-                'order_id' => $this->refundApply->order_id,
-            ];
-            RefundChangeLog::create($data);
-
-
             return $this->successJson('改价成功');
         }
 

@@ -19,25 +19,25 @@
                     @if(isset($valueOne['menu']) && $valueOne['menu'] == 1)
                 <li>
                     @if(isset($valueOne['child']) && array_child_kv_exists($valueOne['child'],'menu',1))
-                    <a href="javascript:;" i="1"><i class="fa {{$valueOne['icon'] or ''}}"></i><span class="text">{{$valueOne['name'] or ''}}</span> <span class="fa fa-angle-down pull-right"></span></a>
+                    <a href="javascript:;" i="1"><i class="fa {{$valueOne['icon'] ?? ''}}"></i><span class="text">{{$valueOne['name'] ?? ''}}</span> <span class="fa fa-angle-down pull-right"></span></a>
                     <ul class="nav sub">
                         @foreach($valueOne['child'] as $keyTwo=>$valueTwo)
                         <li>
                             @if(isset($valueTwo['child']) && array_child_kv_exists($valueTwo['child'],'menu',1))
-                            <a href="javascript:;" i=2><i class="iconfont {{$valueTwo['icon'] or 'icon-dian'}}"></i><span class="text">{{$valueTwo['name'] or ''}}</span><span class="fa fa-angle-down pull-right"></span></a>
+                            <a href="javascript:;" i=2><i class="iconfont {{$valueTwo['icon'] ?? 'icon-dian'}}"></i><span class="text">{{$valueTwo['name'] ?? ''}}</span><span class="fa fa-angle-down pull-right"></span></a>
                             <ul class="nav sub third">
                                 @foreach($valueTwo['child'] as $keyThird=>$valueThird)
-                                <li><a href="{{yzWebFullUrl(isset($valueThird['url']) ?$valueThird['url']: '') or 'javascript:void(0)'}}"><i class="iconfont {{$valueThird['icon'] or 'icon-dian'}}"></i><span class="text"> {{$valueThird['name'] or ''}}</span></a></li>
+                                <li><a href="{{yzWebFullUrl(isset($valueThird['url']) ?$valueThird['url']: '') ?? 'javascript:void(0)'}}"><i class="iconfont {{$valueThird['icon'] ?? 'icon-dian'}}"></i><span class="text"> {{$valueThird['name'] ?? ''}}</span></a></li>
                                 @endforeach
                             </ul>
                                 @else
-                                <a href="{{yzWebFullUrl(isset($valueTwo['url']) ?$valueTwo['url']: '') or 'javascript:void(0)'}}"><i class="iconfont {{$valueTwo['icon'] or 'icon-dian'}}"></i><span class="text">{{$valueTwo['name'] or ''}}</span></a>
+                                <a href="{{yzWebFullUrl(isset($valueTwo['url']) ?$valueTwo['url']: '') ?? 'javascript:void(0)'}}"><i class="iconfont {{$valueTwo['icon'] ?? 'icon-dian'}}"></i><span class="text">{{$valueTwo['name'] ?? ''}}</span></a>
                             @endif
                         </li>
                         @endforeach
                     </ul>
                         @else
-                        <a href="{{yzWebFullUrl(isset($valueOne['url']) ?$valueOne['url']:'') or ''}}"><i class="fa {{$valueOne['icon'] or ''}}"></i><span class="text">{{$valueOne['name'] or ''}}</span></a>
+                        <a href="{{yzWebFullUrl(isset($valueOne['url']) ?$valueOne['url']:'') ?? ''}}"><i class="fa {{$valueOne['icon'] ?? ''}}"></i><span class="text">{{$valueOne['name'] ?? ''}}</span></a>
                     @endif
                 </li>
                     @endif

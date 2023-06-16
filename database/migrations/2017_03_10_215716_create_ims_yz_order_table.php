@@ -16,7 +16,7 @@ class CreateImsYzOrderTable extends Migration {
             Schema::create('yz_order', function (Blueprint $table) {
                 $table->increments('id');
                 $table->integer('uniacid')->unsigned()->default(0);
-                $table->integer('member_id')->default(0);
+                $table->integer('uid')->default(0);
                 $table->string('order_sn', 23)->default('');
                 $table->integer('price')->default(0);
                 $table->integer('goods_price')->default(0);

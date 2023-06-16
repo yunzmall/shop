@@ -247,9 +247,22 @@ class ReturnAddressController extends UploadVerificationBaseController
 
     public function ajaxAllAddress()
     {
+
+
+        if (request()->input('plugins_id')) {
+            $where[] = ['plugins_id'=>request()->input('plugins_id')];
+        }
+
+        $field = request()->input('field');
+        $field_value = request()->input('field_value');
+
+        if ($field && $field_value) {
+            $where[] = [$field=>$field_value];
+        }
+
         $list = ReturnAddress::select('id','address_name','is_default')
             ->uniacid()
-            ->where('plugins_id', 0)
+            ->where($where)
             ->orderBy('is_default', 'desc')
             ->get();
         return $this->successJson('ok',$list);

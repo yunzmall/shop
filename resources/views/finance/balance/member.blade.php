@@ -24,7 +24,7 @@
                                 <div class='input-group'>
 
                                     <input class="form-control" name="search[realname]" type="text"
-                                    value="{{ $search['realname'] or ''}}" placeholder="会员姓名／昵称／手机号">
+                                    value="{{ $search['realname'] ?? ''}}" placeholder="会员姓名／昵称／手机号">
 
                                     <div class='form-input'>
                                         <p class="input-group-addon" >会员等级</p>
@@ -47,9 +47,9 @@
                                     </div>
                                     <div class='form-input'>
                                         <p class="input-group-addon price">余额区间</p>
-                                        <input class="form-control price" name="search[min_credit2]" type="text" value="{{ $search['min_credit2'] or ''}}" placeholder="最小">
+                                        <input class="form-control price" name="search[min_credit2]" type="text" value="{{ $search['min_credit2'] ?? ''}}" placeholder="最小">
                                         <p class="line">—</p>
-                                        <input class="form-control price" name="search[max_credit2]" type="text" value="{{ $search['max_credit2'] or ''}}" placeholder="最大">
+                                        <input class="form-control price" name="search[max_credit2]" type="text" value="{{ $search['max_credit2'] ?? ''}}" placeholder="最大">
                                     </div>
 
                                 </div>
@@ -102,7 +102,7 @@
                                 <td>
                                     {{ isset($list->yzMember->level) ? $list->yzMember->level->level_name : $shopSet['level_name'] }}
                                     <br/>
-                                    {{ $list->yzMember->group->group_name or '' }}
+                                    {{ $list->yzMember->group->group_name ?? ''}}
                                 </td>
                                 <td>
                                     <label class="label label-danger">余额：{{ $list->credit2 }}</label>

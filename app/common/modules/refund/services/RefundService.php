@@ -4,6 +4,7 @@ namespace app\common\modules\refund\services;
 
 use app\backend\modules\refund\models\RefundApply;
 use app\backend\modules\refund\services\RefundOperationService;
+use app\common\events\order\BeforeOrderApplyRefundedEvent;
 use app\common\events\order\BeforeOrderRefundedPendingEvent;
 use app\common\exceptions\AdminException;
 use app\common\facades\Setting;
@@ -16,7 +17,7 @@ use app\common\services\PayFactory;
 
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/5/10
  * Time: 下午4:29
  */
@@ -27,9 +28,7 @@ class RefundService
     public function fastRefund($order_id)
     {
         $order = Order::find($order_id);
-        $refundApply = \app\common\models\refund\RefundApply::createByOrder($order);
-        $refundApply->save();
-        return $this->pay($refundApply->id);
+        return RefundOperationService::orderCloseAndRefund($order);
     }
 
     public function pay($refund_id)
@@ -39,6 +38,21 @@ class RefundService
         if (!isset($this->refundApply)) {
             throw new AdminException('未找到退款记录');
         }
+
+        if (bccomp($this->refundApply->price, 0, 2) !== 1) {
+            throw new AdminException('退款金额为0，请使用：手动退款');
+        }
+
+        if ($this->refundApply->status < RefundApply::WAIT_CHECK) {
+            throw new AdminException($this->refundApply->status_name . '的退款申请,无法执同意退款操作');
+        }
+
+        if (in_array($this->refundApply->status,[RefundApply::COMPLETE,RefundApply::CONSENSUS])) {
+            throw new AdminException('已退款,无法执同意退款操作');
+        }
+
+        event(new BeforeOrderApplyRefundedEvent($this->refundApply->order));
+
         //订单锁定时不能退款
         if ($this->refundApply->order->isPending()) {
             event(new BeforeOrderRefundedPendingEvent($this->refundApply->order));
@@ -47,22 +61,20 @@ class RefundService
             }
         }
 
-
+         //必须保证请求支付退款接口成功才能改变售后状态
+        //如果先改变退款状态会触发退款成功监听，实际请求支付退款接口失败了
         switch ($this->refundApply->order->pay_type_id) {
             case PayType::WECHAT_PAY:
             case PayType::WECHAT_MIN_PAY:
             case PayType::WECHAT_H5:
             case PayType::WECHAT_NATIVE:
             case PayType::WECHAT_JSAPI_PAY:
+            case PayType::WECHAT_SCAN_PAY:
                 $result = $this->wechat();
                 break;
             case PayType::ALIPAY:
-                $set = \Setting::get('shop.pay');
-                if (isset($set['alipay_pay_api']) && $set['alipay_pay_api'] == 1) {
-                    $result = $this->alipay2();
-                } else {
-                    $result = $this->alipay();
-                }
+            case PayType::ALIPAY_JSAPI_PAY:
+                $result = $this->alipay2();
                 break;
             case PayType::CREDIT:
                 $result = $this->balance();
@@ -132,9 +144,6 @@ class RefundService
             case PayType::STORE_AGGREGATE_SCAN:
                 $result = $this->storeAggregatePay();
                 break;
-            default:
-                $result = false;
-                break;
             case PayType::WECHAT_CPS_APP_PAY:
                 $result = $this->wechat();
                 break;
@@ -142,7 +151,120 @@ class RefundService
             case PayType::XFPAY_ALIPAY:
                 $result = $this->xfpayPay();
                 break;
+            case PayType::SANDPAY_ALIPAY:
+            case PayType::SANDPAY_WECHAT:
+                $result = $this->sandpayPay();
+                break;
+            case PayType::LAKALA_ALIPAY:
+            case PayType::LAKALA_WECHAT:
+                $result = $this->lakalaPay();
+                break;
+            case PayType::LESHUA_ALIPAY:
+            case PayType::LESHUA_WECHAT:
+            case PayType::LESHUA_POS:
+                $result = $this->leshuaPay();
+                break;
+            case PayType::LSP_PAY:
+                $result = $this->lspPay();
+                break;
+            case PayType::WECHAT_TRADE_PAY:
+                $result = $this->wechatTradePay();
+                break;
+            case PayType::CONVERGE_UNION_PAY:
+                $result = $this->convergePayRefund();
+                break;
+            case PayType::SILVER_POINT_ALIPAY:
+            case PayType::SILVER_POINT_WECHAT:
+            case PayType::SILVER_POINT_UNION:
+                $result = $this->silverPointRefund();
+                break;
+            case PayType::CODE_SCIENCE_PAY_YU:
+                $result = $this->codeScienceRefund();
+                break;
+            case PayType::EPLUS_WECHAT_PAY:
+            case PayType::EPLUS_MINI_PAY:
+            case PayType::EPLUS_ALI_PAY:
+                $result = $this->eplusPay();
+                break;
+            case PayType::LSP_WALLET_PAY:
+                $result = $this->lspWalletPay();
+                break;
+            case PayType::JINEPAY:
+                $result = $this->jinepayRefund();
+                break;
+            case PayType::AUTH_PAY:
+                $result = $this->authPayRefund();
+                break;
+            case PayType::VIDEO_SHOP_PAY:
+                $result = $this->videoShopPay();
+                break;
+            default:
+                $result = $this->unknownPay();
         }
+
+        return $result;
+    }
+
+    private function unknownPay()
+    {
+        \Log::debug('------售后确认退款支付类型无对应退款方法--'.$this->refundApply->order->pay_type_id,[$this->refundApply->order->order_sn]);
+        $payAdapter = new \app\common\modules\refund\RefundPayAdapter($this->refundApply->order->pay_type_id);
+
+        $result =  $payAdapter->pay($this->refundApply->order->hasOneOrderPay->pay_sn, $this->refundApply->order->hasOneOrderPay->amount, $this->refundApply->price);
+
+        if (!$result['status']) {
+            throw new AdminException($result['msg']);
+        }
+
+        //微信退款 同步改变退款和订单状态
+        RefundOperationService::refundComplete(['id' => $this->refundApply->id]);
+
+        return true;
+    }
+
+    private function eplusPay(){
+        $pay = PayFactory::create($this->refundApply->order->pay_type_id);
+
+        $result = $pay->doRefund($this->refundApply->order->hasOneOrderPay->pay_sn, $this->refundApply->order->hasOneOrderPay->amount, $this->refundApply->price);
+
+        if (!$result) {
+            throw new AdminException('智E+退款失败');
+        }
+
+        //微信退款 同步改变退款和订单状态
+        RefundOperationService::refundComplete(['id' => $this->refundApply->id]);
+
+        return $result;
+    }
+
+    private function videoShopPay(){
+        $pay = PayFactory::create($this->refundApply->order->pay_type_id);
+        //dd([$this->refundApply->order->hasOneOrderPay->pay_sn, $this->refundApply->order->hasOneOrderPay->amount, $this->refundApply->price]);
+
+        $result = $pay->doRefund($this->refundApply->order->hasOneOrderPay->pay_sn, $this->refundApply->order->hasOneOrderPay->amount, $this->refundApply->price);
+
+        if (!$result) {
+            throw new AdminException('视频号小店退款失败');
+        }
+
+        //微信退款 同步改变退款和订单状态
+        RefundOperationService::refundComplete(['id' => $this->refundApply->id]);
+
+        return $result;
+    }
+
+    private function wechatTradePay(){
+        $pay = PayFactory::create($this->refundApply->order->pay_type_id);
+        //dd([$this->refundApply->order->hasOneOrderPay->pay_sn, $this->refundApply->order->hasOneOrderPay->amount, $this->refundApply->price]);
+
+        $result = $pay->doRefund($this->refundApply->order->hasOneOrderPay->pay_sn, $this->refundApply->order->hasOneOrderPay->amount, $this->refundApply->price);
+
+        if (!$result) {
+            throw new AdminException('微信视频号退款失败');
+        }
+
+        //微信退款 同步改变退款和订单状态
+        RefundOperationService::refundComplete(['id' => $this->refundApply->id]);
 
         return $result;
     }
@@ -150,8 +272,7 @@ class RefundService
     //微信JSAPI、H5、NATIVE、小程序、APP支付退款入口
     private function wechat()
     {
-        //微信退款 同步改变退款和订单状态
-        RefundOperationService::refundComplete(['id' => $this->refundApply->id]);
+
         $pay = PayFactory::create($this->refundApply->order->pay_type_id);
         //dd([$this->refundApply->order->hasOneOrderPay->pay_sn, $this->refundApply->order->hasOneOrderPay->amount, $this->refundApply->price]);
 
@@ -160,21 +281,10 @@ class RefundService
         if (!$result) {
             throw new AdminException('微信退款失败');
         }
-        return $result;
-    }
 
-    private function wechatH5()
-    {
         //微信退款 同步改变退款和订单状态
         RefundOperationService::refundComplete(['id' => $this->refundApply->id]);
-        $pay = PayFactory::create($this->refundApply->order->pay_type_id);
-        //dd([$this->refundApply->order->hasOneOrderPay->pay_sn, $this->refundApply->order->hasOneOrderPay->amount, $this->refundApply->price]);
 
-        $result = $pay->doRefund($this->refundApply->order->hasOneOrderPay->pay_sn, $this->refundApply->order->hasOneOrderPay->amount, $this->refundApply->price);
-
-        if (!$result) {
-            throw new AdminException('微信退款失败');
-        }
         return $result;
     }
 
@@ -197,7 +307,6 @@ class RefundService
 
     private function alipay2()
     {
-        RefundOperationService::refundComplete(['id' => $this->refundApply->id]);
 
         $pay = PayFactory::create($this->refundApply->order->pay_type_id);
 
@@ -206,12 +315,14 @@ class RefundService
         if ($result === false) {
             throw new AdminException('支付宝退款失败');
         }
+
+        RefundOperationService::refundComplete(['id' => $this->refundApply->id]);
+
         return $result;
     }
 
     private function alipayapp()
     {
-        RefundOperationService::refundComplete(['id' => $this->refundApply->id]);
 
         $pay = PayFactory::create($this->refundApply->order->pay_type_id);
 
@@ -220,6 +331,9 @@ class RefundService
         if ($result === false) {
             throw new AdminException('支付宝退款失败');
         }
+
+        RefundOperationService::refundComplete(['id' => $this->refundApply->id]);
+
         return $result;
     }
 
@@ -263,6 +377,42 @@ class RefundService
         return $result;
     }
 
+    private function lspPay()
+    {
+        $refundApply = $this->refundApply;
+        //退款状态设为完成
+        RefundOperationService::refundComplete(['id' => $refundApply->id]);
+//        $order = Order::select('id', 'order_pay_id')
+//            ->with([
+//                'hasOneOrderPay'
+//            ])
+//            ->find($refundApply->order_id);
+//        if (!$order || !$order->hasOneOrderPay) {
+//            throw new AdminException("加速池支付:未找到订单");
+//        }
+        $order = $refundApply->order;
+        $orderPay = $order->hasOneOrderPay;
+        $pay = PayFactory::create($order->pay_type_id);
+        //$lspPay = new LSPPay();
+        return $pay->doRefund($orderPay->pay_sn, $orderPay->amount, $refundApply->price);
+    }
+
+    private function lspWalletPay(){
+        $refundApply = $this->refundApply;
+        $pay = PayFactory::create($refundApply->order->pay_type_id);
+
+        $result = $pay->doRefund($refundApply->order->hasOneOrderPay->pay_sn, $refundApply->order->hasOneOrderPay->amount, $refundApply->price);
+
+        if (!$result) {
+            throw new AdminException('爱心值加速池钱包退款失败');
+        }
+
+        //退款状态设为完成
+        RefundOperationService::refundComplete(['id' => $refundApply->id]);
+
+        return $result;
+    }
+
     private function balance()
     {
         $refundApply = $this->refundApply;
@@ -273,7 +423,7 @@ class RefundService
             'member_id'    => $refundApply->uid,
             'remark'       => '订单(ID' . $refundApply->order->id . ')余额支付退款(ID' . $refundApply->id . ')' . $refundApply->price,
             'source'       => ConstService::SOURCE_CANCEL_CONSUME,
-            'relation'     => $refundApply->order->order_sn,
+            'relation'     => $refundApply->refund_sn,
             'operator'     => ConstService::OPERATOR_ORDER,
             'operator_id'  => $refundApply->uid,
             'change_value' => $refundApply->price
@@ -293,8 +443,6 @@ class RefundService
 
     private function yunWechat()
     {
-        //芸支付微信退款 同步改变退款和订单状态
-        RefundOperationService::refundComplete(['id' => $this->refundApply->id]);
         $pay = PayFactory::create($this->refundApply->order->pay_type_id);
 
         $result = $pay->doRefund($this->refundApply->order->hasOneOrderPay->pay_sn, $this->refundApply->order->hasOneOrderPay->amount, $this->refundApply->price);
@@ -302,6 +450,10 @@ class RefundService
         if (!$result) {
             throw new AdminException('芸支付微信退款失败');
         }
+
+        //芸支付微信退款 同步改变退款和订单状态
+        RefundOperationService::refundComplete(['id' => $this->refundApply->id]);
+
         return $result;
     }
 
@@ -315,8 +467,7 @@ class RefundService
 
     private function hxquick()
     {
-        //环迅快捷退款 同步改变退款和订单状态
-        RefundOperationService::refundComplete(['id' => $this->refundApply->id]);
+
         $pay = PayFactory::create($this->refundApply->order->pay_type_id);
 
         $result = $pay->doRefund($this->refundApply->order->hasOneOrderPay->pay_sn, $this->refundApply->order->hasOneOrderPay->amount, $this->refundApply->price);
@@ -324,13 +475,15 @@ class RefundService
         if (!$result) {
             throw new AdminException('环迅快捷退款失败');
         }
+
+        //环迅快捷退款 同步改变退款和订单状态
+        RefundOperationService::refundComplete(['id' => $this->refundApply->id]);
+
         return $result;
     }
 
     private function hxwechat()
     {
-        //环迅微信退款 同步改变退款和订单状态
-        RefundOperationService::refundComplete(['id' => $this->refundApply->id]);
         $pay = PayFactory::create($this->refundApply->order->pay_type_id);
 
         $result = $pay->doRefund($this->refundApply->order->hasOneOrderPay->pay_sn, $this->refundApply->order->hasOneOrderPay->amount, $this->refundApply->price);
@@ -338,13 +491,16 @@ class RefundService
         if (!$result) {
             throw new AdminException('环迅微信退款失败');
         }
+
+        //环迅微信退款 同步改变退款和订单状态
+        RefundOperationService::refundComplete(['id' => $this->refundApply->id]);
+
         return $result;
     }
 
     private function ConvergeWechat()
     {
-        //汇聚微信退款 同步改变退款和订单状态
-        RefundOperationService::refundComplete(['id' => $this->refundApply->id]);
+
         $pay = PayFactory::create(PayFactory::PAY_WECHAT_HJ); //修复支付宝无法退款，退款处理统一写在了汇聚微信支付类里了
 
         $result = $pay->doRefund($this->refundApply->order->hasOneOrderPay->pay_sn,
@@ -354,6 +510,10 @@ class RefundService
             \Log::debug('汇聚微信或支付宝退款失败，失败原因' . $result['rc_CodeMsg'] . '-----失败参数-----' . json_encode($result));
             throw new AdminException('汇聚微信或支付宝退款失败，失败原因' . $result['rc_CodeMsg'] . '-----失败参数-----' . json_encode($result));
         }
+
+        //汇聚微信退款 同步改变退款和订单状态
+        RefundOperationService::refundComplete(['id' => $this->refundApply->id]);
+
         return $result;
     }
 
@@ -410,8 +570,7 @@ class RefundService
      */
     private function hkPay()
     {
-        //港版微信退款 同步改变退款和订单状态
-        RefundOperationService::refundComplete(['id' => $this->refundApply->id]);
+
         $pay = PayFactory::create($this->refundApply->order->pay_type_id);
 
         $result = $pay->doRefund($this->refundApply->order->hasOneOrderPay->pay_sn, $this->refundApply->order->hasOneOrderPay->amount, $this->refundApply->price);
@@ -419,6 +578,10 @@ class RefundService
         if (!$result) {
             throw new AdminException('微信退款失败');
         }
+
+        //港版微信退款 同步改变退款和订单状态
+        RefundOperationService::refundComplete(['id' => $this->refundApply->id]);
+
         return $result;
     }
 
@@ -461,8 +624,7 @@ class RefundService
      */
     private function hkAliPay()
     {
-        //港版微信退款 同步改变退款和订单状态
-        RefundOperationService::refundComplete(['id' => $this->refundApply->id]);
+
         $pay = PayFactory::create($this->refundApply->order->pay_type_id);
 
         $result = $pay->doRefund($this->refundApply->order->hasOneOrderPay->pay_sn, $this->refundApply->order->hasOneOrderPay->amount, $this->refundApply->price);
@@ -470,20 +632,108 @@ class RefundService
         if (!$result) {
             throw new AdminException('退款失败');
         }
+
+        //港版微信退款 同步改变退款和订单状态
+        RefundOperationService::refundComplete(['id' => $this->refundApply->id]);
+
         return $result;
     }
 
     private function xfpayPay()
     {
-        //商云客微信支付宝退款
-        RefundOperationService::refundComplete(['id' => $this->refundApply->id]);
         $pay = PayFactory::create($this->refundApply->order->pay_type_id);
 
         $result = $pay->doRefund($this->refundApply->order->hasOneOrderPay->pay_sn, $this->refundApply->order->hasOneOrderPay->amount, $this->refundApply->price);
 
         if (!$result) {
-            throw new AdminException('退款失败');
+            throw new AdminException('商云客退款失败');
         }
+
+        //商云客微信支付宝退款
+        RefundOperationService::refundComplete(['id' => $this->refundApply->id]);
+
+        return $result;
+    }
+
+    private function sandpayPay()
+    {
+
+        $pay = PayFactory::create($this->refundApply->order->pay_type_id);
+
+        $result = $pay->doRefund($this->refundApply->order->hasOneOrderPay->pay_sn, $this->refundApply->order->hasOneOrderPay->amount, $this->refundApply->price);
+
+        if (!$result) {
+            throw new AdminException('杉德退款失败');
+        }
+
+        // 杉德支付宝微信退款
+        RefundOperationService::refundComplete(['id' => $this->refundApply->id]);
+
+        return $result;
+    }
+
+    private function lakalaPay()
+    {
+
+        $pay = PayFactory::create($this->refundApply->order->pay_type_id);
+
+        $result = $pay->doRefund($this->refundApply->order->hasOneOrderPay->pay_sn, $this->refundApply->order->hasOneOrderPay->amount, $this->refundApply->price);
+
+        if (!$result) {
+            throw new AdminException('拉卡拉支付退款失败');
+        }
+
+        // 拉卡拉支付宝微信退款
+        RefundOperationService::refundComplete(['id' => $this->refundApply->id]);
+
+        return $result;
+    }
+
+    private function leshuaPay()
+    {
+        $pay = PayFactory::create($this->refundApply->order->pay_type_id);
+
+        $result = $pay->doRefund($this->refundApply->order->hasOneOrderPay->pay_sn, $this->refundApply->order->hasOneOrderPay->amount, $this->refundApply->price);
+
+        if (!$result) {
+            throw new AdminException('乐刷支付退款失败');
+        }
+
+        // 拉卡拉支付宝微信退款
+        RefundOperationService::refundComplete(['id' => $this->refundApply->id]);
+
+        return $result;
+    }
+
+    private function silverPointRefund()
+    {
+        $pay = PayFactory::create($this->refundApply->order->pay_type_id);
+
+        $result = $pay->doRefund($this->refundApply->order->hasOneOrderPay->pay_sn, $this->refundApply->order->hasOneOrderPay->amount, $this->refundApply->price);
+
+        if (!$result) {
+            throw new AdminException('银典支付退款失败');
+        }
+
+        // 银典支付支付宝微信退款
+        RefundOperationService::refundComplete(['id' => $this->refundApply->id]);
+
+        return $result;
+    }
+
+    private function codeScienceRefund()
+    {
+        $pay = PayFactory::create($this->refundApply->order->pay_type_id);
+
+        $result = $pay->doRefund($this->refundApply->order->hasOneOrderPay->pay_sn, $this->refundApply->order->hasOneOrderPay->amount, $this->refundApply->price);
+
+        if (!$result) {
+            throw new AdminException('豫章行代金券支付退款失败');
+        }
+
+        // 银典支付支付宝微信退款
+        RefundOperationService::refundComplete(['id' => $this->refundApply->id]);
+
         return $result;
     }
 
@@ -515,5 +765,63 @@ class RefundService
         //同步改变退款和订单状态
         RefundOperationService::refundComplete(['id' => $this->refundApply->id]);
         return true;
+    }
+
+
+    /**
+     * 汇聚聚合支付统一退款方法
+     * @return array|bool|mixed|string
+     * @throws AdminException
+     * @throws \app\common\exceptions\AppException
+     */
+    protected function convergePayRefund()
+    {
+
+        $pay = PayFactory::create($this->refundApply->order->pay_type_id); //修复支付宝无法退款，退款处理统一写在了汇聚微信支付类里了
+
+        $result = $pay->doRefund($this->refundApply->order->hasOneOrderPay->pay_sn,
+            $this->refundApply->order->hasOneOrderPay->amount, $this->refundApply->price);
+
+        if ($result['ra_Status'] == '101') {
+            \Log::debug('汇聚退款失败，失败原因' . $result['rc_CodeMsg'] . '-----失败参数-----' . json_encode($result));
+            throw new AdminException('汇聚支付退款失败，失败原因' . $result['rc_CodeMsg'] . '-----失败参数-----' . json_encode($result));
+        }
+
+        //汇聚微信退款 同步改变退款和订单状态
+        RefundOperationService::refundComplete(['id' => $this->refundApply->id]);
+
+        return $result;
+    }
+
+    private function jinepayRefund()
+    {
+        $pay = PayFactory::create($this->refundApply->order->pay_type_id);
+
+        $result = $pay->doRefund($this->refundApply->order->hasOneOrderPay->pay_sn, $this->refundApply->order->hasOneOrderPay->amount, $this->refundApply->price);
+
+        if (!$result) {
+            throw new AdminException('锦银E付退款失败');
+        }
+
+        // 银典支付支付宝微信退款
+        RefundOperationService::refundComplete(['id' => $this->refundApply->id]);
+
+        return $result;
+    }
+
+    private function authPayRefund()
+    {
+        $pay = PayFactory::create($this->refundApply->order->pay_type_id);
+
+        $result = $pay->doRefund($this->refundApply->order->hasOneOrderPay->pay_sn, $this->refundApply->order->hasOneOrderPay->amount, $this->refundApply->price);
+
+        if (!$result) {
+            throw new AdminException('微信借权支付退款失败');
+        }
+
+        // 银典支付支付宝微信退款
+        RefundOperationService::refundComplete(['id' => $this->refundApply->id]);
+
+        return $result;
     }
 }

@@ -33,6 +33,7 @@ VALUES
 	(3, \'coin\', 1, NULL, NULL, NULL);
 
 ');
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE " . app('db')->getTablePrefix() . "yz_deduction comment '抵扣类型表'");//表注释
         }
     }
 

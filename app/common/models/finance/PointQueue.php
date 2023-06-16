@@ -1,6 +1,6 @@
 <?php
 /**
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2019/3/31
  * Time: 9:04 PM
  */
@@ -55,6 +55,9 @@ class PointQueue extends BaseModel
         }
         if ($search['queue_id']) {
             $query->where('id', $search['queue_id']);
+        }
+        if ($search['time']['start'] > 0 && $search['time']['end'] > 0) {
+            $query->whereBetween('created_at', [$search['time']['start'], $search['time']['end']]);
         }
         return $query;
     }

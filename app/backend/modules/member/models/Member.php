@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/3/2
  * Time: 下午1:55
  */
@@ -15,6 +15,7 @@ use app\common\models\member\MemberDel;
 use app\common\traits\MemberTreeTrait;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
+use function foo\func;
 
 class Member extends \app\common\models\Member
 {
@@ -40,6 +41,7 @@ class Member extends \app\common\models\Member
 //            $builder->isPlugin();
 //        });
     }
+
     /**
      * 删除会员信息
      *
@@ -108,16 +110,17 @@ class Member extends \app\common\models\Member
             ->with('hasOneMiniApp')
             ->get();
     }
+
     public static function getMemberJsonByName($keyWord)
     {
         return self::uniacid()
             ->searchLike($keyWord)
-            ->select('uid','nickname','avatar','mobile')
+            ->select('uid', 'nickname', 'avatar', 'mobile')
             ->whereHas('yzMember', function ($query) {
                 $query->whereNull('deleted_at');
             })
-            ->with(['hasOneFans'=>function($q){
-                return $q->select('openid','uid');
+            ->with(['hasOneFans' => function ($q) {
+                return $q->select('openid', 'uid');
             }])
             ->get();
     }
@@ -172,7 +175,7 @@ class Member extends \app\common\models\Member
                 $query->whereNull('deleted_at');
             })
             ->with(['yzMember' => function ($query) {
-                return $query->select(['member_id', 'parent_id', 'is_agent', 'group_id', 'level_id', 'is_black', 'alipayname', 'alipay', 'content', 'status', 'custom_value', 'validity', 'member_form', 'withdraw_mobile','wechat'])->where('is_black', 0)
+                return $query->select(['member_id', 'parent_id', 'is_agent', 'group_id', 'level_id', 'is_black', 'alipayname', 'alipay', 'content', 'status', 'custom_value', 'validity', 'member_form', 'withdraw_mobile', 'wechat'])->where('is_black', 0)
                     ->with(['group' => function ($query1) {
                         return $query1->select(['id', 'group_name']);
                     }, 'level' => function ($query2) {
@@ -207,7 +210,7 @@ class Member extends \app\common\models\Member
                 $query->whereNull('deleted_at');
             })
             ->with(['yzMember' => function ($query) {
-                return $query->select(['member_id', 'parent_id', 'is_agent', 'group_id', 'level_id', 'is_black', 'alipayname', 'alipay', 'content', 'status', 'custom_value', 'validity', 'member_form', 'withdraw_mobile','wechat','invite_code'])
+                return $query->select(['member_id', 'parent_id', 'is_agent', 'group_id', 'level_id', 'is_black', 'alipayname', 'alipay', 'content', 'status', 'custom_value', 'validity', 'member_form', 'withdraw_mobile', 'wechat', 'invite_code'])
                     ->with(['group' => function ($query1) {
                         return $query1->select(['id', 'group_name']);
                     }, 'level' => function ($query2) {
@@ -243,7 +246,7 @@ class Member extends \app\common\models\Member
                 $query->whereNull('deleted_at');
             })
             ->with(['yzMember' => function ($query) {
-                return $query->select(['member_id', 'parent_id', 'is_agent', 'group_id', 'level_id', 'is_black', 'alipayname', 'alipay', 'content', 'status', 'custom_value', 'validity', 'member_form', 'withdraw_mobile','wechat'])->where('is_black', 0)
+                return $query->select(['member_id', 'parent_id', 'is_agent', 'group_id', 'level_id', 'is_black', 'alipayname', 'alipay', 'content', 'status', 'custom_value', 'validity', 'member_form', 'withdraw_mobile', 'wechat'])->where('is_black', 0)
                     ->with(['group' => function ($query1) {
                         return $query1->select(['id', 'group_name']);
                     }, 'level' => function ($query2) {
@@ -271,7 +274,6 @@ class Member extends \app\common\models\Member
             ->where('uid', $id)
             ->update($data);
     }
-
 
 
     /**
@@ -304,10 +306,10 @@ class Member extends \app\common\models\Member
             $result->where(function ($query) use ($parame) {
                 switch ($parame['search']['name_type']) {
                     case 1 :
-                        $query->where('realname', 'like', '%'.$parame['search']['realname'] . '%');
+                        $query->where('realname', 'like', '%' . $parame['search']['realname'] . '%');
                         break;
                     case 2 :
-                        $query->where('mobile', 'like', '%'.$parame['search']['realname'] . '%');
+                        $query->where('mobile', 'like', '%' . $parame['search']['realname'] . '%');
                         break;
                     default :
                         $query->searchLike($parame['search']['realname']);
@@ -316,7 +318,7 @@ class Member extends \app\common\models\Member
             });
         }
 
-        if($parame['search']['custom_value']){
+        if ($parame['search']['custom_value']) {
             $result->where('yz_member.custom_value', 'like', '%' . $parame['search']['custom_value'] . '%');
         }
 
@@ -358,7 +360,7 @@ class Member extends \app\common\models\Member
                 }, 'level' => function ($query2) {
                     return $query2->select(['id', 'level_name'])->uniacid();
                 }, 'agent' => function ($query3) {
-                    return $query3->select(['uid', 'avatar', 'nickname','mobile'])->uniacid();
+                    return $query3->select(['uid', 'avatar', 'nickname', 'mobile'])->uniacid();
                 }]);
         }, 'hasOneFans' => function ($query4) {
             return $query4->select(['uid', 'follow as followed'])->uniacid();
@@ -367,7 +369,7 @@ class Member extends \app\common\models\Member
                 ->uniacid()
                 ->where('status', Order::COMPLETE)
                 ->groupBy('uid');
-        },'hasOneMiniApp', 'hasOneUnique', 'hasOneWechat', 'hasOneDouyin','yzMember.agent']);
+        }, 'hasOneMiniApp', 'hasOneUnique', 'hasOneWechat', 'hasOneDouyin', 'yzMember.agent']);
 
         //判断支付宝插件
         if (file_exists(base_path('plugins/alipay-onekey-login'))) {
@@ -377,20 +379,19 @@ class Member extends \app\common\models\Member
         //判断会员标签插件
         $set = array_pluck(Setting::getAllByGroup('member-tags')->toArray(), 'value', 'key');
         if (app('plugins')->isEnabled('member-tags') && $set['is_open']) {
-            if ($parame['tag_id'])
-            {
-                $result->whereHas('hasManyTag', function($query) use($parame){
+            if ($parame['tag_id']) {
+                $result->whereHas('hasManyTag', function ($query) use ($parame) {
                     $query->where('tag_id', $parame['tag_id']);
                 });
             }
-            $result->with(['hasManyTag' => function($query){
+            $result->with(['hasManyTag' => function ($query) {
                 $query->with('tag');
             }]);
         }
-	
-	    if (app('plugins')->isEnabled('wechat-customers') && app('plugins')->isEnabled('work-wechat-platform')) {
-		    $result->with('hasOneCustomers');
-	    }
+
+        if (app('plugins')->isEnabled('wechat-customers') && app('plugins')->isEnabled('work-wechat-platform')) {
+            $result->with('hasOneCustomers');
+        }
 
         $result->whereNull('yz_member_del_log.member_id')
             ->whereNull('yz_member.deleted_at')
@@ -399,8 +400,9 @@ class Member extends \app\common\models\Member
         return $result;
     }
 
-    public function getTagsList(){
-        return MemberTagsModel::select('id','title')->where('type', 1)->get()->toArray();
+    public function getTagsList()
+    {
+        return MemberTagsModel::select('id', 'title')->where('type', 1)->get()->toArray();
     }
 
     /**
@@ -430,14 +432,14 @@ class Member extends \app\common\models\Member
         }
 
         if (!empty($parame['search']['realname'])) {
-            $result = $result->where(function ($query) use($parame){
-                $query->where('realname', 'like', '%'.$parame['search']['realname'] . '%')
-                    ->orWhere('mobile','like', '%'.$parame['search']['realname']. '%')
-                    ->orWhere('nickname', 'like', '%'.$parame['search']['realname'] . '%');
+            $result = $result->where(function ($query) use ($parame) {
+                $query->where('realname', 'like', '%' . $parame['search']['realname'] . '%')
+                    ->orWhere('mobile', 'like', '%' . $parame['search']['realname'] . '%')
+                    ->orWhere('nickname', 'like', '%' . $parame['search']['realname'] . '%');
             });
         }
 
-        if($parame['search']['custom_value']){
+        if ($parame['search']['custom_value']) {
             $result->where('yz_member.custom_value', 'like', '%' . $parame['search']['custom_value'] . '%');
         }
 
@@ -479,7 +481,7 @@ class Member extends \app\common\models\Member
                 }, 'level' => function ($query2) {
                     return $query2->select(['id', 'level_name'])->uniacid();
                 }, 'agent' => function ($query3) {
-                    return $query3->select(['uid', 'avatar', 'nickname','mobile'])->uniacid();
+                    return $query3->select(['uid', 'avatar', 'nickname', 'mobile'])->uniacid();
                 }]);
         }, 'hasOneFans' => function ($query4) {
             return $query4->select(['uid', 'follow as followed'])->uniacid();
@@ -488,7 +490,7 @@ class Member extends \app\common\models\Member
                 ->uniacid()
                 ->where('status', Order::COMPLETE)
                 ->groupBy('uid');
-        },'hasOneMiniApp', 'hasOneUnique', 'hasOneWechat', 'hasOneDouyin','yzMember.agent']);
+        }, 'hasOneMiniApp', 'hasOneUnique', 'hasOneWechat', 'hasOneDouyin', 'yzMember.agent']);
 
         //判断支付宝插件
         if (file_exists(base_path('plugins/alipay-onekey-login'))) {
@@ -528,16 +530,17 @@ class Member extends \app\common\models\Member
         $query = self::select(['uid', 'avatar', 'nickname', 'realname', 'mobile']);
         $query->uniacid();
 
-        if (isset($filters['member'])) {
+        if (!empty($filters['uid'])) {
+            $query->where('uid', $filters['uid']);
+        }
+
+        if (!empty($filters['member'])) {
             $query->searchLike($filters['member']);
         }
 
         $query->whereHas('yzMember', function ($query) use ($filters) {
-            if (isset($filters['searchtime']) && $filters['searchtime'] == 1) {
-                if ($filters['times']) {
-                    $range = [strtotime($filters['times']['start']), strtotime($filters['times']['end'])];
-                    $query = $query->whereBetween('apply_time', $range);
-                }
+            if (!empty($filters) && !empty($filters['times']['start']) && !empty($filters['times']['end'])) {
+                $query->whereBetween('apply_time', [$filters['times']['start'], $filters['times']['end']]);
             }
 
             if ($filters['referee'] == '0') {
@@ -549,12 +552,23 @@ class Member extends \app\common\models\Member
             $query->where('status', 1);
         });
 
-        $query->with(['yzMember' => function ($query) {
-            return $query->select(['member_id', 'parent_id', 'apply_time'])
-                ->with(['agent' => function ($query3) {
-                    return $query3->select(['uid', 'avatar', 'nickname']);
-                }]);
-        }])
+        $query->with([
+            'yzMember' => function ($query) {
+                return $query->select(['member_id', 'parent_id', 'apply_time', 'is_agent'])
+                    ->with(['agent' => function ($query3) {
+                        return $query3->select(['uid', 'avatar', 'nickname']);
+                    }]);
+            },
+            'hasOneFans' => function ($q) {
+                $q->select(['uid', 'openid']);
+            },
+            'hasOneMiniApp' => function ($query) {
+                return $query->select(['mini_app_id', 'member_id', 'openid'])->uniacid();
+            },
+            'hasOneUnique' => function ($query) {
+                return $query->select(['unique_id', 'member_id', 'unionid'])->uniacid();
+            },
+        ])
             ->orderBy('uid', 'desc');
         return $query;
     }
@@ -576,7 +590,7 @@ class Member extends \app\common\models\Member
         }
 
         $query->whereHas('yzMember', function ($query) use ($request) {
-            $query->where('parent_id', $request->id);
+            $query->select(['member_id', 'parent_id', 'is_agent', 'status', 'inviter'])->where('parent_id', $request->id);
 
             if ($request->aid) {
                 $query->where('member_id', $request->aid);
@@ -593,18 +607,33 @@ class Member extends \app\common\models\Member
         });
 
         if ($request->followed != '') {
-            $query->whereHas('hasOneFans', function ($jq) use ($request) {
-                $jq->where('follow', $request->followed);
-            });
+            if ($request->followed == '2') {
+                $query->doesntHave('hasOneFans');
+            }
+            if ($request->followed == '0' || $request->followed == '1') {
+                $query->whereHas('hasOneFans', function ($q) use ($request) {
+                    $q->select(['uid', 'follow'])->where('follow', $request->followed);
+                });
+
+            }
         }
 
-        $query->with(['yzMember' => function ($query) {
-            return $query->select(['member_id', 'parent_id', 'is_agent', 'group_id', 'level_id', 'is_black', 'status', 'inviter'])->with(['agent' => function ($query) {
-                return $query->select(['uid', 'avatar', 'nickname']);
-            }]);
-        }, 'hasOneFans' => function ($query) {
-            return $query->select(['uid', 'follow as followed']);
-        }
+        $query->with([
+            'yzMember' => function ($query) {
+                return $query->select(['member_id', 'parent_id', 'is_agent', 'group_id', 'level_id', 'is_black', 'status', 'inviter'])
+                    ->with(['agent' => function ($query) {
+                        return $query->select(['uid', 'avatar', 'nickname']);
+                    }]);
+            },
+            'hasOneFans' => function ($query) {
+                return $query->select(['uid', 'follow as followed', 'openid']);
+            },
+            'hasOneMiniApp' => function ($query6) {
+                return $query6->select(['mini_app_id', 'member_id', 'openid'])->uniacid();
+            },
+            'hasOneUnique' => function ($query7) {
+                return $query7->select(['unique_id', 'member_id', 'unionid'])->uniacid();
+            },
         ])
             ->orderBy('uid', 'desc');
 
@@ -731,8 +760,8 @@ class Member extends \app\common\models\Member
      */
     public static function getMemberDetailBlackById($id)
     {
-        return self::select(['uid', 'avatar', 'nickname', 'realname', 'mobile', 'createtime','gender',
-            'birthyear','birthmonth','birthday','credit1', 'credit2'])
+        return self::select(['uid', 'avatar', 'nickname', 'realname', 'mobile', 'createtime', 'gender',
+            'birthyear', 'birthmonth', 'birthday', 'credit1', 'credit2'])
             ->uniacid()
             ->where('uid', $id)
             ->whereHas('yzMember', function ($query) {
@@ -740,21 +769,175 @@ class Member extends \app\common\models\Member
             })
             ->with(['yzMember' => function ($query) {
                 return $query->select(['member_id', 'parent_id', 'is_agent', 'group_id', 'level_id', 'is_black', 'alipayname', 'alipay', 'content',
-                    'status', 'custom_value', 'validity', 'member_form', 'withdraw_mobile','wechat','invite_code',
-                    'province_name','city_name','area_name','address'])
-                    ->with([ 'agent' => function ($query3) {
+                    'status', 'custom_value', 'validity', 'member_form', 'withdraw_mobile', 'wechat', 'invite_code',
+                    'province_name', 'city_name', 'area_name', 'address'])
+                    ->with(['agent' => function ($query3) {
                         return $query3->select(['uid', 'avatar', 'nickname']);
                     }]);
             }, 'hasOneFans' => function ($query2) {
-                return $query2->where('uniacid', \YunShop::app()->uniacid)->select(['uid','openid','follow AS followed']);
+                return $query2->where('uniacid', \YunShop::app()->uniacid)->select(['uid', 'openid', 'follow AS followed']);
             }, 'hasOneOrder' => function ($query5) {
                 return $query5->selectRaw('uid, count(uid) as total, sum(price) as sum')
                     ->uniacid()
                     ->where('status', 3)
                     ->groupBy('uid');
-            },'hasOneMiniApp' => function ($query6) {
-                return $query6->where('uniacid', \YunShop::app()->uniacid)->select(['member_id','openid']);
+            }, 'hasOneMiniApp' => function ($query6) {
+                return $query6->where('uniacid', \YunShop::app()->uniacid)->select(['member_id', 'openid']);
             }])
             ->first();
+    }
+
+    /**
+     * 新版会员中心搜索
+     * @param $parame
+     * @param null $credit
+     * @return mixed
+     */
+    public static function searchNewMembers($parame, $credit = null)
+    {
+        if (!isset($credit)) {
+            $credit = 'credit2';
+        }
+        $result = self::select(['uid', 'avatar', 'nickname', 'realname', 'mobile', 'createtime',
+            'credit1', 'credit2', 'is_old', 'mark_member_id'])
+            ->uniacid()->leftJoin('yz_member_del_log', 'mc_members.uid', '=', 'yz_member_del_log.member_id')
+            ->join('yz_member', 'mc_members.uid', '=', 'yz_member.member_id');
+
+        if (!empty($parame['search']['mid'])) {
+            $result = $result->where('uid', $parame['search']['mid']);
+        }
+        if (!empty($parame['search']['times']['start']) && !empty($parame['search']['times']['end'])) {
+            $range = [$parame['search']['times']['start'], $parame['search']['times']['end']];
+            $result = $result->whereBetween('createtime', $range);
+        }
+
+        if (!empty($parame['search']['realname'])) {
+            $result->where(function ($query) use ($parame) {
+                switch ($parame['search']['name_type']) {
+                    case 1 :
+                        $query->where('realname', 'like', '%' . $parame['search']['realname'] . '%');
+                        break;
+                    case 2 :
+                        $query->where('mobile', 'like', '%' . $parame['search']['realname'] . '%');
+                        break;
+                    default :
+                        $query->searchLike($parame['search']['realname']);
+                        break;
+                }
+            });
+        }
+
+        if ($parame['search']['custom_value']) {
+            $result->where('yz_member.custom_value', 'like', '%' . $parame['search']['custom_value'] . '%');
+        }
+
+        if (!empty($parame['search']['groupid'])) {
+            $result->where('yz_member.group_id', $parame['search']['groupid']);
+        }
+
+        if (is_numeric($parame['search']['level'])) {
+            $result->where('yz_member.level_id', $parame['search']['level']);
+        }
+
+        if ($parame['search']['isblack'] != '') {
+            $result->where('yz_member.is_black', $parame['search']['isblack']);
+        }
+
+        if ($parame['search']['isagent'] != '') {
+            $result->where('yz_member.is_agent', $parame['search']['isagent']);
+        }
+
+        if (isset($parame['search']['parent_id'])) {
+            $result->where('yz_member.parent_id', (int)$parame['search']['parent_id']);
+        }
+        //余额区间搜索
+        if ($parame['search']['min_credit2']) {
+            $result = $result->where($credit, '>', $parame['search']['min_credit2']);
+        }
+        if ($parame['search']['max_credit2']) {
+            $result = $result->where($credit, '<', $parame['search']['max_credit2']);
+        }
+
+        if ($parame['search']['followed'] != '') {
+            $result = $result->whereHas('hasOneFans', function ($q2) use ($parame) {
+                $q2->where('follow', $parame['search']['followed']);
+            });
+        }
+
+
+        $result = $result->with(['yzMember' => function ($query) {
+            return $query->select(['member_id', 'parent_id', 'inviter', 'is_agent', 'group_id', 'level_id', 'is_black', 'withdraw_mobile', 'is_old'])
+                ->with(['group' => function ($query1) {
+                    return $query1->select(['id', 'group_name'])->uniacid();
+                }, 'level' => function ($query2) {
+                    return $query2->select(['id', 'level_name'])->uniacid();
+                }, 'agent' => function ($query3) {
+                    return $query3->select(['uid', 'avatar', 'nickname', 'mobile'])->uniacid();
+                }]);
+        },
+            'hasOneFans' => function ($query4) {
+                return $query4->select(['uid', 'follow as followed', 'openid'])->uniacid();
+            },
+            'hasOneOrder' => function ($query5) {
+                return $query5->selectRaw('uid, count(uid) as total, sum(price) as sum')
+                    ->uniacid()
+                    ->where('status', Order::COMPLETE)
+                    ->groupBy('uid');
+            },
+            'hasOneMiniApp' => function ($query6) {
+                return $query6->select(['mini_app_id', 'member_id', 'openid'])->uniacid();
+            },
+            'hasOneUnique' => function ($query7) {
+                return $query7->select(['unique_id', 'member_id', 'unionid'])->uniacid();
+            },
+            'hasOneWechat' => function ($query8) {
+                return $query8->select(['wechat_id', 'member_id'])->uniacid();
+            },
+            'hasOneDouyin' => function ($query9) {
+                return $query9->select(['douyin_id', 'member_id'])->uniacid();
+            },
+            'yzMember.agent',
+
+        ]);
+
+        if (app('plugins')->isEnabled('aggregation-cps')) {
+            $result->with([
+                'hasOneAggregationCpsMember' => function ($query) {
+                    return $query->select(['id', 'member_id'])->uniacid();
+                }
+            ]);
+        }
+        //判断支付宝插件
+        if (file_exists(base_path('plugins/alipay-onekey-login'))) {
+            $result->with('hasOneAlipay');
+        }
+
+        //判断会员标签插件
+        $set = array_pluck(Setting::getAllByGroup('member-tags')->toArray(), 'value', 'key');
+        if (app('plugins')->isEnabled('member-tags') && $set['is_open']) {
+            if ($parame['tag_id']) {
+                $result->whereHas('hasManyTag', function ($query) use ($parame) {
+                    $query->where('tag_id', $parame['tag_id']);
+                });
+            }
+            if ($parame['search']['label_id']) {
+                $result->whereHas('hasManyTag', function ($query) use ($parame) {
+                    $query->where('tag_id', $parame['search']['label_id']);
+                });
+            }
+            $result->with(['hasManyTag' => function ($query) {
+                $query->with('tag');
+            }]);
+        }
+
+        if (app('plugins')->isEnabled('wechat-customers') && app('plugins')->isEnabled('work-wechat-platform')) {
+            $result->with('hasOneCustomers');
+        }
+
+        $result->whereNull('yz_member_del_log.member_id')
+            ->whereNull('yz_member.deleted_at')
+            ->orderBy('yz_member.member_id', 'desc');
+
+        return $result;
     }
 }

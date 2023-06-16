@@ -32,7 +32,7 @@ class WithdrawMessageService extends MessageService
             ['name' => '申请时间', 'value' => $withdrawModel->created_at->toDateTimeString()],
             ['name' => '提现金额', 'value' => $withdrawModel->amounts],
             ['name' => '手续费金额', 'value' => $withdrawModel->poundage],
-            ['name' => '劳务税金额', 'value' => $withdrawModel->actual_servicetax],
+            ['name' => '劳务税金额', 'value' => $withdrawModel->servicetax],
             ['name' => '提现类型', 'value' => $withdrawModel->type_name],
             ['name' => '提现方式', 'value' => $withdrawModel->pay_way_name],
             ['name' => '提现单号', 'value' => $withdrawModel->withdraw_sn],

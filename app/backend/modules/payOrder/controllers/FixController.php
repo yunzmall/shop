@@ -33,6 +33,12 @@ class FixController extends BaseController
         }
         $repair = new PaymentCallbackRepair($payOrder);
         $a = $repair->handle();
+        foreach ($repair->message as $msg) {
+            echo "<span>{$msg}</span><br>";
+        }
+
+//        echo '<button onclick="history.back()">返回</button>';
+        exit();
         dump($a,$repair->message);
     }
     public function allCallback(){

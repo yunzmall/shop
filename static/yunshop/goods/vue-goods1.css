@@ -1,6 +1,6 @@
 /* 该文件运用于用vue改写的商品模块 */
 .main-panel > .content {
-  padding: 0;
+  padding: 0 !important;
 }
 .main-panel {
   margin-top: 42px;
@@ -427,3 +427,9 @@ input[type="file"] {
   cursor: pointer;
 }
 
+.type-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  padding: 5px;
+  line-height: 1;
+}

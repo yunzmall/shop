@@ -1,6 +1,6 @@
 <?php
 /**
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2019/6/3
  * Time: 下午3:10
  */
@@ -19,6 +19,7 @@ use app\common\services\wechat\lib\WxPayApi;
 use app\common\services\wechat\lib\WxPayConfig;
 use app\common\services\wechat\lib\WxPayMicroPay;
 use app\common\services\wechat\lib\WxPayOrderQuery;
+use app\common\services\wechat\lib\WxPayRefund;
 
 class WechatScanPayService extends Pay
 {
@@ -80,6 +81,53 @@ class WechatScanPayService extends Pay
     }
 
     /**
+     * 退款
+     */
+    public function doRefund($out_trade_no, $totalmoney, $refundmoney)
+    {
+        $totalmoney = intval($totalmoney * 100);
+        $refundmoney = intval($refundmoney * 100);
+        $this->getSubMchId($out_trade_no);
+
+        $wxPayApi = new WxPayApi;
+        $config = new WxPayConfig;
+        $wxPayRefund = new WxPayRefund;
+
+        $wxPayRefund->SetOut_trade_no($out_trade_no);
+        $wxPayRefund->SetTotal_fee($totalmoney);
+        $wxPayRefund->SetRefund_fee($refundmoney);
+        $out_refund_no = $this->setUniacidNo(\YunShop::app()->uniacid);
+        $wxPayRefund->SetOut_refund_no($out_refund_no);
+
+        if (!$config->GetSubMerchantId()) {
+            throw new AppException('请先配置门店子商户参数');
+        }
+
+        $wxPayRefund->SetSubMchId($config->GetSubMerchantId());
+
+        $pay_type_id = OrderPay::get_paysn_by_pay_type_id($out_trade_no);
+        $pay_type_name = PayType::get_pay_type_name($pay_type_id);
+        $op = '微信退款 订单号：' . $out_trade_no . '退款单号：' . $out_refund_no . '退款总金额：' . $totalmoney;
+        $payOrderModel = $this->refundlog(Pay::PAY_TYPE_REFUND, $pay_type_name, $refundmoney, $op, $out_trade_no, Pay::ORDER_STATUS_NON, 0);
+
+        $result = $wxPayApi::refund($config, $wxPayRefund);
+
+        \Log::debug('微信扫码退款记录', $result);
+
+        if ($result['return_code'] == 'SUCCESS' && $result['result_code'] == 'SUCCESS') {
+            $payOrderModel->status = Pay::ORDER_STATUS_COMPLETE;
+            $payOrderModel->trade_no = $result['transaction_id'];
+            $payOrderModel->save();
+            return true;
+        } elseif ($result['return_code'] == 'SUCCESS') {
+            throw new AppException($result['err_code_des']);
+        } else {
+            throw new AppException($result['return_msg']);
+        }
+    }
+
+
+    /**
      * 提现
      */
     public function doWithdraw($member_id, $out_trade_no, $money, $desc, $type)
@@ -93,14 +141,6 @@ class WechatScanPayService extends Pay
      * @param $data
      */
     public function payResult($data)
-    {
-
-    }
-
-    /**
-     * 退款
-     */
-    public function doRefund($out_trade_no, $totalmoney, $refundmoney)
     {
 
     }
@@ -141,5 +181,21 @@ class WechatScanPayService extends Pay
             $data['openid'] = $data['sub_openid'];
         }
         return $data;
+    }
+
+    // 获取门店子商户号
+    private function getSubMchId($outTradeNo)
+    {
+        if (app('plugins')->isEnabled('store-cashier')) {
+            $orderPay = OrderPay::where('pay_sn', $outTradeNo)->first();
+            $storeId = \Yunshop\StoreCashier\common\models\StoreOrder::where('order_id', $orderPay->orders->first()->id)->value('store_id');
+            if ($storeId) {
+                request()->offsetSet('store_id', $storeId);
+            }
+        }
+
+        if (!isset($storeId)) {
+            throw new AppException('请确认订单是否属于门店订单');
+        }
     }
 }

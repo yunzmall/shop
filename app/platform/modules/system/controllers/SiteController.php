@@ -29,8 +29,10 @@ class SiteController extends BaseController
                 return $this->errorJson('失败', '');
             }
         }
-
         if ($copyright) {
+            $copyright['site_logo'] = yz_tomedia($copyright['site_logo']);
+            $copyright['title_icon'] = yz_tomedia($copyright['title_icon']);
+            $copyright['advertisement'] = yz_tomedia($copyright['advertisement']);
             return $this->successJson('成功', $copyright);
         } else {
             return $this->errorJson('没有检测到数据', '');

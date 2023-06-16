@@ -196,6 +196,7 @@ abstract class Repository
         foreach ($this->getSource() as $source) {
             $source->flush();
         }
+		\app\common\helpers\Cache::forget('load_option');
     }
 
     public function __call($name, $arguments)

@@ -10,6 +10,7 @@ namespace app\payment\controllers;
 
 use app\common\models\AccountWechats;
 use app\common\models\OrderPay;
+use app\common\models\refund\RefundApply;
 use app\common\services\Pay;
 use app\common\services\PayFactory;
 use app\payment\PaymentController;
@@ -55,7 +56,7 @@ class ConvergequickpayController extends PaymentController
             $post = $_POST;
         }
 
-        \Log::debug('---汇聚快捷支付回调-----', $post);
+        \Log::debug('<<---汇聚快捷支付回调-----', $post);
 
         if (!is_array($post)) {
             $post = json_decode($post, true);
@@ -195,26 +196,37 @@ class ConvergequickpayController extends PaymentController
 
             $refundOrder->save();
 
-            if ($this->getDataParameter('refund_status') == '100') {
-                $orderPay = OrderPay::where('pay_sn', $refundOrder->mch_order_no)->first();
-                $refundApply = \app\common\models\refund\RefundApply::whereIn('order_id', $orderPay->order_ids)->get();
-                if (!$refundApply->isEmpty()) {
-                    foreach ($refundApply as $refund) {
-                        if (bccomp($refund->price, $this->getDataParameter('refund_amount'), 2) == 0) {
-                            //退款状态设为完成
-                            RefundOperationService::refundComplete(['id' => $refund->id]);
-                            break;
+            try {
+                if ($this->getDataParameter('refund_status') == '100') {
+                    $orderPay = OrderPay::where('pay_sn', $refundOrder->mch_order_no)->first();
+                    $refundApply = \app\common\models\refund\RefundApply::
+                    whereIn('order_id', $orderPay->order_ids)
+                        ->where('refund_type', '!=', RefundApply::REFUND_TYPE_EXCHANGE_GOODS)
+                        ->where('status', '>=', RefundApply::WAIT_CHECK)
+                        ->where('status', '<', RefundApply::COMPLETE)->get();
+                    \Log::debug('---------汇聚快捷支付回调退款售后ID--', $refundApply->pluck('id')->toArray());
+                    if (!$refundApply->isEmpty()) {
+                        foreach ($refundApply as $refund) {
+                            if (bccomp($refund->price, $this->getDataParameter('refund_amount'), 2) == 0) {
+
+                                \Log::debug('---------汇聚快捷支付回调退款售后:'.$refund->id);
+                                //退款状态设为完成
+                                RefundOperationService::refundComplete(['refund_id' => $refund->id]);
+                                break;
+                            }
                         }
                     }
                 }
+            } catch (\Exception $exception) {
+                \Log::debug('---------汇聚快捷支付回调--退款报错--:'. $exception->getMessage(), [$exception->getFile(),$exception->getLine()]);
             }
-
-
+            \Log::debug('---------汇聚快捷支付回调--退款成功-->>'. $this->getDataParameter('refund_order_no'));
             echo 'success'; exit();
+        } else {
+            \Log::debug('---------汇聚快捷支付回调--退款失败-->>'. $this->getDataParameter('refund_order_no'), $this->parameters);
+            echo 'fail';exit();
         }
 
-        \Log::debug('---------汇聚快捷支付回调--退款失败--'. $this->getDataParameter('refund_order_no'), $this->parameters);
-        echo 'fail';exit();
     }
 
     //签名验证

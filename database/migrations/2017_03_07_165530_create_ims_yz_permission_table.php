@@ -16,9 +16,11 @@ class CreateImsYzPermissionTable extends Migration {
             Schema::create('yz_permission', function (Blueprint $table) {
                 $table->increments('id');
                 $table->boolean('type');
-                $table->integer('item_id');
-                $table->string('permission');
+                $table->integer('item_id')->comment('操作员id');
+                $table->string('permission')->comment('可操作权限');
             });
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE " . app('db')->getTablePrefix()
+                . "yz_permission comment '商城--操作员权限表'");//表注释
         }
 	}
 

@@ -12,6 +12,27 @@ namespace app\backend\modules\order\services\type;
 abstract class OrderViewBase
 {
 
+    /**
+     * 注意格式首字母大写使用 - 横杆代替
+     * vue搜索组件引入主键名称
+     * @return string
+     */
+    public function getSearchElementName()
+    {
+        return '';
+    }
+
+
+    /**
+     * 注意格式，主键名使用小驼峰
+     * vue搜索组件引入文件路径
+     * @return string
+     */
+    public function getSearchElementPath()
+    {
+        return '';
+    }
+
 
     /**
      * 插件订单列表路由

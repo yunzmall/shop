@@ -74,16 +74,16 @@
                             </el-form-item>
                         </div>
                         
-                        <el-form-item label="关联标签组" prop="banner">
-                            <el-input v-model="form.filter" disabled style="width:70%;"></el-input>
-                            <el-button @click="filterShow = true">选择标签组</el-button>
-                            <!-- filter_ids -->
-                            <div >
-                                <el-tag v-for="(tag,index) in filter_names" :key="index" closable @close="closeFilter(index)">
-                                    [[tag]]
-                                </el-tag>
-                            </div>
-                        </el-form-item>
+{{--                        <el-form-item label="关联标签组" prop="banner">--}}
+{{--                            <el-input v-model="form.filter" disabled style="width:70%;"></el-input>--}}
+{{--                            <el-button @click="filterShow = true">选择标签组</el-button>--}}
+{{--                            <!-- filter_ids -->--}}
+{{--                            <div >--}}
+{{--                                <el-tag v-for="(tag,index) in filter_names" :key="index" closable @close="closeFilter(index)">--}}
+{{--                                    [[tag]]--}}
+{{--                                </el-tag>--}}
+{{--                            </div>--}}
+{{--                        </el-form-item>--}}
                         
                         <el-form-item label="是否推荐" prop="is_home">
                             <el-switch v-model="form.is_home" :active-value="1" :inactive-value="0"></el-switch>
@@ -195,7 +195,8 @@
                     },
                     type:'',
                     selNum:'',
-                    
+                    // 保存页面状态
+                    page:1
                 }
             },
             created() {
@@ -206,12 +207,18 @@
                     this.submit_url = '{!! yzWebFullUrl('goods.category.add-category') !!}'
                 }
                 this.getData();
-
+                this.page = this.getParam('page')
 
             },
             mounted() {
             },
             methods: {
+                getParam(name) {
+                    var reg = new RegExp("(^|&)" + name + "=([^&]*)(&|$)", "i");
+                    var r = window.location.search.substr(1).match(reg);
+                    if (r != null) return unescape(r[2]);
+                    return null;
+                },
                 clearImg(str,type,index) {
                     if(!type) {
                         this.form[str] = "";
@@ -374,7 +381,11 @@
                             this.$http.post(this.submit_url,json).then(response => {
                                 if (response.data.result) {
                                     this.$message({type: 'success',message: '操作成功!'});
-                                    this.goBack();
+                                    let link = `{!! yzWebFullUrl('goods.category.index') !!}`+`&page=`+this.page;
+                                    window.location.href = link;
+                                    setTimeout(()=>{
+                                        this.goBack();
+                                    },500)
                                 } else {
                                     this.$message({message: response.data.msg,type: 'error'});
                                 }
@@ -389,7 +400,6 @@
                         }
                     });
                 },
-                
                 goBack() {
                     history.go(-1)
                 },

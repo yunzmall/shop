@@ -4,6 +4,8 @@
 namespace app\frontend\modules\goods\stock;
 
 
+use app\common\events\goods\ActualStockForOrderEvent;
+use app\common\events\goods\StockReduceByOrderEvent;
 use app\common\models\Goods;
 use app\common\models\GoodsOption;
 use Illuminate\Support\Facades\Redis;
@@ -44,7 +46,23 @@ class GoodsStock
             $this->source()->fireStockNotEnoughtEvent($this->source());
         }
         // 数据库减库存
+        event(new StockReduceByOrderEvent($this->source(),$num));
         return $this->source()->decrement('stock', $num);
+    }
+
+    public function createReduce($num)
+    {
+        try {
+            \Log::debug('商品扣库存', "商品(" . get_class($this->source()) . ":{$this->source()->id}-{$this->source()->stock})减库存{$num}件");
+        }catch (\Exception $e){
+
+        }
+        if (($this->source()->stock - $num) <= 0) {
+            $this->source()->fireStockNotEnoughtEvent($this->source());
+        }
+        // 数据库减库存
+        event(new StockReduceByOrderEvent($this->source(),$num));
+        return $this->source()->where('id',$this->source()->id)->where('stock','>=',$num)->decrement('stock', $num);
     }
 
     public function enough($num)
@@ -54,7 +72,9 @@ class GoodsStock
 
     public function usableStock()
     {
-        return $this->stock() - $this->withholdStock();
+        event($event = new ActualStockForOrderEvent($this->source()));
+        $stock = $event->getReplaceStock() === false ? $this->stock() : $event->getReplaceStock();
+        return $stock - $this->withholdStock();
     }
 
     public function withholdStock()

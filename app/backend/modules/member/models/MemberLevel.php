@@ -1,13 +1,12 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:  
  * Date: 2017/2/27
  * Time: 上午11:22
  */
 
 namespace app\backend\modules\member\models;
-
 
 
 use app\common\facades\Setting;
@@ -25,6 +24,7 @@ class MemberLevel extends \app\common\models\MemberLevel
     {
         return static::defaultLevelName($this->attributes['level_name']);
     }
+
     public static function defaultLevelName($levelName)
     {
         return $levelName ?: Setting::get('shop.member')['level_name'];
@@ -35,10 +35,11 @@ class MemberLevel extends \app\common\models\MemberLevel
     /**
      * Get membership list
      *
-     * @return */
+     * @return
+     */
     public static function getMemberLevelList()
     {
-        return static::uniacid()->get()->toArray();
+        return static::uniacid()->orderBy('level')->get()->toArray();
     }
 
     /**
@@ -47,13 +48,14 @@ class MemberLevel extends \app\common\models\MemberLevel
      * @access public
      * @param int $levelId 等级id
      *
-     * @return mixed */
+     * @return mixed
+     */
     public static function getMemberLevelNameById($levelId)
     {
         $level = MemberLevel::when($levelId, function ($query) use ($levelId) {
             return $query->select('level_name')->where('id', $levelId);
         })
-        ->first()->levelname;
+            ->first()->levelname;
         return $level ? $level : '';
     }
 
@@ -66,11 +68,12 @@ class MemberLevel extends \app\common\models\MemberLevel
     public static function getLevelPageList($pageSize)
     {
         //todo 需要关联商品去title值
-        return static::uniacid()
-            ->with(['goods' => function($query) {
-                return $query->select('id','title');
+        return static::select(['id', 'level', 'level_name', 'order_money', 'order_count', 'goods_id', 'team_performance', 'balance_recharge','validity'])
+            ->uniacid()
+            ->with(['goods' => function ($query) {
+                return $query->select('id', 'title');
             }])
-            ->orderBy('level')
+            ->orderBy('level', 'asc')
             ->paginate($pageSize);
     }
 
@@ -79,13 +82,12 @@ class MemberLevel extends \app\common\models\MemberLevel
      *
      * @param int $levelId
      *
-     * @return object */
-    public static function getMemberLevelById($levelId)
+     * @return object
+     */
+    public static function  getMemberLevelById($levelId)
     {
-        return static::where('id', $levelId)
-            ->with(['goods' => function($query) {
-                return $query->select('id','title');
-            }])
+        return static::select(['id','level', 'level_name', 'order_money', 'order_count', 'goods_id', 'discount', 'validity','freight_reduction', 'interests_rules', 'description', 'team_performance', 'balance_recharge', 'give_integral', 'give_point_today'])
+            ->where('id', $levelId)
             ->first();
     }
 
@@ -98,27 +100,29 @@ class MemberLevel extends \app\common\models\MemberLevel
     public static function getMembersByLevel($level)
     {
         return static::uniacid()
-                    ->select(['id','level'])
-                    ->where('id', $level)
-                    ->with(['member' => function($query){
-                        return $query->select('member_id', 'level_id')
-                                    ->where('uniacid', \YunShop::app()->uniacid);
-                    }])
-                    ->first();
+            ->select(['id', 'level'])
+            ->where('id', $level)
+            ->with(['member' => function ($query) {
+                return $query->select('member_id', 'level_id')
+                    ->where('uniacid', \YunShop::app()->uniacid);
+            }])
+            ->first();
     }
 
     /**
      * 定义字段名
      *
-     * @return array */
-    public  function atributeNames() {
+     * @return array
+     */
+    public function atributeNames()
+    {
         return [
-            'level'         => '等级权重',
-            'level_name'    => '等级名称',
-            'order_money'   => '订单金额',
-            'order_count'   => '订单数量',
-            'goods_id'      => '商品ID',
-            'discount'      => '折扣',
+            'level' => '等级权重',
+            'level_name' => '等级名称',
+            'order_money' => '订单金额',
+            'order_count' => '订单数量',
+            'goods_id' => '商品ID',
+            'discount' => '折扣',
             'freight_reduction' => '运费减免'
         ];
     }
@@ -126,24 +130,24 @@ class MemberLevel extends \app\common\models\MemberLevel
     /**
      * 字段规则
      *
-     * @return array */
-    public  function rules()
+     * @return array
+     */
+    public function rules()
     {
-        $rule =  [
-            'level'      => [
+        $rule = [
+            'level' => [
                 'required',
-                \Illuminate\Validation\Rule::unique($this->table)->where('uniacid',\YunShop::app()->uniacid)->where('deleted_at','')->ignore($this->id),
+                \Illuminate\Validation\Rule::unique($this->table)->where('uniacid', \YunShop::app()->uniacid)->where('deleted_at', '')->ignore($this->id),
                 'numeric',
                 'between:1,9999'
             ],
             'level_name' => 'required',
-            'discount'   => 'numeric|between:0,999',
+            'discount' => 'numeric|between:0,999',
             'freight_reduction' => 'numeric|between:0,100'
         ];
 
         $levelSet = Setting::get('shop.member');
-        switch ($levelSet['level_type'])
-        {
+        switch ($levelSet['level_type']) {
             case 0:
                 $rule = array_merge(['order_money' => 'numeric|between:1,9999999999'], $rule);
                 break;
@@ -179,7 +183,7 @@ class MemberLevel extends \app\common\models\MemberLevel
         $goods = \app\common\models\Goods::whereIn('id', $ids)->select('id', 'thumb', 'title')->get();
 
         if (!$goods) {
-            \Log::debug('无该'.$ids.'商品数据信息');
+            \Log::debug('无该' . $ids . '商品数据信息');
             exit;
         }
         foreach ($goods->toArray() as $k => $v) {

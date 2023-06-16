@@ -125,39 +125,43 @@ class OrderDeductManager
      */
     private function getEnableDeductions()
     {
-        if (!isset($this->deductions)) {
 
-            //blank not deduction
-            if ($this->order->isDeductionDisable()) {
-                trace_log()->deduction('订单关闭的抵扣类型','');
-                return collect();
-            }
+        //由于获取开启抵扣都是相同的所以这里把这部分代码提取出来
+        return \app\frontend\modules\deduction\EnableDeductionService::getInstance()->getEnableDeductions($this->order);
 
-            /**
-             * 商城开启的抵扣
-             * @var Collection $deductions
-             */
-            $deductions = Deduction::getEnable();
+//        if (!isset($this->deductions)) {
+//
+//            //blank not deduction
+//            if ($this->order->isDeductionDisable()) {
+//                trace_log()->deduction('订单关闭的抵扣类型','');
+//                return collect();
+//            }
+//
+//            /**
+//             * 商城开启的抵扣
+//             * @var Collection $deductions
+//             */
+//            $deductions = Deduction::getEnable();
+//
+//            trace_log()->deduction('开启的抵扣类型', $deductions->pluck('code')->toJson());
+//            if ($deductions->isEmpty()) {
+//                return collect();
+//            }
+//            // 过滤调无效的
+//            $deductions = $deductions->filter(function (Deduction $deduction) {
+//                /**
+//                 * @var Deduction $deduction
+//                 */
+//                return $deduction->valid();
+//            });
+//            // 按照用户勾选顺序排序
+//            $sort = array_flip($this->order->getParams('deduction_ids'));
+//            $this->deductions = $deductions->sortBy(function ($deduction) use ($sort) {
+//                return array_get($sort, $deduction->code, 999);
+//            });
+//        }
 
-            trace_log()->deduction('开启的抵扣类型', $deductions->pluck('code')->toJson());
-            if ($deductions->isEmpty()) {
-                return collect();
-            }
-            // 过滤调无效的
-            $deductions = $deductions->filter(function (Deduction $deduction) {
-                /**
-                 * @var Deduction $deduction
-                 */
-                return $deduction->valid();
-            });
-            // 按照用户勾选顺序排序
-            $sort = array_flip($this->order->getParams('deduction_ids'));
-            $this->deductions = $deductions->sortBy(function ($deduction) use ($sort) {
-                return array_get($sort, $deduction->code, 999);
-            });
-        }
-
-        return $this->deductions;
+//        return $this->deductions;
     }
 
     /**

@@ -118,6 +118,7 @@
                     <div style="background: #eff3f6;width:100%;height:15px;"></div>
                     <div class="block">
                         <div class="title"><span style="width: 4px;height: 18px;background-color: #29ba9c;margin-right:15px;display:inline-block;"></span><b>操作员权限</b></div>
+                        <el-checkbox v-model="ischeckedAll"  style="margin-left:30px;" @change="checkedAll"><b>一键勾选</b></el-checkbox>
                         <el-collapse v-model="active" accordion>
                             <template v-for="(item,index) in permissions" class="warp">
                                 <el-collapse-item  :name="index">
@@ -166,12 +167,36 @@
                         }
                     },
                     arr:[],
+                    ischeckedAll:false,//是否全选
                 }
             },
             mounted () {
-                this.getData();
+                // this.getData();
+                this.permissions= {!! $permissions !!};
+                this.roleList={!! $roleList !!};
+
+                this.permissions.forEach((item,index) => {
+                    item.checked=false
+                    if(item.child&&item.child.length>0){
+                        item.child.forEach((list,index)=>{
+                            list.checked=false
+                            if(list.child&&list.child.length>0){
+                                list.child.forEach((obj,index)=>{
+                                    obj.checked=false
+                                })
+                            }
+                        })
+                    }
+                });
+                this.$forceUpdate()
             },
             methods: {
+                checkedAll(){
+                    this.permissions.forEach(item=>{
+                        item.checked = this.ischeckedAll;
+                        this.firstUpdate(item)
+                    })
+                },
                 goBack() {
                     window.location.href = `{!! yzWebFullUrl('setting.shop.index') !!}`;
                 },

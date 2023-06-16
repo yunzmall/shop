@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2021/2/2
  * Time: 14:35
  */
@@ -10,6 +10,7 @@ namespace app\common\modules\sms;
 
 use app\common\modules\sms\factory\SmsFactory;
 use app\common\services\Session;
+use app\common\helpers\Cache;
 
 class SmsService
 {
@@ -19,7 +20,7 @@ class SmsService
         $class = SmsFactory::getSmsFactory($type);
 
         if (get_class($class)) {
-            return $class->sendCode($mobile, $state);
+			return $class->sendCode($mobile, $state);
         }
 
         return $this->show_json(0, '发送短信失败，请检查后台短信配置');
@@ -110,9 +111,13 @@ class SmsService
         if (Session::get('code_mobile'.$key) != $mobile) {
             return $this->show_json(0, '手机号错误,请重新获取');
         }
-
+		//增加次数验证
+		if (Cache::get('code_num_'.$mobile) >= 5) {
+			return $this->show_json(0, '验证码错误次数过多,请重新获取');
+		}
         if (Session::get('code'.$key) != $code) {
-            return $this->show_json(0, '验证码错误,请重新获取');
+			Cache::increment('code_num_'.$mobile);
+			return $this->show_json(0, '验证码错误,请重新获取');
         }
         return $this->show_json(1);
     }
@@ -120,14 +125,19 @@ class SmsService
     public function checkAppCode($mobile, $code)
     {
         $key = 'app_login_'. $mobile;
-        if (!\Cache::has($key)) {
+        if (!Cache::has($key)) {
             return $this->show_json('0','验证码已过期，请重新获取');
         }
-        $value = \Cache::get($key);
+        $value = Cache::get($key);
+		//增加次数验证
+		if (Cache::get('code_num_'.$mobile) >= 5) {
+			return $this->show_json(0, '验证码错误次数过多,请重新获取');
+		}
         if ($code != $value) {
-            return $this->show_json('0','验证失败，请重新获取验证码');
+			Cache::increment('code_num_'.$mobile);
+			return $this->show_json('0','验证失败，请重新获取验证码');
         }
-        \Cache::forget($key);
+        Cache::forget($key);
         return $this->show_json('1');
     }
 

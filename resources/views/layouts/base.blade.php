@@ -47,7 +47,7 @@ scratch. This page gets rid of all links and provides the needed markup only.
     <script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
     <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
     <![endif]-->
-    <script>var require = { urlArgs: 'v={{time()}}' };</script>
+    <script>var require = { urlArgs: 'yzTime={{time()}}' };</script>
 
     <script type="text/javascript">
         const protocolStr = document.location.protocol;
@@ -114,10 +114,7 @@ scratch. This page gets rid of all links and provides the needed markup only.
     {{--<script src="https://cdn.bootcss.com/element-ui/2.4.0/index.js"></script>--}}
     <script src="{{ static_url('yunshop/element-ui/2.10.1/js/element-ui_2.10.1_index.js') }}"></script>
 
-    <link href="//at.alicdn.com/t/font_432132_nxqv1lzyzsh.css " rel="stylesheet">
-    <link href="//at.alicdn.com/t/font_432132_kyk1qc6ulvh.css " rel="stylesheet">
-    <link href="//at.alicdn.com/t/font_432132_rei18ayu1qo.css" rel="stylesheet">
-    <link href="//at.alicdn.com/t/font_432132_0n3q5gx5aiio.css" rel="stylesheet">
+    <link href="//at.alicdn.com/t/c/font_432132_yj6oo0mmob.css" rel="stylesheet">
 
 
     <script src="{{static_url('assets/js/perfect-scrollbar.jquery.min.js')}}" type="text/javascript"></script>
@@ -154,6 +151,7 @@ scratch. This page gets rid of all links and provides the needed markup only.
     <script src="{{static_url('assets/js/fullcalendar.min.js')}}"></script>
     <!-- Plugin for Tags, full documentation here: https://github.com/bootstrap-tagsinput/bootstrap-tagsinputs  -->
     <script src="{{static_url('assets/js/jquery.tagsinput.js')}}"></script>
+    <script type="text/javascript" src="https://static.chuangkit.com/api/chuangkit-design-1.2.4.js"></script>
     <!-- Material Dashboard javascript methods -->
 {{--    <script src="{{static_url('assets/js/material-dashboard.js')}}"></script>--}}
 

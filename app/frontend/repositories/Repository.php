@@ -8,7 +8,7 @@
 
 namespace app\frontend\repositories;
 
-abstract class Repository extends \Bosnadev\Repositories\Eloquent\Repository
+abstract class Repository
 {
     public function __call($name, $arguments)
     {
@@ -18,4 +18,9 @@ abstract class Repository extends \Bosnadev\Repositories\Eloquent\Repository
         throw new \Exception('不存在的方法'.$name);
         // TODO: Implement __call() method.
     }
+
+	private function makeModel()
+	{
+		return app()->make($this->model());
+	}
 }

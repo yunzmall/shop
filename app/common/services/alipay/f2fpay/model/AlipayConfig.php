@@ -25,7 +25,16 @@ class AlipayConfig
     public $set;
     public function __construct()
     {
-        $this->set = $set = \Setting::get('shop.alipay_set');
+        if (request()->is_shop_pos) {
+            $setting = \Setting::get('shop.pay');
+            $this->set = $set = [
+                'app_id' => decrypt($setting['alipay_app_id']),
+                'alipay_public_key' => decrypt($setting['rsa_public_key']),
+                'merchant_private_key' => decrypt($setting['rsa_private_key']),
+            ];
+        } else {
+            $this->set = $set = \Setting::get('shop.alipay_set');
+        }
         $this->config = array (
             //签名方式,默认为RSA2(RSA2048)
             'sign_type' => "RSA2",
@@ -46,10 +55,10 @@ class AlipayConfig
             'app_id' => $set['app_id'],
 
             //应用ID
-            'pid' => $set['pid'],
+            'pid' => $set['pid'] ? : '',
 
             //应用ID
-            'name' => $set['name'],
+            'name' => $set['name'] ? : '',
 
             //异步通知地址,只有扫码支付预下单可用
             'notify_url' => "http://www.baidu.com",

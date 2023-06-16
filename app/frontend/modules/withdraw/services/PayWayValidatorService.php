@@ -61,6 +61,22 @@ class PayWayValidatorService
             case 'high_light_bank':
                 $this->highLightValidator('high_light_bank');
                 break;
+            case 'worker_withdraw_alipay':
+            case 'worker_withdraw_bank':
+            case 'worker_withdraw_wechat':
+                $this->workerWithdrawValidator($pay_way);
+                break;
+            case 'eplus_withdraw_bank':
+                $this->eplusWithdrawBankValidator();
+                break;
+            case 'silver_point':
+                $this->silverPointValidator();
+                break;
+            case 'jianzhimao_bank':
+                $this->jianzhimaoValidator();
+            case 'tax_withdraw_bank':
+                $this->taxWithdrawValidator();
+                break;
             default:
                 throw new AppException('未知提现方式');
                 break;
@@ -68,21 +84,19 @@ class PayWayValidatorService
     }
 
 
-    private function convergeSeparatePayValidator(){
-
-    }
-
-    private function balanceValidator()
+    protected function convergeSeparatePayValidator()
     {
-
     }
 
-    private function weChatValidator()
+    protected function balanceValidator()
     {
-
     }
 
-    private function alPayValidator()
+    protected function weChatValidator()
+    {
+    }
+
+    protected function alPayValidator()
     {
         if (!WithdrawManualService::getAlipayStatus()) {
             throw new AppException('您未配置支付宝信息，请先修改个人信息中支付宝信息', ['status' => 1]);
@@ -90,29 +104,25 @@ class PayWayValidatorService
     }
 
 
-    private function huanXunValidator()
+    protected function huanXunValidator()
     {
-
     }
 
 
-    private function eupPayValidator()
+    protected function eupPayValidator()
     {
-
     }
 
-    private function yopPayValidator()
+    protected function yopPayValidator()
     {
-
     }
 
-    private function convergePayValidator()
+    protected function convergePayValidator()
     {
-
     }
 
 
-    private function manualValidator()
+    protected function manualValidator()
     {
         switch ($this->getManualType()) {
             case Withdraw::MANUAL_TO_WECHAT:
@@ -129,7 +139,7 @@ class PayWayValidatorService
         }
     }
 
-    private function yeePayValidator()
+    protected function yeePayValidator()
     {
         if (!app('plugins')->isEnabled('yee-pay')) {
             throw new AppException('易宝代付插件未开启');
@@ -143,13 +153,60 @@ class PayWayValidatorService
         return true;
     }
 
-    private function highLightValidator($type)
+    protected function eplusWithdrawBankValidator()
+    {
+        if (!app('plugins')->isEnabled('eplus-pay')) {
+            throw new AppException('智E+插件未开启');
+        }
+        if (!\Yunshop\EplusPay\services\SettingService::usable()) {
+            throw new AppException('智E+插件不可用');
+        }
+    }
+
+    protected function silverPointValidator()
+    {
+    }
+
+    protected function jianzhimaoValidator()
+    {
+    }
+
+    protected function taxWithdrawValidator()
+    {
+    }
+
+    protected function workerWithdrawValidator($type)
+    {
+        if (!app('plugins')->isEnabled('worker-withdraw')) {
+            throw new AppException('好灵工插件未开启');
+        }
+        if (!\Yunshop\WorkerWithdraw\services\SettingService::usableByType($type)) {
+            throw new AppException('当前提现方式不可用');
+        }
+        $check = \Yunshop\WorkerWithdraw\services\SettingService::getRequestAccountByMember(
+            \YunShop::app()->getMemberId(),
+            $type
+        );
+        if (!$check['code']) {
+            throw new AppException($check['message']);
+        }
+        if (!\Yunshop\WorkerWithdraw\models\Register::getByMember(
+            \YunShop::app()->getMemberId(),
+            $type == 'worker_withdraw_wechat' ? 2 : 1
+        )) {
+            throw new AppException('请先注册好灵工账户');
+        }
+    }
+
+    protected function highLightValidator($type)
     {
         if (!app('plugins')->isEnabled('high-light') || !\Yunshop\HighLight\services\SetService::getStatus()) {
             throw new AppException('高灯提现插件未开启');
         }
         try {
-            $agreementInfo = \Yunshop\HighLight\services\AgreementService::agreementInfo(['member_id'=>\Yunshop::app()->getMemberId()])->first();
+            $agreementInfo = \Yunshop\HighLight\services\AgreementService::agreementInfo(
+                ['member_id' => \Yunshop::app()->getMemberId()]
+            )->first();
             if (!$agreementInfo || !\Yunshop\HighLight\services\AgreementService::checkAgreement($agreementInfo)) {
                 $is_check = false;
             } else {
@@ -159,13 +216,21 @@ class PayWayValidatorService
             throw new AppException($e->getMessage());
         }
         if (!$is_check) {
-            throw new AppException('您未完成高灯签约，暂不能进行提现', ['high_light' => 1]);
+            throw new AppException('您未完成签约，暂不能进行提现', ['high_light' => 1]);
+        }
+        if ($agreementInfo->certificate_type == 1) {
+            $year = substr($agreementInfo->certificate_no, 6, 4);
+            if ((date('Y') - $year) > 65) {
+                throw new AppException('超龄警告，大于65岁的会员无法进行此方式提现', ['high_light' => 1]);
+            }
         }
         switch ($type) {
             case 'high_light_wechat':
-                $fans = McMappingFans::where('uid',\Yunshop::app()->getMemberId())->first();
+                $fans = McMappingFans::where('uid', \Yunshop::app()->getMemberId())->first();
                 if (!$fans) {
-                    throw new AppException('您未在公众号商城中授权登录过，无法进行高灯微信提现');
+                    throw new AppException(
+                        '您未在公众号商城中授权登录过，无法进行' . \Yunshop\HighLight\services\SetService::getDiyName() . '微信提现'
+                    );
                 }
                 break;
             case 'high_light_alipay':
@@ -187,7 +252,7 @@ class PayWayValidatorService
      * 是否配置银行卡信息
      * @return bool|string
      */
-    private function bankStatus()
+    protected function bankStatus()
     {
         if (!WithdrawManualService::getBankStatus()) {
             return '请先完善您个人信息中银行卡信息';
@@ -200,7 +265,7 @@ class PayWayValidatorService
      * 是否配置微信信息
      * @return bool|string
      */
-    private function weChatStatus()
+    protected function weChatStatus()
     {
         if (!WithdrawManualService::getWeChatStatus()) {
             return '请先完善您个人信息中的微信信息';
@@ -213,7 +278,7 @@ class PayWayValidatorService
      * 是否配置支付宝信息
      * @return bool|string
      */
-    private function alipayStatus()
+    protected function alipayStatus()
     {
         if (!WithdrawManualService::getAlipayStatus()) {
             return '请先完善您个人信息中支付宝信息';
@@ -222,7 +287,7 @@ class PayWayValidatorService
     }
 
 
-    private function getManualType()
+    protected function getManualType()
     {
         $set = Setting::get('withdraw.income');
 

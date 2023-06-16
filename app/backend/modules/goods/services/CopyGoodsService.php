@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/5/3
  * Time: 上午11:52
  */
@@ -27,9 +27,16 @@ class CopyGoodsService
         $newGoods = $goodsModel->replicate();
         $newGoods->save();
 
-        $goodsModel->load('hasOneShare', 'hasOneDiscount','hasOneSale', 'hasOneGoodsDispatch', 'hasOnePrivilege');
+        $goodsModel->load('hasOneShare', 'hasManyDiscount','hasOneSale', 'hasOneGoodsDispatch', 'hasOnePrivilege');
         foreach($goodsModel->getRelations() as $relation => $item){
             if ($item) {
+                if ($relation == 'hasManyDiscount') {
+                    foreach ($item as $val) {
+                        unset($val->id);
+                        $newGoods->{$relation}()->create($val->toArray());
+                    }
+                    continue;
+                }
                 unset($item->id);
                 $newGoods->{$relation}()->create($item->toArray());
             }

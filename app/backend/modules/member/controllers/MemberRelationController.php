@@ -1,7 +1,8 @@
 <?php
+
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 17/3/8
  * Time: 上午10:11
  */
@@ -11,6 +12,7 @@ namespace app\backend\modules\member\controllers;
 use app\backend\modules\member\models\Member;
 use app\backend\modules\member\models\MemberRelation;
 use app\backend\modules\member\models\MemberShopInfo;
+use app\backend\modules\member\services\FansItemService;
 use app\common\components\BaseController;
 use app\backend\modules\member\models\MemberRelation as Relation;
 use app\common\facades\Setting;
@@ -19,6 +21,8 @@ use app\common\helpers\PaginationHelper;
 use app\common\helpers\Url;
 use app\common\models\Goods;
 use app\common\models\notice\MessageTemp;
+use app\common\services\ExportService;
+use Illuminate\Database\Eloquent\Collection;
 
 
 class MemberRelationController extends BaseController
@@ -26,11 +30,21 @@ class MemberRelationController extends BaseController
     public $pageSize = 20;
 
     /**
-     * 列表
+     * 加载模板
      * @return string
      * @throws \Throwable
      */
     public function index()
+    {
+        return view('member.relation', [])->render();
+    }
+
+    /**
+     * 列表
+     * @return string
+     * @throws \Throwable
+     */
+    public function show()
     {
         $relation = Relation::uniacid()->first();
         $setting = \Setting::get('member.relation');
@@ -45,34 +59,61 @@ class MemberRelationController extends BaseController
 
         if (!empty($relation['become_goods'])) {
             $relation_goods = unserialize($relation['become_goods']);
-
+            $goods_ids = [];
+            foreach ($relation_goods as $item) {
+                $goods_ids[] = $item['goods_id'];
+            }
             // 查询当前未被删除的商品
-            $current_goods = Goods::uniacid()->select('id')
-                                            ->whereIn('id', array_keys($relation_goods))
-                                            ->whereNull('deleted_at')
-                                            ->get();
-            if($current_goods){
-               // 获取商品ids集合
-               foreach ($current_goods as $good){
-                   $current_goods_keys[] = $good['id'];
-               }
-               // 商品存在Relation中有记录时进行赋值
-               foreach ($current_goods_keys as $val){
-                   if ($relation_goods[$val]) {
-                       $goods[] = $relation_goods[$val];
-                   }
-               }
-            }else{
-              $goods = [];
+            $current_goods = Goods::uniacid()->select('id', 'title', 'thumb')
+                ->whereIn('id', $goods_ids)
+                ->whereNull('deleted_at')
+                ->get();
+            if ($current_goods) {
+                $current_goods = $current_goods->toArray();
+                foreach ($current_goods as $key => $value) {
+                    $current_goods[$key]['thumb'] = yz_tomedia($value['thumb']);
+                }
+                $goods = $current_goods;
+            } else {
+                $goods = [];
             }
         } else {
             $goods = [];
         }
-        return view('member.relation', [
-            'set' => $relation,
-            'setting' => $setting,
-            'goods' => $goods,
-        ])->render();
+        $relationship = [
+            'status'              => $relation['status'],
+            'become'              => $relation['become'],
+            'become_term2'        => empty($relation['become_term'][2]) ? "" : 2,
+            'become_ordercount'   => $relation['become_ordercount'],
+            'become_term3'        => empty($relation['become_term'][3]) ? "" : 3,
+            'become_moneycount'   => $relation['become_moneycount'],
+            'become_term4'        => empty($relation['become_term'][4]) ? "" : 4,
+            'goods'               => $goods,
+            'is_sales_commission' => app('plugins')->isEnabled('sales-commission') ? 1 : 0,
+            'become_term5'        => empty($relation['become_term'][5]) ? "" : 5,
+            'become_selfmoney'    => $relation['become_selfmoney'],
+            'become_order'        => $relation['become_order'],
+            'become_child'        => $relation['become_child'],
+            'become_check'        => $relation['become_check'],
+        ];
+
+        $reward = [
+            'reward_points'  => $relation['reward_points'],
+            'maximum_number' => $relation['maximum_number']
+        ];
+
+        $page = [
+            'is_jump'          => $setting['is_jump'],
+            'jump_link'        => $setting['jump_link'],
+            'small_jump_link'  => $setting['small_jump_link'],
+            'share_page'       => $relation['share_page'],
+            'share_page_deail' => $relation['share_page_deail'],
+        ];
+        return $this->successJson('ok', [
+            'relationship' => $relationship,
+            'reward'       => $reward,
+            'page'         => $page
+        ]);
     }
 
     /**
@@ -82,12 +123,16 @@ class MemberRelationController extends BaseController
      */
     public function save()
     {
-        $setData = \YunShop::request()->setdata;
+        $setData = $this->setData(\YunShop::request()->setdata);
         $setting = \YunShop::request()->setting;
         if ($setting) {
-            \Setting::set('member.relation',$setting);
+            \Setting::set('member.relation', $setting);
         }
         $setData['uniacid'] = \YunShop::app()->uniacid;
+
+        if (empty($setData['become_order'])) {
+            $setData['become_order'] = 0;
+        }
 
         if (empty($setData['become_ordercount'])) {
             $setData['become_ordercount'] = 0;
@@ -95,7 +140,7 @@ class MemberRelationController extends BaseController
 
         if (!empty($setData['become_term'])) {
             $setData['become_term'] = serialize($setData['become_term']);
-        }else{
+        } else {
             $setData['become_term'] = '';
         }
 
@@ -103,10 +148,13 @@ class MemberRelationController extends BaseController
             $setData['become_moneycount'] = 0;
         }
 
-        $setData['become_goods_id'] = !empty($setData['become_goods_id']) ? implode(',',$setData['become_goods_id']) : 0;
+        $setData['become_goods_id'] = !empty($setData['become_goods_id']) ? implode(
+            ',',
+            $setData['become_goods_id']
+        ) : 0;
 
         $setData['become_goods'] = !empty($setData['become_goods']) ? serialize($setData['become_goods']) : 0;
-
+//        dd($setData['become_goods']);
         if (empty($setData['become_selfmoney'])) {
             $setData['become_selfmoney'] = 0;
         }
@@ -122,8 +170,7 @@ class MemberRelationController extends BaseController
         }
 
         Cache::forget('member_relation');
-        return $this->message('保存成功', yzWebUrl('member.member-relation.index'));
-
+        return $this->successJson('ok', ['data' => true]);
     }
 
     /**
@@ -135,20 +182,29 @@ class MemberRelationController extends BaseController
     {
         $kwd = trim(\YunShop::request()->keyword);
 
-        $goods_model= Goods::getGoodsByName($kwd);
+        $goods_model = Goods::getGoodsByNameNew($kwd);
 
         if (!empty($goods_model)) {
             $data = $goods_model->toArray();
-            foreach ($data as &$good) {
+
+            foreach ($data['data'] as &$good) {
                 $good['thumb'] = tomedia($good['thumb']);
             }
         } else {
             $data = [];
         }
 
-        return view('member.goods_query', [
-            'goods' => $data
-        ])->render();
+        return $this->successJson('ok', $data);
+    }
+
+    /**
+     * 加载模板  -- 资格申请
+     * @return string
+     * @throws \Throwable
+     */
+    public function apply()
+    {
+        return view('member.apply', [])->render();
     }
 
     /**
@@ -156,34 +212,19 @@ class MemberRelationController extends BaseController
      *
      * @return string
      */
-    public function apply()
+    public function applyShow()
     {
-        $starttime = strtotime('-1 month');
-        $endtime = time();
-
         $requestSearch = \YunShop::request()->search;
-
-        if (isset($requestSearch['searchtime']) && $requestSearch['searchtime'] == 1) {
-            if ($requestSearch['times']['start'] != '请选择' && $requestSearch['times']['end'] != '请选择') {
-                $starttime = strtotime($requestSearch['times']['start']);
-                $endtime = strtotime($requestSearch['times']['end']);
-            }
-        }
-
         $list = Member::getMembersToApply($requestSearch)
             ->paginate($this->pageSize)
             ->toArray();
 
-        $pager = PaginationHelper::show($list['total'], $list['current_page'], $this->pageSize);
 
-        return view('member.apply', [
-            'list' => $list,
-            'total' => $list['total'],
-            'pager' => $pager,
-            'requestSearch' => $requestSearch,
-            'starttime' => $starttime,
-            'endtime' => $endtime,
-        ])->render();
+        return $this->successJson('ok', [
+            'list'          => (new FansItemService())->setFansItem($list),
+            'total'         => $list['total'],
+            'requestSearch' => $requestSearch
+        ]);
     }
 
     /**
@@ -196,40 +237,76 @@ class MemberRelationController extends BaseController
         $info = Setting::get("apply_protocol");
 
         $requestProtocol = \YunShop::request()->protocol;
-        if($requestProtocol){
-            $request = Setting::set('apply_protocol',$requestProtocol);
-            if($request){
+        if ($requestProtocol) {
+            $request = Setting::set('apply_protocol', $requestProtocol);
+            if ($request) {
                 return $this->message('保存成功', Url::absoluteWeb('member.member-relation.apply-protocol'));
             }
         }
-        
-        return view('member.apply-protocol', [
-            'info' => $info,
-        ])->render();
+        return $this->successJson('ok', ['info' => $info]);
     }
 
     public function base()
     {
-        $info = \Setting::get('relation_base');
+        return view('member.relation-base', [])->render();
+    }
+
+    public function relationBase()
+    {
+        $info = \Setting::get('shop.relation_base');
 
         $base = \YunShop::request()->base;
 
-        if($base){
-            $request = Setting::set('relation_base',$base);
-            if($request){
-                return $this->message('保存成功', Url::absoluteWeb('member.member-relation.base'));
+        if ($base) {
+            $request = Setting::set('shop.relation_base', $base);
+            if ($request) {
+                return $this->successJson('数据保存成功', $request);
             }
         }
 
         $temp_list = MessageTemp::getList();
+        $notice = [
+            'member_agent'     => $info['member_agent'],
+            'member_new_lower' => $info['member_new_lower'],
+        ];
+        $member_relation = [
+            'is_referrer'          => empty($info['is_referrer']) ? '0' : $info['is_referrer'],
+            'parent_is_referrer'   => empty($info['parent_is_referrer']) ? '0' : $info['parent_is_referrer'],
+            'is_recommend_wechat'  => empty($info['is_recommend_wechat']) ? '0' : $info['is_recommend_wechat'],
+            'one_level'            => $info['relation_level'][0],
+            'name1'                => $info['relation_level']['name1'],
+            'two_level'            => $info['relation_level'][1],
+            'name2'                => $info['relation_level']['name2'],
+            'phone'                => $info['relation_level']['phone'],
+            'realname'             => $info['relation_level']['realname'],
+            'wechat'               => $info['relation_level']['wechat'],
+            'is_statistical_goods' => $info['is_statistical_goods'],
+            'statistical_goods'    => $info['statistical_goods']
+        ];
+        $member_merge = [
+            'is_member_merge'     => $info['is_member_merge'],
+            'is_merge_save_level' => empty($info['is_merge_save_level']) ? 0 : $info['is_merge_save_level']
+        ];
 
-        return view('member.relation-base', [
-            'banner'  => tomedia($info['banner']),
-            'content' => $info['content'],
-            'base'      => $info,
-            'temp_list' => $temp_list,
-            'relation_level' => $info['relation_level']
-        ])->render();
+        return $this->successJson('ok', [
+            'banner'          => yz_tomedia($info['banner']),
+            'notice'          => $notice,
+            'temp_list'       => $temp_list,
+            'member_relation' => $member_relation,
+            'member_merge'    => $member_merge,
+        ]);
+    }
+
+    /**
+     * 验证是否开启默认模板
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getIsDefaultById()
+    {
+        if (MessageTemp::uniacid()->where('id', request()->id)->where('is_default', 1)->first()) {
+            return $this->successJson('ok', ['data' => true]);
+        }
+        return $this->successJson('ok', ['data' => false]);
     }
 
     /**
@@ -256,7 +333,7 @@ class MemberRelationController extends BaseController
 
                 Relation::sendGeneralizeNotify($member_shop_info_model->member_id);
 
-                return $this->successJson('审核通过');
+                return $this->successJson('审核通过', ['data' => true]);
             } else {
                 return $this->errorJson('审核失败');
             }
@@ -275,41 +352,48 @@ class MemberRelationController extends BaseController
 
         $requestSearch = \YunShop::request()->search;
 
-        $list = Member::getMembersToApply($requestSearch)
-            ->get()
-            ->toArray();
+        $list = Member::getMembersToApply($requestSearch);
+        $export_page = request()->export_page ? request()->export_page : 1;
+
+        $export_model = new ExportService($list, $export_page);
+        $file_name = date('Ymdhis', time()) . '会员导出' . $export_page;
 
         $export_data[0] = ['会员ID', '推荐人姓名', '粉丝姓名', '会员姓名', '手机号', '申请时间'];
 
-        foreach ($list as $key => $item) {
+        foreach ($list->get()->toArray() as $key => $item) {
             if (!empty($item['yz_member']) && !empty($item['yz_member']['agent'])) {
                 $agent_name = $item['yz_member']['agent']['nickname'];
-
             } else {
                 $agent_name = '';
             }
 
-            $export_data[$key + 1] = [$item['uid'], $agent_name, $item['nickname'], $item['realname'],
-                $item['mobile'], date('Y.m.d', $item['yz_member']['apply_time'])];
+            $export_data[$key + 1] = [
+                $item['uid'],
+                $agent_name,
+                $item['nickname'],
+                $item['realname'],
+                $item['mobile'],
+                date('Y.m.d', $item['yz_member']['apply_time'])
+            ];
         }
+        // 此处参照商城订单管理的导出接口
+        app('excel')->store(new \app\exports\FromArray($export_data), $file_name . '.xlsx', 'export');
+        app('excel')->download(new \app\exports\FromArray($export_data), $file_name . '.xlsx')->send();
+    }
 
-        \Excel::create($file_name, function ($excel) use ($export_data) {
-            // Set the title
-            $excel->setTitle('Office 2005 XLSX Document');
-
-            // Chain the setters
-            $excel->setCreator('芸众商城')
-                ->setLastModifiedBy("芸众商城")
-                ->setSubject("Office 2005 XLSX Test Document")
-                ->setDescription("Test document for Office 2005 XLSX, generated using PHP classes.")
-                ->setKeywords("office 2005 openxml php")
-                ->setCategory("report file");
-
-            $excel->sheet('info', function ($sheet) use ($export_data) {
-                $sheet->rows($export_data);
-            });
-
-
-        })->export('xls');
+    protected function setData($setData)
+    {
+        $setData['become'] = empty($setData['become']) ? 0 : $setData['become'];
+        $setData['become_check'] = empty($setData['become_check']) ? 0 : $setData['become_check'];
+        $setData['become_order'] = empty($setData['become_order']) ? 0 : $setData['become_order'];
+        $setData['become_child'] = empty($setData['become_child']) ? 0 : $setData['become_child'];
+        $setData['become_ordercount'] = empty($setData['become_ordercount']) ? 0 : $setData['become_ordercount'];
+        $setData['become_moneycount'] = empty($setData['become_moneycount']) ? 0.00 : $setData['become_moneycount'];
+        $setData['become_info'] = empty($setData['become_info']) ? 1 : $setData['become_info'];
+        $setData['share_page'] = empty($setData['share_page']) ? 1 : $setData['share_page'];
+        $setData['share_page_deail'] = empty($setData['share_page_deail']) ? 0 : $setData['share_page_deail'];
+        $setData['reward_points'] = empty($setData['reward_points']) ? 0 : $setData['reward_points'];
+        $setData['maximum_number'] = empty($setData['maximum_number']) ? 0 : $setData['maximum_number'];
+        return $setData;
     }
 }

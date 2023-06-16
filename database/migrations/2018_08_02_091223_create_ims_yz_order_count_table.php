@@ -13,6 +13,7 @@ class CreateImsYzOrderCountTable extends Migration
      */
     public function up()
     {
+        //ps：这张表没有看见有使用了
         if (!Schema::hasTable('yz_order_count')) {
             Schema::create('yz_order_count', function (Blueprint $table) {
                 $table->increments('id');
@@ -28,6 +29,7 @@ class CreateImsYzOrderCountTable extends Migration
                 $table->integer('created_at')->nullable();
                 $table->integer('updated_at')->nullable();
             });
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE `".app('db')->getTablePrefix()."yz_order_count` comment'订单--会员统计记录'");//表注释
         }
     }
 

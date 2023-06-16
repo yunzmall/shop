@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/3/2
  * Time: 下午4:18
  */
@@ -80,7 +80,9 @@ class MemberShopInfo extends BaseModel
 
     protected $guarded = [''];
 
-    public $primaryKey = 'member_id';
+	protected $hidden = ['pay_password','salt','access_token_1','access_expires_in_1','refresh_token_1','refresh_expires_in_1','access_token_2','access_expires_in_2','refresh_token_2','refresh_expires_in_2'];
+
+	public $primaryKey = 'member_id';
 
     public static function boot()
     {
@@ -457,6 +459,12 @@ class MemberShopInfo extends BaseModel
     public function scopeOfMemberId($query, $memberId)
     {
         return $query->where('member_id', $memberId);
+    }
+
+
+    public function hasOneParent()
+    {
+        return $this->hasOne(Member::class, 'uid', 'parent_id');
     }
 
 }

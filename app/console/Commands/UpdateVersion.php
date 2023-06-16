@@ -54,7 +54,7 @@ class UpdateVersion extends Command
         \Log::debug('---plugins---', $plugins);
         if (!is_null($plugins)) {
             foreach ($plugins as $p) {
-                if (app('plugins')->isEnabled($p))  {
+                if (app('plugins')->getPlugin($p))  {
                     $path = 'plugins/' . $p . '/migrations';
 
                     if(is_dir(base_path($path) )){

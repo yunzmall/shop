@@ -47,6 +47,7 @@ class SystemSetting extends BaseModel
             $result = self::where('key', $key)->update(['value' => $data]);
         }
         \Log::info('----------系统设置----------', $type.$key.'-----设置数据-----'.json_encode($data));
+        Cache::store()->forget($cache_name);
         $result ? Cache::put($cache_name, ['key' => $key, 'value' => $data] , 3600) : null;
 
         return $result;

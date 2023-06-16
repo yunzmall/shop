@@ -791,6 +791,7 @@ class CreateYzOfficialWebsiteMultipleList extends Migration
             ];
 
             \Illuminate\Support\Facades\DB::table('yz_official_website_multiple')->insert($data);
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE ".app('db')->getTablePrefix()."yz_official_website_multiple comment '官网商城表单--多表'");
         }
     }
 

@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * User: 芸众网
+ * User: 
  * Date: 2019/7/1
  * Time: 13:43
  */
@@ -9,22 +9,39 @@
 namespace app\backend\modules\setting\controllers;
 
 use app\common\components\BaseController;
+use app\common\facades\Setting;
 use app\common\helpers\ImageHelper;
 use app\common\helpers\Url;
 use app\common\models\WebSiteInfo;
 use Illuminate\Support\Facades\Storage;
+use Ixudra\Curl\Facades\Curl;
 
 class WorkOrderController extends BaseController
 {
     // 工单管理
     public function index()
     {
-        $key = \Setting::get('shop.key')['key'];
-        $secret = \Setting::get('shop.key')['secret'];
-        $data = \Curl::to(config('auto-update.workOrderUrl') . '/work-order/get-work-order-list/' . $_SERVER['HTTP_HOST'] . '/0' . '/0' . '/0' . '/0' . '/0' . '/0')
+        $key = Setting::get('shop.key')['key'];
+        $secret = Setting::get('shop.key')['secret'];
+        $post_data = [
+            'page' => 1,
+            'post_data' => [
+                'category_id' => 0,
+                'status' => 0,
+                'work_order_sn' => 0,
+                'has_time_limit' => 0,
+                'start_time' => 0,
+                'end_time' => 0,
+                'show_all' => 0,
+                'domain' => $_SERVER['HTTP_HOST'],
+            ],
+        ];
+        $url = config('auto-update.workOrderUrl') . '/api/work-order/get-work-order-list/';
+        $data = Curl::to($url)
             ->withHeader("Authorization: Basic " . base64_encode("{$key}:{$secret}"))
+            ->withData($post_data)
             ->asJsonResponse(true)
-            ->get();
+            ->post();
         if ($data && $data['result'] == 1) {
             return view('setting.work-order.list', [
                 'data' => json_encode($data['data']),
@@ -35,7 +52,8 @@ class WorkOrderController extends BaseController
             return view('setting.work-order.list', [
                 'data' => json_encode([]),
                 'category_list' => json_encode($this->category()),
-                'status_list' => json_encode($this->status()), ])->render();
+                'status_list' => json_encode($this->status()),
+            ])->render();
         }
     }
 
@@ -45,39 +63,28 @@ class WorkOrderController extends BaseController
      */
     public function search()
     {
-        $url = config('auto-update.workOrderUrl') . '/work-order/get-work-order-list/' . $_SERVER['HTTP_HOST'];
         $data = request()->input('data');
-        if ($data['category_id']) {
-            $url = $url . '/' . $data['category_id'];
-        } else {
-            $url = $url . '/' . '0';
-        }
-        if ($data['status']) {
-            $url = $url . '/' . $data['status'];
-        } else {
-            $url = $url . '/' . '0';
-        }
-        if ($data['work_order_sn']) {
-            $url = $url . '/' . $data['work_order_sn'];
-        } else {
-            $url = $url . '/' . '0';
-        }
-        if ($data['has_time_limit']) {
-            //需要搜索时间
-            $url = $url . '/' . $data['has_time_limit'] . '/' . $data['start_time'] / 1000 . '/' . $data['end_time'] / 1000;
-        } else {
-            $url = $url . '/' . '0' . '/' . '0' . '/' . '0';
-        }
-        if ($data['page']) {
-            $url = $url . '?page=' . $data['page'];
-        }
-
-        $key = \Setting::get('shop.key')['key'];
-        $secret = \Setting::get('shop.key')['secret'];
-        $data = \Curl::to($url)
+        $post_data = [
+            'page' => $data['page'],
+            'post_data' => [
+                'category_id' => $data['category_id'],
+                'status' => $data['status'],
+                'work_order_sn' => $data['work_order_sn'],
+                'has_time_limit' => $data['has_time_limit'],
+                'start_time' => $data['start_time'] / 1000,
+                'end_time' => $data['end_time'] / 1000,
+                'show_all' => $data['show_all'],
+                'domain' => $_SERVER['HTTP_HOST'],
+            ],
+        ];
+        $key = Setting::get('shop.key')['key'];
+        $secret = Setting::get('shop.key')['secret'];
+        $url = config('auto-update.workOrderUrl') . '/api/work-order/get-work-order-list/';
+        $data = Curl::to($url)
             ->withHeader("Authorization: Basic " . base64_encode("{$key}:{$secret}"))
+            ->withData($post_data)
             ->asJsonResponse(true)
-            ->get();
+            ->post();
         if ($data && $data['result'] == 1) {
             return $this->successJson('成功', $data['data']);
         } else {
@@ -156,9 +163,9 @@ class WorkOrderController extends BaseController
     public function details()
     {
         $id = request()->input('id');
-        $key = \Setting::get('shop.key')['key'];
-        $secret = \Setting::get('shop.key')['secret'];
-        $data = \Curl::to(config('auto-update.workOrderUrl') . '/work-order/details/' . $id)
+        $key = Setting::get('shop.key')['key'];
+        $secret = Setting::get('shop.key')['secret'];
+        $data = Curl::to(config('auto-update.workOrderUrl') . '/work-order/details/' . $id)
             ->withHeader("Authorization: Basic " . base64_encode("{$key}:{$secret}"))
             ->asJsonResponse(true)
             ->get();
@@ -189,9 +196,9 @@ class WorkOrderController extends BaseController
             'domain' => $_SERVER['HTTP_HOST'],
         ];
 
-        $key = \Setting::get('shop.key')['key'];
-        $secret = \Setting::get('shop.key')['secret'];
-        $data = \Curl::to(config('auto-update.workOrderUrl') . '/work-order/comment')
+        $key = Setting::get('shop.key')['key'];
+        $secret = Setting::get('shop.key')['secret'];
+        $data = Curl::to(config('auto-update.workOrderUrl') . '/work-order/comment')
             ->withHeader("Authorization: Basic " . base64_encode("{$key}:{$secret}"))
             ->withData($data)
             ->asJsonResponse(true)
@@ -225,9 +232,9 @@ class WorkOrderController extends BaseController
      */
     private function getKey()
     {
-        $key = \Setting::get('shop.key')['key'];
-        $secret = \Setting::get('shop.key')['secret'];
-        $data = \Curl::to(config('auto-update.workOrderUrl') . '/work-order/get-user-key')
+        $key = Setting::get('shop.key')['key'];
+        $secret = Setting::get('shop.key')['secret'];
+        $data = Curl::to(config('auto-update.workOrderUrl') . '/work-order/get-user-key')
             ->withHeader("Authorization: Basic " . base64_encode("{$key}:{$secret}"))
             ->withData(['domain' => $_SERVER['HTTP_HOST'], 'work_order' => 1])
             ->asJsonResponse(true)
@@ -262,6 +269,7 @@ class WorkOrderController extends BaseController
             "founder_password" => $this->decryption($webSiteInfo->founder_password, $key),
             "server_ip" => $this->decryption($webSiteInfo->server_ip, $key),
             "root_password" => $this->decryption($webSiteInfo->root_password, $key),
+            "root_username" => $this->decryption($webSiteInfo->root_username, $key),
             "ssh_port" => $this->decryption($webSiteInfo->ssh_port, $key),
             "database_address" => $this->decryption($webSiteInfo->database_address, $key),
             "database_username" => $this->decryption($webSiteInfo->database_username, $key),
@@ -300,9 +308,9 @@ class WorkOrderController extends BaseController
      */
     private function getEncryptionKey()
     {
-        $key = \Setting::get('shop.key')['key'];
-        $secret = \Setting::get('shop.key')['secret'];
-        $data = \Curl::to(config('auto-update.workOrderUrl') . '/work-order/get-key')
+        $key = Setting::get('shop.key')['key'];
+        $secret = Setting::get('shop.key')['secret'];
+        $data = Curl::to(config('auto-update.workOrderUrl') . '/work-order/get-key')
             ->withHeader("Authorization: Basic " . base64_encode("{$key}:{$secret}"))
             ->withData(['domain' => $_SERVER['HTTP_HOST'], 'work_order' => 1])
             ->asJsonResponse(true)
@@ -340,6 +348,7 @@ class WorkOrderController extends BaseController
                 'founder_account' => $this->encipherment($postData['first_list']['founder_account'], $encryptionKey),
                 'founder_password' => $this->encipherment($postData['first_list']['founder_password'], $encryptionKey),
                 'server_ip' => $this->encipherment($postData['first_list']['server_ip'], $encryptionKey),
+                'root_username' => $this->encipherment($postData['first_list']['root_username'], $encryptionKey),
                 'root_password' => $this->encipherment($postData['first_list']['root_password'], $encryptionKey),
                 'ssh_port' => $this->encipherment($postData['first_list']['ssh_port'], $encryptionKey),
                 'database_address' => $this->encipherment($postData['first_list']['database_address'], $encryptionKey),
@@ -354,9 +363,9 @@ class WorkOrderController extends BaseController
         $userData = $data['user_data'];
         $userData['uniacid'] = \YunShop::app()->uniacid;
         WebSiteInfo::updateOrCreate(['website_url' => $userData['website_url']], $userData);
-        $key = \Setting::get('shop.key')['key'];
-        $secret = \Setting::get('shop.key')['secret'];
-        $data = \Curl::to(config('auto-update.workOrderUrl') . '/work-order/index')
+        $key = Setting::get('shop.key')['key'];
+        $secret = Setting::get('shop.key')['secret'];
+        $data = Curl::to(config('auto-update.workOrderUrl') . '/work-order/index')
             ->withHeader("Authorization: Basic " . base64_encode("{$key}:{$secret}"))
             ->withData($data)
             ->asJsonResponse(true)

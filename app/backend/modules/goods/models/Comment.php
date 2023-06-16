@@ -1,10 +1,11 @@
 <?php
 namespace app\backend\modules\goods\models;
+use app\common\models\Order;
 use Illuminate\Support\Facades\DB;
 
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/2/27
  * Time: 下午5:10
  */
@@ -14,10 +15,11 @@ class Comment extends \app\common\models\Comment
     static protected $needLog = true;
 
     /**
-     * @param $pageSize
+     * @param $search
+     * @param $comment_type
      * @return mixed
      */
-    public static function getComments($search)
+    public static function getComments($search,$comment_type='')
     {
         $commentModdel = self::uniacid();
         if ($search['keyword']) {
@@ -25,10 +27,22 @@ class Comment extends \app\common\models\Comment
                 return $query->searchLike($search['keyword']);
             });
         }
-        $commentModdel->with(['goods' => function ($query) {
+        if ($search['order_sn']){
+            $commentModdel->whereHas('hasOneOrder', function ($query) use ($search) {
+                return $query->where('order_sn',$search['order_sn']);
+            });
+        }
+        $commentModdel->with([
+            'goods' => function ($query) {
             return $query->select(['id', 'title', 'thumb','plugin_id']);
-        }]);
-        $commentModdel->where('comment_id', '0');
+            },
+            'hasOneOrder' => function ($query) use ($search) {
+                return $query->select('id','order_sn');
+            }
+        ]);
+        if (!$comment_type) {
+            $commentModdel->where('comment_id', '0');
+        }
 
         if ($search['fade'] == 1) {
             $commentModdel->where('uid', '>', '0');
@@ -126,5 +140,10 @@ class Comment extends \app\common\models\Comment
             'goods_id' => 'required',
             'content' => 'required'
         ];
+    }
+
+    public function hasOneOrder()
+    {
+        return $this->hasOne(\app\common\models\Order::class,'id','order_id');
     }
 }

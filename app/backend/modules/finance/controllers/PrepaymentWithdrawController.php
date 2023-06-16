@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/4/14
  * Time: 下午5:06
  */
@@ -10,6 +10,7 @@ namespace app\backend\modules\finance\controllers;
 
 
 use app\common\exceptions\AppException;
+use app\common\facades\Setting;
 use app\common\helpers\Url;
 use app\common\models\Withdraw;
 use app\backend\modules\finance\services\WithdrawService;
@@ -25,8 +26,15 @@ class PrepaymentWithdrawController extends BaseController
 
     public function detail()
     {
-        $this->withdrawModel = $this->attachedMode();
-        return view('finance.balance.withdraw', ['item' => $this->withdrawModel->toArray(),])->render();
+        if (request()->ajax()) {
+            $this->withdrawModel = $this->attachedMode();
+            return $this->successJson('ok', [
+                'item' => $this->withdrawModel->toArray(),
+                'shopSet' => Setting::get('shop.member'),
+            ]);
+        }
+
+        return view('finance.balance.withdraw')->render();
     }
 
 
@@ -105,7 +113,7 @@ class PrepaymentWithdrawController extends BaseController
 //            BalanceNoticeService::withdrawRejectNotice($this->withdrawModel);
         }
         $this->withdrawUpdate();
-        return $this->message('提交审核成功', yzWebUrl("finance.balance-withdraw.detail", ['id' => $this->getPostId()]));
+        return $this->successJson('提交审核成功');
     }
 
 
@@ -198,6 +206,9 @@ class PrepaymentWithdrawController extends BaseController
             case 'converge_pay': //汇聚余额提现
                 return $this->convergePayment($this->paymentRemark());
                 break;
+            case 'balance': //余额提现
+                return $this->balancePayment($this->paymentRemark());
+                break;
             default:
                 throw new AppException('未知打款方式！！！');
         }
@@ -213,6 +224,20 @@ class PrepaymentWithdrawController extends BaseController
         return $remark = '提现打款-' . $this->withdrawModel->type_name . '-金额:' . $this->withdrawModel->actual_amounts . '元,' . '手续费:' . $this->withdrawModel->actual_poundage;
     }
 
+    /**
+     * 余额打款
+     * @param $remark
+     */
+    private function balancePayment($remark)
+    {
+        $result = WithdrawService::balanceWithdrawPay($this->withdrawModel, $remark);
+
+        Log::info('MemberId:' . $this->withdrawModel->member_id . ', ' . $remark . "余额打款中!");
+        if (!empty($result) && 1 == $result['errno']) {
+            return $this->paymentError($result['message']);
+        }
+        return $result;
+    }
 
     /**
      * 支付宝打款

@@ -90,22 +90,34 @@ class QcloudCosService
         } else {
             $file = request()->getSchemeAndHttpHost() . '/attachment/' . $key;
         }
-
+        if (!$file) {
+            return false;
+        }
         try {
-            if ($file) {
-                $result = $this->cosClient->putObject(array(
-                    'Bucket' => $this->bucket,
-                    'Key' => $key,
-                    'Body' => $this->curl_file($file),
-                ));
-                return true;
-            } else {
-                return '文件资源不存在';
-            }
+            $this->cosClient->putObject(array(
+                'Bucket' => $this->bucket,
+                'Key' => $key,
+                'Body' => $this->curl_file($file),
+            ));
         } catch (\Exception $e) {
             \Log::error('qcloud-cos上传文件流报错', $e->getMessage());
-            return $e->getMessage();
+            return false;
         }
+        return true;
+    }
+
+    public function delete($filename)
+    {
+        try {
+            $result = $this->cosClient->deleteObject(array(
+                'Bucket' => $this->bucket,
+                'Key' => $filename,
+            ));
+        } catch (\Exception $e) {
+            \Log::error('qcloud-cos删除文件失败', $e->getMessage());
+            return false;
+        }
+        return true;
     }
 
     /**

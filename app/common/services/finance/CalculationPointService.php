@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/4/11
  * Time: 下午6:27
  */
@@ -37,7 +37,7 @@ class CalculationPointService
 
         $point_data = [];
         //todo 如果等于0  不赠送积分
-        if (isset($orderGoods->hasOneGoods->hasOneSale) && $orderGoods->hasOneGoods->hasOneSale->point !== '' && intval($orderGoods->hasOneGoods->hasOneSale->point) === 0) {
+        if (isset($orderGoods->hasOneGoods->hasOneSale) && $orderGoods->hasOneGoods->hasOneSale->point !== '' && floatval($orderGoods->hasOneGoods->hasOneSale->point) <= 0) {
             return $point_data;
         }
 

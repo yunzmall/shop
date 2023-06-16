@@ -33,6 +33,8 @@ class CreateImsYzAdminUsersTable extends Migration
                 $table->integer('updated_at')->nullable();
                 $table->integer('deleted_at')->nullable();
             });
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE " . app('db')->getTablePrefix() . "yz_admin_users comment '角色管理-管理员用户表'");//表注释
+
         }
     }
 

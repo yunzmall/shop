@@ -198,7 +198,7 @@ class Template
                 'subtitle' => '余额提现成功通知(会员)',
                 'value' => 'finance_balance_withdraw_success',
                 'param' => [
-                    '时间', '金额', '手续费'
+                    '时间', '金额', '手续费', '实际打款金额'
                 ]
             ],
             'finance_balance_withdraw_fail' => [

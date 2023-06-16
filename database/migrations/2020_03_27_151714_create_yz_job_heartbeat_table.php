@@ -21,6 +21,7 @@ class CreateYzJobHeartbeatTable extends Migration
                 $table->integer('updated_at')->nullable();
                 $table->integer('deleted_at')->nullable();
             });
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE " . app('db')->getTablePrefix() . "yz_job_heartbeat comment '队列执行记录表'");//表注释
         }
     }
 

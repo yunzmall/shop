@@ -82,6 +82,8 @@ class CreateYzOfficialWebsiteThemeSet extends Migration
             ];
 
             \Illuminate\Support\Facades\DB::table("yz_official_website_theme_set")->insert($data);
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE ".app('db')->getTablePrefix()."yz_official_website_theme_set comment '官网商城表单--主题设置表'");
+
         }
     }
 

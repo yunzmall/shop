@@ -10,11 +10,14 @@ namespace app\backend\modules\order\controllers;
 
 
 use app\common\components\BaseController;
+use app\common\events\order\AfterOrderAddressChangeEvent;
+use app\common\exceptions\AppException;
 use app\common\exceptions\ShopException;
 use app\common\models\Address;
 use app\common\models\order\Address as OrderAddress;
 use app\common\models\order\AddressUpdateLog;
 use app\common\models\Street;
+use Illuminate\Support\Facades\DB;
 
 class AddressUpdateController extends BaseController
 {
@@ -54,25 +57,31 @@ class AddressUpdateController extends BaseController
             'new_address' => $new_address,
         ];
 
-        $updateData = [
-            'realname'    => $data['realname'],
-            'mobile'    => $data['phone'],
-            'address' => $new_address,
-        ];
+        try {
+            DB::beginTransaction();
+            $updateData = [
+                'realname'    => $data['realname'],
+                'mobile'    => $data['phone'],
+                'address' => $new_address,
+            ];
 
-        $orderAddress->fill($updateData);
-        $bool =  $orderAddress->save();
+            $orderAddress->fill($updateData);
 
-        if ($bool) {
+            if (!$orderAddress->save()) {
+                throw new AppException('修改订单地址失败');
+            }
             //保存修改记录
             $addressUpdate = new AddressUpdateLog();
             $addressUpdate->fill($createData);
-            $bool2 =  $addressUpdate->save();
+            $addressUpdate->save();
 
+            event(new AfterOrderAddressChangeEvent($addressUpdate));
+            DB::commit();
             return $this->successJson('修改成功');
+        }catch (AppException $e){
+            DB::rollBack();
+            return $this->errorJson($e->getMessage());
         }
-
-        return $this->errorJson('修改失败');
 
     }
 

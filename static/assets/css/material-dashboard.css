@@ -6337,7 +6337,7 @@ h2.title {
     top: -50px;
     z-index: 999;
     padding-bottom: 30px;
-    background: #1f2d3d;
+    background: #444444;
     scrollbar-width: none;/*火狐浏览器y轴滚动条隐藏*/
 }
 
@@ -6496,7 +6496,7 @@ h2.title {
 
 .sidebar .nav li.active>a,
 .sidebar .nav li.active>a i {
-    color: #29ba9c;
+    /* color: #29ba9c; */
 }
 
 .sidebar .nav li.separator {
@@ -6740,10 +6740,10 @@ h2.title {
 }
 
 .sidebar .nav li.active>a {
-    font-weight: 700;
-    color: #29ba9c !important;
-    background-color: rgba(200, 200, 200, 0.2);
-    border-right: 3px solid #29ba9c;
+    font-weight: 400;
+    color: #333333 !important;
+    background-color: #FFFFFF;
+    /* border-right: 3px solid #29ba9c; */
 }
 
 .sidebar2 .nav li.active>a {
@@ -6989,10 +6989,12 @@ h2.title {
     padding-top: 10px;
     font-size:14px;
     height:100%;
+    background-color:#f5f5f5;
 }
 
 .sidebar2 .sidebar-wrapper {
     width: 150px !important;
+    border-radius:0 20px 0 0;
 }
 
 .sidebar2 .nav i {
@@ -12124,13 +12126,18 @@ fieldset[disabled] .navbar .btn-link:focus {
 
 .navbar.navbar-transparent {
     /* background-color: #2161f4 !important; */
-    background-color: #1f2d3d !important;
+    background-color: #ffffff !important;
     /* box-shadow: none; */
-    color: #fff;
+    color: #333333;
+    border-bottom:2px solid #f5f5f5;
 }
 
 .navbar.navbar-transparent .logo-container .brand {
     color: #FFFFFF;
+}
+
+.navbar.navbar-transparent a {
+    color:#333;
 }
 
 .navbar-fixed-top {
@@ -12192,7 +12199,7 @@ fieldset[disabled] .navbar .btn-link:focus {
     /* padding-bottom:0;
     margin-bottom:0; */
     padding-top: 0px;
-    z-index: 2000;
+    z-index: 1000;
     white-space:nowrap;
 }
 
@@ -13593,13 +13600,13 @@ footer .btn {
         /* left: -2px !important; */
         padding-top:50px;
         top:0;
-        background:#1f2d3d !important;
+        background:#f5f5f5 !important;
         left: 33px !important;
         width: 150px !important;
         padding-top: 50px;
         font-size:14px;
         height:100%;
-        
+
     }
 
     .sidebar2 .sidebar-wrapper {
@@ -13607,6 +13614,7 @@ footer .btn {
         color:#000;
         height:100%;
         /* top: -10px; */
+        border-radius:0 20px 0 0 ;
     }
     .sidebar2 .nav li>a,
     .sidebar2 .nav li>a i{
@@ -13617,6 +13625,7 @@ footer .btn {
         display: block !important;
         font-size: 24px;
         position: fixed;
+        top: 15px;
         z-index: 1222;
         color: #fff;
     }

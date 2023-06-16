@@ -5,9 +5,9 @@
  * Email:   livsyitian@163.com
  * QQ:      995265288
  * IDE:     PhpStorm
- * User:    www.yunzshop.com  www.yunzshop.com
- * Company: 广州市芸众信息科技有限公司
- * Profile: 广州市芸众信息科技有限公司位于国际商贸中心的广州，专注于移动电子商务生态系统打造，拥有芸众社交电商系统、区块链数字资产管理系统、供应链管理系统、电子合同等产品/服务
+ * 
+ * 
+ *
  ****************************************************************/
 
 
@@ -46,8 +46,8 @@ class SettingController extends BaseController
         $withdraw_verify = [];
         if (request()->withdraw_verify) {
             $data = request()->withdraw_verify;
-            if ($data['is_phone_verify'] && !$data['phone']) {
-                return $this->errorJson('开启了提现校验验证，必须设置校验手机号');
+            if (($data['is_phone_verify'] || $data['is_member_export_verify'] || $data['is_commission_export_verify']) && !$data['phone']) {
+                return $this->errorJson('开启了校验验证，必须设置校验手机号');
             }
             if ($data['verify_expire'] && intval($data['verify_expire']) > 120) {
                 return $this->errorJson('校验有效期不得超过120分钟');
@@ -65,14 +65,16 @@ class SettingController extends BaseController
                     if ($check['status'] == 0) {
                         return $this->errorJson('新手机验证码验证错误：'.$check['json']);
                     }
-                } elseif($set['is_phone_verify'] && !$data['is_phone_verify']) {//原先开启的现关闭
-                    //验证原手机
+                } elseif(($set['is_phone_verify'] && !$data['is_phone_verify']) ||
+                    ($set['is_member_export_verify'] && !$data['is_member_export_verify']) ||
+                    ($set['is_commission_export_verify'] && !$data['is_commission_export_verify'])) {//原先开启的现关闭
+                    //验证手机验证码
                     if (empty($data['form3']['verify_code'])) {
-                        return $this->errorJson('请填写原手机验证码');
+                        return $this->errorJson('关闭场景需要验证手机验证码，请填写');
                     }
                     $check = app('sms')->checkCode($set['phone'],$data['form3']['verify_code'],'_closeWithdraw');
                     if ($check['status'] == 0) {
-                        return $this->errorJson('原手机验证码验证错误：'.$check['json']);
+                        return $this->errorJson('手机验证码验证错误：'.$check['json']);
                     }
                 }
             } else {//没有设置过手机号
@@ -85,7 +87,9 @@ class SettingController extends BaseController
             }
             $withdraw_verify = [
                 'is_set_phone' => $data['phone']?1:0,
-                'is_phone_verify' => $data['is_phone_verify']?"1":0,
+                'is_phone_verify' => $data['is_phone_verify']?1:0,
+                'is_member_export_verify' => $data['is_member_export_verify']?1:0,
+                'is_commission_export_verify' => $data['is_commission_export_verify']?1:0,
                 'phone' => $data['phone']?:"",
                 'verify_expire' => $data['verify_expire']?:"",
             ];

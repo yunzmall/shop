@@ -6,6 +6,9 @@
         .main-panel{
             margin-top:50px;
         }
+        .main-panel #re_content {
+            padding: 10px;
+        }
         .panel{
             margin-bottom:10px!important;
 
@@ -157,70 +160,17 @@
                                 <el-select v-model="form.form_id"  @change="getVal" name="form_id">
                                     <el-option
 
-                                            v-for="item in  diyForm"
+                                            v-for="item in diyForm"
                                             :label="item.title"
                                             :value="item.id">
                                     </el-option>
                                 </el-select>
                             </template>
                         </el-form-item>
-                        <el-form-item label="会员中心显示余额">
-                            <template>
-                                <el-switch
-                                        v-model="form.show_balance"
-
-                                        active-value="0"
-                                        inactive-value="1"
-                                >
-                                </el-switch>
-                            </template>
-                            <div style="font-size:12px;">提示：会员中心是否显示会员余额字样</div>
-                        </el-form-item>
-                        <el-form-item label="会员中心显示积分">
-                            <template>
-                                <el-switch
-                                        v-model="form.show_point"
-
-                                        active-value="0"
-                                        inactive-value="1"
-                                >
-                                </el-switch>
-                            </template>
-                            <div style="font-size:12px;">提示：会员中心是否显示会员积分！</div>
-                        </el-form-item>
-                        <el-form-item label="会员中心显示会员ID">
-                            <template>
-                                <el-switch
-                                        v-model="form.show_member_id"
-
-                                        active-value="0"
-                                        inactive-value="1"
-                                >
-                                </el-switch>
-                            </template>
-                            <div style="font-size:12px;">提示：会员中心是否显示会员ID！</div>
-                        </el-form-item>
                     </div>
                     <div style="background: #eff3f6;width:100%;height:15px;"></div>
                     <div class="block">
                         <div class="title"><span style="width: 4px;height: 18px;background-color: #29ba9c;margin-right:15px;display:inline-block;"></span><b>会员等级设置</b><span style="margin-left:15px;color:#999;font-size:12px;">设置后可在会员>会员等级列表中添加会员等级！</span></div>
-
-                        <el-form-item label="默认会员级别名称"  >
-                            <el-input v-model="form.level_name" placeholder="请输入会员级别名称" style="width:70%;"></el-input>
-                            <div style="font-size:12px;">会员默认等级名称，不填写默认“普通会员”</div>
-                        </el-form-item>
-                        <el-form-item label="会员等级权益页面是否显示" >
-                            <template>
-                                <el-switch
-                                        v-model="form.display_page"
-
-                                        active-value="1"
-                                        inactive-value="0"
-                                >
-                                </el-switch>
-                            </template>
-                            <div style="font-size:12px;">提示： 开启，用户在商品详情页和会员中心点击会员等级都可以进入等级权益页面</div>
-                        </el-form-item>
                         <el-form-item label="会员等级升级依据">
                             <template>
                                 <el-radio-group v-model="form.level_type">
@@ -273,6 +223,17 @@
                                 >
                                 </el-switch>
                             </template>
+                        </el-form-item>
+                        <el-form-item label="会员价" >
+                            <template>
+                                <el-switch
+                                        v-model="form.vip_price"
+                                        active-value="1"
+                                        inactive-value="2"
+                                >
+                                </el-switch>
+                            </template>
+                            <div style="font-size:12px;">开启后，在前端商品选择规格页面，购物车页面，填写订单页面，我的订单页面，订单详情页面，存货订单页面（存货订单插件）显示会员价 <br/></div>
                         </el-form-item>
                         {{--<el-form-item label="商品详情已添加数量" >--}}
                             {{--<template>--}}
@@ -381,13 +342,12 @@
                         is_bind_invite:'0',
                         term:'0',
                         discount:'1',
+                        vip_price:'2',
                         // added:'1',
-                        display_page:'0',
                         level_type:'0',
                         level_after:'0',
                         form_id:'',
                         get_register: 1,
-                        level_name:'普通会员',
                         level_discount_calculation:'0'
                     },
                     type:'',
@@ -462,8 +422,8 @@
                     let loading = that.$loading({target:document.querySelector(".content"),background: 'rgba(0, 0, 0, 0)'});
                     that.$http.post('{!! yzWebFullUrl('setting.shop.checkInviteCode') !!}',{'invite_code':that.form.default_invite}).then(function (response){
                         if (response.data.result) {
-                            loading.close();
-                            location.reload();
+                            // loading.close();
+                            // location.reload();
                             that.$http.post('{!! yzWebFullUrl('setting.shop.member') !!}',{'member':that.form}).then(function (response){
                                 if (response.data.result) {
                                     that.$message({message:  response.data.msg,type: 'success'});

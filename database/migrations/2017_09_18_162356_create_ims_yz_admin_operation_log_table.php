@@ -29,6 +29,7 @@ class CreateImsYzAdminOperationLogTable extends Migration
                 $table->integer('updated_at')->nullable();
                 $table->integer('deleted_at')->nullable();
             });
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE " . app('db')->getTablePrefix() . "yz_admin_operation_log comment '商城系统-管理员修改数据记录表'");//表注释
         }
     }
 

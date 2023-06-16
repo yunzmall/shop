@@ -5,7 +5,7 @@
  * Email:   livsyitian@163.com
  * QQ:      995265288
  * IDE:     PhpStorm
- * User:    芸众商城 www.yunzshop.com
+ * User:
  ****************************************************************/
 
 
@@ -45,7 +45,7 @@ class IncomeWithdrawAward
             'point_mode'        => PointService::POINT_INCOME_WITHDRAW_AWARD,
             'member_id'         => $this->withdrawModel->member_id,
             'point'             => $this->withdrawModel->actual_poundage,
-            'remark'            => "收入提现奖励消费积分[ID:{$this->withdrawModel->id}]",
+            'remark'            => "收入提现奖励积分[ID:{$this->withdrawModel->id}]",
         ];
         (new PointService($data))->changePoint();
     }
@@ -74,7 +74,7 @@ class IncomeWithdrawAward
                 'point_mode'        => PointService::POINT_INCOME_WITHDRAW_AWARD_SCALE,
                 'member_id'         => $this->withdrawModel->member_id,
                 'point'             => $amounts,
-                'remark'            => "收入提现奖励比例消费积分[ID:{$this->withdrawModel->id}]",
+                'remark'            => "收入提现奖励比例积分[ID:{$this->withdrawModel->id}]",
             ];
             (new PointService($data))->changePoint();
         }

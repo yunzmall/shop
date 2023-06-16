@@ -18,6 +18,7 @@ class AfterMemberReceivedCouponListener
     {
         //推送模板消息通知用户
         $memberCoupon = $event->memberCoupon();
+        $total = $event->couponTotal();
 
         //发送获取通知
         MessageNotice::couponNotice($memberCoupon->coupon_id, $memberCoupon->uid);
@@ -25,7 +26,7 @@ class AfterMemberReceivedCouponListener
         //写入log
         $logData = [
             'uniacid' => \YunShop::app()->get('uniacid'),
-            'logno' => '领取优惠券成功: 用户( ID 为 ' . $memberCoupon->uid . ' )成功领取 1 张优惠券( ID 为 ' . $memberCoupon->coupon_id . ' )',
+            'logno' => '领取优惠券成功: 用户( ID 为 ' . $memberCoupon->uid . ' )成功领取 ' . $total . ' 张优惠券( ID 为 ' . $memberCoupon->coupon_id . ' )',
             'member_id' => $memberCoupon->uid,
             'couponid' => $memberCoupon->coupon_id,
             'getfrom' => 1,

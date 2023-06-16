@@ -32,6 +32,7 @@ class SaleLog extends OperationBase
             'ed_money'      => '单品满额包邮',
             'ed_full_reduction'       => '单品满额立减',
             'award_balance' => '赠送余额',
+            'pay_reward_balance' => '赠送门店余额',
             'point'         => '赠送积分',
             'max_point_deduct' => '积分最高抵扣',
             'min_point_deduct' => '积分最低抵扣',

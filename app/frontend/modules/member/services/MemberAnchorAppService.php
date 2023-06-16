@@ -23,6 +23,7 @@ use app\frontend\modules\member\models\MemberUniqueModel;
 use app\frontend\modules\member\models\SubMemberModel;
 use Yunshop\Room\common\TLSSigAPIv2;
 use Yunshop\Room\models\Anchor;
+use Yunshop\Room\services\ImService;
 
 class MemberAnchorAppService extends MemberService
 {
@@ -45,8 +46,13 @@ class MemberAnchorAppService extends MemberService
             } else {
                 return show_json(7, '用户不存在');
             }
+            $remain_time = $this->getLoginLimit($mobile);
+            if($remain_time){
+                return show_json(6, "账号锁定中，请".$remain_time."分钟后再登录");
+            }
 
             if (!empty($member_info)) {
+                MemberService::countReset($mobile);
                 $member_info = $member_info->toArray();
 
                 $yz_member = MemberShopInfo::getMemberShopInfo($member_info['uid']);
@@ -72,10 +78,9 @@ class MemberAnchorAppService extends MemberService
                         $yz_member->save();
                     }
                     $data['token'] = $yz_member->access_token_2;
-                    $data['member_id'] = 'an'.$yz_member->member_id;
-                    $basic_set = Setting::get('plugin.room_set_basic');
-                    $api = new TLSSigAPIv2($basic_set['sdkappid'],$basic_set['im_key']);
-                    $data['user_sig'] = $api->genSig('an'.$yz_member->member_id);
+                    $data['member_id'] = ImService::getImUid('an'.$yz_member->member_id);
+					$data['uid'] = $yz_member->member_id;
+                    $data['user_sig'] = ImService::genSig('an'.$yz_member->member_id);
                 } else {
                     return show_json(7, '用户不存在');
                 }
@@ -83,6 +88,14 @@ class MemberAnchorAppService extends MemberService
                 return show_json(1, '', $data);
             }
             {
+                if ($password != $member_info['password']) {
+                    $error_count = $this->setLoginLimit($mobile);
+                    if ($error_count > 0) {
+                        return show_json(6, "密码错误！你还剩" . $error_count . "次机会");
+                    } else {
+                        return show_json(6, "密码错误次数已达5次，您的账号已锁定，请30分钟之后登录！");
+                    }
+                }
                 return show_json(6, '手机号或密码错误');
             }
         } else {

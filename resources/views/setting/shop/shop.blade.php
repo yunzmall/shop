@@ -1,9 +1,13 @@
 @extends('layouts.base')
 @section('content')
     <link rel="stylesheet" type="text/css" href="{{static_url('yunshop/goods/vue-goods1.css')}}"/>
-    <style>
+    <link rel="stylesheet" href="{{static_url('css/public-number.css')}}">
+    <style scoped>
         .main-panel{
             margin-top:50px;
+        }
+        .main-panel #re_content {
+            padding: 10px;
         }
         .panel{
             margin-bottom:10px!important;
@@ -93,6 +97,10 @@
                         <el-form-item label="商城名称"  >
                             <el-input v-model="form.name" placeholder="请输入商城名称" style="width:70%;"></el-input>
                         </el-form-item>
+                        <el-form-item label="主题颜色" prop="theme_color">
+                            <el-input v-model="form.theme_color" style="width:20%;float:left;"></el-input>
+                            <el-color-picker v-model="form.theme_color" style="display:inline-block;float:left;"></el-color-picker>
+                        </el-form-item>
                         <el-form-item label="商城LOGO" prop="head_img_url">
                             <div class="upload-box" @click="openUpload('logo',1,'one')" v-if="!form.logo_url">
                                 <i class="el-icon-plus" style="font-size:32px"></i>
@@ -137,6 +145,12 @@
                                 <i class="el-icon-close" @click.stop="clearImg('copyrightImg')" title="点击清除图片"></i>
                             </div>
                         </el-form-item>
+                        <el-form-item label="跳转链接">
+                            <el-input v-model="form.cat_adv_url" placeholder="请填写指向的链接" style="width:60%;"></el-input><el-button @click="show=true" style="margin-left:10px;">选择链接</el-button>
+                        </el-form-item>
+                        <el-form-item label="小程序链接">
+                            <el-input v-model="form.small_cat_adv_url" placeholder="请填写指向的链接" style="width:60%;"></el-input><el-button @click="pro=true" style="margin-left:10px;">选择小程序链接</el-button>
+                        </el-form-item>
                             @endif
                     </div>
                     <div style="background: #eff3f6;width:100%;height:15px;"></div>
@@ -169,13 +183,13 @@
                         <el-form-item label="客服链接"  >
                             <el-input v-model="form.cservice" placeholder="请输入客服链接" style="width:70%;"></el-input>
                             <div style="font-size:12px;color:#ccc;">
-                                支持任何客服系统的聊天链接,例如芸客服,QQ,企点,53客服,百度商桥等；建议使用系统自带的芸客服插件！
+                                支持任何客服系统的聊天链接,例如在线客服插件,QQ,企点,53客服,百度商桥等；建议使用系统自带的在线客服插件！
                             </div>
                         </el-form-item>
                         <el-form-item label=""  >
-                            <el-input v-model="form.cservice_mini" placeholder="请输入小程序客服路径，仅支持芸客服插件!" style="width:70%;"></el-input>
+                            <el-input v-model="form.cservice_mini" placeholder="请输入小程序客服路径，仅支持在线客服插件!" style="width:70%;"></el-input>
                             <div style="font-size:12px;color:#ccc;">
-                                只支持芸客服插件小程序客服聊天路径，如留空则使用小程序官方客服功能！
+                                只支持在线客服插件小程序客服聊天路径，如留空则使用小程序官方客服功能！
                             </div>
                         </el-form-item>
                         <el-form-item label="百度统计">
@@ -192,26 +206,12 @@
                         </el-form-item>
                     </div>
 
-
-                    <div class="block">
-                        <div class="title"><span style="width: 4px;height: 18px;background-color: #29ba9c;margin-right:15px;display:inline-block;"></span><b>平台协议</b></div>
-
-                        <el-form-item label="是否开启" prop="is_agreement">
-                            <el-switch v-model="form.is_agreement" :active-value="1" :inactive-value="0"></el-switch>
-                        </el-form-item>
-
-                        <el-form-item label="平台协议自定义名称">
-                            <el-input v-model="form.agreement_name" placeholder="请输入平台协议自定义名称" style="width:70%;"></el-input>
-                        </el-form-item>
-                        <el-form-item label="平台协议" prop="agreement">
-                            <tinymceee v-model="form.agreement" style="width:70%" v-if="displayTinymceEditor"></tinymceee>
-                        </el-form-item>
-
-                    </div>
                     <div class="confirm-btn">
                         <el-button type="primary" @click="submit">提交</el-button>
                     </div>
             </div>
+            <pop :show="show" @replace="changeProp1" @add="parHref"></pop>
+            <program :pro="pro" @replacepro="changeprogram" @addpro="parpro"></program>
             </el-form>
         </div>
     </div>
@@ -219,7 +219,8 @@
     <!-- @include('public.admin.uploadImg') -->
     @include('public.admin.tinymceee')
     @include('public.admin.uploadMultimediaImg')
-
+    @include('public.admin.pop')
+    @include('public.admin.program')
     <script>
         var vm = new Vue({
             el: "#re_content",
@@ -232,6 +233,8 @@
                     chooseImgName:'',
                     uploadListShow:false,
                     chooseImgListName:'',
+                    show:false,//是否开启公众号弹窗
+                    pro:false ,//是否开启小程序弹窗
                     form:{
                         close:'0',
                         https:'0',
@@ -243,12 +246,16 @@
                         achievement:'0',
                         member_level:['-1'],
                         cservice:'',
+                        cservice_mini:'',
                         baidu:'',
                         credit:'',
                         credit1:'',
                         agreement:'',
                         is_agreement:'0',
-                        agreement_name:''
+                        agreement_name:'',
+                        theme_color:"",
+                        cat_adv_url:'',
+                        small_cat_adv_url:''
                     },
                     type:'',
                     selNum:'',
@@ -288,6 +295,23 @@
                 getInfo(){
                     this.$forceUpdate()
                 },
+                //弹窗显示与隐藏的控制
+                changeProp1(item){
+                    this.show=item;
+                },
+                //当前链接的增加
+                parHref(child,confirm){
+                    this.show=confirm;
+                    this.form.cat_adv_url=child;
+
+                },
+                changeprogram(item){
+                    this.pro=item;
+                },
+                parpro(child,confirm){
+                    this.pro=confirm;
+                    this.form.small_cat_adv_url=child;
+                },
                 getData(){
                     this.$http.post('{!! yzWebFullUrl('setting.shop.shop-set-info') !!}').then(function (response){
                         if (response.data.result) {
@@ -298,7 +322,6 @@
                                 }
                             }
                             this.level=response.data.data.level
-                            this.agreement = response.data.data.shop.agreement
                             if(!this.form.hasOwnProperty('member_level')){
                                 this.form.member_level=['-1']
                             }

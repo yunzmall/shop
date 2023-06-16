@@ -16,13 +16,13 @@ class AddFieldToYzMember extends Migration
         if (\Schema::hasTable('yz_member')) {
 
             if (!Schema::hasColumn('yz_member', 'pay_password')) {
-                Schema::table('yz_member', function ($table) {
-                    $table->string('pay_password','45');
+                Schema::table('yz_member', function (Blueprint $table) {
+                    $table->string('pay_password','45')->comment('	商城支付密码');
                 });
             }
             if (!Schema::hasColumn('yz_member', 'salt')) {
-                Schema::table('yz_member', function ($table) {
-                    $table->string('salt','8');
+                Schema::table('yz_member', function (Blueprint $table) {
+                    $table->string('salt','8')->comment('加密随机码');
                 });
             }
         }

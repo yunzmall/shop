@@ -193,6 +193,7 @@ Vue.component('uploadImg', {
             <div>
                 <el-radio-group v-model="radio1" size="medium" @change="chooseYear">
                     <el-radio-button label="">不限</el-radio-button>
+                    <el-radio-button label="2021">2021年</el-radio-button>
                     <el-radio-button label="2020">2020年</el-radio-button>
                     <el-radio-button label="2019">2019年</el-radio-button>
                     <el-radio-button label="2018">2018年</el-radio-button>

@@ -29,7 +29,7 @@ class SynchronizedBinder extends BaseModel
 
     public static function searchLog($search)
     {
-        $model = self::uniacid();
+        $model = self::select(['id', 'old_uid', 'new_uid', 'created_at'])->uniacid();
 
         if ($search['member_id']) {
             $model->where('old_uid', $search['member_id']);

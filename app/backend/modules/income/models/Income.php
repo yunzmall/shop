@@ -38,7 +38,12 @@ class Income extends \app\common\models\Income
     public function scopeSearch($query, $search)
     {
         if ($search['class']) {
-            $query->where('incometable_type', $search['class']);
+            //门店预约中途换了关联模型,兼容新旧记录
+            if($search['class']=='Yunshop\Appointment\common\models\AppointmentOrderService'){
+                $query->whereIn('incometable_type', [$search['class'],'Yunshop\Appointment\common\models\AppointmentIncome']);
+            }else{
+                $query->where('incometable_type', $search['class']);
+            }
         }
         if ($search['status'] || $search['status'] == '0') {
             $query->where('status', $search['status']);
@@ -46,8 +51,8 @@ class Income extends \app\common\models\Income
         if ($search['pay_status'] || $search['pay_status'] == '0') {
             $query->where('pay_status', $search['pay_status']);
         }
-        if ($search['search_time']) {
-            $query = $query->whereBetween('created_at', [strtotime($search['time']['start']),strtotime($search['time']['end'])]);
+        if (Is_numeric($search['time']['start']) && Is_numeric($search['time']['end'])) {
+            $query = $query->whereBetween('created_at', [$search['time']['start'] / 1000, $search['time']['end'] / 1000]);
         }
         return $query;
     }

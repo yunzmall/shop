@@ -4,7 +4,7 @@ namespace app\backend\modules\goods\models;
 
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/2/22
  * Time: 下午2:24
  */
@@ -22,22 +22,36 @@ class Categorys extends \app\common\models\Category
     public static function getCategory()
     {
 
-        return self::uniacid()->select('id', 'name', 'parent_id')->with(['hasManyChildren' => function ($query) {
-            $query->select('id', 'name', 'parent_id')
-                ->with(['hasManyChildren' => function ($query) {
-                    $query->select('id', 'name', 'parent_id');
-                }]);
-        }])->get()->toArray();
+        return self::uniacid()->select('id', 'name', 'parent_id')
+            ->where('plugin_id', '=', 0)->where('parent_id', '=', 0)
+            ->with(['hasManyChildren' => function ($query) {
+                $query->select('id', 'name', 'parent_id')
+                    ->with(['hasManyChildren' => function ($query) {
+                        $query->select('id', 'name', 'parent_id')->where('plugin_id', '=', 0);
+                    }]);
+            }])
+            ->orderBy('display_order', 'asc')
+            ->orderBy('id', 'asc')
+            ->get()
+            ->toArray();
     }
 
     public  static  function searchCategory($keyword)
     {
-
+        global $setlevel;
+        $setlevel = \Setting::get('shop.category.cat_level');
         return self::uniacid()
-            ->select('id', 'name')
+            ->select('id', 'name', 'parent_id', 'enabled', 'is_home', 'level')
+            ->with(['hasManyChildren' => function ($query) use ($setlevel){
+                $query->select('id', 'name', 'parent_id', 'enabled', 'is_home', 'level')
+                    ->where('level', $setlevel)
+                    ->with(['hasManyChildren' => function ($query) use ($setlevel) {
+                        $query->select('id', 'name', 'parent_id', 'enabled', 'is_home', 'level')->where('level', $setlevel)->orderBy('display_order' ,'desc');
+                    }])->orderBy('display_order' ,'desc');
+            }])
             ->where('name', 'like', '%' . $keyword . '%')
-            ->orderBy('display_order', 'asc')
-            ->orderBy('id' ,'asc')
+            ->orderBy('display_order', 'desc')
+            ->orderBy('id' ,'desc')
             ->pluginId()
             ->distinct()
             ->paginate(10);
@@ -52,12 +66,12 @@ class Categorys extends \app\common\models\Category
             ->select('id', 'name', 'parent_id', 'enabled', 'is_home')->with(['hasManyChildren' => function ($query) use ($setlevel){
                 $query->select('id', 'name', 'parent_id', 'enabled', 'is_home')
                     ->with(['hasManyChildren' => function ($query) use ($setlevel) {
-                        $query->select('id', 'name', 'parent_id', 'enabled', 'is_home')->where('level', $setlevel);
-                    }]);
+                        $query->select('id', 'name', 'parent_id', 'enabled', 'is_home')->where('level', $setlevel)->orderBy('display_order' ,'desc');
+                    }])->orderBy('display_order' ,'desc');
             }])
             ->where('level', 1)
-            ->orderBy('display_order' ,'asc')
-            ->orderBy('id' ,'asc')
+            ->orderBy('display_order' ,'desc')
+            ->orderBy('id','desc')
             ->pluginId()
             ->paginate(10);
     }

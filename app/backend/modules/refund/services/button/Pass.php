@@ -13,7 +13,7 @@ class Pass extends RefundButtonBase
 {
     public function getApi()
     {
-        return 'refund.operation.pass';
+        return 'refund.vue-operation.pass';
     }
 
     public function getName()

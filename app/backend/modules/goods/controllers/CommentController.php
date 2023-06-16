@@ -4,6 +4,7 @@ namespace app\backend\modules\goods\controllers;
 
 use app\backend\modules\uploadVerificate\UploadVerificationBaseController;
 use app\common\helpers\Url;
+use app\common\models\comment\CommentConfig;
 use app\common\models\Goods;
 use app\common\models\Member;
 
@@ -11,35 +12,125 @@ use app\backend\modules\goods\models\Comment;
 use app\backend\modules\goods\services\CommentService;
 use app\common\components\BaseController;
 use app\common\helpers\PaginationHelper;
+use app\common\models\MemberLevel;
 
 
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/2/27
  * Time: 下午5:09
  */
 class CommentController extends UploadVerificationBaseController
 {
     /**
-     * 评论列表
+     * 评论设置
      */
     public function index()
     {
-        //        $pageSize = 10;
-        //
-        //        $search = CommentService::Search(\YunShop::request()->search);
-        //
-        //        $list = Comment::getComments($search)->paginate($pageSize)->toArray();
-        //        $pager = PaginationHelper::show($list['total'], $list['current_page'], $list['per_page']);
-        //
-        //        return view('goods.comment.list', [
-        //            'list' => $list['data'],
-        //            'total' => $list['total'],
-        //            'pager' => $pager,
-        //            'search' => $search,
-        //        ])->render();
+        return view('goods.comment.index')->render();
+    }
+
+    /**
+     * 评论列表
+     */
+    public function list()
+    {
         return view('goods.comment.list')->render();
+    }
+
+    /**
+     * 审核列表
+     */
+    public function audit()
+    {
+        return view('goods.comment.audit')->render();
+    }
+
+    //评论设置数据&保存
+    public function saveSet()
+    {
+        $data = request()->form;
+        $config_data = CommentConfig::getSetConfig();
+
+        if ($data) {
+            if ($config_data) {
+                $res = CommentConfig::find($config_data['id']);
+                $res->delete();
+            }
+            $res = new CommentConfig();
+
+            $resData = [
+                'uniacid' => \YunShop::app()->uniacid,
+                'is_comment_audit' => $data['is_comment_audit'],
+                'is_default_good_reputation' => $data['is_default_good_reputation'],
+                'is_order_comment_entrance' => $data['is_order_comment_entrance'],
+                'is_additional_comment' => $data['is_additional_comment'],
+                'is_score_latitude' => $data['is_score_latitude'],
+                'top_sort' => $data['top_sort'],
+                'is_order_detail_comment_show' => $data['is_order_detail_comment_show'],
+            ];
+
+            $res->fill($resData);
+            $res->save();
+        }
+
+        return $this->successJson('success',[
+            'data' => $config_data
+        ]);
+    }
+
+    /**
+     * 更改评论状态
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function changeCommentStatus()
+    {
+        $comment_id = request()->comment_id;
+        $type = request()->type;
+
+        switch ($type) {
+            case 'show':
+                $column = 'is_show';
+                break;
+            case 'top':
+                $column = 'is_top';
+                break;
+            default:
+                $column = '';
+        }
+
+        if (!$column || !$comment_id) {
+            return $this->errorJson('参数错误');
+        }
+
+        $commentModel = Comment::uniacid()->find($comment_id);
+        $commentModel->$column = request()->$column;
+        $commentModel->save();
+
+        return $this->successJson('success');
+    }
+
+    //修改审核状态
+    public function changeAuditStatus()
+    {
+        $comment_id = request()->comment_id;
+        $commentModel = Comment::uniacid()->find($comment_id);
+        if ($commentModel->audit_status != Comment::wait_audit) {
+            return $this->errorJson('该评论状态不可审核');
+        }
+
+        $commentModel->audit_status = Comment::pass_audit;
+
+        //追评审核
+        if ($commentModel->type == 3) {
+            $commentModel::updatedAdditionalCommentId($commentModel->comment_id,$comment_id);
+        }
+        $commentModel->save();
+
+        \Log::info('后台通过评论审核',\YunShop::app()->uid);
+
+        return $this->successJson('success');
     }
 
     public function commentData()
@@ -48,9 +139,16 @@ class CommentController extends UploadVerificationBaseController
 
         $search = CommentService::Search(request()->search);
 
-        $list = Comment::getComments(request()->search)->paginate($pageSize)->toArray();
+        if (isset(request()->type) && request()->type == 'audit') {
+            $list = Comment::getComments(request()->search,'audit')->where('audit_status',Comment::wait_audit)->paginate($pageSize)->toArray();
+        } else {
+            $list = Comment::getComments(request()->search)->whereIn('audit_status',[Comment::not_audit,Comment::pass_audit])->paginate($pageSize)->toArray();
+        }
 
         foreach ($list['data'] as &$item) {
+            if (request()->type == 'audit' && $item['type'] == 3) {
+                $item['level'] = 5;//追评默认好评
+            }
             $item['head_img_url'] = yz_tomedia($item['head_img_url']);
             $item['goods']['thumb'] = yz_tomedia($item['goods']['thumb']);
         }
@@ -65,7 +163,7 @@ class CommentController extends UploadVerificationBaseController
 
     public function editView()
     {
-        return view('goods.comment.info', ['id' => request()->id, 'goods_id' => request()->goods_id])->render();
+        return view('goods.comment.info', ['id' => request()->id, 'goods_id' => request()->goods_id, 'default_level' => \Setting::get('shop.member')['level_name']?:'普通会员','levels' => $this->getLevels()])->render();
     }
 
 
@@ -99,6 +197,12 @@ class CommentController extends UploadVerificationBaseController
             }
             unset($requestComment['time_state']);
             unset($requestComment['comment_time']);
+            if (!CommentConfig::isScoreLatitude()) {
+                unset($requestComment['score_latitude']);
+            } else {
+                //insert方法不走模型，手动转换json
+                $requestComment['score_latitude'] = json_encode($requestComment['score_latitude']);
+            }
 
             //将数据赋值到model
             $commentModel->setRawAttributes($requestComment);
@@ -136,7 +240,8 @@ class CommentController extends UploadVerificationBaseController
         $goods['thumb'] = yz_tomedia($goods['thumb']);
         $data = [
             'comment' => $commentModel,
-            'goods' => $goods
+            'goods' => $goods,
+            'is_score_latitude' => CommentConfig::isScoreLatitude()
         ];
         return $this->successJson('ok', $data);
 
@@ -197,22 +302,29 @@ class CommentController extends UploadVerificationBaseController
             return $this->errorJson('无此记录或已被删除');
         }
 
-        $requesComment = request()->comment;
-        if ($requesComment) {
+        $requestComment = request()->comment;
+        if ($requestComment) {
             $goods_id = $commentModel->goods_id;
             if (!empty(request()->goods_id) && request()->goods_id != $goods_id){
                 if (!$goods = Goods::getGoodsById(request()->goods_id)) return $this->errorJson('选择的商品不存在或已删除');
                 $goods_id = $goods->id;
             }
             $comment_time = 0;
-            if ($requesComment['time_state'] && $requesComment['comment_time'] > 0){
-                $comment_time = $requesComment['comment_time'] / 1000;
+            if ($requestComment['time_state'] && $requestComment['comment_time'] > 0){
+                $comment_time = $requestComment['comment_time'] / 1000;
             }
-            unset($requesComment['time_state']);
-            unset($requesComment['comment_time']);
+            unset($requestComment['time_state']);
+            unset($requestComment['comment_time']);
+
+            if (!CommentConfig::isScoreLatitude()) {
+                unset($requestComment['score_latitude']);
+            } else {
+                //insert方法不走模型，手动转换json
+                $requestComment['score_latitude'] = json_encode($requestComment['score_latitude']);
+            }
 
             //将数据赋值到model
-            $commentModel->setRawAttributes($requesComment);
+            $commentModel->setRawAttributes($requestComment);
             if (empty($commentModel->nick_name)) {
                 $commentModel->nick_name = Member::getRandNickName()->nick_name;
             }
@@ -254,7 +366,9 @@ class CommentController extends UploadVerificationBaseController
         $data = [
             'id' => $id,
             'comment' => $commentModel,
-            'goods' => $goods
+            'goods' => $goods,
+            'score_latitude' => $commentModel['score_latitude'],
+            'is_score_latitude' => CommentConfig::isScoreLatitude()
         ];
         return $this->successJson('ok', $data);
         //        return view('goods.comment.info', [
@@ -266,7 +380,7 @@ class CommentController extends UploadVerificationBaseController
 
     public function replyView()
     {
-        return view('goods.comment.reply', ['id' => request()->id])->render();
+        return view('goods.comment.reply', ['id' => request()->id,'page_type' => request()->page_type])->render();
     }
 
     /**
@@ -284,7 +398,6 @@ class CommentController extends UploadVerificationBaseController
             return $this->createReply();
         }
 
-
         $commentModel = $commentModel->toArray();
         $goods = Goods::getGoodsById($commentModel['goods_id']);
         $commentModel['images'] = unserialize($commentModel['images']);
@@ -300,9 +413,26 @@ class CommentController extends UploadVerificationBaseController
         }
         $goods['thumb'] = yz_tomedia($goods['thumb']);
 
+        $after_content = Comment::getAfterContent($commentModel['id']);
+        if ($after_content) {
+            $after_content = $after_content->toArray();
+
+            $after_content['images'] = unserialize($after_content['images']);
+            foreach ($after_content['images'] as &$image) {
+                $image = yz_tomedia($image);
+            }
+        }
+
+        if ($commentModel['type'] == 3) {
+            $commentModel['level'] = 5;//追评默认好评
+        }
+
         $data = [
             'comment' => $commentModel,
             'goods' => $goods,
+            'page_type' => request()->page_type,
+            'after_content' => $after_content,
+            'score_latitude' => $commentModel['score_latitude'],
         ];
 
         if(!is_null($comment_detail_arr = \app\common\modules\shop\ShopConfig::current()->get('comment_detail_data'))){
@@ -329,6 +459,17 @@ class CommentController extends UploadVerificationBaseController
 
         $requestReply = request()->reply;
         if ($requestReply) {
+
+            //主评论状态修改
+            $commentStatusModel = Comment::uniacid()->find($id);
+            $commentStatusModel->is_show = request()->is_show;
+            $commentStatusModel->is_top = request()->is_top;
+            $commentStatusModel->save();
+
+            //内容为空
+            if (empty($requestReply['reply_content'])) {
+                return $this->successJson('修改状态成功');
+            }
             $member = Member::getMemberById($requestReply['reply_id']);
             $requestReply = CommentService::reply($requestReply, $member);
             //将数据赋值到model
@@ -367,5 +508,13 @@ class CommentController extends UploadVerificationBaseController
         } else {
             return $this->errorJson('删除评论失败');
         }
+    }
+
+    private function getLevels()
+    {
+        $levels = MemberLevel::uniacid()
+            ->select('id', 'level', 'level_name')
+            ->get();
+        return $levels;
     }
 }

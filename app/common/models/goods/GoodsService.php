@@ -5,7 +5,7 @@ namespace app\common\models\goods;
 use app\common\models\BaseModel;
 
 /**
-* Author: 芸众商城 www.yunzshop.com
+* Author:  
 * Date: 2018/5/22
 */
 class GoodsService extends BaseModel

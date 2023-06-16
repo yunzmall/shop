@@ -63,10 +63,23 @@
                     <div class="block">
                         <div class="title">  <span style="width: 4px;height: 18px;background-color: #29ba9c;margin-right:15px;display:inline-block;"></span><b>高德地图</b></div>
                         <el-form-item label="Web服务：key">
-                            <el-input v-model="form.web" placeholder="请输入青龙配送编码" style="width:70%;"></el-input>
-                            <div style="color:#737373;font-size:12px;"> 如何注册高德地图KEY
+                            <el-input v-model="form.web" style="width:70%;" ></el-input>
+                            <el-button  type="primary" @click="synchronize" v-if="synchronize_store != 1">同步到门店</el-button>
+                            <div style="color:#737373;font-size:12px;">
+                                <span>此处指定高德绑定服务"Web服务"，如何注册高德地图KEY</span>
                                 <a href="https://jingyan.baidu.com/article/bea41d43c78831b4c51be68b.html">查看帮助</a>，
-                                此处指定Web服务</div>
+                            </div>
+                        </el-form-item>
+                        <el-form-item label="Web端(JS API)">
+                            <el-input v-model="form.web_js_key" style="width:70%;" ></el-input>
+                            <div style="color:#737373;font-size:12px;">
+                                <span>此处指定高德绑定服务"Web端(JS API)"，如何注册高德地图KEY</span>
+                                <a href="https://jingyan.baidu.com/article/bea41d43c78831b4c51be68b.html">查看帮助</a>，
+                                <span>注：请注意Web端(JS API) 和 Web服务是有区别的</span>
+                            </div>
+                        </el-form-item>
+                        <el-form-item label="Web端(JS API) 安全密钥">
+                            <el-input v-model="form.web_js_secret_key" style="width:70%;" ></el-input>
                         </el-form-item>
 
                         <div class="confirm-btn">
@@ -82,11 +95,16 @@
                 el: "#re_content",
                 delimiters: ['[[', ']]'],
                 data() {
-                    let map = {!! json_encode($map) !!}
-                        return {
+                    let map = {!! json_encode($map) !!};
+
+                    return {
                         activeName: 'one',
+                        disabled:map ? !!map.web : false,
+                        synchronize_store: map.synchronize_store ? map.synchronize_store : 0,
                         form:{
-                                web: map ? map.web : '',
+                            web: map ? map.web : '',
+                            web_js_key: map ? map.web_js_key : '',
+                            web_js_secret_key: map ? map.web_js_secret_key : '',
                         },
                     }
                 },
@@ -96,6 +114,21 @@
                     submit() {
                         let loading = this.$loading({target:document.querySelector(".content"),background: 'rgba(0, 0, 0, 0)'});
                         this.$http.post('{!! yzWebFullUrl('map.setting.index') !!}',{'a_map':this.form}).then(function (response){
+                            if (response.data.result) {
+                                this.$message({message: response.data.msg,type: 'success'});
+                            }else {
+                                this.$message({message: response.data.msg,type: 'error'});
+                            }
+                            loading.close();
+                            location.reload();
+                        },function (response) {
+                            this.$message({message: response.data.msg,type: 'error'});
+                        })
+
+                    },
+                    synchronize() {
+                        let loading = this.$loading({target:document.querySelector(".content"),background: 'rgba(0, 0, 0, 0)'});
+                        this.$http.post('{!! yzWebFullUrl('map.setting.synchronize') !!}',{'a_map':this.form}).then(function (response){
                             if (response.data.result) {
                                 this.$message({message: response.data.msg,type: 'success'});
                             }else {

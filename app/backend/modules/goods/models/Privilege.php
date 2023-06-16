@@ -2,7 +2,7 @@
 /**
  * 商品权限关联表数据操作
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/2/28
  * Time: 上午11:01
  */
@@ -44,11 +44,12 @@ class Privilege extends \app\common\models\goods\Privilege
             return $privilegeModel->delete();
         }
         $data['goods_id'] = $goodsId;
-        $privilegeModel->setRawAttributes($data);
-        $privilegeModel->show_levels = (!empty($data['show_levels']) || ($data['show_levels'] === 0 || $data['show_levels'] === '0')) ? implode(',', $data['show_levels']) : '';
-        $privilegeModel->buy_levels = (!empty($data['buy_levels']) || ($data['buy_levels'] === 0 || $data['buy_levels'] === '0')) ? implode(',', $data['buy_levels']) : '';
-        $privilegeModel->show_groups = (!empty($data['show_groups']) || ($data['show_groups'] === 0 || $data['show_groups'] === '0')) ? implode(',', $data['show_groups']) : '';
-        $privilegeModel->buy_groups = (!empty($data['buy_groups']) || ($data['buy_groups'] === 0 || $data['buy_groups'] === '0')) ? implode(',', $data['buy_groups']) : '';
+        $privilegeModel->fill($data);
+        $privilegeModel->option_buy_limit = isset($data['option_buy_limit']) ?$data['option_buy_limit']: '';
+        $privilegeModel->show_levels = isset($data['show_levels']) ?$data['show_levels']: '';
+        $privilegeModel->buy_levels = isset($data['buy_levels']) ?$data['buy_levels']: '';
+        $privilegeModel->show_groups = isset($data['show_groups']) ?$data['show_groups']: '';
+        $privilegeModel->buy_groups = isset($data['buy_groups']) ?$data['buy_groups']: '';
         $privilegeModel->once_buy_limit = !empty($data['once_buy_limit']) ? $data['once_buy_limit'] : '0';
         $privilegeModel->total_buy_limit = !empty($data['total_buy_limit']) ? $data['total_buy_limit']: '0';
         $privilegeModel->day_buy_limit = !empty($data['day_buy_limit']) ? $data['day_buy_limit']: '0';
@@ -56,33 +57,36 @@ class Privilege extends \app\common\models\goods\Privilege
         $privilegeModel->month_buy_limit = !empty($data['month_buy_limit']) ? $data['month_buy_limit']: '0';
         $privilegeModel->time_begin_limit = !empty($data['time_begin_limit']) ? strtotime($data['time_begin_limit']) : '0';
         $privilegeModel->time_end_limit = !empty($data['time_end_limit']) ? strtotime($data['time_end_limit']): '0';
+        $privilegeModel->buy_limit_status = !empty($data['buy_limit_status']) ? $data['buy_limit_status'] : '0';
+        $privilegeModel->buy_limit_name = !empty($data['buy_limit_name']) ? $data['buy_limit_name'] : '限时购';
+        $privilegeModel->time_limits = !empty($data['time_limits']) ? $data['time_limits'] : [];
         return $privilegeModel->save();
     }
 
     public static function relationValidator($goodsId, $data, $operate)
     {
-        /**
-        if ($data) {
-            $data['show_levels'] = !empty($data['show_levels']) ? implode(',', $data['show_levels']) : '';
-            $data['buy_levels'] = !empty($data['buy_levels']) ? implode(',', $data['buy_levels']) : '';
-            $data['show_groups'] = !empty($data['show_groups']) ? implode(',', $data['show_groups']) : '';
-            $data['buy_groups'] = !empty($data['buy_groups']) ? implode(',', $data['buy_groups']) : '';
-            $data['once_buy_limit'] = !empty($data['once_buy_limit']) ? $data['once_buy_limit'] : '0';
-            $data['once_buy_limit'] = !empty($data['total_buy_limit']) ? $data['total_buy_limit']: '0';
-            $data['once_buy_limit'] = !empty($data['time_begin_limit']) ? strtotime($data['time_begin_limit']) : '0';
-            $data['once_buy_limit'] = !empty($data['time_end_limit']) ? strtotime($data['time_end_limit']): '0';
-            return (new static)->validator($data);
-        }
- */
-        $flag = false;
-        $model = new static;
-        $validator = $model->validator($data);
-        if($validator->fails()){
-            $model->error($validator->messages());
-        }else{
-            $flag = true;
-        }
-        return $flag;
+
+//        if ($data) {
+//            $data['show_levels'] = !empty($data['show_levels']) ? implode(',', $data['show_levels']) : '';
+//            $data['buy_levels'] = !empty($data['buy_levels']) ? implode(',', $data['buy_levels']) : '';
+//            $data['show_groups'] = !empty($data['show_groups']) ? implode(',', $data['show_groups']) : '';
+//            $data['buy_groups'] = !empty($data['buy_groups']) ? implode(',', $data['buy_groups']) : '';
+//            $data['once_buy_limit'] = !empty($data['once_buy_limit']) ? $data['once_buy_limit'] : '0';
+//            $data['once_buy_limit'] = !empty($data['total_buy_limit']) ? $data['total_buy_limit']: '0';
+//            $data['once_buy_limit'] = !empty($data['time_begin_limit']) ? strtotime($data['time_begin_limit']) : '0';
+//            $data['once_buy_limit'] = !empty($data['time_end_limit']) ? strtotime($data['time_end_limit']): '0';
+//            return (new static)->validator($data);
+//        }
+//
+//        $flag = false;
+//        $model = new static;
+//        $validator = $model->validator($data);
+//        if($validator->fails()){
+//            $model->error($validator->messages());
+//        }else{
+//            $flag = true;
+//        }
+        return true;
     }
 
     public static function getModel($goodsId,$operate)

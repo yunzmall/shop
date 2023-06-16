@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:  
  * Date: 2017/2/28
  * Time: 上午10:54
  */
@@ -12,6 +12,7 @@ namespace app\common\models\goods;
 use app\common\exceptions\AppException;
 use app\common\models\BaseModel;
 use app\common\models\Goods;
+use app\common\models\GoodsOption;
 use app\common\models\Member;
 use app\common\models\MemberGroup;
 use app\common\models\MemberLevel;
@@ -24,6 +25,8 @@ use app\common\facades\Setting;
  * Class Privilege
  * @package app\common\models\goods
  * @property int goods_id
+ * @property string option_buy_limit
+ * @property array option_id_array
  * @property string show_levels
  * @property string show_groups
  * @property string buy_levels
@@ -43,11 +46,14 @@ class Privilege extends BaseModel
 {
     public $table = 'yz_goods_privilege';
 
+    static protected $needLog = true;
+
     public $attributes = [
         'show_levels' => '',
         'show_groups' => '',
         'buy_levels' => '',
         'buy_groups' => '',
+        'option_buy_limit'=> '',
         'once_buy_limit' => 0,
         'total_buy_limit' => 0,
         'day_buy_limit' => 0,
@@ -57,7 +63,11 @@ class Privilege extends BaseModel
         'time_end_limit' => 0,
         'enable_time_limit' => 0,
         'min_buy_limit' => 0,
-
+        'day_buy_total_limit' => 0,
+        'buy_multiple' => 0,
+        'buy_limit_status' => 0,
+        'buy_limit_name' => '',
+        'time_limits' => []
     ];
     /**
      *  不可填充字段.
@@ -65,8 +75,6 @@ class Privilege extends BaseModel
      * @var array
      */
     protected $guarded = ['created_at', 'updated_at','time_begin_limit','time_end_limit'];
-
-
 
     /**
      * 获取商品权限信息
@@ -101,6 +109,10 @@ class Privilege extends BaseModel
             'time_begin_limit' => '限时起始时间',
             'time_end_limit' => '限时结束时间',
             'min_buy_limit' => '会员起购数量',
+            'buy_multiple' => '会员购买倍数',
+            'buy_limit_status' => '限购时段',
+            'buy_limit_name' => '自定义前端显示名称',
+            'time_limits' => '限购时段时间'
         ];
     }
 
@@ -120,15 +132,35 @@ class Privilege extends BaseModel
             'time_begin_limit' => '',
             'time_end_limit' => '',
             'min_buy_limit' => 'numeric',
+            'buy_multiple' => 'numeric',
+            'buy_limit_status' => 'numeric',
+            'buy_limit_name' => '',
+            'time_limits' => 'array',
         ];
     }
     protected $casts = [
         'time_begin_limit' => 'datetime',
         'time_end_limit' => 'datetime',
+        'time_limits' => 'json'
     ];
 
+    public function goods()
+    {
+        return $this->belongsTo(Goods::class);
+    }
+
+
+
+    public function getOptionIdArrayAttribute()
+    {
+        return array_filter(explode(',', $this->option_buy_limit), function ($item) {
+            return !empty($item);
+        });
+    }
+
+
     /**
-     * todo 疑问：加入购物车也会调到这里的验证，这方式不应该是下单验证吗？
+     *
      * @param Member $member
      * @param $num
      * @throws AppException
@@ -137,8 +169,8 @@ class Privilege extends BaseModel
     {
         $this->validateTimeLimit();
 
-        //$this->validateMinBuyLimit($num);
-
+        $this->validateMinBuyLimit($num);
+        $this->validateDayBuyTotalLimit($num);
         $this->validateOneBuyLimit($num);
         $this->validateDayBuyLimit($member,$num);
         $this->validateWeekBuyLimit($member,$num);
@@ -146,12 +178,33 @@ class Privilege extends BaseModel
         $this->validateTotalBuyLimit($member,$num);
         $this->validateMemberLevelLimit($member);
         $this->validateMemberGroupLimit($member);
+        $this->validateBuyMultipleLimit($num);
+        $this->validateTimeLimits($member,$num);
     }
 
-    public function goods()
+    /**
+     * 开启规格权限验证按指定商品规格判断
+     * @param GoodsOption $goodsOption
+     * @param Member $member
+     * @param $num
+     * @throws AppException
+     */
+    public function optionValidate(GoodsOption $goodsOption,Member $member,$num)
     {
-        return $this->belongsTo(Goods::class);
+        $this->validateTimeLimit();
+        $this->validateMinBuyLimit($num);
+        $this->validateDayBuyTotalLimit($num);
+        $this->validateOneBuyLimit($num);
+        $this->validateDayBuyLimit($member,$num);
+        $this->validateWeekBuyLimit($member,$num);
+        $this->validateMonthBuyLimit($member,$num);
+        $this->validateTotalBuyLimit($member,$num);
+        $this->validateMemberLevelLimit($member);
+        $this->validateMemberGroupLimit($member);
+        $this->validateBuyMultipleLimit($num);
+        $this->validateTimeLimits($member,$num);
     }
+
 
 
     /**
@@ -171,6 +224,7 @@ class Privilege extends BaseModel
     }
 
     /**
+     * todo 这个好像没用了，因限时购的数据记录不在这张表了，yz_goods_limitbuy 这张表记录和验证
      * 限时购
      * @throws AppException
      */
@@ -187,6 +241,32 @@ class Privilege extends BaseModel
     }
 
     /**
+     * 商品每日购买限制
+     * @param Member $member
+     * @param int $num
+     * @throws AppException
+     */
+    public function validateDayBuyTotalLimit($num = 1)
+    {
+
+        if ($this->day_buy_total_limit > 0) {
+            $start_time = Carbon::today()->timestamp;
+            $end_time = Carbon::now()->timestamp;
+            $rang = [$start_time,$end_time];
+            $history_num =
+                \app\common\models\OrderGoods::select('yz_order_goods.*')
+                ->join('yz_order', 'yz_order_goods.order_id', '=', 'yz_order.id')
+                ->where('yz_order_goods.goods_id', $this->goods_id)
+                ->where('yz_order.status', '!=' ,Order::CLOSE)
+                ->whereBetween('yz_order_goods.created_at',$rang)
+                ->sum('yz_order_goods.total');
+            if ($history_num + $num > $this->day_buy_total_limit) {
+                throw new AppException('商品(' . $this->goods->title . ')每日最多售出' . $this->day_buy_total_limit . '件');
+            }
+        }
+    }
+
+    /**
      * 用户单次购买限制
      * @param $num
      * @throws AppException
@@ -194,8 +274,9 @@ class Privilege extends BaseModel
     public function validateOneBuyLimit($num = 1)
     {
         if ($this->once_buy_limit > 0) {
-            if ($num > $this->once_buy_limit)
+            if ($num > $this->once_buy_limit) {
                 throw new AppException('商品(' . $this->goods->title . ')单次最多可购买' . $this->once_buy_limit . '件');
+            }
         }
     }
 
@@ -219,8 +300,9 @@ class Privilege extends BaseModel
                 ->where('yz_order.status', '!=' ,Order::CLOSE)
                 ->whereBetween('yz_order_goods.created_at',$rang)
                 ->sum('yz_order_goods.total');
-            if ($history_num + $num > $this->day_buy_limit)
+            if ($history_num + $num > $this->day_buy_limit) {
                 throw new AppException('您今天已购买' . $history_num . '件商品(' . $this->goods->title . '),该商品每天最多可购买' . $this->day_buy_limit . '件');
+            }
         }
     }
 
@@ -243,8 +325,9 @@ class Privilege extends BaseModel
                 ->where('yz_order.status', '!=' ,Order::CLOSE)
                 ->whereBetween('yz_order_goods.created_at',$rang)
                 ->sum('yz_order_goods.total');
-            if ($history_num + $num > $this->week_buy_limit)
+            if ($history_num + $num > $this->week_buy_limit) {
                 throw new AppException('您这周已购买' . $history_num . '件商品(' . $this->goods->title . '),该商品每周最多可购买' . $this->week_buy_limit . '件');
+            }
         }
     }
 
@@ -283,8 +366,9 @@ class Privilege extends BaseModel
                 ->where('yz_order.status', '!=' ,Order::CLOSE)
                 ->whereBetween('yz_order_goods.created_at',$range)
                 ->sum('yz_order_goods.total');
-            if ($history_num + $num > $this->month_buy_limit)
+            if ($history_num + $num > $this->month_buy_limit) {
                 throw new AppException('您这个月已购买' . $history_num . '件商品(' . $this->goods->title . '),该商品每月最多可购买' . $this->month_buy_limit . '件');
+            }
         }
     }
 
@@ -414,24 +498,85 @@ class Privilege extends BaseModel
         }
     }
 
-    /**
-     * 用户组限制浏览
-     * @param
-     * @throws AppException
-     */
-    public static function validatePrivilegeGroup($goodsModel, $member)
-    {
-        if (empty($goodsModel->hasOnePrivilege->show_groups)) {
-            return;
-        }
-        $show_groups = explode(',', $goodsModel->hasOnePrivilege->show_groups);
-        $group_names = MemberGroup::select(DB::raw('group_concat(group_name) as group_name'))->whereIn('id', $show_groups)->value('group_name');
-        if (empty($group_names)) {
-            return;
-        }
+	/**
+	 * 用户组限制浏览
+	 * @param $goodsModel
+	 * @param $member
+	 * @throws AppException
+	 */
+	public static function validatePrivilegeGroup($goodsModel, $member)
+	{
+		if (empty($goodsModel->hasOnePrivilege->show_groups) && $goodsModel->hasOnePrivilege->show_groups !== '0') {
+			return;
+		}
+		$show_groups = explode(',', $goodsModel->hasOnePrivilege->show_groups);
+		if ($goodsModel->hasOnePrivilege->show_groups === '0') {
+			$group_names = '无分组';
+		} else {
+			$group_names = MemberGroup::select(DB::raw('group_concat(group_name) as group_name'))->whereIn('id', $show_groups)->value('group_name');
+			if (empty($group_names)) {
+				return;
+			}
+		}
+
         if (!in_array($member->group_id, $show_groups)) {
             throw new AppException('(' . $goodsModel->title . ')该商品仅限[' . $group_names . ']浏览');
         }
     }
 
+    /**
+     * 用户单次购买倍数限制
+     * @param $num
+     * @throws AppException
+     */
+    public function validateBuyMultipleLimit($num = 1)
+    {
+        //只做平台商品验证，解除限制所以商品都会验证
+        if (intval($this->buy_multiple) > 0) {
+
+            if ($num % $this->buy_multiple != 0) {
+                throw new AppException('商品:(' . $this->goods->title . '),购买数量需为' . $this->buy_multiple . '的倍数');
+            }
+        }
+    }
+
+    /**
+     * 限时段购买
+     * @param Member $member
+     * @param $num
+     * @return void
+     * @throws AppException
+     */
+    public function validateTimeLimits(Member $member,$num = 1)
+    {
+        //限购时段开启验证
+        if ($this->buy_limit_status == 1) {
+            $now_time = time();
+
+            $time_limits = $this->time_limits;
+            $existTime = false;//是否存在时间段内
+            foreach ($time_limits as $limit_time_arr) {
+                $start_time = $limit_time_arr['time_limit'][0] / 1000;
+                $end_time = $limit_time_arr['time_limit'][1] / 1000;
+                if ($now_time >= $start_time && $now_time < $end_time) {
+                    $history_num = $member->orderGoods()
+                        ->join('yz_order', 'yz_order_goods.order_id', '=', 'yz_order.id')
+                        ->where('yz_order_goods.goods_id', $this->goods_id)
+                        ->where('yz_order.status', '!=' ,Order::CLOSE)
+                        ->whereBetween('yz_order_goods.created_at',[$start_time,$end_time])
+                        ->sum('yz_order_goods.total');
+
+                    $existTime = true;
+                    if ($history_num + $num > $limit_time_arr['limit_number']) {
+                        throw new AppException('商品(' . $this->goods->title . '),限购' . $limit_time_arr['limit_number'] . '件');
+                    }
+                }
+            }
+
+            if (!$existTime) {
+                throw new AppException('商品(' . $this->goods->title . ')未到购买时间暂不能购买');
+            }
+        }
+
+    }
 }

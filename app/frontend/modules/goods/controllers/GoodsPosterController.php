@@ -1,7 +1,7 @@
 <?php
 /**
  * Created
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2018/1/24
  * Time: 下午1:43
  */
@@ -75,7 +75,7 @@ class GoodsPosterController extends ApiController
         $goods_model = \app\common\modules\shop\ShopConfig::current()->get('goods.models.commodity_classification');
         $goods_model = new $goods_model;
         $this->goodsModel = $goods_model->uniacid()
-            ->with(['hasOneShare', 'hasManyGoodsDiscount'])
+            ->with(['hasOneShare', 'hasManyGoodsDiscount','hasManyOptions'])
             ->where('status', 1)->find($id);
         if (empty($this->goodsModel)) {
             return $this->errorJson('该商品不存在');
@@ -101,17 +101,32 @@ class GoodsPosterController extends ApiController
             }
         }
         $thumb = yz_tomedia($this->goodsModel->thumb);
-        $shareTitle = $this->goodsModel->title;
-        if ($this->goodsModel->hasOneShare->share_title && $this->goodsModel->hasOneShare->share_thumb) {
+        if ($this->goodsModel->hasOneShare->share_thumb) {
             $thumb = yz_tomedia($this->goodsModel->hasOneShare->share_thumb);
+        }
+        $shareTitle = $this->goodsModel->title;
+        if ($this->goodsModel->hasOneShare->share_title) {
             $shareTitle = $this->goodsModel->hasOneShare->share_title;
         }
+        $goodsPrice = $this->goodsModel->price;
+        if ($this->goodsModel->has_option) {
+            //有规格
+            $min = $this->goodsModel->hasManyOptions->min('product_price');
+            $max = $this->goodsModel->hasManyOptions->max('product_price');
+            if ($min == $max) {
+                $goodsPrice = $min;
+            } else {
+                $goodsPrice = $min.'-'.$max;
+            }
+        }
+        // 现在大于原价则为0
+        $market_price = (int)$goodsPrice > (int)$this->goodsModel->market_price ? 0 : $this->goodsModel->market_price;
         return $this->successJson('请求接口成功',[
             'logo'         =>  yz_tomedia($this->shopSet['logo']),
             'shopName'     =>  $this->shopSet['name'],
             'thumb'        =>  $thumb,
-            'price'        =>  $this->goodsModel->price,
-            'market_price' =>  $this->goodsModel->market_price ?: NULL,
+            'price'        =>  $goodsPrice,
+            'market_price' =>  $market_price,
             'shareTitle'   =>  $shareTitle,
             'backgroundImg'=>  config('app.framework') == 'platform' ?  request()->getSchemeAndHttpHost().'/static/post/images/post.png' : request()->getSchemeAndHttpHost().'/addons/yun_shop/static/post/images/post.png',
             'qrcode'       =>  $this->getCodeLink(200),
@@ -137,7 +152,18 @@ class GoodsPosterController extends ApiController
             $item = $this->getRealParams($item);
             switch ($item['type']) {
                 case 'price' :
-                    $item['src'] = $this->goodsModel->price;
+                    $goodsPrice = $this->goodsModel->price;
+                    if ($this->goodsModel->has_option) {
+                        //有规格
+                        $min = $this->goodsModel->hasManyOptions->min('product_price');
+                        $max = $this->goodsModel->hasManyOptions->max('product_price');
+                        if ($min == $max) {
+                            $goodsPrice = $min;
+                        } else {
+                            $goodsPrice = $min.'-'.$max;
+                        }
+                    }
+                    $item['src'] = $goodsPrice;
                     break;
                 case 'market_price' :
                     if ($this->goodsModel->market_price == 0 || $this->goodsModel->price == $this->goodsModel->market_price) {
@@ -558,7 +584,7 @@ class GoodsPosterController extends ApiController
         $path = storage_path('app/public/goods/qrcode/' . \YunShop::app()->uniacid);
         Utils::mkdirs($path);
         if (!is_file($path . '/' . $file)) {
-            \QrCode::format('png')->size(120)->generate($url, $path . '/' . $file);
+            \QrCode::format('png')->size(220)->generate($url, $path . '/' . $file);
 
         }
         $img = imagecreatefromstring(file_get_contents($path . '/' . $file));

@@ -25,7 +25,7 @@ class KDN
         $this->reqURL = $reqURL;
     }
 
-    public function getTraces($comCode, $expressSn, $orderSn = '',$order_id = '')
+    public function getTraces($comCode, $expressSn, $orderSn = '',$mobile = '')
     {
        //快递鸟1002状态为免费，8001状态为收费
         $express_api = \Setting::get('shop.express_info');
@@ -43,7 +43,7 @@ class KDN
 //                throw new ShopException("顺丰快递发货人手机号码不能为空");
 //            }
 //            $mobile = substr($express_api['KDN']['Mobile'],-4);
-            $mobile = $this->getMobile($order_id);
+//            $mobile = $this->getMobile($order_id);
             
             $requestData = json_encode(
                 [

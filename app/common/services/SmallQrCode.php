@@ -117,6 +117,7 @@ class SmallQrCode
          for ($x = 0; $x < $w; $x++) {
              for ($y = 0; $y < $h; $y++) {
                  $rgbColor = imagecolorat($src_img, $x, $y);
+//                 $rgbColor = imagecolorsforindex($src_img,$rgbColor);
                  if (((($x - $r) * ($x - $r) + ($y - $r) * ($y - $r)) < ($r * $r))) {
                       imagesetpixel($img, $x, $y, $rgbColor);
                  }

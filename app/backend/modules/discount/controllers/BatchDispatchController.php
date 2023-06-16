@@ -11,6 +11,7 @@ namespace app\backend\modules\discount\controllers;
 
 use app\backend\modules\discount\models\CategoryDiscount;
 use app\backend\modules\goods\models\Category;
+use app\backend\modules\goods\models\Category as CategoryModel;
 use app\backend\modules\goods\models\Discount;
 use app\backend\modules\member\models\MemberLevel;
 use app\common\components\BaseController;
@@ -22,21 +23,21 @@ use app\backend\modules\goods\services\CreateGoodsService;
 use app\backend\modules\goods\models\Dispatch;
 use app\backend\modules\discount\models\DispatchClassify;
 use app\backend\modules\goods\models\GoodsDispatch;
+
 class BatchDispatchController extends BaseController
 {
 
     public function freight(){
+        return view('discount.freight')->render();
+    }
 
+    public function getSet(){
         $category = DispatchClassify::uniacid()->get()->toArray();
         foreach ($category as $k => $item) {
             $category[$k]['category_ids'] = Category::select('id', 'name')->whereIn('id', explode(',', $item['dispatch_id']))->get()->toArray();
         }
-
-        return view('discount.freight',[
-            'category' => json_encode($category),
-        ])->render();
+        return $this->successJson('success',$category);
     }
-
 
     public function freightSet()
     {
@@ -51,9 +52,11 @@ class BatchDispatchController extends BaseController
 
         return view('discount.freight-set', [
             'list'=>$dispatch_templates,
+            'firstCate'=>(new Category())->getCategoryFirstLevel(),
             'url' => json_encode(yzWebFullUrl('discount.batch-dispatch.freight-save')),
         ])->render();
     }
+
     public function updateFreight()
     {
         $id=request()->id;
@@ -63,14 +66,17 @@ class BatchDispatchController extends BaseController
             throw new ShopException('参数错误!');
         }
         if  ($form_data) {
-            $categorys = $form_data['search_categorys'];
-            foreach ($categorys as $v){
-                $categorys_r[] = $v['id'];
+            if(isset($form_data['category_ids'][0]['id'])){
+                $form_data['category_ids']=array_column($form_data['category_ids'],'id');
             }
-            $category_ids = implode(',', $categorys_r);
+            $categorys = $form_data['category_ids'];
+            foreach ($categorys as $v){
+                $categorys_r[] = $v;
+            }
+
             $data = [
                 'uniacid' => \YunShop::app()->uniacid,
-                'dispatch_id' => $category_ids,
+                'dispatch_id' => implode(',',$form_data['category_ids']),
                 'freight_type' => $form_data['freight_type'],
                 'freight_value' => $form_data['freight_value'],
                 'template_id' => $form_data['template_id'],
@@ -87,12 +93,15 @@ class BatchDispatchController extends BaseController
 
         }
         $categoryDiscount = DispatchClassify::find($id);
+        $classify=DispatchClassify::classify($id);
         $categoryDiscount['category_ids'] = Category::select('id', 'name')
             ->whereIn('id', explode(',', $categoryDiscount['dispatch_id']))
             ->get()->toArray();
         $dispatch_templates = Dispatch::getTemplate();
 
         return view('discount.freight-set', [
+            'classify'=>json_encode($classify),
+            'firstCate'=>(new Category())->getCategoryFirstLevel(),
             'list'=>$dispatch_templates,
             'categoryDispach' => json_encode($categoryDiscount),
             'url' => json_encode(yzWebFullUrl('discount.batch-dispatch.update-freight',['id' => $id])),
@@ -101,16 +110,15 @@ class BatchDispatchController extends BaseController
 
     public function freightSave(){
            $form_data = request()->form_data;
-           $pay = Setting::get('shop.pay')['COD'];
+           $pay = 1;
             if ($form_data) {
-                $categorys = $form_data['search_categorys'];
+                $categorys = $form_data['category_ids'];
                 foreach ($categorys as $v) {
-                    $categorys_r[] = $v['id'];
+                    $categorys_r[] = $v;
                 }
-                $category_ids = implode(',', $categorys_r);
                 $data = [
                     'uniacid' => \YunShop::app()->uniacid,
-                    'dispatch_id' => $category_ids,
+                    'dispatch_id' => implode(',',$form_data['category_ids']),
                     'freight_type' => $form_data['freight_type'],
                     'freight_value' => $form_data['freight_value'],
                     'template_id' => $form_data['template_id'],
@@ -138,15 +146,15 @@ class BatchDispatchController extends BaseController
            //$goods_ids = GoodsCategory::select('goods_id')
            $goods_ids = GoodsCategory::select('goods_id')
                ->whereHas('goods', function ($query) {
-                   $query->where('is_plugin',0)->where('plugin_id',0);
+                   $query->where('is_plugin',0)->whereIn('plugin_id', [0, 44]); //44 为聚合供应链商品
                })
-               ->where('category_ids','like', '%,'.$categoryID.',%')
+               ->where('category_ids','like', '%'.$categoryID.'%')
                ->get()
                ->toArray();
 
            $goods_id = GoodsCategory::select('goods_id')
                ->whereHas('goods', function ($query) {
-                   $query->where('is_plugin',0)->where('plugin_id',0);
+                   $query->where('is_plugin',0)->whereIn('plugin_id', [0, 44]);
                })
                ->where('category_id', $categoryID)
                ->get()
@@ -156,7 +164,8 @@ class BatchDispatchController extends BaseController
        }else {
            $arr = GoodsCategory::select('goods_id')
                ->whereHas('goods', function ($query) {
-                   $query->where('is_plugin', 0)->where('plugin_id', 0);
+                   $query->where('is_plugin',0)->whereIn('plugin_id', [0, 44]);
+
                })
                ->where('category_id', $categoryID)
                ->get()
@@ -194,6 +203,33 @@ class BatchDispatchController extends BaseController
         if (DispatchClassify::find(request()->id)->delete()){
             return $this->successJson("ok");
         }
+    }
+
+    public function getChild()
+    {
+        $level = \YunShop::request()->level;
+        $ids = \YunShop::request()->cate;
+        $ids = explode(',', $ids);
+        $returnArray = CategoryModel::uniacid()
+            ->getQuery()
+            ->select(['id', 'name', 'enabled', 'parent_id'])
+            ->where('plugin_id', 0)
+            ->where('deleted_at', null);
+        switch ($level) {
+            case 2:
+                $returnArray = $returnArray->where('level', 2);
+                break;
+            case 3:
+                $returnArray = $returnArray->where('level', 3);
+                break;
+        }
+        $returnArray = $returnArray->whereIn('parent_id', $ids)
+            ->orderBy('parent_id', 'asc')->get();
+        return $this->successJson('ok', $returnArray);
+    }
+
+    public function getAllCate(){
+        return $this->successJson('success',(new Category())->getAllCategory());
     }
 
 }

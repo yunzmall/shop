@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 17/2/22
  * Time: 下午4:53
  */
@@ -19,14 +19,21 @@ use app\common\models\member\MemberChildren;
 use app\common\models\MemberShopInfo;
 use app\common\models\Setting;
 use Illuminate\Support\Facades\DB;
+use phpDocumentor\Reflection\Types\This;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
 use app\common\models\Order;
 use Yunshop\AgentListSet\admin\SetController;
+use Yunshop\CloudLinkPort\common\models\ChangeLog;
+use Yunshop\CloudLinkPort\common\models\SetModel;
+use Yunshop\CloudLinkPort\common\services\AdvertService;
 use Yunshop\Commission\models\AgentLevel;
 use Yunshop\ConsumerReward\common\models\ConsumerRewardRecordModel;
+use Yunshop\EcologicalPoint\common\models\PointModel;
 use Yunshop\Integral\Common\Models\IntegralMemberModel;
 use Yunshop\Integral\Common\Services\SetService;
 use Yunshop\Love\Common\Models\MemberLove;
+use Yunshop\Love\Common\Services\ConstService;
+use Yunshop\Love\Common\Services\LoveChangeService;
 use Yunshop\Merchant\common\models\MerchantLevel;
 use Yunshop\Micro\common\models\MicroShopLevel;
 use Yunshop\TeamDividend\models\TeamDividendLevelModel;
@@ -73,7 +80,8 @@ class MemberModel extends Member
         $member_model->groupid = is_null($data['groupid']) ? 0 : $data['groupid'];
         $member_model->createtime = time();
         $member_model->nickname = stripslashes($userinfo['nickname']);
-        $member_model->avatar = isset($userinfo['headimgurl']) ? $userinfo['headimgurl'] : Url::shopUrl('static/images/photo-mr.jpg');;
+//        $member_model->avatar = (isset($userinfo['headimgurl']) && !empty($userinfo['headimgurl'])) ? $userinfo['headimgurl'] : Url::shopUrl('static/images/photo-mr.jpg');
+        $member_model->avatar = (isset($userinfo['headimgurl']) && !empty($userinfo['headimgurl'])) ? $userinfo['headimgurl'] : '';
         $member_model->gender = isset($userinfo['sex']) ? $userinfo['sex'] : -1;
         $member_model->nationality = isset($userinfo['country']) ? $userinfo['country'] : '';
         $member_model->resideprovince = isset($userinfo['province']) ? $userinfo['province'] : '' . '省';
@@ -111,7 +119,8 @@ class MemberModel extends Member
      */
     public static function checkMobile($uniacid, $mobile)
     {
-        return self::where('uniacid', $uniacid)
+        return self::select(['mc_members.*'])->join('yz_member', 'yz_member.member_id', '=', 'mc_members.uid')
+		    ->where('mc_members.uniacid', $uniacid)
             ->where('mobile', $mobile)
             ->first();
     }
@@ -153,11 +162,11 @@ class MemberModel extends Member
      */
     public static function getMyReferrerInfo($uid)
     {
-        return self::select(['uid', 'avatar', 'nickname'])->uniacid()
+        return self::select(['uid', 'avatar', 'nickname','mobile'])->uniacid()
             ->where('uid', $uid)
             ->with([
                 'yzMember' => function ($query) {
-                    return $query->select(['member_id', 'parent_id', 'is_agent', 'group_id', 'level_id', 'is_black', 'alipayname', 'alipay', 'status', 'inviter'])
+                    return $query->select(['member_id', 'parent_id', 'is_agent', 'group_id', 'level_id', 'is_black', 'alipayname', 'alipay', 'status', 'inviter','wechat'])
                         ->where('is_black', 0)
                         ->with(['level' => function ($query2) {
                             return $query2->select(['id', 'level_name'])->uniacid();
@@ -904,10 +913,11 @@ class MemberModel extends Member
                         }]);
                 }])
                 ->orderBy('uid', 'desc')
-                ->paginate($pageSize)
+                ->simplePaginate($pageSize)
                 ->toArray();
         }
-
+        $teamMembers['total'] = count($teamMembersIds);
+        $teamMembers['last_page'] = ceil($teamMembers['total'] / $pageSize);
 
         foreach ($teamMembers['data'] as &$v) {
             $v['team_order_money'] = round(collect($v['member_children'])->sum(function ($member_children) {
@@ -957,7 +967,7 @@ class MemberModel extends Member
     public static function getUserInfos_v2($member_id)
     {
 
-        return self::select(['uid', 'uniacid', 'credit1', 'credit2', 'credit3', 'createtime', 'nickname', 'realname', 'avatar', 'mobile', 'birthyear', 'birthmonth', 'birthday', 'gender', 'alipay'])
+        return self::select(['uid', 'uniacid', 'credit1', 'credit2', 'credit3', 'createtime', 'nickname', 'realname', 'avatar', 'mobile', 'birthyear', 'birthmonth', 'birthday', 'gender', 'alipay', 'idcard', 'idcard_addr'])
             ->uniacid()
             ->where('uid', $member_id)
             ->with([
@@ -1187,6 +1197,10 @@ class MemberModel extends Member
         ];
         if (app('plugins')->isEnabled('love')) {
             $memberLove = MemberLove::where('member_id', \YunShop::app()->getMemberId())->first();
+            if (app('plugins')->isEnabled('cloud-link-port')) {
+                self::loveChange($member_info, $memberLove);
+            }
+            $memberLove = MemberLove::where('member_id', \YunShop::app()->getMemberId())->first();//改完之后要重新查获取新的
             $member_info['love_show']['usable_text'] = \Yunshop\Love\Common\Services\SetService::getLoveSet('usable_name') ?: LOVE_NAME;
             $member_info['love_show']['usable_data'] = $memberLove->usable ?: '0.00';
             $member_info['love_show']['unable_text'] = \Yunshop\Love\Common\Services\SetService::getLoveSet('unable_name') ?: '白' . LOVE_NAME;
@@ -1206,6 +1220,23 @@ class MemberModel extends Member
             $member_info['integral_show']['is_show'] = !!SetService::getIntegralSet('member_show_integral');
             $member_info['integral_show']['text'] = INTEGRAL_NAME;
             $member_info['integral_show']['data'] = $memberIntegral->integral ?: '0.00';
+        }
+        //增加供销积分显示
+        $member_info['ecological_point_show'] = [
+            'is_show' => false,
+            'text'    => '供销积分',
+            'data'    => '0.000000000000'
+        ];
+        if (app('plugins')->isEnabled('ecological-point') && \Setting::get('plugin.ecological_point.plugin_switch')) {
+            $memberEcologicalPoint = PointModel::getPointModel(\YunShop::app()->getMemberId());
+            /**
+             * @var PointModel $memberEcologicalPoint
+             */
+            $member_info['ecological_point_show'] = [
+                'is_show' => true,
+                'text'    => ECOLOGICAL_POINT,
+                'data'    => $memberEcologicalPoint->point
+            ];
         }
         if (app('plugins')->isEnabled('consume-coupon-switch') && \Setting::get('plugin.consume_coupon_switch.status') == 1) {
             if (app('plugins')->isEnabled('universal-card')) {
@@ -1234,6 +1265,81 @@ class MemberModel extends Member
 
 
         return $member_info;
+    }
+
+    public function loveChange($member_info, $memberLove)
+    {
+        $set = SetModel::uniacid()->first(['is_advert']);
+        if ($set && $set['is_advert'] && $member_info['mobile']) {
+            $advertService = new AdvertService();
+            $advertService->bindMember($member_info['mobile']);
+            $res = $advertService->queryMemberAndChange($member_info['mobile']);
+            if ($res['code'] == 200) {
+                $compare_res = bccomp($res['data'][0]['balance'], $memberLove->usable,2);
+                switch ($compare_res) {
+                    case 1 :
+                        self::add($res['data'][0]['balance'], $memberLove->usable, $member_info);
+                        break;
+                    case -1 :
+                        self::reduce($res['data'][0]['balance'], $memberLove->usable, $member_info);
+                        break;
+                }
+            }
+        }
+    }
+
+    public function add($balance, $usable, $member_info)
+    {
+        $change_value = bcsub($balance, $usable, 2);
+        (new LoveChangeService())->CloudLinkAdd(
+            [
+                'member_id' => $member_info['uid'],
+                'change_value' => $change_value,
+                'operator' => ConstService::OPERATOR_MEMBER,
+                'operator_id' => $member_info['uid'],
+                'remark' => '云链接口增加',
+                'relation' => '',
+            ]
+        );
+        $save_data = [
+            'uniacid' => $member_info['uniacid'],
+            'uid' => $member_info['uid'],
+            'mobile' => $member_info['mobile'],
+            'change_type' => 1,
+            'love' => $change_value,
+            'love_before' => $usable,
+            'love_after' => $balance,
+            'call_back_status' => 1,
+            'call_back_message' => '',
+        ];
+        return ChangeLog::create($save_data);
+    }
+
+    public function reduce($balance, $usable, $member_info)
+    {
+        $change_value = bcsub($usable, $balance, 2);
+        (new LoveChangeService())->CloudLinkReduce(
+            [
+                'member_id' => $member_info['uid'],
+                'change_value' => $change_value,
+                'operator' => ConstService::OPERATOR_MEMBER,
+                'operator_id' => $member_info['uid'],
+                'remark' => '云链接口减少',
+                'relation' => '',
+            ]
+        );
+        $save_data = [
+            'uniacid' => $member_info['uniacid'],
+            'uid' => $member_info['uid'],
+            'mobile' => $member_info['mobile'],
+            'change_type' => 1,
+            'love' => -$change_value,
+            'love_before' => $usable,
+            'love_after' => $balance,
+            'call_back_status' => 1,
+            'call_back_message' => '',
+        ];
+        return ChangeLog::create($save_data);
     }
 
     public static function createDir($dest)

@@ -14,6 +14,25 @@ use app\frontend\modules\cart\models\CartGoods;
 
 class CartGoodsCollection extends Collection
 {
+
+    //获取有效的购物车商品
+    public function filterNormalGoods()
+    {
+        return $this->filter(function (CartGoods $goods) {
+            return !$goods->isInvalid();
+        })->values();
+    }
+
+    //获取失效的购物车商品
+    public function filterInvalidGoods()
+    {
+        return $this->filter(function (CartGoods $goods) {
+            return $goods->isInvalid();
+        })->values();
+    }
+
+
+
     /**
      * 每个购物车商品注入店铺模型
      * @param $shop

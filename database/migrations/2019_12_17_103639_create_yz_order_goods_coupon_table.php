@@ -32,6 +32,10 @@ class CreateYzOrderGoodsCouponTable extends Migration
                 $table->integer('updated_at')->nullable();
                 $table->unique(['order_goods_id', 'coupon_id'], 'order_goods_id_coupon_id');
             });
+
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE `".app('db')->getTablePrefix()."yz_order_goods_coupon` comment'订单--商品购买订单赠送优惠券'");//表注释
+
+
         }
         if(Schema::hasTable('yz_order_goods_coupon'))
         {

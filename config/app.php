@@ -171,34 +171,25 @@ return [
          */
         app\common\providers\AppServiceProvider::class,
 		\app\common\providers\YunShopServiceProvider::class,
-
         app\common\providers\PluginServiceProvider::class,
 //         app\common\providers\BroadcastServiceProvider::class,
         app\common\providers\EventServiceProvider::class,
         app\common\providers\RouteServiceProvider::class,
+		app\common\providers\PaymentServiceProvider::class,
 
         /**
          * Third-party libraries
          */
         Laracasts\Flash\FlashServiceProvider::class, //提示消息
-        Yajra\Datatables\DatatablesServiceProvider::class,
         iscms\Alisms\AlidayuServiceProvider::class,//阿里大鱼
         Maatwebsite\Excel\ExcelServiceProvider::class,//Excel组合
-        Overtrue\LaravelWechat\ServiceProvider::class,//微信接口
-        app\common\components\alipay\AlipayServiceProvider::class,//支付宝接口
         //表单
         Collective\Html\HtmlServiceProvider::class,
         Watson\BootstrapForm\BootstrapFormServiceProvider::class,
         //表单end
         Ixudra\Curl\CurlServiceProvider::class,
-
         //二维码
         \app\common\modules\qrCode\QrCodeServiceProvider::class,
-
-        //短信发送
-        Toplan\PhpSms\PhpSmsServiceProvider::class,
-        //Toplan\Sms\SmsManagerServiceProvider::class,
-		\app\framework\Toplan\Sms\SmsManagerServiceProvider::class,
         //计划任务
         \app\common\providers\CronServiceProvider::class,
 
@@ -207,10 +198,8 @@ return [
 
         //拼音
         Overtrue\LaravelPinyin\ServiceProvider::class,
-        // 日志浏览
-        //Rap2hpoutre\LaravelLogViewer\LaravelLogViewerServiceProvider::class,
-
-        //mongoDB
+        // 邮件
+        \Illuminate\Mail\MailServiceProvider::class,
     ],
 
     /*

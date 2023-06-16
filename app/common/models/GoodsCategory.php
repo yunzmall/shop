@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/2/22
  * Time: 19:35
  */
@@ -31,6 +31,11 @@ class GoodsCategory extends BaseModel
     public function goodsDiscount()
     {
         return $this->hasMany(GoodsDiscount::class, 'goods_id', 'goods_id');
+    }
+
+    public function goodsOption()
+    {
+        return $this->hasOne('app\common\models\GoodsOption','id','goods_option_id');
     }
 
     public function delCategory($goods_id)

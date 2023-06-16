@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:  
  * Date: 2017/3/2
  * Time: 下午8:40
  */
@@ -9,8 +9,10 @@
 namespace app\frontend\modules\member\controllers;
 
 use app\common\components\ApiController;
+use app\common\exceptions\ShopException;
 use app\common\models\member\Address;
 use app\common\models\Street;
+use app\frontend\modules\member\services\MemberService;
 use app\frontend\repositories\MemberAddressRepository;
 
 class MemberAddressController extends ApiController
@@ -125,7 +127,7 @@ class MemberAddressController extends ApiController
         app('db')->cacheSelect = true;
         $address = Address::getAllAddress();
         if (!$address) {
-            return $this->errorJson('数据收取失败，请联系管理员！');
+            return $this->errorJson('数据获取失败，请联系管理员！');
         }
         $msg = '数据获取成功';
         return $this->successJson($msg, $this->addressService($address));
@@ -158,10 +160,12 @@ class MemberAddressController extends ApiController
     public function isRegion()
     {
         $is_region = \Setting::get('shop.trade.is_region');
+        $region_hide = \Setting::get('shop.trade.region_hide');
 
         $is_region = $is_region?0:1;
+        $region_hide = $region_hide? 1 :0;
 
-        return $this->successJson('是否不填写区域', ['is_region' => $is_region]);
+        return $this->successJson('是否不填写区域', ['is_region' => $is_region,'region_hide' => $region_hide]);
     }
 
     protected function needRegion()
@@ -181,69 +185,55 @@ class MemberAddressController extends ApiController
         if (!\YunShop::request()->username) {
             return $this->errorJson('收件人不能为空');
         }
-
-        $mobile = \YunShop::request()->mobile;
-        if (!$mobile) {
-            return $this->errorJson('手机号不能为空');
+        try {
+            MemberService::mobileValidate([
+                'mobile' => request()->mobile,
+                'state' => request()->country_code,
+            ]);
+        } catch (ShopException $exception) {
+            return $this->errorJson($exception->getMessage());
         }
-        //if (!preg_match("/^1\d{10}$/",$mobile)) {
-        // return $this->errorJson('手机号格式不正确');
-        //}
-        if (!preg_match("/^[0-9]*$/", $mobile)) {
-
-            return $this->errorJson('请输入数字');
-        }
-
         if ($this->needRegion()) {
-
             if (!\YunShop::request()->province) {
                 return $this->errorJson('请选择省份');
             }
-
             if (!\YunShop::request()->city) {
                 return $this->errorJson('请选择城市');
             }
-
             if (!\YunShop::request()->district) {
                 return $this->errorJson('请选择区域');
             }
         }
-
-
         if (!\YunShop::request()->address) {
             return $this->errorJson('请输入详细地址');
         }
-
-        // if (!\YunShop::request()->zipcode) {
-        // return $this->errorJson('请输入地址邮编');
-        // }
-
         if ($requestAddress) {
             $data = array(
                 'username'  => \YunShop::request()->username,
                 'mobile'    => \YunShop::request()->mobile,
                 'zipcode'   => '',
                 'isdefault' => \YunShop::request()->isdefault ?: 0,
-                'province'  => \YunShop::request()->province,
-                'city'      => \YunShop::request()->city,
-                'district'  => \YunShop::request()->district,
-                'address'   => \YunShop::request()->address,
+                'province'  => \YunShop::request()->province ?: '',
+                'city'      => \YunShop::request()->city ?: '',
+                'district'  => \YunShop::request()->district ?: '',
+                'address'   => \YunShop::request()->address ?: '',
                 'latitude'  => \YunShop::request()->latitude ?: '',
-                'longitude' => \YunShop::request()->longitude ?: ''
+                'longitude' => \YunShop::request()->longitude ?: '',
+                'country_code' => \YunShop::request()->country_code ?: '',
+                'position_address' => \YunShop::request()->position_address ?: '',
             );
             if (\Setting::get('shop.trade.is_street')) {
-                $data['street'] = \YunShop::request()->street;
+                if (\Setting::get('shop.trade.is_must_street') && !\YunShop::request()->street) {
+                    return $this->errorJson('请选择乡镇/街道地址');
+                }
+                $data['street'] = \YunShop::request()->street ?: '';
             }
             $addressModel = $this->memberAddressRepository->fill($data);
-
-
             $memberId = \YunShop::app()->getMemberId();
-
             if ($addressModel->isdefault) {
                 //修改默认收货地址
                 $this->memberAddressRepository->cancelDefaultAddress($memberId);
             }
-
             $addressModel->uid = $memberId;
             $addressModel->uniacid = \YunShop::app()->uniacid;
             $validator = $addressModel->validator($addressModel->getAttributes());
@@ -284,60 +274,51 @@ class MemberAddressController extends ApiController
         if (!\YunShop::request()->username) {
             return $this->errorJson('收件人不能为空');
         }
-        $mobile = \YunShop::request()->mobile;
-        if (!$mobile) {
-            return $this->errorJson('手机号不能为空');
+        try {
+            MemberService::mobileValidate([
+                'mobile' => request()->mobile,
+                'state' => request()->country_code,
+            ]);
+        } catch (ShopException $exception) {
+            return $this->errorJson($exception->getMessage());
         }
-        if (!preg_match("/^[0-9]*$/", $mobile)) {
-
-            return $this->errorJson('请输入数字');
-        }
-
-        if (!\YunShop::request()->province) {
-            return $this->errorJson('请选择省份');
-        }
-
         if ($this->needRegion()) {
-
             if (!\YunShop::request()->province) {
                 return $this->errorJson('请选择省份');
             }
-
             if (!\YunShop::request()->city) {
                 return $this->errorJson('请选择城市');
             }
-
             if (!\YunShop::request()->district) {
                 return $this->errorJson('请选择区域');
             }
         }
-
         if (!\YunShop::request()->address) {
             return $this->errorJson('请输入详细地址');
         }
-
-
         $requestAddress = array(
             'username'  => \YunShop::request()->username,
             'mobile'    => \YunShop::request()->mobile,
             'zipcode'   => '',
-            'province'  => \YunShop::request()->province,
-            'city'      => \YunShop::request()->city,
-            'district'  => \YunShop::request()->district,
-            'address'   => \YunShop::request()->address,
+            'province'  => \YunShop::request()->province ?: '',
+            'city'      => \YunShop::request()->city ?: '',
+            'district'  => \YunShop::request()->district ?: '',
+            'address'   => \YunShop::request()->address ?: '',
             'latitude'  => \YunShop::request()->latitude ?: '',
-            'longitude' => \YunShop::request()->longitude ?: ''
+            'longitude' => \YunShop::request()->longitude ?: '',
+            'country_code' => \YunShop::request()->country_code ?: '',
+            'position_address' => \YunShop::request()->position_address ?: '',
         );
         if (\Setting::get('shop.trade.is_street')) {
-            $requestAddress['street'] = \YunShop::request()->street;
-
+            if (\Setting::get('shop.trade.is_must_street') && !\YunShop::request()->street) {
+                return $this->errorJson('请选择乡镇/街道地址');
+            }
+            $requestAddress['street'] = \YunShop::request()->street ?: '';
         }
         $addressModel->fill($requestAddress);
-
         $validator = $addressModel->validator($addressModel->getAttributes());
         if ($validator->fails()) {
             return $this->errorJson($this->returnMsg($validator->messages()->toArray()));
-//            return $this->errorJson($validator->messages());
         }
         if (empty($addressModel->isdefault) && \YunShop::request()->isdefault) {
             $addressModel->isdefault = 1;
@@ -349,8 +330,6 @@ class MemberAddressController extends ApiController
         } else {
             return $this->errorJson("写入数据出错，请重试！");
         }
-
-
     }
 
     /*
@@ -438,5 +417,23 @@ class MemberAddressController extends ApiController
 
     }
 
+    /**
+     * 修改地理位置（经纬度）接口  ps同城配送使用
+     * request address_id 地址ID
+     * request latitude 纬度
+     * request longitude 经度
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function updateLocation()
+    {
+        $addressModel = $this->memberAddressRepository->getAddressAndUserById(\YunShop::request()->address_id, \YunShop::app()->getMemberId());
+        $addressModel->latitude = \YunShop::request()->latitude ?: '';
+        $addressModel->longitude = \YunShop::request()->longitude ?: '';
+        if ($addressModel->save()) {
+            return $this->successJson('修改地理位置成功', $addressModel->toArray());
+        } else {
+            return $this->errorJson("写入数据出错，请重试！");
+        }
+    }
 
 }

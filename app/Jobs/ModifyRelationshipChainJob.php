@@ -45,7 +45,7 @@ class ModifyRelationshipChainJob implements ShouldQueue
 
     public function __construct($uid,$parent_id,$record_id,$uniacid)
     {
-        $this->queue = 'statistics';
+        $this->queue = 'limit:0';
         $this->uid = $uid;
         $this->parent_id = $parent_id;
         $this->record_id = $record_id;
@@ -162,6 +162,9 @@ class ModifyRelationshipChainJob implements ShouldQueue
                 'created_at' => time()
             ];
         }
+        $this->insertParentOfMember($data);//todo 不要保存到下面一次去array_chunk插入，数据多容易溢出，试试分批次走插入
+
+        $data = [];
         //遍历所有父级，遍历当前会员所有子级，重建子级父表
         foreach ($all_new_parent as $parent) {
             foreach ($all_child as $child) {
@@ -175,6 +178,9 @@ class ModifyRelationshipChainJob implements ShouldQueue
                 ];
             }
         }
+        $this->insertParentOfMember($data);
+
+        $data = [];
         //遍历所有子级，重建所有子级相对于当前会员的父级的节点
         foreach ($all_child as $child) {
             $data[] = [
@@ -194,11 +200,17 @@ class ModifyRelationshipChainJob implements ShouldQueue
             'member_id' => $this->uid,
             'created_at' => time()
         ];
-		foreach (array_chunk($data,10000) as $value) {
-			ParentOfMember::insert($value);
-		}
+        $this->insertParentOfMember($data);
 		\Log::debug('关系链修改,重建父表完成',$this->record_id);
 	}
+
+    private function insertParentOfMember($data)
+    {
+        foreach (array_chunk($data,10000) as $value) {
+            ParentOfMember::insert($value);
+        }
+        unset($data);
+    }
 
     /**
      * 重建子表数据
@@ -213,6 +225,7 @@ class ModifyRelationshipChainJob implements ShouldQueue
 		if ($this->parent_id == 0) {
             return;
         }
+        $data = [];
         //遍历所有父级，重建所有父级对当前会员子表
         foreach ($all_new_parent as $parent) {
             $data[] = [
@@ -223,6 +236,9 @@ class ModifyRelationshipChainJob implements ShouldQueue
                 'created_at' => time()
             ];
         }
+        $this->insertChildrenOfMember($data);
+
+        $data = [];
         //遍历所有父级，重建所有父级对当前会员所有子级的子表
         foreach ($all_new_parent as $parent) {
             foreach ($all_child as $child) {
@@ -236,6 +252,9 @@ class ModifyRelationshipChainJob implements ShouldQueue
                 ];
             }
         }
+        $this->insertChildrenOfMember($data);
+
+        $data = [];
         //遍历所有子级，重建所有子级相对于当前会员的父级的节点
         foreach ($all_child as $child) {
             $data[] = [
@@ -255,11 +274,21 @@ class ModifyRelationshipChainJob implements ShouldQueue
             'member_id' => $this->parent_id,
             'created_at' => time()
         ];
-        foreach (array_chunk($data,10000) as $value) {
-			ChildrenOfMember::insert($value);
-		}
+        $this->insertChildrenOfMember($data);
+
+//        foreach (array_chunk($data,10000) as $value) {
+//			ChildrenOfMember::insert($value);
+//		}
 		\Log::debug('关系链修改,重建子表完成',$this->record_id);
 	}
+
+    private function insertChildrenOfMember($data)
+    {
+        foreach (array_chunk($data,10000) as $value) {
+            ChildrenOfMember::insert($value);
+        }
+        unset($data);
+    }
 
     /**
      * 更新会员及所有子级的relation
@@ -298,6 +327,7 @@ class ModifyRelationshipChainJob implements ShouldQueue
         $this->member->parent_id = $this->parent_id;
         $this->member->relation = implode(',',$relation);
         $this->member->inviter= 1;
+        $this->member->child_time= time();
         $this->member->save();
         $this->updateCommission($this->uid,$this->member->relation,$this->parent_id);
         $this->updateTeamDividend($this->uid,$this->member->relation,$this->parent_id);

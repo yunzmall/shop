@@ -11,6 +11,7 @@ namespace app\backend\modules\excelRecharge\controllers;
 
 use app\backend\models\excelRecharge\DetailModel;
 use app\common\components\BaseController;
+use app\common\facades\Setting;
 use app\common\helpers\PaginationHelper;
 
 class DetailController extends BaseController
@@ -24,22 +25,25 @@ class DetailController extends BaseController
     //会员excel充值详细记录
     public function index()
     {
-        $this->recordsModels = $this->pageList();
+        if (request()->ajax()) {
+            $this->recordsModels = $this->pageList();
+            $shopSet = Setting::get('shop.member');
+            $this->recordsModels->map(function ($item) use ($shopSet) {
+                $item->member->avatar = $item->member->avatar ? tomedia($item->member->avatar) : tomedia($shopSet['headimg']);
+                $item->member->nickname = $item->member->nickname ?: '未更新';
+                $item->member->uid = $item->member->uid ?: '';
+            });
+            return $this->successJson('ok', $this->resultData());
+        }
 
-        return view('excelRecharge.detail', $this->resultData());
+        return view('excelRecharge.detail');
     }
 
     private function resultData()
     {
         return [
-            'page'     => $this->page(),
             'pageList' => $this->recordsModels
         ];
-    }
-
-    private function page()
-    {
-        return PaginationHelper::show($this->recordsModels->total(), $this->recordsModels->currentPage(), $this->recordsModels->perPage());
     }
 
     /**
@@ -47,7 +51,7 @@ class DetailController extends BaseController
      */
     private function pageList()
     {
-        $records = DetailModel::with('member');
+        $records = DetailModel::uniacid()->with('member');
 
         $rechargeId = $this->rechargeIdParam();
         if ($rechargeId) {

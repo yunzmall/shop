@@ -43,14 +43,16 @@ abstract class BaseOrderFee
         }
 
         $this->amount = $this->_getAmount();
-        // 将手续费金额保存在订单手续费表中
-        $preOrderFee = new PreOrderFee([
-            'fee_code' => $this->code,
-            'amount' => $this->amount,
-            'name' => $this->getName(),
+        if($this->amount){
+            // 将手续费金额保存在订单手续费表中
+            $preOrderFee = new PreOrderFee([
+                'fee_code' => $this->code,
+                'amount' => $this->amount,
+                'name' => $this->getName(),
 
-        ]);
-        $preOrderFee->setOrder($this->order);
+            ]);
+            $preOrderFee->setOrder($this->order);
+        }
         return $this->amount;
     }
     public function getCode(){

@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/4/21
  * Time: 下午4:34
  */
@@ -12,18 +12,24 @@ use app\backend\modules\refund\models\RefundApply;
 
 class ReturnGoods extends RefundType
 {
+    /**
+     * 同意退货 保存退货地址 1
+     * @return bool
+     * @throws \app\common\exceptions\AdminException
+     */
     public function pass()
     {
         $this->validate([RefundApply::WAIT_CHECK],'通过');
 
-        $this->refundApply->status = RefundApply::WAIT_RETURN_GOODS;
 
-        $this->refundApply->operate_time = time(); //通过审核时间
+        $bool = $this->updateSave([
+            'operate_time' => time(),
+            'status' => RefundApply::WAIT_RETURN_GOODS,
+            'remark' => $this->refundApply->getRequest()->input('message'),
+            'refund_address' => $this->refundApply->getRequest()->input('refund_address'),
+        ]);
 
-        $this->refundApply->remark = request()->message;
-        $this->refundApply->refund_address = request()->refund_address;
-
-        return $this->refundApply->save();
+        return $bool;
     }
 
     public function receiveReturnGoods()

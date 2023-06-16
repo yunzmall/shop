@@ -24,6 +24,7 @@ class CreateImsYzMemberChildren extends Migration
                 $table->integer('updated_at')->nullable();
                 $table->index(['member_id', 'level']);
             });
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE `" . app('db')->getTablePrefix() . "yz_member_children` comment '会员--子类表'");
         }
     }
 

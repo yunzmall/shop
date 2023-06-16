@@ -24,15 +24,15 @@ class BatchDiscountController extends BaseController
 {
     public function index()
     {
-        $category = CategoryDiscount::uniacid()->get()->toArray();
+        return view('discount.discount')->render();
+    }
 
+    public function getSet(){
+        $category = CategoryDiscount::uniacid()->get()->toArray();
         foreach ($category as $k => $item) {
             $category[$k]['category_ids'] = Category::select('id', 'name')->whereIn('id', explode(',', $item['category_ids']))->get()->toArray();
         }
-        // return $this->successJson('ok', $category);
-        return view('discount.discount',[
-            'category' => json_encode($category),
-        ])->render();
+        return $this->successJson('success',$category);
     }
 
     public function updateSet()
@@ -46,14 +46,11 @@ class BatchDiscountController extends BaseController
         if ($form_data) {
             $form_data['discount_value'] = array_filter($form_data['discount_value']);
             $discount = $form_data['discount_value'];
-            $categorys = $form_data['search_categorys'];
-            foreach ($categorys as $v){
-                $categorys_r[] = $v['id'];
-            }
-            $categorys_r_unique = array_unique($categorys_r);
             $categoryModel = CategoryDiscount::find($id);
-            $category_ids = implode(',', $categorys_r_unique);
-
+            if(isset($form_data['category_ids'][0]['id'])){
+                $form_data['category_ids']=array_column($form_data['category_ids'],'id');
+            }
+            $category_ids = implode(',', $form_data['category_ids']);
             $data = [
                 'category_ids' => $category_ids,
                 'uniacid' => \YunShop::app()->uniacid,
@@ -86,6 +83,7 @@ class BatchDiscountController extends BaseController
 
         return view('discount.set', [
             'levels' => json_encode($levels),
+            'firstCate'=>(new Category())->getCategoryFirstLevel(),
             'categoryDiscount' => json_encode($categoryDiscount),
             'url' => json_encode(yzWebFullUrl('discount.batch-discount.update-set',['id' => $id])),
         ])->render();
@@ -98,10 +96,10 @@ class BatchDiscountController extends BaseController
     {
         $set_data = request()->form_data;
 
-        if ($set_data) 
+        if ($set_data)
         {
             $isSet = Setting::set('discount.all_set', $set_data);
-            if ($isSet) 
+            if ($isSet)
             {
                 return $this->successJson('ok',$set_data);
             }else{
@@ -128,8 +126,7 @@ class BatchDiscountController extends BaseController
             foreach ($categorys as $v){
                 $categorys_r[] = $v['id'];
             }
-            $category_ids = implode(',', $categorys_r);
-
+            $category_ids = implode(',', $form_data['category_ids']);
             $data = [
                 'category_ids' => $category_ids,
                 'uniacid' => \YunShop::app()->uniacid,
@@ -157,6 +154,7 @@ class BatchDiscountController extends BaseController
 
         return view('discount.set', [
             'levels' => json_encode($levels),
+            'firstCate'=>(new Category())->getCategoryFirstLevel(),
             'url' => json_encode(yzWebFullUrl('discount.batch-discount.store')),
         ])->render();
     }

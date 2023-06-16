@@ -23,7 +23,11 @@ class GoodsPriceProportion extends OrderGoodsDeductionAmount
     {
         $result = $this->getGoodsDeduction()->getMaxPriceProportion() * $this->getBaseAmount('Deduction') / 100;
 
-        return max($result, 0);
+        //todo blank 两种抵扣同时使用问题，订单商品金额已小于抵扣金额则获取最低金额 2022/3/3
+        $amount = min($result, $this->orderGoods->getPriceBefore($this->getGoodsDeduction()->getCode() . 'Deduction'));
+
+
+        return max($amount, 0);
     }
 
     /**
@@ -34,8 +38,10 @@ class GoodsPriceProportion extends OrderGoodsDeductionAmount
     {
         $result = $this->getGoodsDeduction()->getMinPriceProportion() * $this->getBaseAmount('Deduction') / 100;
 
+
         return max($result, 0);
     }
+
 
     /**
      * @param $key

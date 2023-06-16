@@ -18,7 +18,9 @@ class ShareCouponController extends BaseController
 {
     public function log()
     {
-        return view('coupon.share-log')->render();
+        return view('coupon.share-log',[
+            'receive_uid' =>request()->receive_uid,
+        ])->render();
 //        $search = request()->search;
 //        $list = ShoppingShareCouponLog::getList($search)->orderBy('id', 'desc')->paginate(15);
 //        $pager = PaginationHelper::show($list->total(), $list->currentPage(), $list->perPage());

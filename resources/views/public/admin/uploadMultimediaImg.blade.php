@@ -46,29 +46,30 @@
                 </div>
 
                 <!-- 图片 type：1 -->
-                <div v-if="type == 1" class='img-source fl' v-for="(item,index) in resourceList" >
+                <div v-if="type == 1" class='img-source fl' v-for="(item,index) in resourceList" @click.stop="handChecked($event,item.id,item)">
                     <img :src="item.url" alt="">
                     <p>[[item.filename]]</p>
                     <div class="img-mark" :style="{ display: item.is_choose ? 'block' : '' }">
-                        <el-checkbox v-model="item.is_choose" class="sle-img"  @change="handChecked($event,item.id,item)"></el-checkbox>
+                    <!-- @change="handChecked($event,item.id,item)" -->
+                        <el-checkbox v-model="item.is_choose" class="sle-img"></el-checkbox>
                     </div>
                 </div>
 
                 <!-- 视频 type：3 -->
-                <div class="vedio-source fl" v-for="(item,index) in resourceList" v-if="type == 3" >
+                <div class="vedio-source fl" v-for="(item,index) in resourceList" v-if="type == 3"  @click.stop="handChecked($event,item.id,item)">
                     <div class="vedio-upload fl">
                         <video :src="item.url"></video>
                     </div>
                     <p class="fl ellipsis" style="margin:20px 0 0 15px;width:110px;">[[item.filename]]</p>
                     <p class="fl ellipsis" style="margin:20px 0 0 15px">[[item.created_at]]</p>
                     <div class="video-mark" :style="{ display: item.is_choose ? 'block' : '' }">
-                        <el-checkbox  v-model="item.is_choose" @change="handChecked($event,item.id,item)" class="sle-img"></el-checkbox>
+                        <el-checkbox  v-model="item.is_choose" class="sle-img"></el-checkbox>
                     </div>
                     <span class="video-time"><i class="play-triangle"></i>[[Math.floor(item.timeline / 60)]]:[[Math.floor(item.timeline % 60) >= 10?Math.floor(item.timeline % 60):'0' + Math.floor(item.timeline % 60)]]</span>
                 </div>
 
                 <!-- 音频 type: 2 -->
-                <div class="audio-source fl" v-for="(item,index) in resourceList" v-if="type == 2" >
+                <div class="audio-source fl" v-for="(item,index) in resourceList" v-if="type == 2" @click.stop="handChecked($event,item.id,item)">
                     <div class="fl">
                         <p style="margin:8px 0 0 30px;width:180px;" class="ellipsis">[[item.filename]]</p>
                         <p style="margin:20px 0 0 30px;"  >[[item.created_at]]</p>
@@ -79,7 +80,7 @@
                         <p>[[Math.floor(Number(item.timeline) / 60)]]:[[Math.floor(Number(item.timeline) % 60)]]</p>
                     </div>
                     <div class="video-mark" :style="{ display: item.is_choose ? 'block' : '' }">
-                        <el-checkbox v-model="item.is_choose" @change="handChecked($event,item.id,item)" class="sle-img"></el-checkbox>
+                        <el-checkbox v-model="item.is_choose" class="sle-img"></el-checkbox>
                     </div>
                 </div>
             </div>
@@ -109,7 +110,6 @@
             <div class="getnetimg" v-if="type == 1">
                 <el-image
                         class="defaultImg"
-                        style=""
                         :src="previewUrl"
                     >
                         <div slot="error" class="image-slot">
@@ -149,6 +149,7 @@
                     <el-upload
                         :action="uploadLink"
                         ref="upload"
+                        :accept="uploadAccept"
                         :multiple = "multipleTag"
                         :on-success="handleSucesss"
                         :on-exceed="handleExceed"
@@ -174,7 +175,29 @@
 
 <script>
 Vue.component('uploadMultimediaImg', {
-    props: ['uploadShow','type','name','sourceType','selNum'],
+    props: {
+        uploadShow:Boolean,
+        type:{
+            type:String,
+            default:1
+        },
+        name:{
+            type:String,
+            default:""
+        },
+        sourceType:{
+            type:String,
+            default:"image"
+        },
+        selNum:{
+            type:String,
+            default:"one"
+        },
+        platformType:{
+            type:String,
+            default:'1'
+        },
+    },
     delimiters: ['[[', ']]'],
     data(){
       return{
@@ -212,7 +235,8 @@ Vue.component('uploadMultimediaImg', {
         viewVideoLink:'',
         currentPage:1,
         multipleTag:null,
-        filterDate:null
+        filterDate:null,
+        uploadAccept:""
       }
     },
     watch:{
@@ -225,30 +249,30 @@ Vue.component('uploadMultimediaImg', {
 
       type() {
           if(this.type ==1) {
+              this.uploadAccept = "image/*";
               this.tabPan = '图片'
               this.tanPanNet = '提取网络图片'
-              this.uploadLink = '{!! yzWebFullUrl('upload.uploadV3.upload') !!}'+'&upload_type='+'image'+'&tag_id='+ ''
+              this.uploadLink = "{!! yzWebFullUrl('upload.uploadV3.upload') !!}"+'&upload_type='+'image'+'&tag_id='+ ''
               this.page_size = 12
           } else if(this.type == 3) {
+            this.uploadAccept = ".mp4,.mov,.avi";
               this.tabPan = '视频'
               this.tanPanNet ='提取网络视频'
-              this.uploadLink = '{!! yzWebFullUrl('upload.uploadV3.upload') !!}'+'&upload_type='+'video'+'&tag_id='+ ''
+              this.uploadLink = "{!! yzWebFullUrl('upload.uploadV3.upload') !!}"+'&upload_type='+'video'+'&tag_id='+ ''
               this.page_size = 8
           } else {
+            this.uploadAccept = "audio/*";
               this.tabPan = '音频'
               this.tanPanNet = '提取网络音频'
-              this.uploadLink = '{!! yzWebFullUrl('upload.uploadV3.upload') !!}'+'&upload_type='+'audio'+'&tag_id='+ ''
+              this.uploadLink = "{!! yzWebFullUrl('upload.uploadV3.upload') !!}"+'&upload_type='+'audio'+'&tag_id='+ ''
               this.page_size = 8
           }
         },
-        name() {
-            console.log(this.name,'34567890-')
-        },
         selNum() {
-            console.log(this.selNum,'uhguahguhagio')
             if(this.selNum == 'one') {
                 this.multipleTag = false//单个选择的不支持多个同时上传
             }
+            // alert(this.selNum);
             if(this.selNum == 'more') {
                 this.multipleTag = true//单个选择的不支持多个同时上传
             }
@@ -259,11 +283,12 @@ Vue.component('uploadMultimediaImg', {
         // 获取分组列表
         getGroupList(type) {
         this.type = type;//存储父组件传过来的资源类型，方便新建分组的时候使用
-        this.$http.post('{!! yzWebFullUrl('setting.media.tags') !!}', {
+        this.$http.post("{!! yzWebFullUrl('setting.media.tags') !!}", {
                     source_type: type
                 }).then(response => {
                 if (response.data.result) {
-                    this.groupList  = response.data.data
+                    this.groupList  = response.data.data;
+                    this.groupId = this.groupList[0].id
                     this.imgLoading = true
                 } else {
                     this.$message({
@@ -282,26 +307,30 @@ Vue.component('uploadMultimediaImg', {
         getMultimediaList(id,pageSize,page) {
             let url = ''
             if(this.type == 1) {//图片
-                url = '{!! yzWebFullUrl('upload.uploadV3.getImage') !!}'
+                url = "{!! yzWebFullUrl('upload.uploadV3.getImage') !!}"
               this.page_size = 12
             } else if(this.type == 3) {//视频
-                url = '{!! yzWebFullUrl('upload.uploadV3.getVideo') !!}'
+                url = "{!! yzWebFullUrl('upload.uploadV3.getVideo') !!}"
               this.page_size = 8
               console.log(this.page_size,'34567890')
             } else {//音频
-                url = '{!! yzWebFullUrl('upload.uploadV3.getAudio') !!}'
+                url = "{!! yzWebFullUrl('upload.uploadV3.getAudio') !!}"
               this.page_size = 8
             }
             let filterDate={
                 year:null,
                 month:null
             }
+            if (this.platformType == '1') {
+                url += "&platform_type=1";
+            } else {
+                url += "&platform_type=2";
+            }
             if(this.filterDate){
                 let d=new Date(this.filterDate);
                 filterDate.year=d.getFullYear();
                 filterDate.month=d.getMonth()+1;
             }
-
             this.$http.post(url, {
                 tag_id: id,
                 pageSize:this.page_size,
@@ -334,7 +363,7 @@ Vue.component('uploadMultimediaImg', {
 
          // 添加分组
         addGroup(sourceType, groupName) {
-            this.$http.post('{!! yzWebFullUrl('setting.media.addTag') !!}', {
+            this.$http.post("{!! yzWebFullUrl('setting.media.addTag') !!}", {
                     source_type: sourceType,
                     title: groupName
                 }).then(response => {
@@ -359,7 +388,7 @@ Vue.component('uploadMultimediaImg', {
         },
         // 提取网络图片
         getNetImg(url,tag_id) {
-            this.$http.post('{!! yzWebFullUrl('upload.uploadV3.fetch') !!}', {
+            this.$http.post("{!! yzWebFullUrl('upload.uploadV3.fetch') !!}", {
                     url,
                     tag_id
                 }).then(response => {
@@ -391,11 +420,11 @@ Vue.component('uploadMultimediaImg', {
             this.getMultimediaList(id,this.page_size,this.page)//请求每一个分组的资源
             this.selectArr = []
             if(this.type == 1) {
-                this.uploadLink = '{!! yzWebFullUrl('upload.uploadV3.upload') !!}'+'&upload_type='+'image'+'&tag_id='+ this.groupId
+                this.uploadLink = "{!! yzWebFullUrl('upload.uploadV3.upload') !!}"+'&upload_type='+'image'+'&tag_id='+ this.groupId
             } else if(this.type == 3) {
-                this.uploadLink = '{!! yzWebFullUrl('upload.uploadV3.upload') !!}'+'&upload_type='+'video'+'&tag_id='+ this.groupId
+                this.uploadLink = "{!! yzWebFullUrl('upload.uploadV3.upload') !!}"+'&upload_type='+'video'+'&tag_id='+ this.groupId
             } else {
-                this.uploadLink = '{!! yzWebFullUrl('upload.uploadV3.upload') !!}'+'&upload_type='+'audio'+'&tag_id='+ this.groupId
+                this.uploadLink = "{!! yzWebFullUrl('upload.uploadV3.upload') !!}"+'&upload_type='+'audio'+'&tag_id='+ this.groupId
             }
             this.selectCount = 0
         },
@@ -481,6 +510,13 @@ Vue.component('uploadMultimediaImg', {
                 this.fileList = []
                 this.resourceList=[]//弹窗退出清空数据，取消勾选状态
             } else if(this.fileList.length <= 0) {
+                // 提取网络视频
+                if(this.type == '3' && this.viewVideoLink) {
+                    this.$emit('sure',this.name, this.uploadShow,this.viewVideoLink);
+                    this.videoLink = '';
+                    this.beforeClose();
+                    return
+                };
                 this.beforeClose();
             } else {
                 this.$emit('sure',this.name, this.uploadShow)
@@ -506,7 +542,7 @@ Vue.component('uploadMultimediaImg', {
 
         //上传成功的回调
         handleSucesss(response, file, fileList) {
-            console.log(response,'aaaaaaaaaaaaaaaaaa')
+            // console.log(response,'aaaaaaaaaaaaaaaaaa')
             if(response.result  == 1) {
                 response.data.is_choose = true
                 this.resourceList.unshift(response.data)
@@ -519,11 +555,16 @@ Vue.component('uploadMultimediaImg', {
                 // }
                 let url = ''
                 if(this.type == 1) {//图片
-                    url = '{!! yzWebFullUrl('upload.uploadV3.getImage') !!}'
+                    url = "{!! yzWebFullUrl('upload.uploadV3.getImage') !!}"
                 } else if(this.type == 3) {//视频
-                    url = '{!! yzWebFullUrl('upload.uploadV3.getVideo') !!}'
+                    url = "{!! yzWebFullUrl('upload.uploadV3.getVideo') !!}"
                 } else {//音频
-                    url = '{!! yzWebFullUrl('upload.uploadV3.getAudio') !!}'
+                    url = "{!! yzWebFullUrl('upload.uploadV3.getAudio') !!}"
+                }
+                if (this.platformType == '1') {
+                    url += "&platform_type=1";
+                } else {
+                    url += "&platform_type=2";
                 }
                 this.$http.post(url, {
                     tag_id: this.groupId,
@@ -563,7 +604,6 @@ Vue.component('uploadMultimediaImg', {
             }else {
                 this.$message.error(response.msg);
             }
-            console.log(this.$refs);
         },
 
         // // 文件超出个数限制时的钩子
@@ -582,6 +622,7 @@ Vue.component('uploadMultimediaImg', {
             let arr = []
             let data = []
             let list = []
+            item.is_choose = !item.is_choose;
             this.resourceList.forEach(item => {
                 if(this.selNum=='one') {
                     if(item.id!==id) {
@@ -683,9 +724,6 @@ Vue.component('uploadMultimediaImg', {
     .uploading-btn {
         margin-top: 10px;
         /* text-align:center; */
-    }
-    .uploading-btn span {
-        /* text-align:left */
     }
     .video-box {
         margin:20px 0 30px 0;
@@ -860,9 +898,6 @@ Vue.component('uploadMultimediaImg', {
     .audio-source:hover .video-mark {
         display:block
     }
-    .audio-source {
-
-    }
     .defaultImg {
         margin-top: 20px;
         width: 150px;
@@ -908,9 +943,6 @@ Vue.component('uploadMultimediaImg', {
         border-style:solid;
         border-width:7px;
     }
-    .bor-left {
-        /* border-left: 1px solid #c8cede; */
-    }
     .bor-right {
         border-right: 1px solid #c8cede;
     }
@@ -931,14 +963,16 @@ Vue.component('uploadMultimediaImg', {
     /*滚动条滑块*/
     .scroll-box::-webkit-scrollbar-thumb {
         border-radius: 30px;
-        /* -webkit-box-shadow: inset 0 0 5px rgba(0,0,0,0.2); */
         background: #29BA9C;
     }
     /*滚动条轨道*/
     .scroll-box::-webkit-scrollbar-track {
-        -webkit-box-shadow: inset 0 0 1px rgba(0,0,0,0);
+        box-shadow: inset 0 0 1px rgba(0,0,0,0);
         border-radius: 30px;
         background: #ccc;
+    }
+    .scroll-box::-webkit-scrollbar-track{
+        background:#fff;
     }
     .el-tabs__header {
         margin-bottom: 0;

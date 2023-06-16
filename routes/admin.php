@@ -35,6 +35,14 @@ Route::group(['namespace' => 'platform\controllers'], function () {
     Route::get('login/site', 'LoginController@site');               // 登录页面返回数据
     Route::any('login/login_code', 'LoginController@loginCode'); //发送验证码
     Route::any('login/refresh_pic', 'LoginController@refreshPic'); //刷新验证码
+    //发送注册手机验证码
+    Route::any('register_code', 'RegisterController@registerCode');
+    //管理员注册
+    Route::any('register_admin', 'RegisterController@registerAdmin');
+    //注册页面信息
+    Route::any('register_site', 'RegisterController@registerSite');
+    //刷新注册图形验证码
+    Route::any('register_captcha', 'RegisterController@refreshCaptcha');
 });
 
 Route::group(['prefix' => 'system/upload', 'namespace' => 'platform\modules\system\controllers'], function (){
@@ -46,7 +54,7 @@ Route::group(['prefix' => 'system/upload', 'namespace' => 'platform\modules\syst
     Route::any('video', 'UploadController@video');       // 音频视频列表
 });
 
-Route::group(['middleware' => ['auth:admin', 'authAdmin', 'singleLogin', 'checkPasswordSafe', 'shopbootstrap', 'check']], function () {
+Route::group(['middleware' => ['auth:admin', 'authAdmin', 'checkPasswordSafe', 'shopBootStrap', 'check']], function () {
 
     Route::get('index', ['as' => 'admin.index', 'uses' => '\app\platform\controllers\IndexController@index']);
     //清除缓存
@@ -88,12 +96,16 @@ Route::group(['middleware' => ['auth:admin', 'authAdmin', 'singleLogin', 'checkP
         Route::any('oss', 'AttachmentController@oss');
         // 附件设置-远程设置-测试腾讯云配置
         Route::any('cos', 'AttachmentController@cos');
-        // 系统升级
-        Route::any('update/index', 'UpdateController@index');
+        // 附件设置-远程设置-测试华为云配置
+        Route::any('obs', 'AttachmentController@obs');
+        // 授权检查
+        Route::any('update/system-info', 'UpdateController@systemInfo');
         // 检查更新
         Route::get('update/verifyCheck', 'UpdateController@verifyCheck');
         // 后台文件
         Route::any('update/fileDownload', 'UpdateController@fileDownload');
+        // 更新日志
+        Route::any('update/log', 'UpdateController@log');
         // 版权
         Route::any('update/pirate', 'UpdateController@pirate');
         // 前端压缩包下载
@@ -116,6 +128,14 @@ Route::group(['middleware' => ['auth:admin', 'authAdmin', 'singleLogin', 'checkP
         Route::post('siteRegister/register', 'SiteRegisterController@register');
         // 站点注册-重置密钥
         Route::post('siteRegister/reset', 'SiteRegisterController@resetSecretKey');
+        // 获取白名单列表
+        Route::post('whiteList', 'LoginSetController@whiteList');
+        // 添加IP白名单
+        Route::post('setWhiteList', 'LoginSetController@addWhiteList');
+        // 编辑IP白名单
+        Route::put('setWhiteList', 'LoginSetController@editWhiteList');
+        // 删除IP白名单
+        Route::delete('setWhiteList', 'LoginSetController@delWhiteList');
     });
 
     // 用户管理
@@ -159,6 +179,26 @@ Route::group(['middleware' => ['auth:admin', 'authAdmin', 'singleLogin', 'checkP
         //联系方式列表
         Route::match(['get', 'post'], 'contact_list', 'ThemeSetController@contactList');
     });
+
+    //插件套餐
+    Route::group(['prefix'=> 'pluginsSetMeal', 'namespace'=>'platform\modules\pluginsSetMeal\controllers'], function (){
+        //插件列表
+        Route::any('pluginsList/','PluginsSetMealController@pluginsList');
+        //新增套餐
+        Route::any('addPluginsMeal/','PluginsSetMealController@addPluginsMeal');
+        //启用套餐
+        Route::any('empower/' ,'PluginsSetMealController@empower');
+        //获取套餐列表
+        Route::any('mealList/', 'PluginsSetMealController@getPlugins');
+        //套餐使用记录
+        Route::any('pluginsRecord/','PluginsSetMealController@record');
+        //编辑套餐
+        Route::any('editMeal/','PluginsSetMealController@editMeal');
+        //删除套餐
+        Route::post('delMeal/','PluginsSetMealController@delMeal');
+        //更改套餐显示状态
+        Route::post('changeSate/','PluginsSetMealController@changeSate');
+    });
  
     Route::group(['namespace' => 'platform\modules\application\controllers'], function () {
 		// 平台管理
@@ -179,6 +219,10 @@ Route::group(['middleware' => ['auth:admin', 'authAdmin', 'singleLogin', 'checkP
 		Route::get('application/delete/{id}', 'ApplicationController@delete');
 		//回收站
 		Route::any('application/recycle/', 'ApplicationController@recycle');
+        //基础设置
+        Route::any('application/basic_settings', 'ApplicationController@basicSettings');
+        //获取新增平台时的管理员和插件套餐信息
+        Route::get('application/getMessage', 'ApplicationController@getMessage');
 		//图片上传
         Route::post('all/upload/', 'AllUploadController@upload');
         //本地图片列表

@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/3/2
  * Time: 下午4:16
  */
@@ -101,7 +101,7 @@ class MemberShopInfo extends \app\common\models\MemberShopInfo
         return self::uniacid()
             ->withTrashed()
             ->select(['member_id', 'parent_id'])
-            ->whereIN('member_id', $uid)
+            ->whereIn('member_id', $uid)
             ->distinct()
             ->get();
     }

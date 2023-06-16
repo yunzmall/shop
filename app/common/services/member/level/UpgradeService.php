@@ -5,7 +5,7 @@
  * Email:   livsyitian@163.com
  * QQ:      995265288
  * IDE:     PhpStorm
- * User:    芸众商城 www.yunzshop.com
+ * User:
  ****************************************************************/
 
 
@@ -35,7 +35,15 @@ class UpgradeService
 
             $memberModel->save();
 
+            //会员等级升级触发事件
+            $pluginLevel=[
+                'member_id' => $memberId,
+                'level_id' => $upgradeLevel->id,
+                'plugin_type' => 1
+            ];
+
             event(new MemberLevelUpgradeEvent($memberModel, false));
+            event(new \app\common\events\PluginLevelEvent($pluginLevel));
 
             $memberNotice = new MemberUpgradeNotice($memberModel,$upgradeLevel);
             $memberNotice->sendMessage();

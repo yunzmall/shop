@@ -9,7 +9,9 @@
 namespace app\common\models\order;
 
 
+use app\backend\modules\order\models\VueOrder;
 use app\common\models\BaseModel;
+use app\common\models\Order;
 
 /**
  * 订单发票记录
@@ -27,5 +29,10 @@ class OrderInvoice extends BaseModel
     protected $attributes = [
         'uniacid' => 0,
     ];
+
+    public function hasOneOrder()
+    {
+        return $this->hasOne(Order::class, 'id', 'order_id');
+    }
 
 }

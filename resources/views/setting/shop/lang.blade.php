@@ -62,6 +62,7 @@
             <el-tab-pane label="提现收入设置" name="eight"></el-tab-pane>
             <el-tab-pane label="商品" name="ten"></el-tab-pane>
             <el-tab-pane label="客户" name="eleven"></el-tab-pane>
+            <el-tab-pane label="订单" name="order"></el-tab-pane>
 
             @if(app('plugins')->isEnabled('commission'))
                 <el-tab-pane label="分销设置" name="one"></el-tab-pane>
@@ -85,7 +86,7 @@
             @endif
 
             @if(app('plugins')->isEnabled('area-dividend'))
-                <el-tab-pane label="区域代理设置" name="six"></el-tab-pane>
+                <el-tab-pane label="区域分红设置" name="six"></el-tab-pane>
 
             @endif
 
@@ -97,9 +98,9 @@
             @if(app('plugins')->isEnabled('appointment'))
                 <el-tab-pane label="门店预约" name="nine"></el-tab-pane>
             @endif
-            {{--@if(app('plugins')->isEnabled('store-projects'))//前端没弄好，先注释掉
+            @if(app('plugins')->isEnabled('store-projects'))
                 <el-tab-pane label="多门店核销" name="store_projects"></el-tab-pane>
-            @endif--}}
+            @endif
 
             @if(app('plugins')->isEnabled('merchant'))
                 <el-tab-pane label="招商" name="twelve"></el-tab-pane>
@@ -108,7 +109,15 @@
             @if(app('plugins')->isEnabled('love'))
                 <el-tab-pane label="爱心值" name="love"></el-tab-pane>
             @endif
-
+            @if(app('plugins')->isEnabled('team-fjyx'))
+                <el-tab-pane label="经销商管理(fjyx)" name="team_fjyx"></el-tab-pane>
+            @endif
+            @if(app('plugins')->isEnabled('reserve-simple'))
+                <el-tab-pane label="分时预约" name="reserve_simple"></el-tab-pane>
+            @endif
+            @if(app('plugins')->isEnabled('activity-apply'))
+                <el-tab-pane label="活动报名" name="activity_apply"></el-tab-pane>
+            @endif
 
         </el-tabs>
     </template>
@@ -321,11 +330,25 @@
                             <el-input v-model="form.appointment.service" style="width:70%;"></el-input>
                         </el-form-item>
                     </template>
-                    {{--<template v-if="activeName=='store_projects'">
+                    <template v-if="activeName=='store_projects'">
                         <el-form-item label="项目">
                             <el-input v-model="form.store_projects.project" style="width:70%;"></el-input>
                         </el-form-item>
-                    </template>--}}
+                    </template>
+                    <template v-if="activeName=='order'">
+                        <el-form-item label="确认收货">
+                            <el-input type="text" v-model="form.order.received_goods" placeholder="自定义名称(默认: 确认收货)" maxlength="8" show-word-limit style="width:70%;"></el-input>
+                        </el-form-item>
+                        <el-form-item label="抵扣">
+                            <el-input type="text" v-model="form.order.deduction_lang" placeholder="自定义名称(默认: 抵扣)" maxlength="8" show-word-limit style="width:70%;"></el-input>
+                            <div style="font-size:12px;color:#ccc;">预下单页“抵扣”自定义名称</div>
+                        </el-form-item>
+                        <el-form-item label="快递">
+                            <el-input type="text" v-model="form.order.express" placeholder="自定义名称(默认: 快递)" maxlength="8" show-word-limit style="width:70%;"></el-input>
+{{--                            <div style="font-size:12px;color:#ccc;">只控制自营商品和门店商品的快递字样</div>--}}
+                        </el-form-item>
+                    </template>
+
                     <template v-if="activeName=='ten'">
                         <el-form-item label="原价">
                             <el-input v-model="form.goods.market_price" style="width:70%;"></el-input>
@@ -333,8 +356,14 @@
                         <el-form-item label="现价">
                             <el-input v-model="form.goods.price" style="width:70%;"></el-input>
                         </el-form-item>
+            <el-form-item label="会员价">
+                            <el-input v-model="form.goods.vip_price" style="width:70%;"></el-input>
+                            <div class="tip">会员价自定义名称仅对首页商品、商品分类、商品列表页面起效</div>
+                        </el-form-item>
+ <el-form-item label="利润">
+                            <el-input v-model="form.goods.goods_profit" style="width:70%;"></el-input>
+                        </el-form-item>                    </template>
 
-                    </template>
                     <template v-if="activeName=='eleven'">
                         <el-form-item label="客户">
                             <el-input v-model="form.agent.agent" style="width:70%;"></el-input>
@@ -381,6 +410,33 @@
                         <el-form-item label="支出">
                             <el-input v-model="form.love.change_expend" style="width:70%;"></el-input>
                             <div style="font-size:12px;color:#ccc;">爱心值明细 "支出" 自定义名称</div>
+                        </el-form-item>
+                        <el-form-item label="冻结激活">
+                            <el-input v-model="form.love.froze_active" style="width:70%;"></el-input>
+                            <div style="font-size:12px;color:#ccc;">爱心值明细 "冻结激活" 自定义名称</div>
+                        </el-form-item>
+                    </template>
+                    <template v-if="activeName=='team_fjyx'">
+                        <el-form-item label="平级奖">
+                            <el-input v-model="form.team_fjyx.flat_prize" style="width:70%;"></el-input>
+                            <div style="font-size:12px;color:#ccc;">"平级奖" 自定义名称</div>
+                        </el-form-item>
+                        <el-form-item label="额外奖励">
+                            <el-input v-model="form.team_fjyx.extra_award" style="width:70%;"></el-input>
+                            <div style="font-size:12px;color:#ccc;">"额外奖励" 自定义名称</div>
+                        </el-form-item>
+                    </template>
+                    <template v-if="activeName=='reserve_simple'">
+                        <el-form-item label="服务">
+                            <el-input v-model="form.reserve_simple.service" style="width:70%;"></el-input>
+                        </el-form-item>
+                        <el-form-item label="预约人员">
+                            <el-input v-model="form.reserve_simple.reserve_obj" style="width:70%;"></el-input>
+                        </el-form-item>
+                    </template>
+                    <template v-if="activeName=='activity_apply'">
+                        <el-form-item label="讲师">
+                            <el-input v-model="form.activity_apply.lecturer" style="width:70%;"></el-input>
                         </el-form-item>
                     </template>
                 </div>
@@ -453,6 +509,10 @@
                             my_agent: '',
                             client: '',
                         },
+                        team_fjyx: {
+                            flat_prize: '',
+                            extra_award: '',
+                        },
                         area_dividend: {
                             title: '',
                             area_dividend_center: '',
@@ -473,12 +533,14 @@
                             project: '',
                             service: '',
                         },
-                        /*store_projects: {
+                        store_projects: {
                             project: ''
-                        },*/
+                        },
                         goods: {
                             market_price: '',
                             price: '',
+                            goods_profit: '',
+                            vip_price:'',
                         },
                         agent: {
                             agent: '',
@@ -498,7 +560,18 @@
                         love: {
                             change_income: '',
                             change_expend: '',
+                            froze_active: '',
                         },
+                        order: {
+                            received_goods: ''
+                        },
+                        reserve_simple: {
+                            service: '',
+                            reserve_obj: '',
+                        },
+                        activity_apply: {
+                            lecturer:''
+                        }
                     }
                 }
             },

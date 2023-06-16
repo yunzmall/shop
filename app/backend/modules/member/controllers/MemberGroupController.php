@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/2/23
  * Time: 下午6:08
  */
@@ -17,21 +17,41 @@ use app\common\helpers\Url;
 
 class MemberGroupController extends BaseController
 {
+    /**
+     * 加载模板
+     * @return string
+     * @throws \Throwable
+     */
+    public function index()
+    {
+        return view('member.group.list', [])->render();
+    }
     /*
      * Member group pager list
      * 17.3,31 restructure
      *
      * @autor yitian */
-    public function index()
+    public function show()
     {
         $pageSize = 20;
         $groupList = MemberGroup::getGroupPageList($pageSize);
-        $pager = PaginationHelper::show($groupList->total(), $groupList->currentPage(), $groupList->perPage());
-        //echo '<pre>'; print_r($groupList->toArray()); exit;
-        return view('member.group.list', [
+        $groupList = is_null($groupList) ? [] : $groupList->toArray();
+        foreach ($groupList['data'] as $k => $v) {
+            $groupList['data'][$k]['member']['count'] = count($v['member']);
+        }
+        return $this->successJson('ok', [
             'groupList' => $groupList,
-            'pager' => $pager
-        ])->render();
+        ]);
+    }
+
+    /**
+     * 加载试图
+     * @return string
+     */
+    public function form()
+    {
+        $id = request()->id;
+        return view('member.group.form', ['id' => $id])->render();
     }
     /*
      * Add member group
@@ -52,15 +72,16 @@ class MemberGroupController extends BaseController
                 $this->error($validator->messages());
             } else {
                 if ($groupModel->save()) {
-                    return $this->message("添加会员分组成功",Url::absoluteWeb('member.member-group.index'),'success');
+                    return $this->successJson('添加会员分组成功', ['data' => true]);
                 } else {
                     $this->error("添加会员分组失败");
                 }
             }
         }
-        return view('member.group.form', [
+
+        return $this->successJson('ok', [
             'groupModel' => $groupModel
-        ])->render();
+        ]);
     }
     /*
      *  Update member group
@@ -69,26 +90,28 @@ class MemberGroupController extends BaseController
     {
         $groupModel = MemberGroup::getMemberGroupByGroupId(\YunShop::request()->group_id);
         if(!$groupModel) {
-            return $this->message('未找到会员分组或已删除', Url::absoluteWeb('member.member-group.index'));
+            return $this->error('未找到会员分组或已删除');
         }
-        $requestGroup = \YunShop::request()->group;
-        if ($requestGroup) {
+        $group = \YunShop::request()->group;
+        if ($group) {
+            $requestGroup['group_name'] = $group['group_name'];
+            $requestGroup['uniacid'] = \YunShop::app()->uniacid;
             $groupModel->setRawAttributes($requestGroup);
-
             $validator = $groupModel->validator($requestGroup);
             if ($validator->fails()) {
                 $this->error($validator->messages());
             } else {
                 if ($groupModel->save()) {
-                    return $this->message('修改会员分组信息成功。', Url::absoluteWeb('member.member-group.index'));
+                    return $this->successJson('修改会员分组成功', ['data' => true]);
                 } else {
                     $this->error('修改会员分组信息失败！！！');
                 }
             }
         }
-        return view('member.group.form', [
+
+        return $this->successJson('ok', [
             'groupModel' => $groupModel
-        ])->render();
+        ]);
     }
     /*
      * Destory member group
@@ -98,11 +121,11 @@ class MemberGroupController extends BaseController
     {
         $groupModel = MemberGroup::getMemberGroupByGroupId(\YunShop::request()->group_id);
         if (!$groupModel) {
-            $this->error('未找到会员分组或已删除', Url::absoluteWeb('member.member-group.index'));
+            $this->error('未找到会员分组或已删除');
         }
         if ($groupModel->delete()) {
             MemberShopInfo::where('group_id',\YunShop::request()->id)->update(['group_id'=>'0']);
-            return $this->message("删除会员分组成功。", Url::absoluteWeb('member.member-group.index'));
+            return $this->successJson('删除会员分组成功', ['data' => true]);
         } else {
             $this->error("删除会员分组失败");
         }

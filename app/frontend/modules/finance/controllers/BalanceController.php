@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/4/2
  * Time: 下午5:37
  */
@@ -9,16 +9,23 @@
 namespace app\frontend\modules\finance\controllers;
 
 use app\common\exceptions\AppException;
+use app\common\exceptions\ShopException;
+use app\common\facades\Setting;
+use app\common\helpers\Cache;
 use app\common\services\credit\ConstService;
 use app\common\services\finance\BalanceChange;
 use app\common\events\payment\RechargeComplatedEvent;
 use app\common\services\password\PasswordService;
 use app\common\services\PayFactory;
 use app\common\components\ApiController;
+use app\frontend\modules\finance\models\Balance;
 use app\frontend\modules\finance\models\Balance as BalanceCommon;
 use app\frontend\modules\finance\models\BalanceTransfer;
 use app\frontend\modules\finance\models\BalanceConvertLove;
 use app\frontend\modules\finance\models\BalanceRecharge;
+use app\frontend\modules\finance\payment\types\RechargePaymentTypes;
+use app\frontend\modules\finance\services\BalanceRechargeSetService;
+use app\frontend\modules\finance\services\BalanceRecordService;
 use app\frontend\modules\finance\services\BalanceService;
 use app\backend\modules\member\models\Member;
 use Illuminate\Support\Facades\DB;
@@ -28,6 +35,8 @@ class BalanceController extends ApiController
     private $memberInfo;
 
     private $model;
+
+    public $transactionActions = ['transfer'];
 
     private $money;
 
@@ -53,6 +62,16 @@ class BalanceController extends ApiController
     }
 
     /**
+     * 余额首页数据
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function index()
+    {
+        $data = (new BalanceService())->getIndexData();
+        return $this->successJson('成功', $data);
+    }
+
+    /**
      * 会员余额页面信息，（余额设置+会员余额值）
      * @return \Illuminate\Http\JsonResponse
      */
@@ -61,9 +80,10 @@ class BalanceController extends ApiController
         if ($memberInfo = $this->getMemberInfo()) {
             $result = (new BalanceService())->getBalanceSet();
             $result['credit2'] = $memberInfo->credit2;
-            $result['buttons'] = $this->getPayTypeButtons();
+            $result['buttons'] = app('Payment')->setPaymentTypes(new RechargePaymentTypes())->getPaymentButton();
             $result['typename'] = '充值';
-            $result['love_name'] = (app('plugins')->isEnabled('designer') == 1) ? LOVE_NAME : '爱心值';
+//            $result['love_name'] = (app('plugins')->isEnabled('designer') == 1) ? LOVE_NAME : '爱心值';
+            $result['love_name'] = LOVE_NAME;
             $result['convert'] = (new BalanceService())->convertSet();
             $result['remark'] = $this->getRechargeRemark();
             return $this->successJson('获取数据成功', $result);
@@ -80,7 +100,7 @@ class BalanceController extends ApiController
             return $this->successJson('获取数据成功', [
                 'credit2'       => $memberInfo->credit2,
                 'has_password'  => $memberInfo->yzMember->hasPayPassword(),
-                'need_password' => $this->needTransferPassword()
+                'need_password' => $this->needTransferPassword(),
             ]);
         }
         return $this->errorJson('未获取到会员数据');
@@ -117,6 +137,10 @@ class BalanceController extends ApiController
         if ($result === true) {
             $type = intval(\YunShop::request()->pay_type);
 
+            $verify = (new BalanceRechargeSetService())->verifyRecharge($type, \YunShop::request()->recharge_money);
+            if ($verify !== true) {
+                return $this->errorJson($verify);
+            }
 
             $array = [
                 PayFactory::PAY_WEACHAT,
@@ -132,7 +156,22 @@ class BalanceController extends ApiController
                 PayFactory::WECHAT_H5,
                 PayFactory::XFPAY_ALIPAY,
                 PayFactory::XFPAY_WECHAT,
+                PayFactory::WECHAT_MIN_PAY,
+                PayFactory::LESHUA_ALIPAY,
+                PayFactory::LESHUA_WECHAT,
+                PayFactory::LSP_PAY,
+                PayFactory::CONVERGE_ALIPAY_H5_PAY,
+                PayFactory::EPLUS_WECHAT_PAY,
+                PayFactory::EPLUS_MINI_PAY,
+                PayFactory::EPLUS_ALI_PAY,
             ];
+
+            if (in_array($this->model->type, [PayFactory::EPLUS_ALI_PAY, PayFactory::EPLUS_WECHAT_PAY, PayFactory::EPLUS_MINI_PAY])) {
+                $user = \Yunshop\EplusPay\services\SettingService::getUser(\YunShop::app()->getMemberId());
+                if (!$user || !$user->is_bind_mobile) {
+                    return $this->errorJson('请先绑定智E+账户手机号', ['eplus_bind_mobile' => 1]);
+                }
+            }
 
             if (in_array($type, $array)) {
                 return $this->successJson('支付接口对接成功', array_merge(['ordersn' => $this->model->ordersn], $this->payOrder()));
@@ -215,32 +254,49 @@ class BalanceController extends ApiController
         return $result === true ? $this->successJson('转化成功') : $this->errorJson($result);
     }
 
-    //记录【全部、收入、支出】
+    /**
+     * 余额明细页面数据
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function record()
     {
-        $memberInfo = $this->getMemberInfo();
-        if ($memberInfo) {
-            $type = \YunShop::request()->record_type;
-            $recordList = BalanceCommon::getMemberDetailRecord($this->memberInfo->uid, $type);
-            foreach ($recordList as $item) {
-                $item->action_type = '';
+        $search = request()->search;
+        $date = date('Y-m', strtotime($search['date']));
+        $record_data = (new BalanceRecordService())->getRecordData();
 
-                if ($item->service_type == 3) {
-                    switch ($item->type) {
-                        case 1:
-                            $item->action_type = '转让人';
-                            break;
-                        case 2:
-                            $item->action_type = '受让人';
-                            break;
-                        default;
-                    }
-                }
-            }
-
-            return $this->successJson('获取记录成功', $recordList->toArray());
+        // 选择的日期 && 日期参数存在 && 小于等于第一页。这想条件符合证明第一页没有数据就直接返回
+        if(!$record_data['record_list']['data'][$date] && $search['date'] && request()->page <= 1){
+            return $this->errorJson("暂无数据！");
+        }elseif (false === $record_data){
+            return $this->errorJson("暂无数据！");
         }
-        return $this->errorJson('未获取到会员信息');
+        return $this->successJson("成功", $record_data);
+    }
+
+    /**
+     * 获取余额的业务类型
+     * 根据当前会员的余额明细表所拥有的服务类型
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getServiceTypeList()
+    {
+        $member_id = \YunShop::app()->getMemberId();
+        $redis_key = "ServiceTypeList:".$member_id;
+        if(Cache::has($redis_key)){
+            $service_type_arr = Cache::get($redis_key);
+        }else{
+            $service_type_arr = (new ConstService(''))->sourceComment();
+            $service_type_key = Balance::getServiceType();
+            $service_type_arr = $service_type_key->map(function ($serviceKey) use ($service_type_arr){
+                return [
+                    'id' => $serviceKey,
+                    'name' => $service_type_arr[$serviceKey],
+                ];
+            })->values();
+            //根据当前会员的余额明细查出所拥有的服务类型，存进缓存
+            Cache::put($redis_key, $service_type_arr, 1440);
+        }
+        return $this->successJson('成功', $service_type_arr);
     }
 
     //余额转换爱心值
@@ -308,6 +364,7 @@ class BalanceController extends ApiController
         event($event);
 
         $result = $event->getData();
+
         $type = \YunShop::request()->type;
         if ($type == 2) {
             $button = [];
@@ -329,12 +386,12 @@ class BalanceController extends ApiController
             return $button;
         } else {
             foreach ($result as $key => $item) {
-                if ($item['value'] == 51 || $item['value'] == 52 ) {
+                if ($item['value'] == 51 || $item['value'] == 52) {
                     unset($result[$key]);
                 }
 
                 // 如果是其他浏览器访问,商云客微信支付按钮不显示
-                if ($type == 5 && $item['value'] == 78){
+                if ($type == 5 && $item['value'] == 78) {
                     unset($result[$key]);
                 }
             }
@@ -485,7 +542,7 @@ class BalanceController extends ApiController
             'operator'     => ConstService::OPERATOR_MEMBER,
             'operator_id'  => $this->model->member_id,
             'remark'       => '会员【ID:' . $this->model->member_id . '】余额转化爱心值会员【ID：' . $this->model->member_id . '】' . $this->model->covert_amount . '元',
-            'relation'     => $this->model->order_sn
+            'relation'     => $this->model->order_sn,
         ];
 
         $result = $_LoveChangeService->conver($data);
@@ -529,7 +586,7 @@ class BalanceController extends ApiController
             'recipient'  => \YunShop::request()->recipient,
             'money'      => trim(\YunShop::request()->transfer_money),
             'status'     => BalanceTransfer::TRANSFER_STATUS_ERROR,
-            'order_sn'   => $this->getTransferOrderSN()
+            'order_sn'   => $this->getTransferOrderSN(),
         );
     }
 
@@ -554,6 +611,13 @@ class BalanceController extends ApiController
     {
         //$change_money = substr(\YunShop::request()->recharge_money, 0, strpos(\YunShop::request()->recharge_money, '.')+3);
         $change_money = \YunShop::request()->recharge_money;
+        if (\YunShop::request()->pay_type == PayFactory::PAY_APP_ALIPAY) {
+            //支付宝APP支付充值金额超过6位数，支付宝会自动对超过6位的小数点后的数值进行四舍五入
+            $length = strlen(intval($change_money));
+            if ($length >= 5 && $change_money > intval($change_money)) {
+                throw new ShopException('APP支付宝充值超5位数的金额不能拥有小数，请重新填写');
+            }
+        }
         return array(
             'uniacid'   => \YunShop::app()->uniacid,
             'member_id' => $this->memberInfo->uid,
@@ -563,7 +627,7 @@ class BalanceController extends ApiController
             'ordersn'   => BalanceRecharge::createOrderSn('RV', 'ordersn'),
             'type'      => intval(\YunShop::request()->pay_type),
             'status'    => BalanceRecharge::PAY_STATUS_ERROR,
-            'remark'    => '会员前端充值'
+            'remark'    => '会员前端充值',
         );
     }
 
@@ -575,11 +639,36 @@ class BalanceController extends ApiController
         $pay = PayFactory::create($this->model->type);
 
 
-        $result = $pay->doPay($this->payData());
+        $result = $pay->doPay($this->payData(),$this->model->type);
         \Log::info('++++++++++++++++++', $result);
         if ($this->model->type == 1) {
             $result['js'] = json_decode($result['js'], 1);
         }
+
+        if (in_array($this->model->type,[PayFactory::PAY_WECHAT_HJ, PayFactory::PAY_ALIPAY_HJ])) {
+            if ($result['msg'] !== '成功') {
+                throw new AppException($result['msg']);
+            }
+        }
+
+        if (in_array($this->model->type, [PayFactory::CONVERGE_ALIPAY_H5_PAY])) {
+            if ($result['code'] != 200) {
+                throw new AppException($result['msg']);
+            }
+        }
+
+        if (in_array($this->model->type, [PayFactory::EPLUS_MINI_PAY, PayFactory::EPLUS_WECHAT_PAY])) {
+            $result = json_decode($result['payInfo'], true) ?: [];
+            if ($result['timeStamp']) {
+                $result['timestamp'] = $result['timeStamp'];
+            }
+        }
+
+        if ($this->model->type == PayFactory::EPLUS_ALI_PAY) {
+            $result = ['pay_url'=>$result['payInfo'] ?: ''];
+        }
+
+
         \Log::debug('余额充值 result', $result);
         return $result;
     }
@@ -593,12 +682,13 @@ class BalanceController extends ApiController
     private function payData()
     {
         $array = array(
-            'subject'  => '会员充值',
-            'body'     => '会员充值金额' . $this->model->money . '元:' . \YunShop::app()->uniacid,
-            'amount'   => $this->model->money,
-            'order_no' => $this->model->ordersn,
-            'extra'    => ['type' => 2],
-            'ask_for'  => 'recharge'
+            'subject'   => '会员充值',
+            'body'      => '会员充值金额' . $this->model->money . '元:' . \YunShop::app()->uniacid,
+            'amount'    => $this->model->money,
+            'member_id' => \YunShop::app()->getMemberId(),
+            'order_no'  => $this->model->ordersn,
+            'extra'     => ['type' => 2],
+            'ask_for'   => 'recharge',
         );
         if ($this->model->type == PayFactory::PAY_CLOUD_ALIPAY) {
             $array['extra'] = ['type' => 2, 'pay' => 'cloud_alipay'];
@@ -616,18 +706,30 @@ class BalanceController extends ApiController
      */
     private function getRechargeRemark()
     {
-        if(!$this->balanceSet->rechargeSet() || !$this->balanceSet->rechargeActivityStatus()) {
+        $balance_set = Setting::get('finance.balance');
+        $shop_set = Setting::get('shop');
+
+        if (!$this->balanceSet->rechargeSet() || !$this->balanceSet->rechargeActivityStatus()) {
+            if ($balance_set['charge_reward_swich'] == 1) {
+                //活动中的赠送积分不受控
+                return [
+                    'reward_points' => ['rate' => $balance_set['charge_reward_rate'] ?: 100, 'name' => $shop_set['credit1'] ? $shop_set['credit1'] : '积分'],
+                ];
+            }
             return [];//未开启活动或余额充值
         }
 
         $data = [
-            'recharge_activity_start' => date('Y-m-d H:i:s',$this->balanceSet->rechargeActivityStartTime()),
-            'recharge_activity_end' => date('Y-m-d H:i:s',$this->balanceSet->rechargeActivityEndTime()),
+            'recharge_activity_start'  => date('Y-m-d H:i:s', $this->balanceSet->rechargeActivityStartTime()),
+            'recharge_activity_end'    => date('Y-m-d H:i:s', $this->balanceSet->rechargeActivityEndTime()),
             'recharge_activity_fetter' => $this->balanceSet->rechargeActivityFetter(),//最多参与次数
-            'proportion_status' => $this->balanceSet->proportionStatus(),//0-固定金额，1-百分比
-            'sale' => $this->balanceSet->rechargeSale()
+            'proportion_status'        => $this->balanceSet->proportionStatus(),//0-固定金额，1-百分比
+            'sale'                     => $this->balanceSet->rechargeSale(),
         ];
-
+        if ($balance_set['charge_reward_swich'] == 1) {
+            $data['reward_points'] = ['rate' => $balance_set['charge_reward_rate'] ?: 100, 'name' => $shop_set['credit1'] ? $shop_set['credit1'] : '积分'];
+        }
         return $data;
     }
+
 }

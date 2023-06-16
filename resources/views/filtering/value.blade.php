@@ -23,6 +23,18 @@
                 <el-table :data="list" style="width: 100%">
                     <el-table-column label="ID" align="center" prop="id"></el-table-column>
                     <el-table-column label="标签名称" align="center" prop="name"></el-table-column>
+                    <el-table-column label="前端是否显示" align="center">
+                        <template slot-scope="scope">
+                            <el-switch
+                                    v-model="scope.row.is_front_show"
+                                    active-color="#13ce66"
+                                    :active-value="1"
+                                    :inactive-value="0"
+                                    @change="setOpen(scope.row.id,scope.row.is_front_show)"
+                            >
+                            </el-switch>
+                        </template>
+                    </el-table-column>
                     <el-table-column prop="refund_time" label="操作" align="center" width="320">
                         <template slot-scope="scope">
                             <!-- <el-link type="warning" :underline="false" @click="gotoEdit(scope.row.id)" class="el-link-edit el-link-edit-middle">
@@ -80,7 +92,7 @@
             this.getData(1);
         },
         methods: {
-            
+
             getData(page) {
                 let that = this;
                 let loading = this.$loading({target:document.querySelector(".content"),background: 'rgba(0, 0, 0, 0)'});
@@ -111,7 +123,7 @@
                     loading.close();
                 });
             },
-            
+
             search(val) {
                 this.getData(val);
             },
@@ -124,6 +136,23 @@
             gotoEdit(id) {
                 let link = `{!! yzWebFullUrl('filtering.filtering.edit-view') !!}`+`&parent_id=`+this.parent_id+`&id=`+id;
                 window.location.href = link;
+            },
+            setOpen(id,show){
+                let loading = this.$loading({target:document.querySelector(".content"),background: 'rgba(0, 0, 0, 0)'});
+                this.$http.post('{!! yzWebFullUrl('filtering.filtering.setOpen') !!}',{tag_id:id,show:show}).then(function (response) {
+                        if (response.data.result) {
+                            this.$message({type: 'success',message: response.data.msg});
+                        }
+                        else{
+                            this.$message({type: 'error',message: response.data.msg});
+                        }
+                        loading.close();
+                        this.search(this.current_page)
+                    },function (response) {
+                        this.$message({type: 'error',message: response.data.msg});
+                        loading.close();
+                    }
+                );
             },
             del(id,index) {
                 console.log(id,index)
@@ -150,7 +179,7 @@
             },
             goParent() {
                 window.location.href = `{!! yzWebFullUrl('filtering.filtering.index') !!}`;
-            }, 
+            },
         },
     })
 </script>

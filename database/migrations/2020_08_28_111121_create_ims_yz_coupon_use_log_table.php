@@ -26,6 +26,8 @@ class CreateImsYzCouponUseLogTable extends Migration
                 $table->integer('created_at')->nullable();
                 $table->integer('updated_at')->nullable();
             });
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE " . app('db')->getTablePrefix() . "yz_coupon_use_log comment '优惠券--使用记录'");//表注释
+
         }
     }
 

@@ -509,14 +509,23 @@ class NewGoodsController extends BaseController
         foreach ($arrComment['images'] as &$image) {
             $image = yz_tomedia($image);
         }
+
+//        if ($arrComment['append']) {
+//            foreach ($arrComment['append'] as &$comment) {
+//                $comment['images'] = unserialize($comment['images']);
+//                foreach ($comment['images'] as &$image) {
+//                    $image = yz_tomedia($image);
+//                }
+//            }
+//        }
+
         if ($arrComment['append']) {
-            foreach ($arrComment['append'] as &$comment) {
-                $comment['images'] = unserialize($comment['images']);
-                foreach ($comment['images'] as &$image) {
-                    $image = yz_tomedia($image);
-                }
+            $arrComment['append']['images'] = unserialize($arrComment['append']['images']);
+            foreach ($arrComment['append']['images'] as &$image) {
+                $image = yz_tomedia($image);
             }
         }
+
         if ($arrComment['has_many_reply']) {
             foreach ($arrComment['has_many_reply'] as &$comment) {
                 $comment['images'] = unserialize($comment['images']);
@@ -729,14 +738,16 @@ class NewGoodsController extends BaseController
             $love_goods = $this->getLoveSet($goodsModel, $goodsModel->id);
 
             $data['name'] = $love_goods['name'];
+            $deduction_name = \Yunshop\Love\Common\Services\SetService::usableLoveName();
+            $reward_name = \Yunshop\Love\Common\Services\SetService::getRewardLoveName();
             $data['key'] = 'love';
             $data['type'] = 'array';
             if ($love_goods['deduction']) {
-                $data['value'][] = '最高抵扣' . $love_goods['deduction_proportion'] . $data['name'];
+                $data['value'][] = '最高抵扣' . $love_goods['deduction_proportion'] . $deduction_name;
             }
 
             if ($love_goods['award'] && \Setting::get('love.goods_detail_show_love') != 2) {
-                $data['value'][] = '购买赠送' . $love_goods['award_proportion'] . $data['name'];
+                $data['value'][] = '购买赠送' . $love_goods['award_proportion'] . $reward_name;
             }
 
             if (!empty($data['value'])) {

@@ -27,7 +27,7 @@ class OperationLogController extends BaseController
 
             }
 
-            $list = OperationLog::Search($requestSearch)->orderBy('id', 'decs')->paginate(20);
+            $list = OperationLog::Search($requestSearch)->orderBy('id', 'desc')->paginate(20);
 
 
             return $this->successJson('请求接口成功',[

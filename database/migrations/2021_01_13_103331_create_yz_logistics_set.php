@@ -19,7 +19,7 @@ class CreateYzLogisticsSet extends Migration
                 $table->increments('id');
                 $table->integer('uniacid')->default(0);
                 $table->integer('type')->default(0)->comment('类型');
-                $table->string('data',255)->default(0)->comment('设置数据');
+                $table->text('data')->nullable()->comment('设置数据');
                 $table->integer('status')->default(0)->nullable()->comment('状态');
                 $table->integer('created_at')->nullable();
                 $table->integer('updated_at')->nullable();
@@ -35,6 +35,7 @@ class CreateYzLogisticsSet extends Migration
                     'type'    => 1
                 ]);
             }
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE `" . app('db')->getTablePrefix() . "yz_logistics_set` comment'物流查询设置表'");//表注释
         }
     }
 

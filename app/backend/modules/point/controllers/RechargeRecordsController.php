@@ -9,16 +9,23 @@
 namespace app\backend\modules\point\controllers;
 
 
+use app\backend\modules\finance\services\PointService;
 use app\backend\modules\point\models\RechargeModel;
 use app\common\components\BaseController;
 use app\common\helpers\PaginationHelper;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use app\common\facades\Setting;
 
 class RechargeRecordsController extends BaseController
 {
+    private $amount;
+
     public function index()
     {
-        return view('point.rechargeRecords', $this->getResultData());
+        if (request()->ajax()) {
+            return $this->successJson('ok', $this->getResultData());
+        }
+        return view('point.rechargeRecords');
     }
 
     /**
@@ -26,12 +33,17 @@ class RechargeRecordsController extends BaseController
      */
     private function getResultData()
     {
-        $recordsModels = $this->recordsModels();
-
+        $recordsModels = $this->recordsModels()->toArray();
+        $shopSet = Setting::get('shop.member');
+        foreach ($recordsModels['data'] as &$item) {
+            $item['member']['avatar'] =  $item['member']['avatar'] ? tomedia($item['member']['avatar'] ) : tomedia($shopSet['headimg']);
+            $item['member']['nickname'] = $item['member']['nickname'] ?: '未更新';
+        }
         return [
-            'page'      => $this->page($recordsModels),
             'search'    => $this->searchParams(),
-            'pageList'  => $recordsModels
+            'pageList'  => $recordsModels,
+            'tab_list'     => PointService::getVueTags(),
+            'amount' => $this->amount
         ];
     }
 
@@ -45,6 +57,7 @@ class RechargeRecordsController extends BaseController
         if ($search = $this->searchParams()) {
             $recordsModels = $recordsModels->search($search);
         }
+        $this->amount  = $recordsModels->sum('money');
         return $recordsModels->orderBy('id', 'desc')->paginate();
     }
 

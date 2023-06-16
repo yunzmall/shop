@@ -90,6 +90,11 @@ class GoodsStock
         return $this->type->reduce();
     }
 
+    public function createReduce()
+    {
+        return $this->type->createReduce();
+    }
+
     public function rollback()
     {
         return $this->type->rollback();

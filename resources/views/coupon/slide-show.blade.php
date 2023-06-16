@@ -20,6 +20,7 @@
                 <el-tab-pane label="分享领取记录" name="4"></el-tab-pane>
                 <el-tab-pane label="使用记录" name="5"></el-tab-pane>
                 <el-tab-pane label="领券中心幻灯片" name="6"></el-tab-pane>
+                <el-tab-pane label="会员优惠券" name="7"></el-tab-pane>
             </el-tabs>
         </div>
         <div class="vue-main">
@@ -218,7 +219,7 @@
             handleClick(val) {
                 console.log(val.name)
                 if(val.name == 1) {
-                    window.location.href = `{!! yzWebFullUrl('coupon.slide-show.add') !!}`;
+                    window.location.href = `{!! yzWebFullUrl('coupon.base-set.see') !!}`;
                 }
                 else if(val.name == 2) {
                     window.location.href = `{!! yzWebFullUrl('coupon.coupon.index') !!}`;
@@ -234,6 +235,9 @@
                 }
                 else if(val.name == 6) {
                     window.location.href = `{!! yzWebFullUrl('coupon.slide-show') !!}`;
+                }
+                else if(val.name == 7) {
+                    window.location.href = `{!! yzWebFullUrl('coupon.member-coupon.index') !!}`;
                 }
             },
             

@@ -26,6 +26,7 @@ class CreateImsYzOrderPluginBonusTable extends Migration
                 $table->integer('updated_at')->nullable();
                 $table->integer('deleted_at')->nullable();
             });
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE " . app('db')->getTablePrefix() . "yz_order_plugin_bonus comment '订单--订单插件分红记录表'");//表注释
         }
     }
 

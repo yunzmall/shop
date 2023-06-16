@@ -17,14 +17,12 @@ class CreateYzApiAccessTokenTable extends Migration
             Schema::create('yz_api_access_token', function (Blueprint $table) {
                 $table->increments('id');
                 $table->integer('uniacid')->default(0)->nullable();
-                $table->string('access_token')->nullable();
-                $table->integer('expires_at')->nullable();
-                $table->boolean('revoked');
-
+                $table->string('access_token')->nullable()->comment('访问令牌');
+                $table->integer('expires_at')->nullable()->comment('有效期至');
+                $table->boolean('revoked')->comment('是否撤回');
                 $table->timestamps();
-
-
             });
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE " . app('db')->getTablePrefix() . "yz_api_access_token comment 'api--api访问令牌'");//表注释
         }
     }
 

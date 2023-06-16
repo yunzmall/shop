@@ -36,11 +36,11 @@ class CreateYzOrderInvoiceTable extends Migration
         } else {
             Schema::table('yz_order_invoice', function (Blueprint $table) {
 
-                if (!Schema::hasColumn('yz_order', 'email')) {
+                if (!Schema::hasColumn('yz_order_invoice', 'email')) {
                     $table->string('email')->default('')->nullable()->comment('电子邮箱');
                 }
 
-                if (!Schema::hasColumn('yz_order', 'need_invoice')) {
+                if (!Schema::hasColumn('yz_order_invoice', 'need_invoice')) {
                     $table->integer('need_invoice')->default(0)->comment('是否开发票 0否1是');
                 }
 

@@ -4,6 +4,7 @@ namespace app\framework\Bus;
 
 use app\process\QueueKeeper;
 use Illuminate\Contracts\Queue\Queue;
+use Illuminate\Database\Events\TransactionBeginning;
 use Illuminate\Database\Events\TransactionCommitted;
 use Illuminate\Database\Events\TransactionRolledBack;
 use Illuminate\Queue\RedisQueue;
@@ -13,6 +14,11 @@ use RuntimeException;
 class Dispatcher extends \Illuminate\Bus\Dispatcher
 {
     private $redisQueues = [];
+
+    private $index;
+
+    private $p = [];
+
 
     /**
      * Dispatch a command to its appropriate handler.
@@ -58,6 +64,7 @@ class Dispatcher extends \Illuminate\Bus\Dispatcher
             	return $this->pushCommandToQueue($queue, $command);
             }
         }
+
     }
     public function getRedis()
 	{
@@ -66,11 +73,37 @@ class Dispatcher extends \Illuminate\Bus\Dispatcher
 
     private function addRedisQueue($queue, $command, $level)
     {
-        $this->redisQueues[$level][] = [$queue, $command];
+		//存入当前指针
+        $this->redisQueues[end($this->p)][] = [$queue, $command];
     }
+
+
+	public function dbTransactionBeginning(TransactionBeginning $event)
+	{
+		//指针
+		$level = $event->connection->transactionLevel();
+		if (!empty($this->p)) {
+			$now = end($this->p) . '-' . $level;
+			$count = array_count_values($this->index);
+			$next_level = $count[$level] + 1;
+			$now .= '('.$next_level.')';
+		} else {
+			$now = (string)$level;
+		}
+
+		$this->index[] = $event->connection->transactionLevel();
+		$this->p[] = $now;
+		end($this->p);
+	}
+
+
+
+
 
     public function dbTransactionCommitted(TransactionCommitted $event)
     {
+		//指针前移
+		array_pop($this->p);
         // mysql事务提交后，推送redis队列任务，判断是否level是否为0
 		if ($event->connection->transactionLevel() == 0) {
 			$this->pushRedisQueues();
@@ -79,16 +112,18 @@ class Dispatcher extends \Illuminate\Bus\Dispatcher
 
     public function dbTransactionRollBack(TransactionRolledBack $event)
     {
+    	//指针前移
+		$p = array_pop($this->p);
 		if (!isset($this->redisQueues)) {
             return;
         }
-        $level = $event->connection->transactionLevel();
-        if (!isset($this->redisQueues[$level + 1])) {
-            return;
-        }
-        \Log::error('取消队列',$event);
 
-        unset($this->redisQueues[$level + 1]);
+		$p = addcslashes($p,"-()");
+		foreach ($this->redisQueues as $key=>$value) {
+        	if (preg_match("/$p(.*)/",$key,$match)) {
+        		unset($this->redisQueues[$key]);
+			};
+		}
     }
 
     public function pushRedisQueues()

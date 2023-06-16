@@ -25,6 +25,8 @@ class CreateImsYzCategoryDiscount extends Migration
                 $table->integer('created_at')->nullable();
                 $table->integer('updated_at')->nullable();
             });
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE `" . app('db')->getTablePrefix()
+                . "yz_category_discount` comment '折扣分类表'");
         }
     }
 

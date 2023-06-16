@@ -11,6 +11,7 @@ namespace app\platform\controllers;
 
 use app\common\services\Utils;
 use app\frontend\modules\member\services\MemberService;
+use app\platform\modules\system\models\WhiteList;
 use app\platform\modules\user\models\OfficialWebsiteContact;
 use Illuminate\Foundation\Auth\AuthenticatesUsers;
 use Illuminate\Http\Request;
@@ -179,6 +180,14 @@ class LoginController extends BaseController
             }
         }
 
+        if($loginset['white_list_verify'] == 1 && !WhiteList::isWhite($request->getClientIp())) {
+            //白名单检测，总账号（uid=1）不限制
+            !isset($user) && $user = AdminUser::where('username',$request->username)->first();
+            if (!$user || $user['uid'] != 1) {//没查到用户也提示这个
+                return $this->errorJson('ip不在白名单内');
+            }
+        }
+
         // If the class is using the ThrottlesLogins trait, we can automatically throttle
         // the login attempts for this application. We'll key this by the username and
         // the IP address of the client making these requests into this application.
@@ -191,7 +200,7 @@ class LoginController extends BaseController
             return $this->sendLockoutResponse($request);
         }
 
-        if ($this->attemptLogin($request,$loginset->remember_pwd)) {
+        if ($this->attemptLogin($request,$loginset['login_expire_num'])) {
             return $this->sendLoginResponse($request);
         }
 
@@ -313,32 +322,32 @@ class LoginController extends BaseController
     /**
      * Attempt to log the user into the application.
      *
+     *
      * @param  \Illuminate\Http\Request  $request
      * @return bool
      */
-    protected function attemptLogin(Request $request,$rememberPwd = '')
+    protected function attemptLogin(Request $request,$minutes = 0)
     {
-//        if($rememberPwd == 1)
-//        {
-//            $remember = 1;
-//        }else{
-//            $remember = $request->remember;
-//        }
-        $remember = 1;
-        return $this->guard()->attempt(
-            $this->credentials($request),$remember
+        $result = $this->guard()->attempt(
+            $this->credentials($request),1
         );
+        if ($result) {
+            $minutes = $minutes ?? 2628000;
+            $user = $this->guard()->getuser();
+            $value = $user->getAuthIdentifier().'|'.$user->getRememberToken().'|'.$user->getAuthPassword();
+            $this->guard()->getCookieJar()->queue($this->guard()->getRecallerName(),$value,$minutes);
+        }
+        return $result;
     }
 
     public function site()
     {
         $default = [
-            'name' => "芸众商城管理系统",
+            'name' => "商城管理系统",
             'site_logo' => yz_tomedia("/static/images/site_logo.png"),
             'title_icon' => yz_tomedia("/static/images/title_icon.png"),
             'advertisement' => yz_tomedia("/static/images/advertisement.jpg"),
-            'information' => '<p>&copy; 2019&nbsp;<a href="https://www.yunzmall.com/" target=\"_blank\" rel=\"noopener\">Yunzhong.</a>&nbsp;All Rights Reserved. 广州市芸众信息科技有限公司&nbsp;&nbsp;<a href="http://www.miit.gov.cn/" target="_blank\" rel="noopener\">&nbsp;粤ICP备17018310号-1</a>&nbsp;Powered by Yunzhong&nbsp;</p> <p><a href="https://bbs.yunzmall.com" target="_blank\" rel="noopener\">系统使用教程：bbs.yunzmall.com</a>&nbsp; &nbsp;&nbsp;<a href="https://bbs.yunzmall.com/plugin.php?id=it618_video:index" target="_blank\" rel="noopener\">视频教程</a></p>'
-        ];
+            ];
 
         $copyright = SystemSetting::settingLoad('copyright', 'system_copyright');
 
@@ -349,6 +358,9 @@ class LoginController extends BaseController
         $copyright['information'] = !isset($copyright['information']) ? $default['information'] : $copyright['information'];
 
         $loginset = SystemSetting::settingLoad('loginset', 'system_loginset');
+
+        $copyright['register_open'] = $loginset['register_open'] ?: 0;
+
         if($loginset['pic_verify'] == 1)
         {
             $copyright['captcha']['status'] = true;

@@ -22,6 +22,21 @@ class EncryptUtil
 
 
     /**
+     * sha256签名
+     * @param $data  string 待签名字符串
+     * @param $appSecret string 签名密码
+     * @param bool $isBinary bool 返回二进制结果
+     * @return string
+     */
+    public static function hash256($data, $secret, $isBinary = false)
+    {
+        $sign = hash_hmac('sha256', $data, $secret,$isBinary);
+
+        return $sign;
+    }
+
+
+    /**
      * AES加密，模式为：AES/ECB/PKCK7Padding
      * @param string $data
      * @param string $secKey

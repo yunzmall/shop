@@ -30,6 +30,7 @@ class CreateImsYzMemberLowerOrder extends Migration
                 $table->integer('created_at')->nullable();
                 $table->integer('updated_at')->nullable();
             });
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE " . app('db')->getTablePrefix() . "yz_member_lower_order comment '会员下线订单统计表'");//表注释
         }
     }
 

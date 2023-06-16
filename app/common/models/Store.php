@@ -4,7 +4,7 @@ namespace app\common\models;
 
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/2/27
  * Time: 上午9:11
  */

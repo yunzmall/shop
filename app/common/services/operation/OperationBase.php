@@ -22,13 +22,13 @@ abstract class OperationBase
 
     /**
      * @param $model mixed
-     * @param $type string 判断记录类型
+     * @param $operate_type string 判断记录类型
     */
-    public function __construct($model, $type)
+    public function __construct($model, $operate_type)
     {
         $this->uid = intval(\YunShop::app()->uid);
 
-        if (empty($this->uid) || is_null($type)) {
+        if (empty($this->uid) || is_null($operate_type)) {
             return;
         }
 
@@ -38,7 +38,7 @@ abstract class OperationBase
 
         $this->modifyDefault();
 
-        $this->log($type);
+        $this->log($operate_type);
     }
 
 

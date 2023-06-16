@@ -29,7 +29,7 @@ class PoundageController extends BaseController
             ->where('status', 2)
             ->selectRaw("FROM_UNIXTIME(created_at,'%Y-%m-%d') as date, sum(actual_poundage) as poundage, sum(actual_servicetax) as servicetax")
             ->groupBy(DB::raw("FROM_UNIXTIME(created_at,'%Y-%m-%d')"))
-            ->orderBy('date','decs')
+            ->orderBy('date','desc')
             ->paginate(10);
         $pager = PaginationHelper::show($list->total(), $list->currentPage(), $list->perPage());
         $total = Withdraw::search($search)->where('status', 2)->selectRaw("sum(actual_poundage) as poundage, sum(actual_servicetax) as servicetax")->first();
@@ -72,7 +72,7 @@ class PoundageController extends BaseController
         $export_model = new ExportService($builder, $export_page);
         $file_name = date('Ymdhis', time()) . '手续统计导出';
         $export_data[0] = ['时间', '手续费','劳务税','总计'];
-        foreach ($builder->orderBy('date','decs')->get() as $key => $item) {
+        foreach ($builder->orderBy('date','desc')->get() as $key => $item) {
             $export_data[$key+1] = [
                 $item->date,
                 $item->poundage ?: '0.00',

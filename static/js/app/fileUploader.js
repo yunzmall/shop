@@ -258,7 +258,7 @@
                                 typeUnit = "个",
                                 k = {
                                     title: "Video",
-                                    extensions: "mpeg,mp4",
+                                    extensions: "mpeg,mp4,mov",
                                     mimeTypes: "video/*"
                                 },
                                 l = 30,

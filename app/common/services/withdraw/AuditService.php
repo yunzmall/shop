@@ -63,6 +63,9 @@ class AuditService
             } catch (\Exception $e) {
                 event(new WithdrawFailedEvent($this->withdrawModel));
                 $this->sendMessage();
+                \Log::debug("提现审核失败ID{$this->withdrawModel->id}",$e->getMessage());
+                \Log::debug("提现审核失败ID{$this->withdrawModel->id}",$e->getTraceAsString());
+                throw new ShopException("提现审核：ID{$this->withdrawModel->id}",$e->getMessage());
             }
         }
         throw new ShopException("提现审核：ID{$this->withdrawModel->id}，不符合审核规则");
@@ -77,7 +80,7 @@ class AuditService
         DB::transaction(function () {
             $this->audit();
             //提现收入申请表
-            WithdrawIncomeApplyService::apply($this->withdrawModel);
+            WithdrawIncomeApplyService::apply($this->withdrawModel,'backend');
         });
         return true;
     }
@@ -106,7 +109,6 @@ class AuditService
         $this->audited();
     }
 
-
     private function getAuditStatus()
     {
         $type_ids_count = count(array_filter(explode(',', $this->withdrawModel->type_id)));
@@ -127,7 +129,8 @@ class AuditService
 
         //如果是无效 + 驳回 [同全驳回，直接完成]
         if ($invalid_count > 0 && $rebut_count > 0 && ($invalid_count + $rebut_count) == $type_ids_count) {
-            return Withdraw::STATUS_PAY;
+//            return Withdraw::STATUS_PAY;
+            return Withdraw::STATUS_REBUT;
         }
         return Withdraw::STATUS_AUDIT;
     }
@@ -244,7 +247,9 @@ class AuditService
      */
     private function getLastActualServiceTax($amount, $withdraw_set)
     {
-
+        if (in_array($this->withdrawModel->type,Withdraw::$noDeductionServicetax)) {//这些提现不收劳务税
+            return 0;
+        }
         if ($this->withdrawModel->pay_way != 'balance' || !$withdraw_set['balance_special']){
             if ($merage_rate = WithdrawMergeServicetaxRate::uniacid()->where('withdraw_id', $this->withdrawModel->id)->where('is_disabled', 0)->first()) {
                 return $merage_rate->servicetax_rate;

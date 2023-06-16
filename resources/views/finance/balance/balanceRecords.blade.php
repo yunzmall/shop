@@ -1,171 +1,288 @@
 @extends('layouts.base')
-@section('title', '余额明细')
+@section('title', "余额明细")
 @section('content')
-
-    <link href="{{static_url('yunshop/css/member.css')}}" media="all" rel="stylesheet" type="text/css"/>
-    <div class="rightlist">
-        <!-- 新增加右侧顶部三级菜单 -->
-        <div class="right-titpos">
-            <ul class="add-snav">
-                <li class="active"><a href="#">财务／余额明细</a></li>
-            </ul>
-        </div>
-        <!-- 新增加右侧顶部三级菜单结束 -->
-        <div class="panel panel-info">
-            <div class="panel-heading">筛选</div>
-
-            <div class="panel-body">
-                <form action="" method="get" class="form-horizontal" role="form" id="form1">
-                    <input type="hidden" name="c" value="site" />
-                    <input type="hidden" name="a" value="entry" />
-                    <input type="hidden" name="m" value="yun_shop" />
-                    <input type="hidden" name="do" value="5201" />
-                    <input type="hidden" name="route" value="finance.balance-records.index" id="route" />
-                    <div class="form-group col-xs-12 col-sm-2 col-md-2 col-lg-2 ">
-                        <div class="">
-                            <input type="text" placeholder="会员ID" class="form-control"  name="search[member_id]" value="{{$search['member_id']}}"/>
-                        </div>
-                    </div>
-                    <div class="form-group col-xs-12 col-sm-2 col-md-2 col-lg-2">
-                        <div class="">
-                            <input type="text" class="form-control"  name="search[realname]" value="{{$search['realname']}}" placeholder="昵称／姓名／手机号"/>
-                        </div>
-                    </div>
-                    <div class="form-group col-xs-12 col-sm-2 col-md-2 col-lg-2">
-                        <div class="">
-                            <select name='search[member_level]' class='form-control'>
-                                <option value=''>会员等级</option>
-
-                                @foreach($memberLevels as $list)
-                                    <option value='{{ $list['id'] }}' @if($search['member_level'] == $list['id']) selected @endif>{{ $list['level_name'] }}</option>
-                                @endforeach
-
-                            </select>
-                        </div>
-                    </div>
-                    <div class="form-group col-xs-12 col-sm-2 col-md-2 col-lg-2">
-                        <div class="">
-                            <select name='search[member_group]' class='form-control'>
-                                <option value=''>会员分组</option>
-                                @foreach($memberGroups as $list)
-                                    <option value='{{ $list['id'] }}' @if($search['member_group'] == $list['id']) selected @endif>{{ $list['group_name'] }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                    </div>
-                    <div class="form-group col-xs-12 col-sm-2 col-md-2 col-lg-2">
-                        <div class="">
-                            <select name='search[source]' class='form-control'>
-                                <option value=''>业务类型</option>
-                                @foreach($sourceName as $key => $value)
-                                    <option value='{{ $key }}' @if($search['source'] == $key) selected @endif>{{ $value }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                    </div>
-                    <div class="form-group col-xs-12 col-sm-2 col-md-2 col-lg-2">
-                        <div class="">
-                            <select name='search[type]' class='form-control'>
-                                <option value=''>收入／支出</option>
-                                <option value='1' @if($search['type']=='1') selected @endif>收入</option>
-                                <option value='2' @if($search['type']=='2') selected @endif>支出</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="form-group col-xs-12 col-sm-2 col-md-2 col-lg-2">
-                        <div class="">
-                            <input type="text" placeholder="订单号" class="form-control"  name="search[order_sn]" value="{{$search['order_sn']}}"/>
-                        </div>
-                    </div>
-
-                    <div class="form-group col-xs-12 col-sm-12 col-md-12 col-lg-6">
-
-                        <div class="time">
-
-                            <select name='search[search_time]' class='form-control'>
-                                <option value='0' @if($search['search_time']=='0') selected @endif>不搜索时间</option>
-                                <option value='1' @if($search['search_time']=='1') selected @endif>搜索时间</option>
-                            </select>
-                        </div>
-                        <div class="search-select">
-                            {!! app\common\helpers\DateRange::tplFormFieldDateRange('search[time]', [
-                            'starttime'=>date('Y-m-d H:i', strtotime($search['time']['start']) ?: strtotime('-1 month')),
-                            'endtime'=>date('Y-m-d H:i',strtotime($search['time']['end']) ?: time()),
-                            'start'=>0,
-                            'end'=>0
-                            ], true) !!}
-                        </div>
-                    </div>
-
-                    <div class="form-group  col-xs-12 col-sm-7 col-lg-4">
-                        <div class="">
-                            <button type="button" name="export" value="1" id="export" class="btn btn-default excel back ">导出Excel</button>
-                            <input type="hidden" name="token" value="{{$var['token']}}" />
-                            <button class="btn btn-success "><i class="fa fa-search"></i>搜索</button>
-
-                        </div>
-                    </div>
-
-                </form>
-            </div>
-
-            
-        </div>
-        <div class="clearfix">
-            <div class="panel panel-default">
-                <div class="panel-heading">总数：{{ $pageList->total() }}</div>
-                <div class="panel-body">
-                    <table class="table table-hover" style="overflow:visible;">
-                        <thead class="navbar-inner">
-                        <tr>
-                            <th style='width:11%;text-align: center;'>时间</th>
-                            <th style='width:8%;text-align: center;'>会员ID</th>
-                            <th style='width:8%;text-align: center;'>粉丝</th>
-                            <th style='width:12%;text-align: center'>姓名<br/>手机号码</th>
-                            <th style='width:8%;text-align: center'>余额</th>
-                            <th style='width:15%;text-align: center'>业务类型</th>
-                            <th style='width:8%;text-align: center'>收入\支出</th>
-                            <th style='width:8%;text-align: center'>操作</th>
-                        </tr>
-                        </thead>
-                        <tbody>
-                        @foreach($pageList as $list)
-                            <tr style="text-align: center">
-                                <td style="text-align: center;">{{ $list->created_at }}</td>
-                                <td style="text-align: center;">{{ $list->member_id }}</td>
-                                <td style="text-align: center;">
-                                    @if($list->member->avatar || $shopSet['headimg'])
-                                        <img src='{{ $list->member->avatar ? tomedia($list->member->avatar) : tomedia($shopSet['headimg']) }}' style='width:30px;height:30px;padding:1px;border:1px solid #ccc' /><br/>
-                                    @endif
-                                    {{ $list->member->nickname ? $list->member->nickname : '未更新' }}
-                                </td>
-                                <td>{{ $list->member->realname }}<br/>{{ $list->member->mobile }}</td>
-                                <td><label class="label label-danger">余额：{{ $list->new_money }}</label></td>
-                                <td>{{ $list->service_type_name }}</td>
-                                <td>{{ $list->change_money }}</td>
-                                <td  style="overflow:visible;">
-                                    <a class='btn btn-default' href="{{ yzWebUrl('finance.balance.lookBalanceDetail', array('id' => $list->id )) }}" style="margin-bottom: 2px">查看详情</a>
-                                </td>
-                            </tr>
-                        @endforeach
-                        </tbody>
-                    </table>
-
-                    {!! $page !!}
-
+    <link rel="stylesheet" type="text/css" href="{{static_url('yunshop/goods/vue-goods1.css')}}"/>
+    <style>
+        .vue-main-form {
+            margin-top: 0;
+        }
+    </style>
+    <div class="all" style="margin-top: -10px">
+        <div id="app" v-cloak>
+            <div class="vue-head">
+                <div class="vue-main-title" style="margin-bottom:20px">
+                    <div class="vue-main-title-left"></div>
+                    <div class="vue-main-title-content">余额明细</div>
                 </div>
+                <div class="vue-search">
+                    <el-form :inline="true" :model="search_form" class="demo-form-inline">
+                        <el-row>
+                            <el-form-item label="">
+                                <el-input v-model="search_form.member_id" placeholder="会员ID"></el-input>
+                            </el-form-item>
+                            <el-form-item label="">
+                                <el-input v-model="search_form.member" placeholder="昵称/姓名/手机号"></el-input>
+                            </el-form-item>
+                            <el-form-item label="">
+                                <el-input v-model="search_form.order_sn" placeholder="订单号"></el-input>
+                            </el-form-item>
+                            <el-select v-model="search_form.member_level" style="margin-left:5px;" placeholder="会员等级" clearable>
+                                <el-option v-for="item in member_levels" :key="item.id" :label="item.level_name" :value="item.id"></el-option>
+                            </el-select>
+                            <el-select v-model="search_form.member_group" style="margin-left:5px;" placeholder="会员分组" clearable>
+                                <el-option v-for="item in member_groups" :key="item.id" :label="item.group_name" :value="item.id"></el-option>
+                            </el-select>
+                            <el-select v-model="search_form.source" style="margin-left:5px;" placeholder="业务类型" clearable>
+                                <el-option v-for="item in source_name" :key="item.id" :label="item.value" :value="item.id"></el-option>
+                            </el-select>
+                            <el-select v-model="search_form.type" style="margin-left:5px;" placeholder="收入/支出" clearable>
+                                <el-option v-for="item in type_list" :key="item.value" :label="item.label" :value="item.value"></el-option>
+                            </el-select>
+                        </el-row>
+                        <el-row>
+                            <el-form-item label="">
+                                <el-date-picker v-model="search_form.search_time" value-format="timestamp" type="datetimerange" range-separator="至" start-placeholder="开始日期" end-placeholder="结束日期"></el-date-picker>
+                            </el-form-item>
+                            <el-form-item label="">
+                                <el-button @click="switchSearchTime(1)" plain>今</el-button>
+                                <el-button @click="switchSearchTime(2)" plain>昨</el-button>
+                                <el-button @click="switchSearchTime(3)" plain>近7天</el-button>
+                                <el-button @click="switchSearchTime(4)" plain>近30天</el-button>
+                                <el-button @click="switchSearchTime(5)" plain>近1年</el-button>
+                            </el-form-item>
+                            <el-form-item label="" style="float: right">
+                                <el-button type="primary" @click="search(1)">搜索</el-button>
+                                <el-button type="primary" @click="export_(1)">导出</el-button>
+                            </el-form-item>
+                        </el-row>
+
+                    </el-form>
+                </div>
+            </div>
+            <div class="vue-main">
+                <div class="vue-main-form">
+                    <div class="vue-main-title" style="margin-bottom:20px">
+                        <div class="vue-main-title-left"></div>
+                        <div class="vue-main-title-content">明细列表
+                            <span style="margin-left:20px;font-size: 10px;font-weight: 0;color: #9b9da4">
+                            总数：[[ total ]]&nbsp;
+                            金额合计：[[ amount ]]
+                            </span></div>
+                    </div>
+                    <el-table :data="data_list" style="width: 100%">
+                        <el-table-column label="时间" align="center" prop="created_at" width="auto"></el-table-column>
+                        <el-table-column label="会员ID" align="center" prop="member_id" width="auto"></el-table-column>
+                        <el-table-column label="粉丝" align="center" prop="" width="auto">
+                            <template slot-scope="scope">
+                                <div v-if="scope.row.member">
+                                    <div v-if="scope.row.member.avatar">
+                                        <img :src="scope.row.member.avatar" alt="" style="width:40px;height:40px;border-radius:50%">
+                                    </div>
+                                    <div v-else>
+                                        <img :src="head_img" alt="" style="width:40px;height:40px;border-radius:50%">
+                                    </div>
+                                    <div @click="gotoMember(scope.row.member.uid)" style="line-height:32px;color:#29BA9C;cursor: pointer;" class="vue-ellipsis">[[scope.row.member.nickname]]</div>
+                                </div>
+                            </template>
+                        </el-table-column>
+                        <el-table-column label="余额" align="center" prop="" width="auto">
+                            <template slot-scope="scope">
+                                <span style="background-color: #fff7e6;color: #efb43c;padding: 5px">
+                                余额：[[ scope.row.new_money ]]
+                                </span>
+                            </template>
+                        </el-table-column>
+                        <el-table-column label="业务类型" align="center" prop="service_type_name" width="auto"></el-table-column>
+                        <el-table-column label="收入\支出" align="center" prop="" width="auto">
+                            <template slot-scope="scope">
+                                <div>[[ scope.row.change_money ]]</div>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="" label="操作" align="center" >
+                            <template slot-scope="scope">
+                                <el-button @click="detail(scope.row.id)">查看详情</el-button>
+                            </template>
+                        </el-table-column>
+                    </el-table>
+                </div>
+            </div>
+            <!-- 分页 -->
+            <div class="vue-page" >
+                <el-row>
+                    <el-col align="right">
+                        <el-pagination layout="prev, pager, next,jumper" @current-change="search" :total="total"
+                                       :page-size="per_page" :current-page="current_page" background
+                        ></el-pagination>
+                    </el-col>
+                </el-row>
             </div>
         </div>
     </div>
-        <script language='javascript'>
-            $(function () {
-                $('#export').click(function(){
-                    $('#route').val("finance.balance-records.export");
-                    $('#form1').submit();
-                    $('#route').val("finance.balance-records.index");
-                });
-            });
-        </script>
 
+    <script>
+        let member_levels = {!! $member_levels ?: '' !!};
+        let member_groups = {!! $member_groups ?: '' !!};
+        let source_name = {!! $source_name ?: '' !!};
+        let head_img = '{!! $head_img ?: '' !!}';
+        var app = new Vue({
+            el: "#app",
+            delimiters: ['[[', ']]'],
+            data() {
+                return {
+                    data_list: [],
+                    member_levels:member_levels,
+                    member_groups:member_groups,
+                    source_name:source_name,
+                    head_img:head_img,
+                    type_list: [
+                        {
+                            value: 1,
+                            label: '收入'
+                        },
+                        {
+                            value: 2,
+                            label: '支出'
+                        },
+                    ],
+                    search_form: {
+                        member_id:"",
+                        member:"",
+                        order_sn:"",
+                        member_level:"",
+                        member_group:"",
+                        source:"",
+                        type:'',
+                        search_time:[],
+                    },
+                    amount:0.00,
+                    current_page: 1,
+                    total: 1,
+                    per_page: 1,
+                }
+            },
+            created() {
+
+            },
+            mounted() {
+                this.search_form.search_time = this.switchSearchTime(4);
+            },
+            methods: {
+                getData(page) {
+                    let json = {
+                        page: page,
+                        search: {
+                            member:this.search_form.member,
+                            member_id:this.search_form.member_id,
+                            order_sn:this.search_form.order_sn,
+                            member_level:this.search_form.member_level,
+                            member_group:this.search_form.member_group,
+                            source:this.search_form.source,
+                            type:this.search_form.type,
+                            search_time:this.search_form.search_time,
+                        },
+                    };
+                    let loading = this.$loading({target:document.querySelector(".content"),background: 'rgba(0, 0, 0, 0)'});
+                    this.$http.post('{!! yzWebFullUrl('finance.balance-records.search') !!}',json).then(function(response) {
+                        if (response.data.result) {
+                            let list = response.data.data.list;
+                            this.data_list = list.data;
+                            this.current_page = list.current_page;
+                            this.total = list.total;
+                            this.per_page = list.per_page;
+                            this.amount = response.data.data.amount;
+                            loading.close();
+                        } else {
+                            this.$message({message: response.data.msg, type: 'error'});
+                        }
+                        loading.close();
+                    }, function(response) {
+                        this.$message({message: response.data.msg, type: 'error'});
+                        loading.close();
+                    });
+                },
+                search(val) {
+                    this.getData(val);
+                },
+                export_(){
+                    this.$confirm('是否确定导出数据?', '提示', {confirmButtonText: '确定',cancelButtonText: '取消',type: 'warning'}).then(() => {
+                        var url = "{!! yzWebFullUrl('finance.balance-records.export') !!}";
+                        if (this.search_form.member_id) {
+                            url += "&search[member_id]="+this.search_form.member_id;
+                        }
+                        if (this.search_form.member) {
+                            url += "&search[member]="+this.search_form.member;
+                        }
+                        if (this.search_form.order_sn) {
+                            url += "&search[order_sn]="+this.search_form.order_sn;
+                        }
+                        if (this.search_form.source) {
+                            url += "&search[source]="+this.search_form.source;
+                        }
+                        if (this.search_form.member_level) {
+                            url += "&search[member_level]="+this.search_form.member_level;
+                        }
+                        if (this.search_form.member_group) {
+                            url += "&search[member_group]="+this.search_form.member_group;
+                        }
+                        if (this.search_form.type) {
+                            url += "&search[type]="+this.search_form.type;
+                        }
+                        if (this.search_form.search_time) {
+                            url += "&search[search_time]="+this.search_form.search_time;
+                        }
+                        window.location.href = url;
+                    }).catch(() => {
+                        this.$message({type: 'info', message: '已取消导出'});
+                    });
+                },
+                gotoMember(id) {
+                    window.location.href = `{!! yzWebFullUrl('member.member.detail') !!}`+`&id=`+id;
+                },
+                detail(id) {
+                    window.location.href = `{!! yzWebFullUrl('finance.balance.lookBalanceDetail') !!}`+'&id='+id;
+                },
+                getStartEndTime (num = 1) {
+                    // 一天的毫秒数
+                    const MillisecondsADay = 24*60*60*1000 * num
+                    // 今日开始时间戳
+                    const todayStartTime = new Date(new Date().setHours(0, 0, 0, 0)).getTime()
+                    // 今日结束时间戳
+                    const todayEndTime = new Date(new Date().setHours(23,59,59,999)).getTime()
+                    // 昨日开始时间戳
+                    const yesterdayStartTime = todayStartTime - MillisecondsADay
+                    // 昨日结束时间戳
+                    const yesterdayEndTime = todayEndTime - MillisecondsADay
+                    return [parseInt(yesterdayStartTime),parseInt(num > 1 ? todayEndTime : yesterdayEndTime)]
+                },
+                switchSearchTime(timeType) {
+                    switch (timeType) {
+                        //今天
+                        case 1:
+                            timeArr = this.getStartEndTime(0)
+                            break;
+                        //昨天
+                        case 2:
+                            timeArr = this.getStartEndTime(1)
+                            break;
+                        //近7天
+                        case 3:
+                            timeArr = this.getStartEndTime(7)
+                            break;
+                        //近30天
+                        case 4:
+                            timeArr = this.getStartEndTime(30)
+                            break;
+                        //近1年
+                        case 5:
+                            timeArr = this.getStartEndTime(365)
+                            break;
+                    }
+                    this.$nextTick(() => {
+                        this.search_form.search_time = timeArr;
+                        this.getData(1);
+                    })
+                },
+            },
+        })
+    </script>
 @endsection

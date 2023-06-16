@@ -26,10 +26,10 @@ class UploadController extends BaseController
         $local_upload = request()->local_upload == 1 ? true : false;
         $upload_type = request()->upload_type;
         if (!$file) {
-            return $this->errorJson('请传入正确参数.');
+            return $this->errorJson('文件上传失败.');
         }
         if (!$file->isValid()) {
-            return $this->errorJson('上传失败.');
+            return $this->errorJson('文件上传失败.');
         }
         if ($ingress && $upload_type == 'image' && $this->isMiniCheckImage()) {
             if ($file->getClientSize() > 1024*1024) {
@@ -40,10 +40,16 @@ class UploadController extends BaseController
                 return $this->errorJson('内容含有违法违规信息');
             }
         }
+
+        $file_name = '';
+        if (request()->need_name) {
+            $file_name = $file->getClientOriginalName();
+        }
+
         if ($local_upload) {
-            $url_arr = (new UploadService())->upload($file, $upload_type, '', '',false);
+            $url_arr = (new UploadService())->upload($file, $upload_type, '', $file_name, false);
         } else {
-            $url_arr = (new UploadService())->upload($file, $upload_type);
+            $url_arr = (new UploadService())->upload($file, $upload_type, '', $file_name);
         }
         return $this->successJson('上传成功', [
             'img' => $url_arr['relative_path'],

@@ -99,6 +99,8 @@
                     <el-table
                             :data="tableData"
                             style="padding:0 10px"
+                            v-loading="loading"
+                            element-loading-text="加载中"
                     >
                         <el-table-column
                                 prop="name"
@@ -143,7 +145,7 @@
                     </el-table>
                 </template>
                 <el-row style="background-color:#fff;">
-                    <el-col :span="24" align="center" migra style="padding:15px 5% 15px 0" v-loading="loading">
+                    <el-col :span="24" align="center" migra style="padding:15px 5% 15px 0">
                         <el-pagination background  @current-change="currentChange"
                                        :current-page="current_page"
                                        layout="prev, pager, next"
@@ -278,6 +280,7 @@
                 },
 
                 getData(){
+                    this.loading = true
                     this.$http.post('{!! yzWebFullUrl('user.role.index') !!}').then(function (response){
                         if (response.data.result) {
                             let datas = response.data.data.roleList;

@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 17/2/23
  * Time: 上午11:00
  */
@@ -75,6 +75,9 @@ class SubMemberModel extends MemberShopInfo
     {
         return self::uniacid()
             ->where('yz_openid', $openid)
+            ->join('mc_members', function ($join) {
+                $join->on('yz_member.member_id', '=' , 'mc_members.uid');
+            })
             ->orderBy('created_at', 'desc')
             ->first();
     }

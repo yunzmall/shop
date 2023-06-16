@@ -18,7 +18,7 @@ class UpdatePasswordChangeYzSystemSettingTable extends Migration
 			$login_set = \Illuminate\Support\Facades\DB::table('yz_system_setting')->where('key','loginset')->first();
 			if (empty($login_set)) {
 				// 添加
-				$data['password_verify'] = 1;
+				$data['password_verify'] = "1";
 				$data = serialize($data);
 				\Illuminate\Support\Facades\DB::table('yz_system_setting')->insert([
 					'key'       	 => 'loginset',

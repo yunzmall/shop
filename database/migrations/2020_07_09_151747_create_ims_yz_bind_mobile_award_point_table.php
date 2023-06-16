@@ -21,6 +21,8 @@ class CreateImsYzBindMobileAwardPointTable extends Migration {
                 $table->integer('created_at')->comment('创建时间');
                 $table->integer('updated_at')->comment('修改时间');
             });
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE `" . app('db')->getTablePrefix()
+                . "yz_bind_mobile_award_point` comment '绑定电话号码积分奖励记录表'");
         }
 	}
 

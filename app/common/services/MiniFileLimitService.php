@@ -114,8 +114,8 @@ class MiniFileLimitService
     private function getTokenUrl()
     {
         $set = Setting::get('plugin.min_app');
-        $set['key'] = 'wxbe88683bd339aaf5';
-        $set['secret'] = 'fcf189d2a18002a463e7b675cea86c87';
+//        $set['key'] = 'wxbe88683bd339aaf5';
+//        $set['secret'] = 'fcf189d2a18002a463e7b675cea86c87';
 
         return "https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=" . $set['key'] . "&secret=" . $set['secret'];
     }

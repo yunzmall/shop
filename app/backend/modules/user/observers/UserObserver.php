@@ -43,7 +43,7 @@ class UserObserver extends BaseObserver
         $profileModel->setRawAttributes($model->widgets['profile']);
         $validator = $profileModel->validator();
         if ($validator->fails()) {
-            throw new ShopException('姓名为空或手机号格式错误');
+            throw new ShopException($validator->errors()->first());
         }
     }
 

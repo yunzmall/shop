@@ -17,6 +17,9 @@ class ApiSign
     /** 密钥 */
     private $key;
 
+    /** 平台标识码 */
+    private $unique_code;
+
     /** 请求的参数 */
     private $parameters;
 
@@ -35,6 +38,12 @@ class ApiSign
     public function setKey($key)
     {
         $this->key = $key;
+        return $this;
+    }
+
+    public function setUniqueCode($code)
+    {
+        $this->unique_code = $code;
         return $this;
     }
 
@@ -310,9 +319,10 @@ class ApiSign
         $prestr = $this->createLinkstring($para_sort);
 
         $is_sgin = false;
+        $key = $this->unique_code ? $this->key.$this->unique_code : $this->key;
         switch (strtoupper(trim($this->sign_type))) {
             case 'MD5':
-                $is_sgin = $this->md5Verify($prestr, $sign, $this->key);
+                $is_sgin = $this->md5Verify($prestr, $sign, $key);
                 break;
             default:
                 $is_sgin = false;

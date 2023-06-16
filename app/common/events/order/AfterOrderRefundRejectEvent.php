@@ -8,12 +8,13 @@
 
 namespace app\common\events\order;
 
+use app\common\events\Event;
 /**
  * 退款驳回
  * Class AfterOrderRefundRejectEvent
  * @package app\common\events\order
  */
-class AfterOrderRefundRejectEvent
+class AfterOrderRefundRejectEvent extends Event
 {
     protected $refund;
 

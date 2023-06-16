@@ -4,7 +4,7 @@
  * Date:    2018/1/9 下午1:44
  * Email:   livsyitian@163.com
  * QQ:      995265288
- * User:    芸众商城 www.yunzshop.com
+ * User:
  ****************************************************************/
 
 namespace app\frontend\modules\finance\controllers;
@@ -71,6 +71,10 @@ class EarningController extends ApiController
 
         $array = [];
         foreach ($config as $key => $item) {
+
+            if (empty($item['title']) && empty($item['class'])) {
+                continue;
+            }
 
             //$typeModel = $this->incomeModel->where('incometable_type', $item['class']);
             $typeModel = Income::uniacid()->where('member_id', $this->getMemberId())->whereStatus(0)->where('incometable_type', $item['class']);

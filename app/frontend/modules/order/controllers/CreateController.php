@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/2/28
  * Time: 上午10:39
  */
@@ -13,6 +13,7 @@ use app\framework\Support\Facades\Log;
 use app\frontend\models\Member;
 use app\frontend\modules\member\services\MemberCartService;
 use app\frontend\modules\memberCart\MemberCartCollection;
+use Yunshop\ShareActivity\model\ActivityOrder;
 
 class CreateController extends ApiController
 {
@@ -68,7 +69,6 @@ class CreateController extends ApiController
         $trade = $this->getMemberCarts()->getTrade(Member::current());
         $trade->generate();
         $orderIds = $trade->orders->pluck('id')->implode(',');
-        
         //生成订单,触发事件
         return $this->successJson('成功', ['order_ids' => $orderIds]);
     }

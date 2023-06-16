@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/2/23
  * Time: 下午6:04
  */
@@ -32,7 +32,7 @@ class MemberGroup extends \app\common\models\MemberGroup
      * @return object */
     public static function getGroupPageList($pageSize)
     {
-        return self::uniacid()
+        return self::select(['id', 'group_name'])->uniacid()
             ->with(['member' => function($query){
                 return $query->select(['member_id','group_id'])->where('uniacid', \YunShop::app()->uniacid);
             }])
@@ -47,7 +47,7 @@ class MemberGroup extends \app\common\models\MemberGroup
      * @return array */
     public static function getMemberGroupByGroupId($groupId)
     {
-        return  MemberGroup::where('id', $groupId)->first();
+        return  MemberGroup::select('id', 'group_name')->uniacid()->where('id', $groupId)->first();
     }
     /**
      * Get a list of members of the current public number
@@ -57,7 +57,7 @@ class MemberGroup extends \app\common\models\MemberGroup
      * @return array */
     public static function getMemberGroupList()
     {
-        $memberGroup = MemberGroup::select('id', 'group_name', 'uniacid')
+        $memberGroup = MemberGroup::select('id', 'group_name')
             ->uniacid()
             ->with(['member' => function($query){
                 return $query->select(['member_id','group_id'])->where('uniacid', \YunShop::app()->uniacid);

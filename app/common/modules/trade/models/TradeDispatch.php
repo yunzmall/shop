@@ -8,6 +8,9 @@
 
 namespace app\common\modules\trade\models;
 
+use app\common\models\DispatchType;
+use app\common\models\Goods;
+use app\common\facades\Setting;
 use app\common\models\BaseModel;
 use app\frontend\modules\memberCart\controllers\DispatchTypeController;
 use app\frontend\modules\order\dispatch\DispatchTypeMenu;
@@ -17,7 +20,7 @@ use app\frontend\modules\order\models\PreOrder;
 class TradeDispatch extends BaseModel
 {
 
-    protected $appends = ['delivery_method'];
+    protected $appends = ['delivery_method', 'recommend_goods', 'use_wechat_address', 'custom_data'];
 
 
     /**
@@ -60,7 +63,7 @@ class TradeDispatch extends BaseModel
 
         // 遍历获取订单的有效配送方式
         foreach ($this->trade->orders as $order) {
-        $dispatchTypeManager = new \app\frontend\modules\order\dispatch\DispatchTypeMenuManager($order, $orders);
+            $dispatchTypeManager = new \app\frontend\modules\order\dispatch\DispatchTypeMenuManager($order, $orders);
             $dispatchTypes = $dispatchTypeManager->getOrderDispatchType();
             $parameter = $dispatchTypes->map(function (DispatchTypeMenu $dispatchType) {
                 return [
@@ -115,5 +118,61 @@ class TradeDispatch extends BaseModel
         return $dispatch;
     }
 
+    // 只有预下单里面的订单全部是自营, 才计算他们的运费, 再是否显示推荐商品
+    public function getRecommendGoodsAttribute()
+    {
+        $is_display = true;
+
+        foreach ($this->trade->orders as $model) {
+            $pass = [0, 92, 44];
+            if (!in_array($model->plugin_id, $pass)) {
+                $is_display = false;
+                break;
+            }
+        }
+
+        if (!$is_display || \Setting::get('shop.order.order_apart')) {
+            return [];
+        }
+
+        $dispatch_price = $this->trade->orders->sum('dispatch_price');
+        $enoughReduce = Setting::get('enoughReduce.freeFreight');
+        if ($enoughReduce['open']
+            && $enoughReduce['postage_included_category_open']
+            && $dispatch_price > 0) {
+            $goods = Goods::select('id', 'title', 'price', 'thumb')->whereStatus(1)
+                ->whereHas('hasManyPostageIncluded', function ($query) {
+                    $query->where('is_display', 1);
+                })
+                ->inRandomOrder()->take(4)->get();
+            $goods->each(function (&$model) {
+                $model->thumb = yz_tomedia($model->thumb);
+            });
+            return $goods;
+        }
+        
+        return [];
+    }
+
+    public function getUseWechatAddressAttribute()
+    {
+        return (bool)Setting::get('shop.order.use_wechat_address');
+    }
+
+    // 配送方式的一些需要的数据放到这里处理然后返回. custom_data
+    public function getCustomDataAttribute()
+    {
+        $data = '';
+
+        if (request()->input('dispatch_type_id') == DispatchType::PACKAGE_DELIVER) {
+
+            $data = [
+                'custom_consignee' => Setting::get('plugin.package_deliver.custom_consignee') ?: '提货人姓名',
+                'custom_phone' => Setting::get('plugin.package_deliver.custom_phone') ?: '提货人手机'
+            ];
+        }
+
+        return $data;
+    }
 
 }

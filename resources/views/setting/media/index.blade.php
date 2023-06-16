@@ -1,6 +1,12 @@
 @extends('layouts.base')
 @section('title', '多媒体素材管理')
 @section('content')
+<!-- <script src="{{resource_get('resources/views/setting/media/js/jszip.js')}}"></script>
+<script src="{{resource_get('resources/views/setting/media/js/jquery.min.js')}}"></script>
+<script src="{{resource_get('resources/views/setting/media/js/FileSaver.min.js')}}"></script> -->
+
+
+
 <style>
     .panel {
         margin-bottom: 10px !important;
@@ -91,9 +97,9 @@
         float: right;
     }
 
-    .fl {
+    /* .fl {
         float: left;
-    }
+    } */
     .right-icon {
         /* position: absolute; */
     }
@@ -209,7 +215,7 @@
     }
     .video {
         position: relative;
-        margin-left: 60px;
+        /* margin-left: 60px; */
         width: 190px;
         height: 110px;
     }
@@ -224,7 +230,8 @@
     .video video {
         width: 190px;
         height: 110px;
-        vertical-align: bottom;
+        /* vertical-align: bottom; */
+        object-fit: cover;
     }
     .video-title {
         margin-left: 15px;
@@ -235,7 +242,7 @@
         white-space: nowrap
     }
     #multimedia-material .cell {
-        display: flex;
+        /* display: flex; */
         flex-direction: row;
         justify-content: center;
         align-items: center;
@@ -558,7 +565,170 @@
     [v-cloak] {
         display: none;
     }
+    .indicate{
+        cursor:pointer
+    }
+    /* 上传组件 样式 */
+    .titleWire::before{
+        content: '';
+        width: 6px;
+        height: 16px;
+        display: inline-block;
+        background-color: #29BA9C;
+        vertical-align: middle;
+    }
+    .textInterval{
+        margin-left: 6px;
+    }
+    .upload-img input{
+        display: none;
+    }
+    .upload-img  .el-upload-list  {
+        display:none
+    }
+    .content-box{
+        height: 400px;
+        display: flex;
+        /* justify-content: space-between; */
+    }
+    .content-box-left{
+        /* width: 330px; */
+        width: 120px;
+        /* background-color: brown; */
+        height: 380px;
+        border-right: 1px solid #ccc;
+    }
+    body .el-scrollbar__wrap {
+    overflow-x: hidden;
+    }
+    .content-box-left p {
+        color: #101010;
+    }
+    .conten-box-right{
+        margin-left: 10px;
+        width: 100%;
+        height: 400px;
+        /* background-color: red; */
+    }
+    /* 上传图片 样式 */
+    .conten-box-right-img{
+        /* padding-right: 10px;
+        padding-right: 10px; */
+        display: flex;
+        flex-wrap: wrap;
+        margin: 10px;
+        width: 7.3vw;
+        height: 7.3vw;
 
+    }
+    li{
+        list-style: none;
+    }
+    /* .fl{
+        float: left;
+    } */
+    .conten-box-right-img img{
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        /* margin-right: 5px;
+        margin-bottom: 5px; */
+    }
+    /* 上传视频 音频 */
+    .conten-box-right-video{
+        overflow: hidden;
+    }
+    .video-top{
+        margin-bottom: 20px;
+    }
+    .video-top-init{
+        margin: 0 auto;
+        margin-top: 50px;
+        width: 260px;
+        height: 150px;
+        border-radius: 10px;
+        text-align: center;
+        border: 1px dashed rgba(187, 187, 187, 100);
+    }
+    .video-top-init-text{
+        margin-top: 55px;
+    }
+    .video-top-init video{
+        width: 100%;
+        height: 100%;
+    }
+    .video-top-init input{
+        display: none;
+    }
+    /* .video-bottom{
+        margin: 0 auto;
+    } */
+    .video-bottom-init{
+        margin: 0 auto;
+        margin-top: 30px;
+        text-align: center;
+        width: 260px;
+        height: 150px;
+    }
+    /* 上传成功 样式 */
+    .top-win-text{
+        font-size: 68px;
+        margin-bottom: 20px;
+    }
+    .video-top-win{
+        margin: 0 auto;
+        margin-top: 30px;
+        text-align: center;
+    }
+    .top-win-copy{
+        margin-top: 45px;
+    }
+    .video-bottom-win{
+        /* margin:  0 auto; */
+        text-align: center;
+        margin-top: 40px;
+    }
+    /* 上传 打开 按钮 颜色 */
+    .uploadi-text{
+        width: 86px;
+        height: 27px;
+        line-height: 27px;
+        border-radius: 8px;
+        color: rgba(16, 16, 16, 100);
+        font-size: 12px;
+        text-align: center;
+        border: 1px solid rgba(187, 187, 187, 100);
+        margin-left: 6px;
+        cursor: pointer;
+    }
+    .uploadi-text  span{
+        color: #101010;
+    }
+    .groupings{
+        color: #fff !important;
+        background-color: #29BA9C;
+        cursor: pointer;
+    }
+    .video-top-init  .el-upload-list{
+        display: none;
+    }
+    .head-dialog{
+        display: flex;
+        justify-content: space-between;
+    }
+    .divider .el-divider--horizontal{
+        margin-bottom: 0px;
+    }
+    .content-box-left-text:first-child{
+        display: none;
+    }
+    .video-top-audioName{
+        margin-top: 65px;
+        display: block;
+        overflow: hidden;/*超出部分隐藏*/
+        white-space: nowrap;/*不换行*/
+        text-overflow:ellipsis;/*超出部分文字以...显示*/
+    }
 </style>
 <div id='multimedia-material' v-cloak v-if="loadingData">
     <div class="panel panel-info">
@@ -574,8 +744,13 @@
                 </a></li>
         </ul>
     </div>
+
     <div class="multimedia-con" >
+
+
         <div class="setting">
+
+
             <div class="block">
                 <div class="title">
                     <div style="display:flex;align-items:center;">
@@ -583,6 +758,15 @@
                         <b v-if="defaultIndex == 3">视频&nbsp;共([[resourceTotal]])</b>
                         <b v-if="defaultIndex == 2">音频&nbsp;共([[resourceTotal]])</b>
                         <el-button type="danger" round @click="detelDialogVisible = true" style="background:#f37474;border:none">批量删除素材</el-button>
+                        <div class="uploadi-text" v-if="defaultIndex == 1" @click="openDialog('1')">
+                            <span>上传图片</span>
+                        </div>
+                        <div class="uploadi-text" v-if="defaultIndex == 3" @click="openDialog('3')">
+                            <span>上传视频</span>
+                        </div>
+                        <div class="uploadi-text" v-if="defaultIndex == 2" @click="openDialog('2')">
+                            <span>上传音频</span>
+                        </div>
                     </div>
 
                     <!-- 批量删除素材弹窗 -->
@@ -612,7 +796,12 @@
                             <el-button @click="detelDialogVisible = false">取 消</el-button>
                         </span>
                     </el-dialog>
+
+
                     <div class="right-icon">
+                                <!-- <span v-if="defaultIndex == 1" class="indicate" @click="openUpload('slide_pic','1')">上传图片</span>
+                                <span v-if="defaultIndex == 3" class="indicate" @click="openUpload('slide_pic','3')">上传视频</span>
+                                <span v-if="defaultIndex == 2" class="indicate" @click="openUpload('slide_pic','2')">上传音频</span> -->
                             <el-popover placement="bottom" width="300" trigger="click">
                                 <span slot="reference" class="add-icon">
                                     <i class="el-icon-circle-plus-outline "></i>新建
@@ -686,18 +875,28 @@
                             <div class="grid-content bg-purple fr" style="margin-right: 10px;"><i class="el-icon-arrow-down gro-pull-down" @click="pullDownClick()"></i></div>
                         </el-col>
                     </el-row>
-                    <el-date-picker
-                        v-model="filterTime"
-                        type="month"
-                        placeholder="选择时间"
-                        @change="getResourList(defaultIndex,groupId,defaultIndex==1?15:videoAudioSize,1)"
-                        >
-                    </el-date-picker>
+                    <el-row>
+                        <el-col :span="2">
+                            <div class="grid-content bg-purple gro-left-title ">日期筛选：</div>
+                        </el-col>
+                        <el-col :span="4">
+                                <el-date-picker
+                                size="mini"
+                                v-model="filterTime"
+                                type="month"
+                                placeholder="选择时间"
+                                @change="getResourList(defaultIndex,groupId,defaultIndex==1?15:videoAudioSize,1)"
+                                >
+                              </el-date-picker>
+                        </el-col>
+                    </el-row>
+
                 </div>
                 <!-- 分组下拉弹窗 -->
                 <el-dialog title="所有分组" :visible.sync="groDialogVisible" width="40%" :before-close="handleClose">
                     <ul class="clearfix">
-                        <li class="gro-item fl" v-for="(item,index) in groupList"><span @click="groupingClick(item.id,item.title)"  :class="(groupId == item.id && gname == item.title)?'gro-activity':''">[[item.title]]([[(item.source_count)]])</span></li>
+                        <li class="gro-item fl" v-for="(item,index) in groupList">
+                            <span @click="groupingClick(item.id,item.title)"  :class="(groupId == item.id && gname == item.title)?'gro-activity':''">[[item.title]]([[(item.source_count)]])</span></li>
                     </ul>
                 </el-dialog>
 
@@ -710,8 +909,11 @@
                 <span class="already-sel">已选择[[idArr.length]]项内容</span>
                 <span class="cancel-sel" @click = "cancelSelect()">取消选择</span>
                 <span class="fr">
+                 <span style="display: none;">
+                         <i class="el-icon-download" style="margin-right: 10px; cursor: pointer;" id="packageImages"></i>
+                 </span>
                 <el-popover placement="bottom" title="" width="200" trigger="click" >
-                    <p style="margin:15px 0;">确定要删除选中的素材吗</p>
+                    <p style="margin:15px 0;">确定要删除选中的素材吗</p> 
                     <el-button type="primary" style="height: 30px; line-height:5px" @click="sureSelectDetel()">确定</el-button>
                     <el-button style="height: 30px; line-height:5px" @click="cancel()" >取消</el-button>
                     <i class="el-icon-delete sel-del" slot="reference"></i>
@@ -728,18 +930,18 @@
                 </el-popover>
                 </span>
             </div>
-
             <!-- 图片 -->
-            <div v-if="defaultIndex == 1 && listLoading ">
+            <div v-if="defaultIndex == 1 && listLoading">
                 <ul class="img-box clearfix">
-                    <li class="fl img-item"  v-for="(item,index) in resourceList" @mouseenter="into(item.id)" @mouseleave="out(item.id)">
+                    <li class="fl img-item"  v-for="(item,index) in resourceList" @mouseenter="into(item.id)" @mouseleave="out(item.id)" id="refImg">
                         <div>
-                            <img :src="item.attachment" alt="">
+                            <img :src="item.attachment"  alt="">
                         </div>
                         <p class="goods-name" v-if=" renameId != item.id">[[item.filename]]</p>
                         <el-input class = "edit-inp" v-model = "item.filename" v-if=" renameId == item.id" @blur="blurInput($event,item.id)" @input = "inpNewName($event)"  ref="renameInput" @keyup.enter.native = "enter($event,item.id)"></el-input>
                         <div class="mark"  :style="{ display: item.is_choose ? 'block' : '' }">
-                            <el-checkbox v-model="item.is_choose"  @change="handChecked($event,index)"></el-checkbox>
+                            <!-- {{item.is_choose}} -->
+                            <el-checkbox v-model="item.is_choose"  @change="handChecked($event,index,item.attachment)"></el-checkbox>
                             <span class="el-icon-rank full-screen"  @click="screenViewClick(item.attachment)" :class="item.is_choose?'dn':'dp'"></span>
                             <i class="el-icon-more" slot="reference"  @click="moreDot= true" :class="item.is_choose?'dn':'dp'"></i>
                             <div class="operations" :style="{ display:  moreDot? 'block' : 'none' }">
@@ -757,7 +959,7 @@
                                 <!-- 删除弹窗 -->
                                 <el-popover placement="bottom" title="" width="200" trigger="click">
                                     <p style="margin:15px 0;">确定要删除此素材吗</p>
-                                    <el-button type="primary" style="height: 30px; line-height:5px" @click="sureDetel(item.id)">确定</el-button>
+                                    <el-button type="primary" style="height: 30px; line-height:5px" @click="sureDetel(item.id, item)">确定</el-button>
                                     <el-button style="height: 30px; line-height:5px" @click="cancel()" >取消</el-button>
                                     <span slot="reference" class="more-operation" @click="detelClick(item.id)">删除</span>
                                 </el-popover>
@@ -781,29 +983,31 @@
 
 
             <!-- 图片全屏查看弹窗 -->
-            <el-dialog title="" :visible.sync="fullImg" width="50%">
-                 <img :src="fullImgUrl" alt="" style="width:100%">
+            <el-dialog title="" :visible.sync="fullImg" width="500px" height="500px;">
+                 <img :src="fullImgUrl" alt="" style="width:100%;height: 100%;">
             </el-dialog>
 
             <!-- 视频和音频 -->
             <div v-if="(defaultIndex == 2 || defaultIndex == 3) && listLoading" class="video-audio">
                 <template>
                     <el-table :data="resourceList" style="width: 100%" size="medium">
-                        <el-table-column prop="created_at" label="创建时间">
+                        <el-table-column prop="created_at" label="创建时间"  align="center">
                         </el-table-column>
 
-                        <el-table-column label="名称">
+                        <el-table-column label="名称" align="center" width="190">
                             <template slot-scope="scope">
                                 <!--视频 -->
                                 <div class="video fl" v-if="defaultIndex == 3">
                                     <video  :src="scope.row.attachment" @click="dialogPlay(scope.row.attachment)"></video>
-                                    <span class="video-time"><i class="play-triangle"></i>[[Math.floor(scope.row.timeline / 60)]]:[[Math.floor(scope.row.timeline % 60) >= 10?Math.floor(scope.row.timeline % 60):'0' + Math.floor(scope.row.timeline % 60)]]</span>
+                                    <span class="video-time">播放<i class="play-triangle"></i>
+                                    <!-- [[Math.floor(scope.row.timeline / 60)]]:[[Math.floor(scope.row.timeline % 60) >= 10?Math.floor(scope.row.timeline % 60):'0' + Math.floor(scope.row.timeline % 60)]] -->
+                                    </span>
                                 </div>
 
                                 <!-- 弹窗播放 -->
                                 <el-dialog title="" :visible.sync="VideoDialogPlay" width="50%"   :before-close="handleClose">
-                                    <div style="min-width:500px;min-height:400px;min-height:500px">
-                                        <video style="width:100%;height:100%"  :src="DialogViedoUrl" autoplay controls></video>
+                                    <div style="min-width:500px;min-height:400px;min-height:500px; height: 500px;">
+                                        <video style="width:100%; height:100%"  :src="DialogViedoUrl" autoplay controls></video>
                                     </div>
 
                                 </el-dialog>
@@ -811,9 +1015,10 @@
                                 <span class=" video-title fl" v-if="defaultIndex == 3" v-if="defaultIndex == 3">[[scope.row.filename]]</span>
 
                                 <!-- 音频 -->
-                                <div class="map3" v-if="defaultIndex == 2">
-                                    <img  src="../../../../static/images/play.png" alt="" v-if="scope.row.is_choose == 0" @click="aduioClick(scope.row,scope.row.id,scope.$index,scope.row.is_choose)">
-                                    <img src="../../../../static/images/puse.png" alt=""  v-if="scope.row.is_choose == 1" @click="aduioClick(scope.row,scope.row.id,scope.$index,scope.row.is_choose)">
+                                <div class="map3" v-if="defaultIndex == 2" style="position: relative;margin: 0 auto;">
+                                    <img  src="{!! resource_get('static/images/play.png') !!}" alt="" v-if="scope.row.is_choose == 0" @click="aduioClick(scope.row,scope.row.id,scope.$index,scope.row.is_choose)">
+                                    <img src="{!! resource_get('static/images/puse.png') !!}" alt=""  v-if="scope.row.is_choose == 1" @click="aduioClick(scope.row,scope.row.id,scope.$index,scope.row.is_choose)">
+                                    <!-- <span style="position: absolute; bottom: 0; right: -38px;">[[Math.floor(scope.row.timeline / 60)]]:[[Math.floor(scope.row.timeline % 60) >= 10?Math.floor(scope.row.timeline % 60):'0' + Math.floor(scope.row.timeline % 60)]]</span> -->
                                 </div>
                                 <audio class="myAudio" v-if="defaultIndex==2">
                                         <source :src="scope.row.attachment"  type="audio/mpeg">
@@ -821,13 +1026,13 @@
                                 <!-- <audio class="myAudio" v-if="defaultIndex==2" controls>
                                         <source src="../../../../static/1.mp3"  type="audio/mpeg">
                                 </audio> -->
-                                <div style="margin-left: 15px; text-align:left;padding-top:10px" v-if="defaultIndex == 2">
+                                <div style="text-align:center;padding-top:10px" v-if="defaultIndex == 2">
                                     <p style="width: 150px;overflow: hidden;text-overflow: ellipsis; white-space: nowrap">[[scope.row.filename]]</p>
-                                    <p>[[Math.floor(scope.row.timeline / 60)]]:[[Math.floor(scope.row.timeline % 60) >= 10?Math.floor(scope.row.timeline % 60):'0' + Math.floor(scope.row.timeline % 60)]]</p>
+
                                 </div>
                             </template>
                         </el-table-column>
-                        <el-table-column label="分组">
+                        <el-table-column label="分组" align="center">
                             <template slot-scope="scope">
                                 <span v-if="scope.row.id != noneGroup" style="display:inline-block;">[[scope.row.tag_name]]</span>
 
@@ -841,7 +1046,13 @@
                                 </el-popover>
                             </template>
                         </el-table-column>
-                        <el-table-column label="操作">
+                        <!-- defaultIndex == 3 ? '视频链接' : defaultIndex == 3 ? '音频链接'：'' -->
+                            <el-table-column :label="defaultIndex == 3 ? '视频链接' : '音频链接'" align="center">
+                                    <template slot-scope="scope">
+                                            <i class="el-icon-link"  @click="clickCopyUrl(scope.row.attachment)" ></i>
+                                    </template>
+                            </el-table-column>
+                        <el-table-column label="操作" align="center">
                             <template slot-scope="scope">
                             <el-popover
                                 placement="bottom"
@@ -858,16 +1069,21 @@
 
                             </template>
                         </el-table-column>
+                        <!-- <el-table-column label="文件格式">
+                                <template slot-scope="scope">
+                                    <span>[[scope.row.filename.substr(scope.row.filename.length-3)]]</span>
+                                </template>
+                        </el-table-column> -->
                     </el-table>
                 </template>
             </div>
-
+            <!-- 分页 -->
             <el-row style="background-color:#fff;">
                     <el-col :span="24" align="center" migra style="padding:15px 5% 15px 0" v-loading="loading">
                         <el-pagination
                             background
                             @current-change="currentChange"
-                            layout="prev, pager, next"
+                            layout="prev, pager, next, jumper"
                             :current-page="current_page"
                             :page-size.sync="Number(page_size)"
                             :total="page_total">
@@ -875,6 +1091,158 @@
                     </el-col>
             </el-row>
         </div>
+    </div>
+    <!-- <upload-multimedia-img
+        :upload-show="uploadShow" 
+        :type="type" 
+        :name="chooseImgName" 
+        :sel-Num="selNum"
+        @replace="changeProp" 
+        @sure="sureImg"
+    ></upload-multimedia-img> -->
+    <!-- 上传组件 -->
+    <div>
+         <el-dialog  :visible.sync="dialogTableVisible" @close='closeDialog'>
+            <template slot="title" >
+                <div class="head-dialog">
+                    <div class="titleWire">
+                        <span v-if="uploadtype == 1" class="textInterval">上传图片</span>
+                        <span v-if="uploadtype == 3" class="textInterval">上传视频</span>
+                        <span v-if="uploadtype == 2" class="textInterval">上传音频</span>
+                    </div>
+                    <!-- 图片上传 -->
+                    <div class="upload-img"  v-if="uploadtype == 1">
+                        <el-upload
+                            class="upload-demo"
+                            :action="uploadLink"
+                            ref="upload"
+                            multiple
+                            accept="image/*"
+                            :on-success="handleSucesss"
+                            :on-progress="handlePreview"
+                            >
+                                <el-button size="small" type="primary" style="margin-right: 24px;">点击上传</el-button>
+                        </el-upload>
+                    </div>
+
+                </div>
+                <div class="divider">
+                      <el-divider></el-divider>
+                </div>
+                    <!-- 内容部分  -->
+                <div class="content-box">
+                    <!-- 左 -->
+                    <div class="content-box-left" style=" cursor: pointer" >
+                            <el-scrollbar style="height:100%">
+                                <p class="content-box-left-text" v-for="(item,index) in groupList"  @click="groupingClick(item.id, item.title, $event,'scrollbar')"
+                                :class="(pop_groupId == item.id && pop_gname == item.title)?'groupings':''">[[ item.title == '全部' ? '' : item.title]]
+                                <span >([[item.title == '全部' ? '' : item.source_count]])</span></p>
+                        </el-scrollbar>
+                    </div>
+                    <!-- <div style="height: 100%;">
+                    <hr>
+                        <el-divider direction="vertical"></el-divider>
+                    </div> -->
+                    <div class="conten-box-right">
+                        <el-scrollbar style="height:100%">
+
+                            <!-- 图片 -->
+                            <div v-if="uploadtype == 1">
+                                <div v-loading="videoloading" style="margin-top: 25px;">
+                                    <div class="conten-box-right-img fl" v-for="(item,index) in dataList" v-if="defaultIndex == 1 && listLoading" >
+                                                <li style="width: 7.3vw;height: 7.3vw;">
+                                                    <img :src="item"  alt="">
+                                                </li>
+                                    </div>
+                                    <div v-if="dataList <= 0" style=" line-height: 400px; text-align:center; ">暂无数据~请上传图片</div>
+                                </div>
+                            </div>
+                            <!-- 视频音频 -->
+                            <div class="conten-box-right-video" v-if="uploadtype == 2 || uploadtype == 3">
+                                <div class="video-top"  >
+                                    <!-- 默认上传显示 -->
+                                    <div class="video-top-init" v-loading="videoloading"  v-if="uploadInitShow">
+                                        <el-upload
+                                            ref="upload"
+                                            class="avatar-uploader"
+                                            :accept="uploadtype == 3 ? 'video/*' : 'audio/*'"
+                                            :action="uploadvideo"
+                                            :on-success="onSuccess"
+                                            :on-progress="onProgress"
+                                            >
+                                            <!-- v-if="imageUrl" -->
+                                            <div v-if="videoimg == null" class="video-top-init-text">
+                                                    <i  class="el-icon-plus avatar-uploader-icon"></i>
+                                                    <div class="el-upload__text"><em>点击上传</em></div>
+                                            </div>
+                                            <div style="width: 260px; height: 150px;" v-else-if="videoimg !== null && uploadtype == 3">
+                                                <video :src="videoimg" class="avatar">
+                                            </div>
+                                            <div v-else style="width: 260px; height: 150px;">
+                                                <span class="video-top-audioName">[[audioName]]</span>
+                                                <!-- <audio :src="audioName">
+                                                     <source src="videoimg"  >
+                                                </audio> -->
+                                            </div>
+
+
+                                        </el-upload>
+                                </div>
+
+
+                                    <!-- 上传成功 -->
+                                    <div class="video-top-win"  v-show="uploadWinShow">
+                                        <!-- <img src="" alt=""> -->
+                                        <div class="top-win-text">
+                                              <i class="el-icon-success" style="color: #29BA9C;"></i>
+                                        </div>
+                                            <p style="color: #101010;">生成视频链接成功</p>
+                                    </div>
+                                    <!-- 复制链接 -->
+                                    <div class="top-win-copy" v-show="copyLinkShow">
+                                                <el-row :gutter="20">
+                                                    <el-col :span="15" :offset="3">
+                                                       <el-input v-model="copyTextLink" disabled></el-input>
+                                                    </el-col>
+                                                    <el-col :span="3">
+                                                      <el-button type="primary" style="background-color: #29BA9C;" @click="clickCopyUrl(copyTextLink)">复制</el-button>
+                                                    </el-col>
+                                                </el-row>
+                                    </div>
+                                    <!-- 成功上传 返回 -->
+                                    <div class="video-bottom-win" v-show="putbackInitShow">
+                                         <el-button size="medium" @click="cilckShow"> 返  回 </el-button>
+                                    </div>
+                                   <!-- 上传默认显示 -->
+                                   <div class="video-bottom-init" v-if="uploadtype == 2 || uploadtype == 3">
+                                                    <p v-show="iploadTetxshow" style="color: red;">请上传<span  v-if="uploadtype == 2 "></span>音频<span v-if="uploadtype == 3">视频</span>文件！</p>
+                                                    <el-button type="primary" v-show="iploadShow" style="background-color: #29BA9C;" @click="submitUpload">生成链接</el-button>
+                                                </div>
+                                            </div>
+                                <!-- 生成链接 -->
+                                <div class="video-bottom" >
+                                </div>
+                            </div>
+                         </el-scrollbar>
+                    </div>
+
+                </div>
+
+                <!-- 分组 -->
+                <div class="">
+                    <el-popover placement="top" width="300" trigger="click">
+                        <span style="color:#229980;cursor: pointer;" class="fl" slot="reference" >
+                        <i class="el-icon-plus"></i>
+                        新建分组</span>
+                        <p class="gro-inp">请输入分组名称</p>
+                        <el-input v-model="newGroupName"  placeholder="" style="margin-bottom:15px" maxlength="6"show-word-limit></el-input>
+                        <el-button type="primary" class="gro-sure"  style="margin-left:30px" @click="handAddGroup()">确定</el-button>
+                        <el-button @click="handCancelGroup()" style="margin-left:50px">取消</el-button>
+                    </el-popover>
+                </div>
+            </template>
+
+        </el-dialog>
     </div>
 </div>
 
@@ -884,8 +1252,35 @@
     var vm = new Vue({
         el: "#multimedia-material",
         delimiters: ['[[', ']]'],
+
         data() {
             return {
+                type:'',
+                uploadShow:false,// 上传
+                chooseImgName:'',
+                selNum:'',
+                dataList:[], //选中的img
+
+                loadingShow:true,
+                videoloading:false,
+                groupIndex:'',
+                // switchover:'', //切换颜色
+                tagid: 0,  //默认是0
+                videoimg:null,
+                // 上传参数
+                uploadLink:'',
+                uploadvideo:'',
+                audioName:'',
+                uploadWinShow:false, //上传成功模板
+                uploadInitShow:true, // 默认上传模板
+                copyLinkShow:false, // 复制链接
+                putbackInitShow:false, //返回模板按钮
+                iploadTetxshow:false, //生成链接文本
+                copyTextLink:'', // 复制链接  input框 文本
+                iploadShow:true, // 生成链接按钮 切换
+                uploadtype:null,
+                dialogTableVisible: false, //上传组件 开关
+
                 loadingData:false,
                 moreDot: false,
                 visible: false,
@@ -906,7 +1301,8 @@
                 radioList: [],
                 defaultIndex: 1,
                 loading: false,
-                groupId: '',
+                groupId: 1,
+                pop_groupId: 0,
                 groupList: [],
                 input: '',
                 renameStatus: false,
@@ -933,6 +1329,7 @@
                 manageId:'',
                 is_all_choose: 0,//是否全选
                 idArr:[],//选中的id,
+                selectIndexArr:[],
                 removeResourcesIdArr:[],
                 batchMoveStatus:false,//判断是否是批量移动
                 timeSelect:'',//删除的时间范围
@@ -940,9 +1337,9 @@
                 fullImg:false,
                 fullImgUrl:'',
                 gjson:{},
-                gname:'',
+                gname:0,
+                pop_gname: '全部',
                 source_count:'',
-                selectIndexArr:[],
                 noneGroup:'',
                 playOrPuse:'',
                 audioStatus:false,
@@ -955,9 +1352,7 @@
                 imgChecked:'',
                 netUrl:'',
                 valPage:null,
-                uploadShow:false,// 上传
-                chooseImgName:'',
-                type:'',
+                
                 fileList:[],
                 disabled:false,
                 dragId:[],
@@ -966,7 +1361,6 @@
                 listLoading:false,
                 palyingTag:false,
                 pusedingTag:true,
-
                 filterTime:null, //* 素材筛选日期
             }
         },
@@ -995,7 +1389,9 @@
             this.defaultIndex = window.sessionStorage.getItem('typeId')?window.sessionStorage.getItem('typeId'):'1'
             this.gjson =JSON.parse(window.sessionStorage.getItem('groupTag')?window.sessionStorage.getItem('groupTag'):'{}')
             this.groupId = this.gjson.id
+            this.pop_groupId = this.gjson.id
             this.gname = this.gjson.gname
+            this.pop_gname = this.gjson.gname
 
             if(this.defaultIndex == 1) {
                 this.page_size = 15
@@ -1011,14 +1407,152 @@
         },
 
         methods: {
+            // 打开 模态框
+            openDialog(e){
+                if(!this.pop_groupId) {
+                    this.pop_groupId = 0;
+                    this.pop_gname = '未分组'
+                }
+
+                if(e == 1){
+                    this.uploadLink = "{!! yzWebFullUrl('upload.uploadV3.upload') !!}"+'&upload_type='+'image'+'&tag_id='+ this.pop_groupId
+                    this.uploadtype = 1
+                    this.dialogTableVisible = true
+                }else if(e == 2){
+                    this.uploadvideo = "{!! yzWebFullUrl('upload.uploadV3.upload') !!}"+'&upload_type='+'audio'+'&tag_id='+ this.pop_groupId
+                    this.uploadtype = 2
+                    this.dialogTableVisible = true
+                }else{
+                    // 3 视频
+                    this.uploadvideo = "{!! yzWebFullUrl('upload.uploadV3.upload') !!}"+'&upload_type='+'video'+'&tag_id='+ this.pop_groupId
+                    this.uploadtype = 3
+                    this.dialogTableVisible = true
+                }
+
+            },
+            // 上传组件
+            submitUpload(){  // 切换生成链接
+              if(this.videoimg == null){
+                  this.iploadTetxshow = true
+              }else{
+                setTimeout(()=>{
+                        this.uploadInitShow = false
+                        this.uploadWinShow = true
+                        this.iploadTetxshow = false
+                        this.copyLinkShow = true
+                        this.iploadShow = false
+                        this.putbackInitShow = true
+                    },1000)
+
+              }
+            },
+            // 初始化 上传视频 音频模板
+            initList(){
+                this.dataList = [];
+                this.uploadInitShow = true
+                this.uploadWinShow = false
+                this.iploadTetxshow = true
+                this.copyLinkShow = false
+                this.iploadShow = true
+                this.putbackInitShow = false
+                this.videoimg = null
+                this.iploadTetxshow = false
+            },
+            // 点击返回按钮
+            cilckShow(){
+               this.initList()
+            },
+            // 点击复制
+            clickCopyUrl(data){
+                let url = data;
+                let oInput = document.createElement('input');
+                oInput.value = url;
+                document.body.appendChild(oInput);
+                oInput.select(); // 选择对象;
+                console.log(oInput.value)
+                document.execCommand("Copy"); // 执行浏览器复制命令
+                this.$message({
+                    message: '已成功复制',
+                    type: 'success'
+                });
+                oInput.remove()
+            },
+            closeDialog(){   // 关闭dialog回掉
+                // this.iploadTetxshow = false
+                this.initList()
+                this.dataList = []  //清空数组
+
+                if(this.defaultIndex == 1) {
+                    this.page_size = 15
+                    this.getResourList(this.defaultIndex, this.groupId,this.page_size,this.page)
+                }
+
+                if(this.defaultIndex == 3 || this.defaultIndex == 2) {
+                    this.page_size = this.videoAudioSize
+                    this.getResourList(this.defaultIndex, this.groupId,this.videoAudioSize,this.page)
+                }
+                this.getResourceGroup()
+            },
+             // 上传成成功回调   图片
+            handleSucesss(response, file, fileLis){
+                if(response.result == 1) {
+                    // this.getResourceGroup()
+                    // let newdataList = []
+                    this.videoloading = false;
+                    if(response.data.url !== undefined){
+                        this.dataList.push(response.data.url)
+                        this.dataList.reverse();
+                    }
+                    this.getResourceGroup();
+                    // this.groupingClick(this.groupId, this.gname, )
+                    // console.log( '成功', this.dataList)
+                }else {
+                    this.$message({
+                        message: response.msg,
+                        type: 'error'
+                    });
+                }
+            },
+            //  上传成功回调  视频 音频
+            onSuccess(response){
+                if(response.result == 1) {
+                    this.audioName = response.data.name
+                    // console.log(  this.audioName,'onSuccess')
+                    this.videoloading = false
+                    this.videoimg = response.data.url
+
+                    this.copyTextLink = response.data.url
+                    this.getResourceGroup()
+                    this.$message({
+                        message: '上传成功',
+                        type: 'success'
+                    });
+                }else {
+                    this.$message({
+                        message: response.msg,
+                        type: 'error'
+                    });
+                }
+            },
+            //  文件上传时 钩子
+            onProgress(event, file, fileList){
+                this.videoloading = true
+            },
+
+            handlePreview(file){
+                this.videoloading = true
+                console.log('handlePreview',file)
+            },
             // 获取分组列表
             getResourceGroup() {
+                // console.log('getResourceGroup',1)
                 let that = this
                 this.$http.post("{!! yzWebFullUrl('setting.media.tags') !!}", {
                         source_type: this.defaultIndex
                     }).then(response => {
                     if (response.data.result) {
                         that.groupList  = response.data.data
+                        // console.log( that.groupList,'getResourceGroup')
                         this.resourceTotal = this.groupList[0].source_count
                         this.loadingData = true
                     } else {
@@ -1037,9 +1571,13 @@
 
 
             // 获取资源列表
-            getResourList(sourceType, tagId,page_size,page) {
+            getResourList(sourceType, tagId,page_size,page, scrollbar) {
+                // console.log(tagId, 'getResourList全部',)
+                if(tagId === undefined){
+                    tagId = ''
+                }
+               
                 let arr = []
-
                 let filterDate={
                     year:null,
                     month:null
@@ -1058,6 +1596,11 @@
                     }).then(response => {
                     if (response.data.result) {
                         this.resourceList = response.data.data.data
+                        // console.log(response.data,'测试')
+                        //   跨域测试
+                        // https://img.alicdn.com/imgextra/i2/54199406/O1CN012JLzreAxzn1xhNP_!!54199406.jpg
+                        // this.resourceList[0].attachment = 'http://shop-yunzshop-com.oss-cn-hangzhou.aliyuncs.com/image/1032968d4848e9614ef96a7420d90622.png'
+                        // console.log(this.resourceList,'this.resourceList')
                         this.page_total= response.data.data.total
                         // this.page_size = response.data.per_page;
                         this.current_page = response.data.current_page;
@@ -1204,6 +1747,7 @@
                             message: '删除成功',
                             type: 'success'
                         });
+                        this.getAgain()
                     } else {
                         this.$message({
                             message: response.data.msg,
@@ -1319,22 +1863,43 @@
                 window.sessionStorage.removeItem('groupTag')
                 this.groupId = ''
                 this.gname = ''
+                this.pop_groupId = 0;
+                this.pop_gname = '未分组'
             },
 
-            groupingClick(id,title) {
-                this.groupId = id
-                this.gname = title
+            groupingClick(id, title, index, scrollbar) {
+                if(scrollbar == 'scrollbar'){
+                    this.initList();
+                    this.pop_groupId = id
+                    this.pop_gname = title
+                    console.log(id,'tagId',this.defaultIndex)
+                    this.uploadLink = "{!! yzWebFullUrl('upload.uploadV3.upload') !!}"+'&upload_type='+'image'+'&tag_id='+ id
+                    if(this.defaultIndex == 2){
+                        this.uploadvideo = "{!! yzWebFullUrl('upload.uploadV3.upload') !!}"+'&upload_type='+'audio'+'&tag_id='+ id
+                        // console.log(this.uploadvideo,'adasd')
+                    }else if(this.defaultIndex == 3){
+                        this.uploadvideo = "{!! yzWebFullUrl('upload.uploadV3.upload') !!}"+'&upload_type='+'video'+'&tag_id='+ id
+                    }
+                    return;
+                }else {
+                    this.groupId = id
+                    this.gname = title
+                }
+                
+                
+
                 let groJson  = {id:id,gname:title}
                 window.sessionStorage.setItem('groupTag', JSON.stringify(groJson))
 
-            if(this.defaultIndex == 1) {
-                this.page_size = 15
-                this.getResourList(this.defaultIndex, id,this.page_size,this.page)
-            }
-            if(this.defaultIndex == 3 || this.defaultIndex == 2) {
-                this.page_size = this.videoAudioSize
-                this.getResourList(this.defaultIndex, id,this.page_size,this.page)
-            }
+                if(this.defaultIndex == 1) {
+                    this.page_size = 15
+
+                    this.getResourList(this.defaultIndex, id,this.page_size,this.page, scrollbar)
+                }
+                if(this.defaultIndex == 3 || this.defaultIndex == 2) {
+                    this.page_size = this.videoAudioSize
+                    this.getResourList(this.defaultIndex, id,this.page_size,this.page, scrollbar)
+                }
                 this.groDialogVisible = false
             },
 
@@ -1397,7 +1962,7 @@
             },
 
             // 多个选择
-            handChecked($event,ind){
+            handChecked($event,ind,attachment){
                 this.selectIndexArr.push(ind)
                 this.checked =$event
                 if(this.checked) {
@@ -1414,8 +1979,7 @@
                             return true;
                         }
                 })
-
-                this.is_all_choose = is_all
+                this.is_all_choose = is_all  //全选
                 this.$forceUpdate()
                 this.getPitchData()
             },
@@ -1446,15 +2010,21 @@
                 this.$forceUpdate()
             },
 
-            // 获取选中的数据
+            // 获取选中的数据 权武
             getPitchData() {
                 let idArr = []
+                // let dataList = []
                 this.resourceList.forEach(item => {
+                    
                     if(item.is_choose == true) {
                         idArr.push(item.id)
+                        // dataList.push(item)
+                        // console.log(dataList)
                     }
                 })
+
                 this.idArr = idArr
+                // this.dataList = dataList
             },
 
             dialogPlay(url) {
@@ -1469,17 +2039,14 @@
                 this.noneGroup = id
                 this.renameGroupStatus = true
             },
-            inputText(e) {
-            //    console.log(e)
-            },
             detelClick(id) {
             },
 
             removeClick(id) {
-                let arr = []
-                arr.push(id)
+                // let arr = []
+                // arr.push(id)
                 this.groupName = ''
-                this.removeResourcesIdArr = arr
+                this.removeResourcesIdArr = [id]
             },
 
             // 新建分组
@@ -1622,15 +2189,16 @@
                         this.getResourceGroup()
                         this.getAgain()
                         this.resourceList.forEach((item, index) => {
-                              item.is_choose = 0
-                         });
-                         this.$forceUpdate()
-                         this.allSelectStatus = false
-                         this.idArr = []
+                            item.is_choose = 0
+                        });
+                        this.$forceUpdate()
+                        this.allSelectStatus = false
+                        this.idArr = []
                     }, 800);
                     this.closePopover()
                     return
                 }
+                // console.log(this.removeResourcesIdArr)
                 this.removeGroup(this.moveGroupId,this.removeResourcesIdArr)
                 setTimeout(() => {
                     this.getResourceGroup()
@@ -1645,34 +2213,33 @@
 
             // 分页
             currentChange(val) {
-            this.valPage = val
-            if(this.defaultIndex == 1) {
-                this.page_size = 15
-                // this.groupId = this.groupId?this.groupId:''
-                this.getResourList(this.defaultIndex, this.groupId,this.page_size,val)
-            }
-            if(this.defaultIndex == 3 || this.defaultIndex == 2) {
-                this.page_size = this.videoAudioSize
-                this.groupId = this.groupId?this.groupId:''
-                this.getResourList(this.defaultIndex, this.groupId,this.videoAudioSize,val)
-            }
-            this.is_all_choose = false
+                this.valPage = val
+                if(this.defaultIndex == 1) {
+                    this.page_size = 15
+                    // this.groupId = this.groupId?this.groupId:''
+                    this.getResourList(this.defaultIndex, this.groupId,this.page_size,val)
+                }
+                if(this.defaultIndex == 3 || this.defaultIndex == 2) {
+                    this.page_size = this.videoAudioSize
+                    this.groupId = this.groupId?this.groupId:''
+                    this.getResourList(this.defaultIndex, this.groupId,this.videoAudioSize,val)
+                }
+                this.is_all_choose = false
             },
-
-            sureDetel(id) {
-                console.log(id,'12345678')
-                // return
+            // 单选删除
+            sureDetel(id,item) {
                 let arr = []
                 arr.push(id)
                 this.detel(arr,'','',this.defaultIndex)
                 this.closePopover()
-                setTimeout(() => {
-                    this.resourceList = this.resourceList.filter(item => item.id != id)
-                }, 800);
+                // setTimeout(() => {
+                //     this.resourceList = this.resourceList.filter(item => item.id != id)
+                // }, 800);
             },
 
-            // 批量删除选中的资源
+            // 批量删除选中的资源  权武
             sureSelectDetel() {
+                // console.log(this.idArr,'sureSelectDetel' ,this.defaultIndex)
                 this.detel(this.idArr,'','',this.defaultIndex)
                 this.getAgain()
                 this.idArr = []
@@ -1680,13 +2247,17 @@
                 this.closePopover()
 
             },
+            // 批量下载功能
+            packageImages(){
+                
+            },
             rangeChange(val){
                 this.timeSelect= val
             },
 
             // 批量删除的选择分组
             moreSelectGro(arr) {
-                console.log(arr,'141234134566');
+                // console.log(arr,'141234134566');
                 this.checkList = arr
             },
             // 批量开始删除
@@ -1734,12 +2305,12 @@
             getAgain() {
                 if(this.defaultIndex == 1) {
                 this.page_size = 15
-                this.groupId = this.groupId?this.groupId:''
+                this.groupId = this.groupId !== undefined ? this.groupId: ''
                 this.getResourList(this.defaultIndex, this.groupId,this.page_size,this.valPage)
                 }
                 if(this.defaultIndex == 3 || this.defaultIndex == 2) {
                     this.page_size = this.videoAudioSize
-                    this.groupId = this.groupId?this.groupId:''
+                    this.groupId = this.groupId !== undefined ?this.groupId:''
                     this.getResourList(this.defaultIndex, this.groupId,this.videoAudioSize,this.valPage)
                 }
             },
@@ -1755,7 +2326,7 @@
             },
 
             aduioClick(scope,id,ind,is_choose) {
-                console.log(scope,'1234134543514')
+                // console.log(scope,'1234134543514')
                 this.playOrPuse = ind
                 var myAudio = document.querySelectorAll(".myAudio")
                 if(is_choose == 0) {
@@ -1831,6 +2402,34 @@
 
             },
 
+            //  上传组件 方法 参数
+            // changeProp(val) {
+            //     if(val == true) {
+            //             this.uploadShow = false;
+            //         }
+            //         else {
+            //             this.uploadShow = true;
+            //         } 
+            // },
+            // sureImg(name, image, imageUrl){
+            //     // 数据上传成功 刷新数据
+            //     this.getAgain()
+             
+            //     this.$message({
+            //         message: '添加成功',
+            //         type: 'success'
+            //     });
+           
+                
+            //     console.log(name, image, imageUrl,'sureImg')
+            // },
+            // openUpload(str,type,sel){
+            //     // console.log('openUpload')
+            //     this.chooseImgName = str;
+            //     this.uploadShow = true;
+            //     this.type = type;
+            //     // this.selNum = sel;
+            // }
             // //模拟上传
             // changeProp(val,file) {
             //     if(val == true) {
@@ -1864,5 +2463,124 @@
         },
 
     });
+
+/** 
+    require.config({
+        paths: {
+            jszip    : "/addons/yun_shop/resources/views/setting/media/js/jszip",
+            FileSaver: "/addons/yun_shop/resources/views/setting/media/js/FileSaver",
+        },
+    });
+        //  微擎版多了 /addons/yun_shop
+
+    require(['jszip', 'FileSaver',], function (JSZip, FileSaver){
+
+        function packageImages(newImgs) {
+
+            var imgs = newImgs
+            var imgsSrc = [];
+            var imgBase64 = [];
+            var imageSuffix = [];//图片后缀
+            var zip = new JSZip();
+            var img = zip.folder("images");  // 文件存放名字
+            for (var i = 0; i < imgs.length; i++) {  //遍历所有图片
+                var src = imgs[i]
+                var suffix = src.substring(src.lastIndexOf("."));  // 后缀名
+                imageSuffix.push(suffix);   // 存放数字
+
+                getBase64(imgs[i])
+                    .then(function (base64) {
+                        imgBase64.push(base64.substring(22));
+                    }, function (err) {
+                        console.log(err,'err');//打印异常信息
+                    });
+
+
+            }
+            function tt() {
+
+                setTimeout(function () {
+
+
+                        if (imgs.length == imgBase64.length) {
+                        for (var i = 0; i < imgs.length; i++) {
+                            img.file(i + imageSuffix[i], imgBase64[i], { base64: true });
+                        }
+                        zip.generateAsync(
+                            { type: 'blob',}
+                            ).then(function (content) {
+                            saveAs(content, "images.zip");
+                            }).catch(function(err){
+                                 console.log(err,'报错了嘛')
+                            })
+                    } else {
+                        tt();
+                    }
+                }, 100);
+
+
+            }
+
+            //传入图片路径，返回base64
+            function getBase64(img) {
+                function getBase64Image(img, width, height) {//width、height调用时传入具体像素值，控制大小 ,不传则默认图像大小
+
+                    var canvas = document.createElement("canvas");
+
+                    canvas.width = width ? width : img.width;
+                    canvas.height = height ? height : img.height;
+
+                    var ctx = canvas.getContext("2d");
+
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+                    var dataURL = canvas.toDataURL();
+                    return dataURL;
+                }
+                    var image = new Image();
+                    image.crossOrigin = 'Anonymous';
+                    image.src = img;
+                    var deferred = $.Deferred();
+                        if (img) {
+                        image.onload = function () {
+                            deferred.resolve(getBase64Image(image));//将base64传给done上传处理
+                        }
+                        return deferred.promise();  //问题要让onload完成后再return sessionStorage['imgTest']
+                    }
+            }
+            tt();
+            newImgList = []
+
+        }
+
+
+                $("body").on('click', '#packageImages',function(){
+                    var newImgList = []
+                            vm.$confirm('确定要下载选中的素材吗', '提示', {
+                            confirmButtonText: '确定',
+                            cancelButtonText: '取消',
+                            }).then(() => {
+                                vm.$message({
+                                    type: 'success',
+                                    message: '正在下载请稍等!'
+                                });
+                                $.each(vm.$data.resourceList,function(index,item){
+                                        if(item.is_choose == true){
+                                            newImgList.push(item.attachment)
+                                            packageImages(newImgList)
+                                        }
+                                })
+                                }).catch(() => {
+                                    vm.$message({
+                                        type: 'info',
+                                        message: '已取消下载'
+                                    });
+                                });
+                })
+
+    });
+*/
+
 </script>
+@include('public.admin.uploadMultimediaImg')
 @endsection

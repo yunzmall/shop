@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/4/11
  * Time: 上午10:39
  */
@@ -61,5 +61,47 @@ class PointService
             $point_data['enoughs'] = $enoughs;
         }
         return $point_data;
+    }
+
+    /**
+     *
+     * 获取积分管理顶部导航列表
+     * @returm array
+     *
+     */
+    public static function getVueTags()
+    {
+        $data = [
+            [
+                'title' => '基础设置',
+                'value' => 'basic_set'
+            ],
+            [
+                'title' => '会员积分',
+                'value' => 'member_point'
+            ],
+            [
+                'title' => '充值记录',
+                'value' => 'recharge_record'
+            ],
+            [
+                'title' => '积分明细',
+                'value' => 'point_detailed'
+            ],
+            [
+                'title' => '积分队列',
+                'value' => 'point_queue'
+            ],
+            [
+                'title' => '队列明细',
+                'value' => 'queue_detailed'
+            ],
+            [
+                'title' => '上级队列',
+                'value' => 'superior_queue'
+            ]
+        ];
+
+        return $data;
     }
 }

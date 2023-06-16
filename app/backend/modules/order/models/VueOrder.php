@@ -12,12 +12,18 @@ use app\backend\modules\member\models\MemberParent;
 use app\backend\modules\order\services\OrderService;
 use app\backend\modules\order\services\OrderViewService;
 use app\common\models\ExpeditingDelivery;
+use app\common\models\Goods;
+use app\common\models\GoodsOption;
+use app\common\models\Member;
 use app\common\models\order\FirstOrder;
 use app\common\models\order\OrderDeliver;
 use Illuminate\Database\Eloquent\Builder;
 use \Illuminate\Support\Facades\DB;
 use app\common\models\PayTypeGroup;
 use app\common\models\MemberCertified;
+use Yunshop\ElectronicsBill\common\models\ElectronicsBillTemplate;
+use Yunshop\PackageDeliver\model\PackageDeliverOrder;
+use Yunshop\PackageDelivery\models\DeliveryOrder;
 
 /**
  * Class VueOrder
@@ -26,11 +32,14 @@ use app\common\models\MemberCertified;
 class VueOrder extends \app\common\models\Order
 {
 
-    protected $appends = ['backend_button_models', 'status_name', 'pay_type_name'];
+    protected $appends = ['backend_button_models', 'status_name', 'pay_type_name', 'row_bottom'];
 
 
     protected $orderType;
 
+    /**
+     * @return \app\backend\modules\order\services\type\NoneOrder|\app\backend\modules\order\services\type\OrderTypeFactory
+     */
     public function getOrderType()
     {
         if (!isset($this->orderType)) {
@@ -79,16 +88,27 @@ class VueOrder extends \app\common\models\Order
      */
     public function getTopRowAttribute()
     {
-        return  $this->getOrderType()->rowHeadShow();
+        return $this->getOrderType()->rowHeadShow();
+    }
+
+    public function getRowBottomAttribute()
+    {
+        return $this->getOrderType()->rowBottom();
+    }
+
+    //订单链接操作
+    public function getFixedLinkAttribute()
+    {
+        return $this->getOrderType()->fixedLink();
     }
 
     /**
-     * 订单列表固定按钮
+     * 订单列表固定按钮操作
      * @return array
      */
     public function getFixedButtonAttribute()
     {
-        return  $this->getOrderType()->fixedButton();
+        return $this->getOrderType()->fixedButton();
     }
 
 
@@ -180,24 +200,70 @@ class VueOrder extends \app\common\models\Order
 
 
         if ($search['order_status']) {
-            $status =  $search['order_status'] == 'waitPay' ? 0 : $search['order_status'];
-            $order_builder->where('yz_order.status', $status);
+            if (is_array($search['order_status'])) {
+                if ($status = array_intersect([-1, 1, 2, 3, 'waitPay'], $search['order_status'])) {
+                    if (($key = array_search('waitPay', $status)) !== false) {
+                        $status[$key] = 0;
+                    }
+                    $order_builder->whereIn('yz_order.status', $status);
+                }
+            } else {
+                $status = $search['order_status'] == 'waitPay' ? 0 : $search['order_status'];
+                $order_builder->where('yz_order.status', $status);
+            }
         }
 
         if ($search['order_sn']) {
-            $order_builder->where('yz_order.order_sn', 'like', "%".trim($search['order_sn'])."%");
+            $order_builder->where('yz_order.order_sn', trim($search['order_sn']));
         }
 
         if ($search['pay_sn']) {
             $order_builder->join('yz_order_pay', 'yz_order_pay.id', '=', 'yz_order.order_pay_id')
-                ->where('yz_order_pay.pay_sn', 'like', "%".trim($search['pay_sn'])."%");
+                ->where('yz_order_pay.pay_sn', trim($search['pay_sn']));
         }
 
-
+        // 营销码标签搜索
+        if ($search['marketing_qr_label']) {
+            $order_builder->join('yz_marketing_qr_log', 'yz_order.id', '=', 'yz_marketing_qr_log.order_id')
+                ->join('yz_marketing_qr', 'yz_marketing_qr.id', '=', 'yz_marketing_qr_log.marketing_qr_id')
+                ->where('yz_marketing_qr.label', 'like', "%" . trim($search['marketing_qr_label']) . "%");;
+        }
 
         //根据会员id搜索
         if ($search['member_id']) {
             $order_builder->where('yz_order.uid', $search['member_id']);
+        }
+
+        //根据上级id搜索
+        if (isset($search['parent_id'])) {
+            // 去空
+            $parent_id = str_replace(' ', '', $search['parent_id']);
+
+            // 0为搜索上级总店
+            if ($parent_id > 0) {
+                $parent_id = (int)$search['parent_id'];
+            }else{
+                // 参数为字符串时,查询不存在记录返回空.
+                if($parent_id) {
+                    $parent_id = -99;
+                }
+
+                // 查询为0的上级(总店)
+                if ($parent_id === '0') {
+                    $parent_id = 0;
+                }
+
+                // 空字符串返回所有
+                if ($parent_id === '') {
+                    $parent_id = 'all';
+                }
+            }
+
+            if ($parent_id !== 'all'){
+                $order_builder->join('yz_member', function ($join) use ($parent_id) {
+                    return $join->on('yz_member.member_id', '=', 'yz_order.uid')->where('parent_id', $parent_id);
+                });
+            }
         }
 
         if ($search['member_info']) {
@@ -231,7 +297,7 @@ class VueOrder extends \app\common\models\Order
         }
 
         //商品id  商品名称
-        if ($search['goods_id'] || $search['goods_title']) {
+        if ($search['goods_id'] || $search['goods_title'] || $search['product_sn'] || $search['goods_sn']) {
             $orderGoodsModel = OrderGoods::uniacid();
             if ($search['goods_id']) {
                 $orderGoodsModel->where('goods_id', $search['goods_id']);
@@ -239,32 +305,29 @@ class VueOrder extends \app\common\models\Order
             if ($search['goods_title']) {
                 $orderGoodsModel->where('title', 'like', "%".trim($search['goods_title'])."%");
             }
+            if ($search['product_sn']) {
+                $goods_ids = array_values(array_unique(array_merge(
+                    GoodsOption::uniacid()->where('product_sn', $search['product_sn'])->pluck('goods_id')->toArray(),
+                    Goods::uniacid()->where('product_sn', $search['product_sn'])->pluck('id')->toArray()
+            )));
+                $goods_ids = $goods_ids ? : [-1];
+                $orderGoodsModel->whereIn('goods_id', $goods_ids);
+            }
+            if ($search['goods_sn']) {
+                $goods_ids = array_values(array_unique(array_merge(
+                    GoodsOption::uniacid()->where('goods_sn', $search['goods_sn'])->pluck('goods_id')->toArray(),
+                    Goods::uniacid()->where('goods_sn', $search['goods_sn'])->pluck('id')->toArray()
+            )));
+                $goods_ids = $goods_ids ? : [-1];
+                $orderGoodsModel->whereIn('goods_id', $goods_ids);
+            }
             $goods_order_ids = $orderGoodsModel->pluck('order_id')->unique()->toArray();
 
-            if ($goods_order_ids) {
-                $order_builder->whereIn('yz_order.id', $goods_order_ids);
-            }
-            //todo 同一笔订单商品相同规格不同会查询出两条数据
-            // if ($search['goods_id']) {
-            //     $order_builder->join('yz_order_goods', 'yz_order_goods.order_id', '=', 'yz_order.id')->where(function ($query) use ($search) {
-            //         $query->where('yz_order_goods.goods_id', $search['goods_id']);
-            //     });
-            //
-            //     $order_builder->whereHas('hasManyOrderGoods', function ($query) use ($search) {
-            //         $query->where('goods_id', $search['goods_id']);
-            //     });
-            // }
-            //
-            // if ($search['goods_title']) {
-            //
-            //     $order_builder->join('yz_order_goods', 'yz_order_goods.order_id', '=', 'yz_order.id')->where(function ($query) use ($search) {
-            //         $query->where('yz_order_goods.title', 'like', "%{$search['goods_title']}%");
-            //     });
-            //
-            //     $order_builder->whereHas('hasManyOrderGoods', function ($query) use ($search) {
-            //         $query->where('title', 'like', "%{$search['goods_title']}%");
-            //     });
-            // }
+            $order_builder->whereIn('yz_order.id', $goods_order_ids);
+        }
+
+        if ($search['note']) {
+            $order_builder->where('note', 'like', "%{$search['note']}%");
         }
 
         //快递单号
@@ -326,7 +389,60 @@ class VueOrder extends \app\common\models\Order
                 ->whereIn('yz_package_deliver_order.deliver_id', $deliver_ids);
         }
 
+        if($search['bill_print']){
+            if(app('plugins')->isEnabled('electronics-bill')){
+                $table_prefix = app('db')->getTablePrefix();
+                if ($search['bill_print'] == 'print') {
+                    $order_builder->whereRaw($table_prefix . "yz_order.id in (select distinct order_id from " . $table_prefix . "yz_electronics_bill_template)");
+                } elseif ($search['bill_print'] == 'not_print') {
+                    $order_builder->whereRaw($table_prefix . "yz_order.id not in (select distinct order_id from " . $table_prefix . "yz_electronics_bill_template)");
+                }
+            }
+        }
 
+        if ($search['dispatch_type_id']) {
+            $order_builder->where('dispatch_type_id', $search['dispatch_type_id']);
+        }
+
+        if (app('plugins')->isEnabled('shop-clerk') && ($search['shop_clerk_kwd'] || $search['shop_clerk_uid'])) {
+            $clerk_query = \Yunshop\ShopClerk\models\ShopClerk::uniacid()->select('id','uid');
+            if ($search['shop_clerk_kwd']) {
+                $clerk_query->whereHas('hasOneMember', function ($query) use ($search) {
+                    $query->where('nickname', 'like', "%{$search['shop_clerk_kwd']}%")
+                        ->orWhere('mobile', 'like', "%{$search['shop_clerk_kwd']}%")
+                        ->orWhere('realname', 'like', "%{$search['shop_clerk_kwd']}%");
+                });
+            }
+            if ($search['shop_clerk_uid']) {
+                $clerk_query->where('uid', $search['shop_clerk_uid']);
+            }
+            $clerk_ids = $clerk_query->pluck('id')->toArray() ?: [-1];
+            $clerk_order_ids = \Yunshop\ShopPos\models\PosOrder::uniacid()->whereIn('clerk_id', $clerk_ids)->select('order_id')->pluck('order_id')->toArray() ?: [-1];
+            $order_builder->whereIn('id', $clerk_order_ids);
+        }
+
+        if (app('plugins')->isEnabled('package-delivery')) {
+            $package_where = [];
+            if ($search['package_delivery_clerk_kwd']) {
+                $clerk_uids = \Yunshop\PackageDelivery\models\DeliveryClerk::uniacid()->select('uid')->whereHas('hasOneMember',function ($query)use($search){
+                    $query->where('nickname', 'like', "%{$search['package_delivery_clerk_kwd']}%")
+                        ->orWhere('mobile', 'like', "%{$search['package_delivery_clerk_kwd']}%")
+                        ->orWhere('realname', 'like', "%{$search['package_delivery_clerk_kwd']}%");
+                })->pluck('uid')->toArray() ?: [-1];
+                $package_where[] = [function ($query) use ($clerk_uids) {
+                    $query->whereIn('confirm_uid', $clerk_uids);
+                }];
+            }
+
+            if ($search['package_delivery_clerk_uid']) {
+                $package_where[] = ['confirm_uid', $search['package_delivery_clerk_uid']];
+            }
+
+            if ($package_where) {
+                $package_order_ids = \Yunshop\PackageDelivery\models\DeliveryOrder::uniacid()->where($package_where)->select('order_id')->pluck('order_id')->toArray() ?: [-1];
+                $order_builder->whereIn('id', $package_order_ids);
+            }
+        }
 
         return $order_builder;
     }
@@ -389,10 +505,13 @@ class VueOrder extends \app\common\models\Order
             'hasOneDispatchType',
             'hasOnePayType',
             'address',
+            'hasManyOrderGoods.goods.belongsToCategorys',
             'express',
+            'expressmany',
             'process',
             'hasOneRefundApply' => self::refundBuilder(),
             'hasOneOrderRemark',
+            'manualRefundLog',
             'hasOneOrderPay'=> function ($query) {
                 $query->orderPay();
             },
@@ -402,6 +521,19 @@ class VueOrder extends \app\common\models\Order
             'memberCancel' => self::memberCancel_v(),
 
         ]);
+
+        if(app('plugins')->isEnabled('electronics-bill')){
+            $orders->with([
+                'hasManyBillTemp' => function($q){
+                    $q->groupBy('order_id');
+                }
+            ]);
+        }
+
+        if (app('plugins')->isEnabled('city-delivery') && \Yunshop\CityDelivery\services\SettingService::getBaseSetting()['open_state']) {
+            $orders->with(['hasOneCityDelivery.hasOneAnotherOrder'])->with('hasManyCityDeliveryAnother');
+        }
+
         return $orders;
     }
 
@@ -425,11 +557,35 @@ class VueOrder extends \app\common\models\Order
             'express',
             'process',
             'hasOneRefundApply' => self::refundBuilder(),
+            'hasManyRefundApply' => function ($query) {
+                return $query->with(['processLog','refundOrderGoods']);
+            },
+            'refundProcessLog' => function ($query) {
+                return $query->orderBy('id', 'desc');
+            },
             'hasOneOrderRemark',
             'hasOneOrderPay'=> function ($query) {
                 $query->orderPay();
             },
+            'deductions',
+            'coupons',
+            'discounts',
+            'orderFees',
+            'orderServiceFees',
+            'orderInvoice',
+            'orderPays' => function ($query) {
+                $query->with('payType');
+            },
+            'hasOneExpeditingDelivery',
+            'hasManyMemberCertified',
         ]);
+        if(app('plugins')->isEnabled('exchange-code')){
+            $orders->with([
+                'hasOneExchangeCode.record.code'
+            ]);
+        }
+
+
         return $orders;
     }
 
@@ -437,7 +593,7 @@ class VueOrder extends \app\common\models\Order
     private static function refundBuilder()
     {
         return function ($query) {
-            return $query->with('returnExpress')->with('resendExpress')->with('changeLog');
+            return $query->with(['returnExpress','hasManyResendExpress','changeLog','refundOrderGoods']);
         };
     }
 
@@ -480,6 +636,18 @@ class VueOrder extends \app\common\models\Order
 //            ->get();
     }
 
+    public function hasManyBillTemp()
+    {
+        return $this->hasMany(ElectronicsBillTemplate::class,'order_id','id');
+    }
+    public function hasOneCityDelivery()
+    {
+        return $this->hasOne(\Yunshop\CityDelivery\models\DeliveryOrder::class, 'order_id', 'id');
+    }
+    public function hasManyCityDeliveryAnother()
+    {
+        return $this->hasMany(\Yunshop\CityDelivery\models\AnotherOrder::class, 'order_id', 'id');
+    }
     public function hasManyParentTeam()
     {
         return $this->hasMany(MemberParent::class, 'member_id', 'uid');
@@ -493,6 +661,21 @@ class VueOrder extends \app\common\models\Order
     public function hasOneExpeditingDelivery()
     {
         return $this->hasOne(ExpeditingDelivery::class,'order_id','id');
+    }
+
+    public function hasOnePackageDeliveryOrder()
+    {
+        return $this->hasOne(DeliveryOrder::class, 'order_id', 'id');
+    }
+
+    public function hasOnePackageDeliverOrder()
+    {
+        return $this->hasOne(PackageDeliverOrder::class, 'order_id', 'id');
+    }
+
+    public function hasOneExchangeCode()
+    {
+        return $this->hasOne('Yunshop\ExchangeCode\common\models\ExchangeCodePayRelation', 'order_id', 'id');
     }
 
 }

@@ -24,10 +24,14 @@ class CouponExpired
                 $this->handle();
                 return;
             });
+            \Cron::add('Coupon-near-expiration', '0 2 * * *', function () {
+                $this->handle(1);
+                return;
+            });
         });
     }
 
-    public function handle()
+    public function handle($is_near = 0)
     {
         \Log::info('优惠券过期');
         set_time_limit(0);
@@ -35,40 +39,60 @@ class CouponExpired
         foreach ($uniAccount as $u) {
             \YunShop::app()->uniacid = $u->uniacid;
             \Setting::$uniqueAccountId = $u->uniacid;
-
-            $this->expired();
+            if ($is_near) {
+                $this->nearExpired();
+            } else {
+                $this->expired();
+            }
         }
     }
 
 
     public function expired()
     {
-        $coupons = Coupon::get();
+        $coupons = Coupon::uniacid()->get();
         $time = time();
         foreach ($coupons as $coupon) {
             //使用时间限制  日期
-            if ($coupon['time_limit'] == Coupon::COUPON_DATE_TIME_RANGE ){
-                if(bcsub(strtotime($coupon['time_end']),$time)<259200)
-                {
-                    MemberCoupon::where('coupon_id', $coupon['id'])->where('is_expired', 0)->update(['near_expiration' => 1]);
-                }
-                if($time > strtotime($coupon['time_end']))
-                {
-                       MemberCoupon::where('coupon_id', $coupon['id'])->where('is_expired', 0)->update(['is_expired' => 1]);
+            if ($coupon['time_limit'] == Coupon::COUPON_DATE_TIME_RANGE) {
+                if ($time > strtotime($coupon['time_end'])) {
+                    MemberCoupon::where('coupon_id', $coupon['id'])->where('is_expired', 0)->update(['is_expired' => 1]);
                 }
             }
             if ($coupon['time_limit'] == Coupon::COUPON_SINCE_RECEIVE && ($coupon['time_days'] !== 0)) {
                 MemberCoupon::where('coupon_id', $coupon['id'])
-                    ->where('uid','<>',0)
-                    ->where(DB::raw('ifnull(`get_time`, 0) + ('.$coupon['time_days'].' * 86400) - '.$time), '<=', 259200)
-                    ->where(['is_expired'=> 0 ,'near_expiration' => 0])
-                    ->update(['near_expiration' => 1]);
-                MemberCoupon::where('coupon_id', $coupon['id'])
-                    ->where('uid','<>',0)
-                    ->where(DB::raw('ifnull(`get_time`, 0) + ('.$coupon['time_days'].' * 86400)'), '<=', $time)
+                    ->where('uid', '<>', 0)
+                    ->where(DB::raw('ifnull(`get_time`, 0) + (' . $coupon['time_days'] . ' * 86400)'), '<=', $time)
                     ->where('is_expired', 0)
+                    ->where('near_expiration', 1)
                     ->update(['is_expired' => 1]);
-          }
+            }
         }
     }
+
+    public function nearExpired()
+    {
+        $coupons = Coupon::uniacid()->get();
+        $time = time();
+        foreach ($coupons as $coupon) {
+            //使用时间限制  日期
+            if ($coupon['time_limit'] == Coupon::COUPON_DATE_TIME_RANGE) {
+                if (bcsub(strtotime($coupon['time_end']), $time) < 259200) {
+                    MemberCoupon::where('coupon_id', $coupon['id'])
+                        ->where('is_expired', 0)
+                        ->where('near_expiration',0)
+                        ->update(['near_expiration' => 1]);
+                }
+            }
+            if ($coupon['time_limit'] == Coupon::COUPON_SINCE_RECEIVE && ($coupon['time_days'] !== 0)) {
+                MemberCoupon::where('coupon_id', $coupon['id'])
+                    ->where('uid', '<>', 0)
+                    ->where(DB::raw('ifnull(`get_time`, 0) + (' . $coupon['time_days'] . ' * 86400) - ' . $time), '<=', 259200)
+                    ->where(['is_expired' => 0, 'near_expiration' => 0])
+                    ->update(['near_expiration' => 1]);
+            }
+        }
+    }
+
+
 }

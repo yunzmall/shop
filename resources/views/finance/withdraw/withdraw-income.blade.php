@@ -68,7 +68,7 @@
                 <div class="cost" >
                     <label class='radio-inline'>
                         <div class="input-group">
-                            <input type="text" name="withdraw[income][special_poundage]" class="form-control" value="{{ $set['special_poundage'] or '' }}" placeholder="提现至余额独立手续费比例"/>
+                            <input type="text" name="withdraw[income][special_poundage]" class="form-control" value="{{ $set['special_poundage'] ?? ''}}" placeholder="提现至余额独立手续费比例"/>
                             <div class="input-group-addon" id="special_poundage_unit">@if($set['special_poundage_type'] == 1) 元 @else
                                     % @endif</div>
                         </div>
@@ -85,7 +85,7 @@
                 <div class="cost" >
                     <label class='radio-inline'>
                         <div class="input-group">
-                            <input type="text" name="withdraw[income][special_service_tax]" class="form-control" value="{{ $set['special_service_tax'] or '' }}" placeholder="提现至余额独立劳务税比例"/>
+                            <input type="text" name="withdraw[income][special_service_tax]" class="form-control" value="{{ $set['special_service_tax'] ?? ''}}" placeholder="提现至余额独立劳务税比例"/>
                             <div class="input-group-addon">%</div>
                         </div>
                     </label>
@@ -143,6 +143,25 @@
                 </div>
                 <div class="help-block">
                     可设置1-10次,不设置或为空默认为10
+                </div>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label class="col-xs-12 col-sm-3 col-md-2 control-label">商家转账到零钱</label>
+            <div class="col-sm-9 col-xs-12">
+                <div class="input-group">
+                    <label class='radio-inline'>
+                        <input type='radio' name='withdraw[income][wechat_api_v3]' value='1' @if($set['wechat_api_v3'] == 1) checked @endif />
+                        开启
+                    </label>
+                    <label class='radio-inline'>
+                        <input type='radio' name='withdraw[income][wechat_api_v3]' value='0' @if($set['wechat_api_v3'] == 0) checked @endif />
+                        关闭
+                    </label>
+                </div>
+                <div class="help-block">
+                    如在2022-5-18之后开通的微信商家转账零钱功能（原企业付款到零钱），请开启此功能，并在【系统】-【支付设置】处设置上传相关的证书及秘钥
                 </div>
             </div>
         </div>
@@ -263,6 +282,46 @@
                 </label>
             </div>
         </div>
+
+        <div id='withdraw_income_converge' @if(empty($set['converge_pay']))style="display:none"@endif>
+            <div class="form-group">
+                <label class="col-xs-12 col-sm-3 col-md-2 control-label">单笔付款金额</label>
+                <div class="col-sm-9 col-xs-12">
+                    <div class="input-group">
+                        <div class="input-group">
+                            <div class="input-group-addon">单笔最低金额</div>
+                            <input type="text" name="withdraw[income][converge_pay_min]" class="form-control"
+                                   value="{{$set['converge_pay_min']}}" placeholder=""/>
+                            <div class="input-group-addon">单笔最高金额</div>
+                            <input type="text" name="withdraw[income][converge_pay_max]" class="form-control"
+                                   value="{{$set['converge_pay_max']}}" placeholder=""/>
+                        </div>
+                    </div>
+                    <div class="help-block">
+                        不设置或为空,则不限制
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="col-xs-12 col-sm-3 col-md-2 control-label">每日向同一用户付款不允许超过</label>
+                <div class="col-sm-9 col-xs-12">
+                    <div class="input-group">
+                        <div class="input-group">
+
+                            <input type="text" name="withdraw[income][converge_pay_frequency]" class="form-control"
+                                   value="{{$set['converge_pay_frequency']}}" placeholder=""/>
+                            <div class="input-group-addon">次</div>
+                        </div>
+                    </div>
+                    <div class="help-block">
+                        不设置或为空,则不限制
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
     </div>
 @endif
 
@@ -350,6 +409,86 @@
     </div>
 @endif
 
+@if(app('plugins')->isEnabled('eplus-pay') && \Yunshop\EplusPay\services\SettingService::usable())
+<div class="tab-pane  active">
+    <div class="form-group">
+        <label class="col-xs-12 col-sm-3 col-md-2 control-label">提现到银行卡-智E+</label>
+        <div class="col-sm-9 col-xs-12">
+            <label class='radio-inline'>
+                <input type='radio' name='withdraw[income][eplus_withdraw_bank]' value='1'
+                       @if($set['eplus_withdraw_bank'] == 1) checked @endif />
+                开启
+            </label>
+            <label class='radio-inline'>
+                <input type='radio' name='withdraw[income][eplus_withdraw_bank]' value='0'
+                       @if(empty($set['eplus_withdraw_bank'])) checked @endif />
+                关闭
+            </label>
+        </div>
+    </div>
+</div>
+@endif
+
+@if(\app\common\services\finance\IncomeService::workerWithdrawEnable(2))
+    <div class="tab-pane  active">
+        <div class="form-group">
+            <label class="col-xs-12 col-sm-3 col-md-2 control-label">提现到微信-好灵工</label>
+            <div class="col-sm-9 col-xs-12">
+                <label class='radio-inline'>
+                    <input type='radio' name='withdraw[income][worker_withdraw_wechat]' value='1'
+                           @if($set['worker_withdraw_wechat'] == 1) checked @endif />
+                    开启
+                </label>
+                <label class='radio-inline'>
+                    <input type='radio' name='withdraw[income][worker_withdraw_wechat]' value='0'
+                           @if($set['worker_withdraw_wechat'] == 0) checked @endif />
+                    关闭
+                </label>
+            </div>
+        </div>
+    </div>
+@endif
+@if(\app\common\services\finance\IncomeService::workerWithdrawEnable(1))
+    <div class="tab-pane  active">
+        <div class="form-group">
+            <label class="col-xs-12 col-sm-3 col-md-2 control-label">提现到支付宝-好灵工</label>
+            <div class="col-sm-9 col-xs-12">
+
+                <label class='radio-inline'>
+                    <input type='radio' name='withdraw[income][worker_withdraw_alipay]' value='1'
+                           @if($set['worker_withdraw_alipay'] == 1) checked @endif />
+                    开启
+                </label>
+                <label class='radio-inline'>
+                    <input type='radio' name='withdraw[income][worker_withdraw_alipay]' value='0'
+                           @if($set['worker_withdraw_alipay'] == 0) checked @endif />
+                    关闭
+                </label>
+
+            </div>
+        </div>
+    </div>
+    <div class="tab-pane  active">
+        <div class="form-group">
+            <label class="col-xs-12 col-sm-3 col-md-2 control-label">提现到银行卡-好灵工</label>
+            <div class="col-sm-9 col-xs-12">
+
+                <label class='radio-inline'>
+                    <input type='radio' name='withdraw[income][worker_withdraw_bank]' value='1'
+                           @if($set['worker_withdraw_bank'] == 1) checked @endif />
+                    开启
+                </label>
+                <label class='radio-inline'>
+                    <input type='radio' name='withdraw[income][worker_withdraw_bank]' value='0'
+                           @if($set['worker_withdraw_bank'] == 0) checked @endif />
+                    关闭
+                </label>
+
+            </div>
+        </div>
+    </div>
+@endif
+
 <div class="tab-pane  active">
     <div class="form-group">
         <label class="col-xs-12 col-sm-3 col-md-2 control-label">{{ \Setting::get('shop.lang.zh_cn.income.manual_withdrawal') ? \Setting::get('shop.lang.zh_cn.income.manual_withdrawal') : "手动提现" }}</label>
@@ -366,8 +505,6 @@
         </div>
     </div>
 </div>
-
-
 <div id='manual_type' @if(empty($set['manual']))style="display:none"@endif>
     <div class="form-group">
         <label class="col-xs-12 col-sm-3 col-md-2 control-label"></label>
@@ -390,6 +527,68 @@
     </div>
 </div>
 
+@if(app('plugins')->isEnabled('silver-point-pay'))
+<div class="tab-pane  active">
+    <div class="form-group">
+        <label class="col-xs-12 col-sm-3 col-md-2 control-label">
+            提现到银典支付
+        </label>
+        <div class="col-sm-9 col-xs-12">
+            <label class='radio-inline'>
+                <input type='radio' name='withdraw[income][silver_point]' value='1' @if($set['silver_point'] == 1) checked @endif />
+                开启
+            </label>
+            <label class='radio-inline'>
+                <input type='radio' name='withdraw[income][silver_point]' value='0' @if($set['silver_point'] == 0) checked @endif />
+                关闭
+            </label>
+            <span class='help-block'></span>
+        </div>
+    </div>
+</div>
+@endif
+
+@if(app('plugins')->isEnabled('jianzhimao-withdraw'))
+    <div class="tab-pane  active">
+        <div class="form-group">
+            <label class="col-xs-12 col-sm-3 col-md-2 control-label">
+                提现到兼职猫-银行卡
+            </label>
+            <div class="col-sm-9 col-xs-12">
+                <label class='radio-inline'>
+                    <input type='radio' name='withdraw[income][jianzhimao_bank]' value='1' @if($set['jianzhimao_bank'] == 1) checked @endif />
+                    开启
+                </label>
+                <label class='radio-inline'>
+                    <input type='radio' name='withdraw[income][jianzhimao_bank]' value='0' @if($set['jianzhimao_bank'] == 0) checked @endif />
+                    关闭
+                </label>
+                <span class='help-block'></span>
+            </div>
+        </div>
+    </div>
+@endif
+
+@if(app('plugins')->isEnabled('tax-withdraw'))
+    <div class="tab-pane  active">
+        <div class="form-group">
+            <label class="col-xs-12 col-sm-3 col-md-2 control-label">
+                提现到@php echo TAX_WITHDRAW_DIY_NAME; @endphp -银行卡
+            </label>
+            <div class="col-sm-9 col-xs-12">
+                <label class='radio-inline'>
+                    <input type='radio' name='withdraw[income][tax_withdraw_bank]' value='1' @if($set['tax_withdraw_bank'] == 1) checked @endif />
+                    开启
+                </label>
+                <label class='radio-inline'>
+                    <input type='radio' name='withdraw[income][tax_withdraw_bank]' value='0' @if($set['tax_withdraw_bank'] == 0) checked @endif />
+                    关闭
+                </label>
+                <span class='help-block'></span>
+            </div>
+        </div>
+    </div>
+@endif
 
 <div class="tab-pane  active">
     <div class="form-group">
@@ -452,7 +651,7 @@
         <label class="col-xs-12 col-sm-3 col-md-2 control-label">劳务税比例</label>
         <div class="col-sm-9 col-xs-12">
             <div class="input-group">
-                <input type="text" name="withdraw[income][servicetax_rate]" class="form-control" value="{{ $set['servicetax_rate'] or '' }}" placeholder="请输入提现劳务税比例"/>
+                <input type="text" name="withdraw[income][servicetax_rate]" class="form-control" value="{{ $set['servicetax_rate'] ?? ''}}" placeholder="请输入提现劳务税比例"/>
                 <div class="input-group-addon">%</div>
             </div>
         </div>
@@ -486,6 +685,13 @@
         <label class="col-xs-12 col-sm-3 col-md-2 control-label"></label>
         <div class="col-xs-6">
             <span class='help-block'><input type="button" value="添加比例" class="btn btn-success add-queue"/></span>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label class="col-xs-12 col-sm-3 col-md-2 control-label">提现规则说明</label>
+        <div class="col-xs-9">
+            {!! yz_tpl_ueditor('withdraw[income][withdraw_rich_text]', $withdraw_rich_text['content']) !!}
         </div>
     </div>
 </div>
@@ -574,6 +780,14 @@
             }
         });
 
+        $(":radio[name='withdraw[income][converge_pay]']").click(function () {
+            if ($(this).val() == 1) {
+                $("#withdraw_income_converge").show();
+            }
+            else {
+                $("#withdraw_income_converge").hide();
+            }
+        });
 
 
         $(":radio[name='withdraw[income][balance_special]']").click(function () {

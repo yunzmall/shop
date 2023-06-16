@@ -37,6 +37,7 @@
             <div class="vue-main-form">
                 <el-button size="mini" @click="patchRecommendBranch">批量开启</el-button>
                 <el-button size="mini" @click="patchCancelRecommendBranch">批量关闭</el-button>
+                <el-button size="mini" @click="patchCancelDelBranch">批量删除</el-button>
                 <el-table :data="list" style="width: 100%"  @selection-change="selectedBranch">
                     <el-table-column type="selection" width="55"></el-table-column>
                     <el-table-column prop="id" label="ID" align="center" width="120"></el-table-column>
@@ -162,6 +163,32 @@
                     this.selectedBranchs.forEach(item=>{
                         item['is_recommend']=false;
                     })
+                });
+            },
+            patchCancelDelBranch(){
+                let ids=[];
+                for (const item of this.selectedBranchs) {
+                    ids.push(item.id);
+                }
+                this.$confirm('确定批量删除吗', '提示', {confirmButtonText: '确定',cancelButtonText: '取消',type: 'warning'}).then(() => {
+                    let loading = this.$loading({target:document.querySelector(".content"),background: 'rgba(0, 0, 0, 0)'});
+                    this.$http.post('{!! yzWebFullUrl('goods.brand.deleted-brand') !!}',{ids:ids}).then(function (response) {
+                            console.log(response.data);
+                            if (response.data.result) {
+                                this.$message({type: 'success',message: '删除成功!'});
+                                location.reload();
+                            }
+                            else{
+                                this.$message({type: 'error',message: response.data.msg});
+                            }
+                            loading.close();
+                        },function (response) {
+                            this.$message({type: 'error',message: response.data.msg});
+                            loading.close();
+                        }
+                    );
+                }).catch(() => {
+                    this.$message({type: 'info',message: '已取消删除'});
                 });
             },
             getData(page,json) {

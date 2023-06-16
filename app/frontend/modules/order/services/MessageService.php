@@ -9,6 +9,7 @@
 namespace app\frontend\modules\order\services;
 
 
+use app\common\services\notice\applet\buyer\OrderBuyerPackageSendMinNotice;
 use app\common\services\notice\applet\buyer\OrderBuyerPayedMinNotice;
 use app\common\services\notice\applet\buyer\OrderBuyerReceivedMinNotice;
 use app\common\services\notice\applet\buyer\OrderBuyerSendMinNotice;
@@ -16,6 +17,7 @@ use app\common\services\notice\applet\OrderPayedMinNotice;
 use app\common\services\notice\applet\OrderReceivedMinNotice;
 use app\common\services\notice\official\buyer\OrderBuyerCancelNotice;
 use app\common\services\notice\official\buyer\OrderBuyerCreateNotice;
+use app\common\services\notice\official\buyer\OrderBuyerPackageSendNotice;
 use app\common\services\notice\official\buyer\OrderBuyerPayedNotice;
 use app\common\services\notice\official\buyer\OrderBuyerReceivedNotice;
 use app\common\services\notice\official\buyer\OrderBuyerSendNotice;
@@ -60,7 +62,7 @@ class MessageService extends \app\common\services\MessageService
         $buyerNotice->sendMessage();
 
         //管理员
-        $managerNotice = new OrderCreateNotice($this->orderModel);
+        $managerNotice = new OrderCreateNotice($this->orderModel, 1);
         $managerNotice->sendMessage();
 
         //商品
@@ -84,7 +86,7 @@ class MessageService extends \app\common\services\MessageService
         $buyerOfficialNotice = new OrderBuyerPayedNotice($this->orderModel);
         $buyerOfficialNotice->sendMessage();
 
-        $officialNotice = new OrderPayedNotice($this->orderModel);
+        $officialNotice = new OrderPayedNotice($this->orderModel, 2);
         $officialNotice->sendMessage();
 
         //商品
@@ -103,6 +105,17 @@ class MessageService extends \app\common\services\MessageService
 
     }
 
+    public function packageSent()
+    {
+        $sendBuyerNotice = new OrderBuyerPackageSendMinNotice($this->orderModel);
+        $sendBuyerNotice->sendMessage();
+
+        $sendOfficialNotice = new OrderBuyerPackageSendNotice($this->orderModel);
+        $sendOfficialNotice->sendMessage();
+    }
+
+
+
     public function received()
     {
        // $this->shopMessage->goodsBuy(3);
@@ -120,7 +133,7 @@ class MessageService extends \app\common\services\MessageService
         $receiveBuyerOfficialNotice = new OrderBuyerReceivedNotice($this->orderModel);
         $receiveBuyerOfficialNotice->sendMessage();
 
-        $receiveOfficailNotice = new OrderReceivedNotice($this->orderModel);
+        $receiveOfficailNotice = new OrderReceivedNotice($this->orderModel, 3);
         $receiveOfficailNotice->sendMessage();
 
         //商品

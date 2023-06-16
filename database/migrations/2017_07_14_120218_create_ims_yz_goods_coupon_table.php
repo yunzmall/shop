@@ -22,6 +22,9 @@ class CreateImsYzGoodsCouponTable extends Migration
                 $table->boolean('send_times')->nullable()->comment('发送时间');
                 $table->integer('send_num')->nullable()->comment('发放次数');
             });
+
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE `".app('db')->getTablePrefix()."yz_goods_coupon` comment'商品--优惠券挂机'");//表注释
+
         }
     }
 

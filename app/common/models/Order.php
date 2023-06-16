@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/2/28
  * Time: 上午11:32
  */
@@ -22,18 +22,23 @@ use app\common\exceptions\AppException;
 use app\common\facades\SiteSetting as SiteSettingFacades;
 use app\common\models\member\MemberCancel;
 use app\common\models\order\Express;
+use app\common\models\order\ManualRefundLog;
 use app\common\models\order\OrderChangePriceLog;
 use app\common\models\order\OrderCoinExchange;
 use app\common\models\order\OrderCoupon;
 use app\common\models\order\OrderDeduction;
 use app\common\models\order\OrderDiscount;
 use app\common\models\order\OrderFee;
+use app\common\models\order\OrderFreightDeduction;
 use app\common\models\order\OrderInvoice;
 use app\common\models\order\OrderServiceFee;
 use app\common\models\order\OrderSetting;
+use app\common\models\order\OrderTaxFee;
 use app\common\models\order\Plugin;
 use app\common\models\order\Remark;
 use app\common\models\refund\RefundApply;
+use app\common\models\refund\RefundGoodsLog;
+use app\common\models\refund\RefundProcessLog;
 use app\common\modules\order\OrderOperationsCollector;
 use app\common\modules\payType\events\AfterOrderPayTypeChangedEvent;
 use app\common\modules\refund\services\RefundService;
@@ -56,8 +61,11 @@ use Illuminate\Foundation\Bus\DispatchesJobs;
 use Illuminate\Support\Facades\DB;
 use Yunshop\JdSupply\models\JdSupplyOrderGoods;
 use Yunshop\PackageDeliver\model\PackageDeliverOrder;
+use Yunshop\StoreCashier\common\models\CashierOrder;
 use Yunshop\StoreCashier\common\models\StoreOrder;
 use Yunshop\Supplier\common\models\InsuranceOrder;
+use app\common\services\SystemMsgService;
+use Yunshop\Supplier\supplier\models\SupplierOrder;
 
 /**
  * Class Order
@@ -86,9 +94,11 @@ use Yunshop\Supplier\common\models\InsuranceOrder;
  * @property float cost_amount
  * @property float change_dispatch_price
  * @property float fee_amount
+ * @property float service_fee_amount
  * @property int plugin_id
  * @property int is_plugin
  * @property Collection orderGoods
+ * @property Collection hasManyOrderGoods
  * @property Collection allStatus
  * @property Collection orderCoinExchanges
  * @property Member belongsToMember
@@ -109,7 +119,7 @@ use Yunshop\Supplier\common\models\InsuranceOrder;
  * @method static self orders(array $searchParam)
  * @method static self cancelled()
  */
-class   Order extends BaseModel
+class Order extends BaseModel
 {
     use HasProcessTrait, DispatchesJobs;
 
@@ -164,11 +174,21 @@ class   Order extends BaseModel
      * @return mixed
      */
 
-    public function scopeHidePluginIds($query, $plugin_ids = [])
+    public function scopeHidePluginIds($query, $plugin_ids = [], $other_plugin_ids = [])
     {
         if (empty($plugin_ids)) {
-            //酒店订单、租赁订单、网约车订单、服务站补货订单、拼团订单、拼购订单、抢团订单、聚合CPS订单
-            $plugin_ids = [33, 40, 41, 43, 54, 59,69,46,70,106,96,77,78,115,74,99];
+
+            //酒店订单、租赁订单、网约车订单、服务站补货订单、拼团订单、拼购订单、抢团订单、
+            //聚合CPS订单、门店余额充值订单,益生线下订单,圈仓订单(购买，提货),新拼团订单,蛋糕叔叔,
+            //周边游订单,任务包复活订单,聚推联盟订单,随叫随到需求订单、随叫随到企业需求,随叫随到企业套餐购买,寄售商品,供应链租赁
+            $plugin_ids = [
+                33, 40, 41, 43, 54, 59, 69, 46, 70, 106, 96, 77, 78,
+                115, 74, 99, 39, 127,128,62,147,151,133,144,154,155,
+                156,157,158,159,161,63,64,65,160,164];
+        }
+
+        if ($other_plugin_ids) {
+            $plugin_ids = array_values(array_diff($plugin_ids, $other_plugin_ids));
         }
 
         return $query->whereNotIn('plugin_id', $plugin_ids)->where('plugin_id', '<', '900');
@@ -283,7 +303,7 @@ class   Order extends BaseModel
      */
     public function scopeCancelled($query)
     {
-        return $query->where(['status' => self::CLOSE]);
+        return $query->where([$this->getTable() .'.status' => self::CLOSE]);
     }
 
     /**
@@ -352,6 +372,11 @@ class   Order extends BaseModel
         return $this->hasOne(StoreOrder::class, 'order_id', 'id');
     }
 
+    public function hasOneCashierOrder()
+    {
+        return $this->hasOne(CashierOrder::class, 'order_id', 'id');
+    }
+
     public function hasManyInsOrder()
     {
         return $this->hasMany(InsuranceOrder::class, 'order_id', 'id');
@@ -372,13 +397,39 @@ class   Order extends BaseModel
     }
 
     /**
-     * 关联模型 1对1:退款列表
+     * 关联模型 1对1:进行中的退款申请记录
      * @return \Illuminate\Database\Eloquent\Relations\HasOne
      */
     public function hasOneRefundApply()
     {
         return $this->hasOne(RefundApply::class, 'id', 'refund_id')->orderBy('created_at', 'desc');
 
+    }
+
+    /**
+     * 关联模型 1对n:退款列表
+     * @return \Illuminate\Database\Eloquent\Relations\hasMany
+     */
+    public function hasManyRefundApply()
+    {
+        return $this->hasMany(RefundApply::class, 'order_id', 'id')->orderBy('created_at', 'desc');
+
+    }
+
+    // 关联模型 1对n:退款操作记录列表
+    public function refundProcessLog()
+    {
+        return $this->hasMany(RefundProcessLog::class, 'order_id', 'id');
+
+    }
+
+    /**
+     * 关联模型 1对多:订单运费抵扣信息
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
+    public function freightDeductions()
+    {
+        return $this->hasMany(OrderFreightDeduction::class, 'order_id', 'id');
     }
 
     /**
@@ -400,6 +451,15 @@ class   Order extends BaseModel
     }
 
     /**
+     * 关联模型 1对1:订单退款并关闭
+     * @return \Illuminate\Database\Eloquent\Relations\HasOne
+     */
+    public function manualRefundLog()
+    {
+        return $this->hasOne(ManualRefundLog::class, 'order_id', 'id');
+    }
+
+    /**
      * 关联模型 1对1:支付方式
      * @return \Illuminate\Database\Eloquent\Relations\HasOne
      */
@@ -408,14 +468,14 @@ class   Order extends BaseModel
         return $this->hasOne(PayType::class, 'id', 'pay_type_id');
     }
 
-	/**
-	 * 代付记录
-	 * @return \Illuminate\Database\Eloquent\Relations\HasOne
-	 */
-	public function hasOneBehalfPay()
-	{
-		return $this->hasOne(OrderBehalfPayRecord::class, 'order_pay_id', 'order_pay_id');
-	}
+    /**
+     * 代付记录
+     * @return \Illuminate\Database\Eloquent\Relations\HasOne
+     */
+    public function hasOneBehalfPay()
+    {
+        return $this->hasOne(OrderBehalfPayRecord::class, 'order_pay_id', 'order_pay_id');
+    }
 
     /**
      * 关联模型 1对1:订单支付信息
@@ -530,18 +590,18 @@ class   Order extends BaseModel
      */
     public function getPayTypeNameAttribute()
     {
-		if ($this->pay_type_id != PayType::CASH_PAY && $this->status == self::WAIT_PAY) {
-			return '未支付';
-		}
-		$append = '';
-		if ($this->hasOneBehalfPay) {
-			$append = "（代付:{$this->hasOneBehalfPay->behalf_id}）";
-		}
-		if ($this->pay_type_id == 3) {
-			$set = \Setting::get('shop.shop');
-			return ($set['credit'] ?: '余额').$append;
-		}
-		return $this->hasOnePayType->name.$append;
+        if ($this->pay_type_id != PayType::CASH_PAY && $this->status == self::WAIT_PAY) {
+            return '未支付';
+        }
+        $append = '';
+        if ($this->hasOneBehalfPay) {
+            $append = "（代付:{$this->hasOneBehalfPay->behalf_id}）";
+        }
+        if ($this->pay_type_id == 3) {
+            $set = \Setting::get('shop.shop');
+            return ($set['credit'] ?: '余额') . $append;
+        }
+        return $this->hasOnePayType->name . $append;
     }
 
 
@@ -570,6 +630,9 @@ class   Order extends BaseModel
      */
     public function scopeGetOrderCountGroupByStatus($query, $status = [])
     {
+
+        $newQuery = $query->newQuery();
+//dump($newQuery->dump());
         //$status = [Order::WAIT_PAY, Order::WAIT_SEND, Order::WAIT_RECEIVE, Order::COMPLETE, Order::REFUND];
         $status_counts = $query->select('status', DB::raw('count(*) as total'))
             ->whereIn('status', $status)->where('plugin_id', '<', 900)
@@ -585,7 +648,12 @@ class   Order extends BaseModel
             Order::COMPLETE => 'icon-fontclass-daishouhuo1',
         ];
         if (in_array(Order::REFUND, $status)) {
-            $refund_count = $query->refund()->count();
+
+            $refund_count = \app\frontend\models\Order::select(DB::raw('count(*) as total'))
+                ->where('status', '>', self::WAIT_PAY)->where('plugin_id', '<', 900)
+                ->hidePluginIds()->refund()->count();
+
+//            $refund_count = $query->refund()->count();
             $refund_status[] = [
                 'status' => Order::REFUND,
                 'status_name' => '售后列表',
@@ -593,14 +661,14 @@ class   Order extends BaseModel
                 'total' => $refund_count
             ];
         }
-        $status_counts = array_column($status_counts,null,'status');
+        $status_counts = array_column($status_counts, null, 'status');
         foreach ($status as $state) {
-            if (!in_array($state,array_column($refund_status,'status'))) {
+            if (!in_array($state, array_column($refund_status, 'status'))) {
                 $refund_status[] = [
                     'status' => $state,
-                    'status_name' => $this->getAllStatusAttribute()->where('id',$state)->first()['name']?:'',
+                    'status_name' => $this->getAllStatusAttribute()->where('id', $state)->first()['name'] ?: '',
                     'class' => $icon[$state],
-                    'total' => $status_counts[$state]['total']?:0
+                    'total' => $status_counts[$state]['total'] ?: 0
                 ];
             }
         }
@@ -713,6 +781,12 @@ class   Order extends BaseModel
         return $this->hasMany(OrderFee::class, 'order_id', 'id');
     }
 
+    //订单税率优惠
+    public function orderTaxFees()
+    {
+        return $this->hasMany(OrderTaxFee::class, 'order_id', 'id');
+    }
+
     //订单服务费
     public function orderServiceFees()
     {
@@ -739,9 +813,22 @@ class   Order extends BaseModel
         return $this->hasOne(MemberCancel::class, 'member_id', 'uid');
     }
 
+    /**
+     * 订单直接关闭
+     * @return mixed
+     */
     public function close()
     {
         return \app\backend\modules\order\services\OrderService::close($this);
+    }
+
+    /**
+     * 取消订单退款状态
+     * @return mixed
+     */
+    public function cancelRefund()
+    {
+        return \app\backend\modules\order\services\OrderService::cancelRefund($this);
     }
 
     /**
@@ -875,25 +962,142 @@ class   Order extends BaseModel
      */
     public function canRefund()
     {
+        $shop_set = \Setting::get('shop.trade');
         //关闭后不许退款
         if (!RefundService::allowRefund()) {
             return false;
         }
-
+        //收货后禁止退款
+        if ($this->status>=2) {
+            if (in_array($this->plugin_id, [31,32])) {
+                if (app('plugins')->isEnabled('store-cashier')) {
+                    $store_order = StoreOrder::where('order_id', $this->id)->first();
+                    if ($store_order) {
+                        $store_id = $store_order->store_id;
+                    } else {
+                        $cashier_order = CashierOrder::where('order_id', $this->id)->first();
+                        $store_id = \Yunshop\StoreCashier\common\models\Store::uniacid()->where('cashier_id', $cashier_order->cashier_id)->value('id');
+                    }
+                    $store_trade_set = \Setting::get("store_cashier_{$store_id}.trade");
+                    if ($store_trade_set['send_refund_status']) {
+                        //0或空禁止退款
+                        $store_send_refund_time = $store_trade_set['send_refund_time'];
+                        if (!$store_send_refund_time) {
+                            return false;
+                        }
+                        if ($this->send_time->addMinutes($store_send_refund_time)->timestamp < time()) {
+                            return false;
+                        }
+                    } else {
+                        if ($shop_set['send_refund_status']) {
+                            //0或空禁止退款
+                            $send_refund_time = $shop_set['send_refund_time'];
+                            if (!$send_refund_time) {
+                                return false;
+                            }
+                            if ($this->send_time->addMinutes($send_refund_time)->timestamp < time()) {
+                                return false;
+                            }
+                        }
+                    }
+                } else {
+                    if ($shop_set['send_refund_status']) {
+                        //0或空禁止退款
+                        $send_refund_time = $shop_set['send_refund_time'];
+                        if (!$send_refund_time) {
+                            return false;
+                        }
+                        if ($this->send_time->addMinutes($send_refund_time)->timestamp < time()) {
+                            return false;
+                        }
+                    }
+                }
+            } elseif ($this->plugin_id == 92) {
+                if (app('plugins')->isEnabled('supplier')) {
+                    $supplier_order = SupplierOrder::uniacid()->where('order_id', $this->id)->first();
+                    $supplier_trade_set = \Setting::get("plugin.supplier.trade_{$supplier_order->supplier_id}");
+                    if ($supplier_trade_set['send_refund_status']) {
+                        //0或空禁止退款
+                        $store_send_refund_time = $supplier_trade_set['send_refund_time'];
+                        if (!$store_send_refund_time) {
+                            return false;
+                        }
+                        if ($this->send_time->addMinutes($store_send_refund_time)->timestamp < time()) {
+                            return false;
+                        }
+                    } else {
+                        if ($shop_set['send_refund_status']) {
+                            //0或空禁止退款
+                            $send_refund_time = $shop_set['send_refund_time'];
+                            if (!$send_refund_time) {
+                                return false;
+                            }
+                            if ($this->send_time->addMinutes($send_refund_time)->timestamp < time()) {
+                                return false;
+                            }
+                        }
+                    }
+                } else {
+                    if ($shop_set['send_refund_status']) {
+                        //0或空禁止退款
+                        $send_refund_time = $shop_set['send_refund_time'];
+                        if (!$send_refund_time) {
+                            return false;
+                        }
+                        if ($this->send_time->addMinutes($send_refund_time)->timestamp < time()) {
+                            return false;
+                        }
+                    }
+                }
+            } else {
+                if ($shop_set['send_refund_status']) {
+                    //0或空禁止退款
+                    $send_refund_time = $shop_set['send_refund_time'];
+                    if (!$send_refund_time) {
+                        return false;
+                    }
+                    if ($this->send_time->addMinutes($send_refund_time)->timestamp < time()) {
+                        return false;
+                    }
+                }
+            }
+        }
         if ($this->status == self::COMPLETE) {
             // 完成后n天不许退款
-            if ($this->finish_time->diffInDays() >= \Setting::get('shop.trade.refund_days')) {
+            if ($this->finish_time && $this->finish_time->diffInDays() >= $shop_set['refund_days']) {
                 return false;
             }
-
             // 完成后不许退款
-            if (\Setting::get('shop.trade.refund_days') === '0') {
+            if ($shop_set['refund_days'] === '0') {
                 return false;
             }
-
         }
         // 存在处理中的退款申请
         if (!empty($this->refund_id) || isset($this->hasOneRefundApply)) {
+            return false;
+        }
+        if (app('plugins')->isEnabled('blind-box')) {
+            $has = \Yunshop\BlindBox\models\BlindBoxSubOrderModel::where('sub_order_id',$this->id)->count();
+            if ($has) {//盲盒子订单不给退
+                return false;
+            }
+        }
+
+        return true;
+    }
+    /**
+     * 可以部分退款，用于后端列表部分退款按钮显示
+     * @return bool
+     */
+    public function canPartRefund()
+    {
+
+        if (!$this->canRefund()) {
+            return false;
+        }
+
+        // 如果商品为1则不部分退款
+        if ($this->goods_total <= 1) {
             return false;
         }
         return true;
@@ -949,37 +1153,12 @@ class   Order extends BaseModel
      */
     public function refund()
     {
-        if($this->pay_type_id == 2){
-            $pay = \Setting::get('shop.pay');
-            if($pay['alipay_pay_api'] == 0 ){
-                \Log::debug('支付宝旧接口问题');
-                throw  new AppException('支付宝老接口不支持快速退款通道');
-            }
-        }
         $result = $this->hasOneOrderPay->fastRefund($this);
-
-
-        if (isset($result['batch_no'])) { //兼容支付宝老接口
-            $refundApply = new RefundApply(['reason' => '后台退款', 'content' => '后台退款', 'refund_type' => 1, 'order_id' => $this->id]);
-            $refundApply->images = '';
-            $refundApply->refund_sn = \app\frontend\modules\refund\services\RefundService::createOrderRN();
-            $refundApply->create_time = time();
-            $refundApply->price = $this->price;
-            $refundApply->alipay_batch_sn = $result['batch_no'];
-            $refundApply->uid = 0;
-            $refundApply->uniacid = $this->uniacid;
-            $refundApply->status = 0;
-
-
-            if (!$refundApply->save()) {
-                throw  new AppException('后台申请退款失败');
-            }
-
-            event(new AfterOrderRefundSuccessEvent($refundApply));
-        } else {
-            OrderService::orderForceClose(['order_id' => $this->id]);
+        if (!$result['status']) {
+            throw new AppException($result['msg']);
         }
 
+        OrderService::orderForceClose(['order_id' => $this->id]);
         return $result;
     }
 
@@ -991,7 +1170,7 @@ class   Order extends BaseModel
     {
         $result = $this->hasOneOrderPay->fastRefund2($this);
         OrderService::orderForceClose(['order_id' => $this->id]);
-        
+
 
         return $result;
     }
@@ -1091,13 +1270,14 @@ class   Order extends BaseModel
     {
         return $this->hasMany(OrderCoinExchange::class, 'order_id');
     }
+    public function refundGoodsLog()
+    {
+        return $this->hasMany(refundGoodsLog::class, 'order_id');
+    }
 
     static function queueCount()
     {
-        $hostCount = count((new HostManager())->hosts()?:[]);
-        if(!$hostCount){
-            return 0;
-        }
+        $hostCount = count((new HostManager())->hosts() ?: []) ? : 1;
         if ($count = SiteSettingFacades::get('queue.order')) {
             return $count;
         }
@@ -1117,7 +1297,14 @@ class   Order extends BaseModel
      * 不发送消息通知的订单
      * @return bool
      */
-    public function notSendMessage() {
+    public function notSendMessage()
+    {
+
+        //门店自提
+        if ($this->dispatch_type_id == DispatchType::SELF_DELIVERY) {
+            return true;
+        }
+
         //酒店有自己的消息通知
         if ($this->plugin_id == 33) {
             return true;
@@ -1133,7 +1320,24 @@ class   Order extends BaseModel
             return true;
         }
 
+        //聚推联盟的订单为同步第三方订单，不发送消息通知
+        if ($this->plugin_id == 161) {
+            return true;
+        }
 
+        //珍惠拼
+        if ($this->plugin_id == 115) {
+            if (!is_null(\app\common\modules\shop\ShopConfig::current()->get('zhp_group_lottery_sent_msg_status'))) {
+                $class = array_get(\app\common\modules\shop\ShopConfig::current()->get('zhp_group_lottery_sent_msg_status'), 'class');
+                $function = array_get(\app\common\modules\shop\ShopConfig::current()->get('zhp_group_lottery_sent_msg_status'), 'function');
+                $ret = $class::$function($this->id, $this->uid);//true
+                if ($ret) {
+                    return $ret;
+                }
+            }
+        }
+
+        return false;
     }
 
     /**

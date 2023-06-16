@@ -9,6 +9,7 @@
 namespace app\frontend\modules\cart\models;
 
 
+use app\backend\modules\goods\models\GoodsTradeSet;
 use app\common\exceptions\AppException;
 use app\common\models\BaseModel;
 use app\common\models\GoodsOption;
@@ -30,10 +31,12 @@ use app\frontend\modules\cart\node\CartGoodsPriceNodeBase;
 use app\frontend\modules\cart\services\CartGoodsInterface;
 use app\frontend\modules\order\PriceNode;
 use app\frontend\modules\order\PriceNodeTrait;
+use Illuminate\Support\Carbon;
 
 /**
  * Class CartGoods
  * @package app\frontend\modules\cart\models
+ * @property memberCart memberCart
  * @property Goods goods
  * @property GoodsOption goodsOption
  *
@@ -50,9 +53,12 @@ class CartGoods extends BaseModel implements CartGoodsInterface
 
     protected $goodsAdapter;
 
-    protected $isChecked;
+    protected $isChecked; //是否勾选
 
-    protected $disable;
+
+    protected $isInvalid; //是否失效
+
+    protected $disable; //是否禁止选中
 
     protected $estimated_price;
 
@@ -170,7 +176,35 @@ class CartGoods extends BaseModel implements CartGoodsInterface
 
     }
 
+
+    public function invalidGoods()
+    {
+        $stock = $this->isOption() ? $this->goodsOption->stock : $this->goods->stock;
+
+        //商品下架 || 已删除 || 商品库存不足
+        $invalid = (empty($this->goods()->status) || $this->goods()->deleted_at || ($stock <= 0) || ($this->isOption() && !$this->goods()->has_option) || (!$this->isOption() && $this->goods()->has_option));
+
+
+
+        return $invalid;
+    }
+
+    
     /**
+     * 购物车商品是否失效
+     * @return bool
+     */
+    public function isInvalid()
+    {
+        if (!isset($this->isInvalid)) {
+            $this->isInvalid = $this->invalidGoods();
+        }
+        return $this->isInvalid;
+    }
+
+
+    /**
+     * 验证商品
      * @throws AppException
      */
     public function goodsValidate()
@@ -316,22 +350,54 @@ class CartGoods extends BaseModel implements CartGoodsInterface
             'unit' => $this->getUnit(), //单位
             'style_type' => $this->getStyleType(), //样式
             'goods_title' => $this->goods()->title,
+            'vip_price' => $this->getVipPrice(),
             'goods_thumb' => yz_tomedia($this->goods()->thumb),
             'discount_activity' => $this->getDiscountActivity(),
             'goods_price' => sprintf('%.2f', $this->getGoodsPrice()),
             'price' => sprintf('%.2f', $this->getPrice()),
             'estimated_price' => sprintf('%.2f', $this->getEstimatedPrice()), //预估价格
+            'month_buy_limit' => $this->getMonthBuyLimit(), //分类限购
+            'show_time_word' => $this->getArrivedTime(),
         );
 
         if ($this->goodsOption) {
             $attributes += [
                 'goods_option_title' => $this->goodsOption->title,
             ];
+
+            if ($this->goodsOption['thumb']) {
+                $attributes['goods_thumb'] = yz_tomedia($this->goodsOption['thumb']);
+            }
         }
 
         $attributes = array_merge($this->getAttributes(), $attributes);
 
         return $attributes;
+    }
+
+    private function getArrivedTime()
+    {
+        $goods_trade_set = GoodsTradeSet::where('goods_id', $this->goods_id)->first();
+        if (!$goods_trade_set || !$goods_trade_set->arrived_day || !app('plugins')->isEnabled('address-code')) {
+            return '';
+        }
+        $arrived_day = $goods_trade_set->arrived_day;
+        $arrived_word = $goods_trade_set->arrived_word;
+        if ($arrived_day > 1) {
+            $arrived_day -= 1;
+            $time_format = Carbon::createFromTimestamp(time())->addDays($arrived_day)->format('Y-m-d');
+        } else {
+            $time_format = Carbon::createFromTimestamp(time())->format('Y-m-d');
+        }
+        $time_format .= " {$goods_trade_set->arrived_time}:00";
+        $timestamp = strtotime($time_format);
+        if ($timestamp < time()) {
+            $timestamp += 86400;
+        }
+        $show_time = ltrim(date('m', $timestamp), '0').'月';
+        $show_time .= ltrim(date('d', $timestamp), '0').'日';
+        $show_time .= $goods_trade_set->arrived_time;
+        return str_replace('[送达时间]', $show_time, $arrived_word);
     }
 
     public function getUnit()
@@ -602,5 +668,23 @@ class CartGoods extends BaseModel implements CartGoodsInterface
     public function verify()
     {
         return false;
+    }
+
+    public function getVipPrice()
+    {
+        if($this->isOption()){
+           return $this->goodsOption->vip_price;
+        }else{
+            return $this->goods()->vip_price;
+        }
+    }
+
+    private function getMonthBuyLimit()
+    {
+        if (!app('plugins')->isEnabled('month-buy-limit')) {
+            return [];
+        }
+
+        return \Yunshop\MonthBuyLimit\models\MonthLimitMember::getMemberLimit($this->goods()->id, \YunShop::app()->getMemberId());
     }
 }

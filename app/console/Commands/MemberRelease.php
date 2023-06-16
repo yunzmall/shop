@@ -11,9 +11,15 @@ namespace app\console\Commands;
 
 use app\backend\modules\member\models\Member;
 use app\common\models\member\ChildrenOfMemberBack;
+use app\common\models\member\MemberChildren;
+use app\common\models\member\MemberParent;
 use app\common\models\member\ParentOfMemberBack;
+use app\common\models\MemberShopInfo;
+use app\common\models\Setting;
 use app\common\services\member\MemberRelation;
+use Carbon\Carbon;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 
 class MemberRelease extends Command
 {
@@ -31,15 +37,6 @@ class MemberRelease extends Command
      */
     protected $description = '导入会员关系';
 
-    /**
-     * Create a new command instance.
-     *
-     * @return void
-     */
-    public function __construct()
-    {
-        parent::__construct();
-    }
 
     /**
      * Execute the console command.
@@ -48,117 +45,58 @@ class MemberRelease extends Command
      */
     public function handle()
     {
-        $this->info('=========start=========');
+		$uniacid = $this->argument('uniacid');
+		\YunShop::app()->uniacid = \Setting::$uniqueAccountId = $uniacid;
+        $this->info('重置关系链开始时间：'.Carbon::now()->toDateTimeLocalString());
         $this->process();
-        $this->info('=========end=========');
+        $this->info('重置关系链结束时间：'.Carbon::now()->toDateTimeLocalString());
     }
 
+	private function process()
+	{
+		set_time_limit(-1);
+		ini_set('memory_limit',-1);
+		$parent_list = MemberShopInfo::pluck('parent_id','member_id')->toArray();
+		DB::beginTransaction();
+		try {
+			MemberParent::uniacid()->delete();
+			MemberChildren::uniacid()->delete();
+			foreach (array_chunk($parent_list,10000,true) as $parent) {
+				foreach ($parent as $member_id => $parent_id) {
+					$current_parent_id = $parent_id;
+					$i = 1;
+					while ($current_parent_id != 0) {
+						$member_parent[] = [
+							'member_id' => $member_id,
+							'parent_id' => $current_parent_id,
+							'level' => $i,
+							'uniacid' => \YunShop::app()->uniacid,
+						];
+						$member_child[] = [
+							'member_id' => $current_parent_id,
+							'child_id' => $member_id,
+							'level' => $i,
+							'uniacid' => \YunShop::app()->uniacid,
+						];
+						$current_parent_id = $parent_list[$current_parent_id];
+						$i++;
+					}
+				}
+				foreach (array_chunk($member_parent,10000) as $value) {
+					MemberParent::insert($value);
+				}
+				foreach (array_chunk($member_child,10000) as $value) {
+					MemberChildren::insert($value);
+				}
+				unset($member_parent);
+				unset($member_child);
+			}
+			DB::commit();
+		} catch (\Exception $e) {
+			DB::rollBack();
+			$this->info('重置关系链失败：'.$e->getMessage());
+		}
+	}
 
-    public function t1()
-    {
-        $bar = $this->output->createProgressBar(1000);
-        $bar->setFormat("   %elapsed:6s%/%estimated:-6s%   内存消耗: %memory:6s%\n%current%/%max% [%bar%] %percent:3s%%");
-        for ($i=1; $i<=1000; $i++){
-            usleep(5000);
-        $bar->advance();
-        }
-        $bar->finish();
-        echo "\n";
-    }
 
-    public function process()
-    {
-        $this->info('=========公众号=========' . $this->argument('uniacid'));
-
-        $parentMemberModle = new ParentOfMemberBack();
-        $childMemberModel = new ChildrenOfMemberBack();
-
-        $parentMemberModle->DeletedData($this->argument('uniacid'));
-        $childMemberModel->DeletedData($this->argument('uniacid'));
-
-        $pageSize = 2000;
-        $total = Member::getAllMembersInfosByQueue($this->argument('uniacid'))->distinct()->count();
-
-        $total_page  = ceil($total/$pageSize);
-
-        $this->info('------total-----' . $total);
-        $this->info('------total_page-----' . $total_page);
-
-        for ($curr_page = 1; $curr_page <= $total_page; $curr_page++) {
-            $this->info('------curr_page-----' . $curr_page);
-            \Log::info('--------record------', $curr_page);
-            $offset      = ($curr_page - 1) * $pageSize;
-
-            $this->synRun($this->argument('uniacid'), $parentMemberModle, $childMemberModel, $pageSize, $offset);
-        }
-    }
-
-    /**
-     * @param $uniacid
-     */
-    public function synRun($uniacid, $parentMemberModle, $childMemberModel, $pageSize, $offset)
-    {
-        $memberModel            = new Member();
-        $memberModel->_allNodes = collect([]);
-
-        $memberInfo = $memberModel->getTreeAllNodes($uniacid);
-
-        if ($memberInfo->isEmpty()) {
-            $this->info('----is empty-----');
-            return;
-        }
-
-        foreach ($memberInfo as $item) {
-            $memberModel->_allNodes->put($item->member_id, $item);
-        }
-
-        $member_info = Member::getAllMembersInfosByQueue($uniacid, $pageSize,
-            $offset)->distinct()->get();
-        $this->info('------queue member count-----' . $member_info->count());
-
-        if (!$member_info->isEmpty()) {
-            $this->info('-----queue member empty-----');
-        }
-
-        $this->info('--------queue synRun -----');
-
-        foreach ($member_info as $key => $val) {
-            $attr       = [];
-            $child_attr = [];
-
-            $this->info('--------foreach start------' . $val->member_id);
-            $memberModel->filter = [];
-            $data                = $memberModel->getNodeParents($uniacid, $val->member_id);
-
-            if (!$data->isEmpty()) {
-                $this->info('--------insert init------');
-
-                foreach ($data as $k => $v) {
-                    if ($k != $val->member_id) {
-                        $attr[] = [
-                            'uniacid'    => $uniacid,
-                            'parent_id'  => $k,
-                            'level'      => $v['depth'] + 1,
-                            'member_id'  => $val->member_id,
-                            'created_at' => time()
-                        ];
-
-                        $child_attr[] = [
-                            'uniacid'    => $uniacid,
-                            'child_id'   => $val->member_id,
-                            'level'      => $v['depth'] + 1,
-                            'member_id'  => $k,
-                            'created_at' => time()
-                        ];
-                    } else {
-                        file_put_contents(storage_path("logs/" . date('Y-m-d') . "_batchparent.log"),
-                            print_r([$val->member_id, $v, 'insert'], 1), FILE_APPEND);
-                    }
-                }
-
-                $parentMemberModle->createData($attr);
-                $childMemberModel->createData($child_attr);
-            }
-        }
-    }
 }

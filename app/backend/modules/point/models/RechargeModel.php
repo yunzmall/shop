@@ -61,8 +61,8 @@ class RechargeModel extends \app\common\models\point\RechargeModel
 
         if ($search['order_sn']) $query->where('order_sn', 'like', $search['order_sn'] . '%');
 
-        if ($search['search_time']) {
-            $query->whereBetween('created_at', [strtotime($search['time']['start']), strtotime($search['time']['end'])]);
+        if (($search['time']['start'] > 0 && $search['time']['end'] > 0)) {
+            $query->whereBetween('created_at', [$search['time']['start'], $search['time']['end']]);
         }
     }
 

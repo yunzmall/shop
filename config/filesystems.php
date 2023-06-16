@@ -55,6 +55,11 @@ return [
             'root' => storage_path('app'),
         ],
 
+		'export'=> [
+			'driver' => 'local',
+			'root' => storage_path('exports'),
+		],
+
         //图片
         'syst_images' => [
             //仅新框架用
@@ -88,11 +93,35 @@ return [
             'visibility' => 'public',
         ],
 
+        //企业微信好友列表的logo
+        'customer_increase_logo' => [
+            'driver' => 'local',
+            'root' => base_path($attachment . '/customer_increase_logo/'.date('Y').'/'.date('m')),
+            'url' => 'customer_increase_logo/'.date('Y').'/'.date('m'),
+            'visibility' => 'public',
+        ],
+
         //聚合cps的apk文件
         'cps_apk' => [
             'driver' => 'local',
             'root' => base_path($attachment . '/cps_apk/0/'.date('Y').'/'.date('m')),
             'url' => 'cps_apk/0/'.date('Y').'/'.date('m'),
+            'visibility' => 'public',
+        ],
+
+        //商米D2的apk文件
+        'd2_apk' => [
+            'driver' => 'local',
+            'root' => base_path($attachment . '/d2_apk/0/'.date('Y').'/'.date('m')),
+            'url' => 'd2_apk/0/'.date('Y').'/'.date('m'),
+            'visibility' => 'public',
+        ],
+
+        //消费券联名的签约文件
+        'coupon_store_agreement' => [
+            'driver' => 'local',
+            'root' => base_path($attachment . '/coupon_store_agreement/'.date('Y').'/'.date('m')),
+            'url' => 'coupon_store_agreement/'.date('Y').'/'.date('m'),
             'visibility' => 'public',
         ],
         
@@ -257,6 +286,18 @@ return [
             'driver' => 'local',
             'root' => base_path('static/shop-esign'),
             'url' => '/static/shop-esign/',
+            'visibility' => 'public',
+        ],
+        'paid_file'=>[
+            'driver' => 'local',
+            'root' => base_path('plugins/paid-file/file'),
+            'url' => env('APP_URL').'plugins/paid-file/file',
+            'visibility' => 'private',
+        ],
+        'paid_file_public'=>[
+            'driver' => 'local',
+            'root' => storage_path('app/public/paid-file'),
+            'url' => env('APP_URL').'/storage/app/public/paid-file',
             'visibility' => 'public',
         ],
     ],

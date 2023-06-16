@@ -10,5 +10,5 @@ namespace app\common\modules\express\expressCompany;
 
 
 interface Logistics {
-    public function getTraces($comCode, $expressSn, $orderSn,$order_id);
+    public function getTraces($comCode, $expressSn, $orderSn,$phoneLastFour);
 }

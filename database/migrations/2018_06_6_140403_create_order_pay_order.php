@@ -22,6 +22,9 @@ class CreateOrderPayOrder extends Migration
                 $table->integer('updated_at')->nullable();
                 $table->integer('deleted_at')->nullable();
             });
+
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE `".app('db')->getTablePrefix()."yz_order_pay_order` comment'订单--支付流水与订单中间表'");//表注释
+
             \app\common\models\OrderPay::get()->each(function(\app\common\models\OrderPay $orderPay){
                 foreach ($orderPay->order_ids as $order_id){
 

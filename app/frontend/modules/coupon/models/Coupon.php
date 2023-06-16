@@ -20,6 +20,8 @@ class Coupon extends \app\common\models\Coupon
         'categorynames' => 'json',
         'time_start' => 'date',
 //        'time_end' => 'date',
+        'member_tags_ids' => 'json',
+        'member_tags_names' => 'json',
     ];
 
     const TYPE_ALL = 0;//全部
@@ -135,8 +137,7 @@ class Coupon extends \app\common\models\Coupon
             $res = $res->unexpired($time);
         }
 
-        return $res->withCount(['hasManyMemberCoupon'])
-            ->withCount(['hasManyMemberCoupon as member_got' => function ($query) use ($memberId) {
+        return $res->withCount(['hasManyMemberCoupon as member_got_count' => function ($query) use ($memberId) {
                 return $query->where('uid', '=', $memberId);
             }]);
     }
@@ -150,7 +151,7 @@ class Coupon extends \app\common\models\Coupon
         $res = static::uniacid()
             ->select(['yz_coupon.id', 'yz_coupon.name', 'yz_coupon.coupon_method', 'yz_coupon.deduct', 'yz_coupon.discount', 'yz_coupon.enough', 'yz_coupon.use_type', 'yz_coupon.category_ids',
                 'yz_coupon.categorynames', 'yz_coupon.goods_ids', 'yz_coupon.goods_names', 'yz_coupon.time_limit', 'yz_coupon.time_days', 'yz_coupon.time_start', 'yz_coupon.time_end', 'yz_coupon.get_max', 'yz_coupon.total',
-                'yz_coupon.money', 'yz_coupon.credit', 'yz_coupon.updated_at', 'use_conditions']);
+                'yz_coupon.money', 'yz_coupon.credit', 'yz_coupon.updated_at', 'use_conditions', 'yz_coupon.is_integral_exchange_coupon', 'yz_coupon.exchange_coupon_integral']);
         if ($coupon_type) {
             switch ($coupon_type) {
                 case Coupon::TYPE_SHOP:
@@ -194,6 +195,28 @@ class Coupon extends \app\common\models\Coupon
         if (!app('plugins')->isEnabled('hotel')) {
             $res->whereNotIn('yz_coupon.use_type', [Coupon::COUPON_ONE_HOTEL_USE, Coupon::COUPON_MORE_HOTEL_USE]);
         }
+
+        //会员标签查询
+        if (app('plugins')->isEnabled('member-tags')) {
+            //存在会员标签的才进行查询限制
+            $memberTags = \Yunshop\MemberTags\Common\models\MemberTagsRelationModel::uniacid()->where('member_id', $memberId)->pluck('tag_id');
+            $res->where(function ($query) use ($memberTags) {
+                $query->where(function ($query2) use ($memberTags) {
+                    $i = 0;
+                    foreach ($memberTags as $item) {
+                        if ($i > 0) {
+                            $query2->orWhereRaw("FIND_IN_SET(?,TRIM(TRAILING ']' FROM TRIM(LEADING '[' FROM member_tags_ids)))", $item);
+                        } else {
+                            $query2->whereRaw("FIND_IN_SET(?,TRIM(TRAILING ']' FROM TRIM(LEADING '[' FROM member_tags_ids)))", $item);
+                        }
+                        $i++;
+                    }
+                })->orWhere(function ($query) {
+                    $query->whereNull('member_tags_ids')->orWhereRaw("LENGTH(TRIM( TRAILING ']' FROM TRIM( LEADING '[' FROM member_tags_ids ) )) = 0");
+                });
+            });
+        }
+
         $res->where('yz_coupon.get_type', '=', 1)
             ->where('yz_coupon.status', '=', 1)
             ->where('yz_coupon.get_max', '!=', 0)
@@ -213,8 +236,7 @@ class Coupon extends \app\common\models\Coupon
             $res = $res->unexpired($time);
         }
 
-        return $res->withCount(['hasManyMemberCoupon'])
-            ->withCount(['hasManyMemberCoupon as member_got' => function ($query) use ($memberId) {
+        return $res->withCount(['hasManyMemberCoupon as member_got_count' => function ($query) use ($memberId) {
                 return $query->where(['uid' => $memberId , 'get_type' => 1]);
             }]);
     }

@@ -32,20 +32,43 @@ interface DeductionSettingInterface
     public function isMinDisable();
     public function isDispatchDisable();
 
+    /**
+     * 最高抵扣比例和固定金额
+     * @return mixed
+     */
     public function getMaxFixedAmount();
     public function getMaxPriceProportion();
     /**
+     * 最高抵扣
      * 根据这个方法判断实例化哪个金额类
      * @return mixed
      */
     public function getMaxDeductionType();
+
+
+    /**
+     * 抵扣计算方式类型，用于判断返回计算金额
+     * @return mixed
+     */
     public function getDeductionAmountType();
 
+    /**
+     * 最低抵扣比例和固定金额
+     * @return mixed
+     */
     public function getMinFixedAmount();
     public function getMinPriceProportion();
     /**
+     * 最低抵扣
      * 根据这个方法判断实例化哪个金额类
      * @return mixed
      */
     public function getMinDeductionType();
+
+
+    /**
+     * 影响抵扣金额设置
+     * @return mixed
+     */
+    public function getAffectDeductionAmount();
 }

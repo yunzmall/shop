@@ -41,20 +41,35 @@ class PreOrderCoupon extends \app\common\models\order\OrderCoupon
 
     public function saveLog()
     {
-        $order = $this->order->toArray();
-        foreach ($order['order_coupons'] as $v)
-        {
+
+        if ($this->coupon_id && $this->member_coupon_id) {
             $log_data = [
                 'uniacid' => \YunShop::app()->uniacid,
                 'member_id' => \YunShop::app()->getMemberId(),
-                'detail' => '会员(ID为' . \YunShop::app()->getMemberId() . ')购物使用一张优惠券(ID为' . $v['coupon_id'] . ')',
-                'coupon_id' => $v['coupon_id'],
-                'member_coupon_id' => $v['member_coupon_id'],
+                'detail' => '会员(ID为' . \YunShop::app()->getMemberId() . ')购物使用一张优惠券(ID为' . $this->coupon_id . ')',
+                'coupon_id' => $this->coupon_id,
+                'member_coupon_id' => $this->member_coupon_id,
                 'type' => CouponUseLog::TYPE_SHOPPING
             ];
             $model = new CouponUseLog();
             $model->fill($log_data);
             $model->save();
         }
+
+//        $order = $this->order->toArray();
+//        foreach ($order['order_coupons'] as $v)
+//        {
+//            $log_data = [
+//                'uniacid' => \YunShop::app()->uniacid,
+//                'member_id' => \YunShop::app()->getMemberId(),
+//                'detail' => '会员(ID为' . \YunShop::app()->getMemberId() . ')购物使用一张优惠券(ID为' . $v['coupon_id'] . ')',
+//                'coupon_id' => $v['coupon_id'],
+//                'member_coupon_id' => $v['member_coupon_id'],
+//                'type' => CouponUseLog::TYPE_SHOPPING
+//            ];
+//            $model = new CouponUseLog();
+//            $model->fill($log_data);
+//            $model->save();
+//        }
     }
 }

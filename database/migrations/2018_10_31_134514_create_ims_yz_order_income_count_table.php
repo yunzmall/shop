@@ -48,6 +48,7 @@ class CreateImsYzOrderIncomeCountTable extends Migration {
                 $table->integer('updated_at')->nullable();
                 $table->integer('deleted_at')->nullable();
             });
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE " . app('db')->getTablePrefix() . "yz_order_income_count comment '订单--订单分润表'");//表注释
         }
 	}
 

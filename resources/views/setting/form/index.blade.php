@@ -106,6 +106,27 @@
                 <el-form ref="form" :model="form" label-width="15%">
                     <div class="block">
                         <div class="title"><div style="display:flex;align-items:center;"><span style="width: 4px;height: 18px;background-color: #29ba9c;margin-right:15px;display:inline-block;"></span><b>基础设置</b></div></div>
+                        <el-form-item label="姓名">
+                            <div style="display: flex;align-items: center;">
+                                <el-switch
+                                        v-model="base.name"
+
+                                        active-value="1"
+                                        inactive-value="0"
+                                >
+                                </el-switch>
+                                <div>
+                                    <span style="margin: 0 30px 0 80px; font-size: 14px; color: #666;font-weight: 400;">姓名是否必填</span>
+                                    <el-switch
+                                            v-model="base.name_must"
+                                            active-value="1"
+                                            inactive-value="0"
+                                    >
+                                    </el-switch>
+                                </div>
+                            </div>
+                        </el-form-item>
+
                         <el-form-item label="性别">
                             <template>
                                 <el-switch
@@ -138,6 +159,18 @@
                                 >
                                 </el-switch>
                             </template>
+                        </el-form-item>
+                        <el-form-item label="修改昵称头像">
+                            <template>
+                                <el-switch
+                                        v-model="base.change_info"
+
+                                        active-value="1"
+                                        inactive-value="0"
+                                >
+                                </el-switch>
+                            </template>
+                            <div>开启后，前端可修改会员头像昵称，若开启微信授权登录，修改后会被微信的头像昵称替换</div>
                         </el-form-item>
                     </div>
                     <div style="background: #eff3f6;width:100%;height:15px;"></div>
@@ -198,9 +231,12 @@
                         name:[]
                     },
                     base :{
+                        name:'0',
                         sex:'0',
                         address:'0',
                         birthday:'0',
+                        name_must:'0',
+                        change_info:'0',
                     }
                 }
             },

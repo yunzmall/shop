@@ -78,7 +78,7 @@
         text-align: center;
     }
 
-    .statistics li>.iconfont {
+    .statistics .iconfont {
         display: inline-block;
         padding: 11px 9px;
         color: #2cc08d;
@@ -225,12 +225,16 @@
                 </div>
                 <ul class="vue-head statistics">
                     <li v-for="(statisticsItem,itemIndex) in statistics.slice(0,4)" :key="itemIndex">
+                        <el-link :underline="false" :href="statisticsItem.link">
                         <div class="iconfont" :class="[ statisticsItem.icon ]" :style="{ color:statisticsItem.color,backgroundColor:statisticsItem.backgroundColor }"></div>
                         <div class="statistics-count">
                             <span v-if="itemIndex===4" :style="{ color:statisticsItem.color }">￥</span>
                             <count-to :start-val='0' :end-val="Number(statisticsItem.count)" :duration="4000" :style="{ color:statisticsItem.color }"></count-to>
                         </div>
-                        <div class="statistics-name">[[ statisticsItem.title ]]</div>
+                        <div class="statistics-name">
+                            <el-link :underline="false" :href="statisticsItem.link">[[statisticsItem.title]]</el-link>
+                        </div>
+                        </el-link>
                     </li>
                     <li>
                         <div class="iconfont" :class="[ statistics[4].icon ]" :style="{ color:statistics[4].color,backgroundColor:statistics[4].backgroundColor }"></div>
@@ -267,43 +271,6 @@
                         <el-table-column prop="created_at" label="创建时间" align="center"> </el-table-column>
                     </el-table>
                 </div>
-                @if(YunShop::app()->role == 'founder')
-                <div class="vue-head chart" style="padding: 11px;height: 300px;box-sizing: border-box;" v-if="status_show==1">
-                    <div class="vue-main-title">
-                        <div class="vue-main-title-left"></div>
-                        <div class="vue-main-title-content">资源状态</div>
-                    </div>
-                    <div style="display:flex;justify-content:space-around;margin-top:20px;font-size:18px;text-align: center;">
-                        <div class="status-li">
-                            <el-tooltip class="item" effect="dark">
-                                <div slot="content" v-html="status_content"></div>
-                                <el-progress type="circle" :percentage="status_rate" :stroke-width="15" color="#808cff" stroke-linecap="butt"></el-progress>
-                            </el-tooltip>
-                            <div style="margin-top:21px;">负载状态</div>
-                        </div>
-                        <div class="status-li">
-                            <el-tooltip class="item" effect="dark" :content="cpu?cpu.model:''">
-                                <el-progress type="circle" :percentage="cpu?cpu.using:0" :stroke-width="15" color="#496eff"></el-progress>
-                            </el-tooltip>
-                            <div style="margin-top:21px;">CPU使用率</div>
-                            <div v-if="cpu" style="margin-top:13px;">[[cpu.num]]核心</div>
-                        </div>
-                        <div class="status-li">
-                            <el-progress type="circle" :percentage="ram?ram.memPercent:0" :stroke-width="15" color="#ffbe4d"></el-progress>
-                            <div style="margin-top:21px;">总内存使用率</div>
-                            <div v-if="ram" style="margin-top:13px;">[[ram.memUsed]]/[[ram.memTotal]]</div>
-                        </div>
-                        <div class="status-li">
-                            <el-tooltip class="item" effect="dark">
-                                <div slot="content" v-html="disk_content"></div>
-                                <el-progress type="circle" stroke-linecap="butt" :percentage="disk?disk.percent:0" :stroke-width="15" color="#f68838"></el-progress>
-                            </el-tooltip>
-                            <div style="margin-top:21px;">当前站点磁盘使用率</div>
-                            <div v-if="disk" style="margin-top:13px;">[[disk.used]]G/[[disk.total]]G</div>
-                        </div>
-                    </div>
-                </div>
-                @endif
             </el-col>
             <el-col :span="8">
                 <div class="vue-head entry-warp">
@@ -394,126 +361,8 @@
                     </div>
                     <div v-if="!visitorEnabled" style="padding:20% 0;text-align: center;">请先安装浏览轨迹插件</div>
                 </div>
-                <div class="vue-head system-situation">
-                    <div class="vue-main-title">
-                        <div class="vue-main-title-left"></div>
-                        <div class="vue-main-title-content">系统运行情况</div>
-                    </div>
-                    <div class="system-situation_tips">
-                        如果为红色图标，表示系统运营异常，10分钟左右刷新未恢复正常的，请第一时间联系客服处理！
-                    </div>
-                    <el-row type="flex" justify="center" :gutter="20" align="center">
-                        <el-col :span="5">
-                            <div class="" style="text-align: center;">
-                                <p v-for="(item,index) in queue_color" :key="index">
-                                    <el-button v-if="queue_hearteat.daemon.queue_status == item.color" :type="item.value" :title="queue_hearteat.daemon.title" icon="el-icon-s-opportunity" circle></el-button>
-                                </p>
-                                <p style="margin-top:32px;"> 守护进程 <span v-if="queue_hearteat.daemon.queue_status != 'green'" style="color: red;">[[queue_hearteat.daemon.msg]]</span></p>
-                            </div>
-                        </el-col>
-                        <el-col :span="5">
-                            <div class="" style="text-align: center;">
-                                <p v-for="(item,index) in queue_color" :key="index">
-                                    <el-button v-if="queue_hearteat.job.queue_status == item.color" :type="item.value" :title="item.label" icon="el-icon-s-opportunity" circle></el-button>
-                                </p>
-                                <p style="margin-top:32px;">队列 <span v-if="queue_hearteat.job.queue_status != 'green'" style="color: red">[[queue_hearteat.job.msg]]</span> <span v-if="queue_hearteat.job.is_repeat > 1" style="color: red">重复执行</span> </p>
-                            </div>
-                        </el-col>
-                        <el-col :span="5">
-                            <div class="" style="text-align: center;">
-                                <p v-for="(item,index) in queue_color" :key="index">
-                                    <el-button v-if="queue_hearteat.cron.queue_status == item.color" :type="item.value" :title="item.label" icon="el-icon-s-opportunity" circle></el-button>
-                                </p>
-                                <p style="margin-top:32px;"> 定时任务 <span v-if="queue_hearteat.cron.queue_status != 'green'" style="color: red">[[queue_hearteat.cron.msg]]</span> <span v-if="queue_hearteat.cron.is_repeat > 1" style="color: red">重复执行</span></p>
-                            </div>
-                        </el-col>
-                        <el-col :span="5">
-                            <div style="text-align: center;">
-                                <p v-for="(item,index) in queue_color" :key="index">
-                                    <el-button v-if="queue_hearteat.redis.queue_status == item.color" :type="item.value" :title="item.label" icon="el-icon-s-opportunity" circle></el-button>
-                                </p>
-                                <p style="margin-top:32px;"> Redis <span v-if="queue_hearteat.redis.queue_status != 'green'" style="color: red">[[queue_hearteat.redis.msg]]</span></p>
-                            </div>
-                        </el-col>
-                    </el-row>
-                </div>
             </el-col>
         </el-row>
-        <div class="chart plugin" v-if="false">
-            <div class="plugin-name plugin-title">常用功能</div>
-            <div v-for="(item,index) in plugins" :key="index" class="plugin-box">
-                <a :href="item.url" class="plugin-box-a">
-                    <div class="plugin-icon">
-                        <!-- <i class="fa" :class="item.icon" style="font-size:50px;margin-top:15px;"></i> -->
-                        <img :src="item.icon_url" style="font-size:50px;width:80px;height:80px;">
-                    </div>
-                    <div class="plugin-name">
-                        [[item.name]]
-                    </div>
-                </a>
-=======
-            </div>
-            @if(YunShop::app()->role == 'founder')
-                <div class="chart" v-if="status_show==1">
-                    <div class="plugin-name plugin-title">状态</div>
-                    <div>
-                        <div class="status-li">
-                            <div style="font-weight:600;line-height:36px;font-size:16px">负载状态</div>
-                            <el-tooltip class="item" effect="dark">
-                                <div slot="content" v-html="status_content"></div>
-                                <el-progress type="circle" :percentage="status_rate"></el-progress>
-                            </el-tooltip>
-                        </div>
-                        <div class="status-li">
-                            <div style="font-weight:600;line-height:36px;font-size:16px">CPU使用率</div>
-                            <el-tooltip class="item" effect="dark" :content="cpu?cpu.model:''">
-                                <el-progress type="circle" :percentage="cpu?cpu.using:0"></el-progress>
-                            </el-tooltip>
-                            <div v-if="cpu" style="font-weight:600;line-height:36px;font-size:16px">[[cpu.num]]核心</div>
-                        </div>
-                        <div class="status-li">
-                            <div style="font-weight:600;line-height:36px;font-size:16px">总内存使用率</div>
-                            <el-progress type="circle" :percentage="ram?ram.memPercent:0"></el-progress>
-                            <div v-if="ram" style="font-weight:600;line-height:36px;font-size:16px">[[ram.memUsed]]/[[ram.memTotal]]</div>
-                        </div>
-                        <div class="status-li">
-                            <div style="font-weight:600;line-height:36px;font-size:16px">当前站点磁盘使用率</div>
-                            <el-tooltip class="item" effect="dark">
-                                <div slot="content" v-html="disk_content"></div>
-                                <el-progress type="circle" :percentage="disk?disk.percent:0"></el-progress>
-                            </el-tooltip>
-                            <div v-if="disk" style="font-weight:600;line-height:36px;font-size:16px">[[disk.used]]G/[[disk.total]]G</div>
-                        </div>
-                    </div>
-                </div>
-            @endif
-            <div class="chart plugin">
-                <div class="plugin-name plugin-title">常用功能</div>
-                <div v-for="(item,index) in plugins" :key="index" class="plugin-box">
-                    <a :href="item.url" class="plugin-box-a">
-                        <div class="plugin-icon">
-                            <!-- <i class="fa" :class="item.icon" style="font-size:50px;margin-top:15px;"></i> -->
-                            <img :src="item.icon_url" style="font-size:50px;width:80px;height:80px;">
-                        </div>
-                        <div class="plugin-name">
-                            [[item.name]]
-                        </div>
-                    </a>
-                </div>
-            </div>
-
-            <div class="chart">
-                <div class="plugin-name plugin-title">销量排行</div>
-                <el-table :data="list" style="width: calc(100% - 30px);margin-left:15px;padding-top:30px;" v-loading="loading">
-                    <el-table-column prop="title" label="商品名称" ></el-table-column>
-                    <el-table-column prop="real_sales" label="销量" align="center"> </el-table-column>
-                    <el-table-column prop="created_at" label="创建时间" align="center"> </el-table-column>
-                </el-table>
-            </div>
-            <div class="example-item">
->>>>>>> tt-master
-            </div>
-        </div>
     </div>
 </div>
 
@@ -527,59 +376,6 @@
             // let data = JSON.parse(`{!! $data ? : '{}'!!}`);
 
             return {
-                queue_color: [{
-                    color: 'green',
-                    value: 'success',
-                    label: '正常'
-                }, {
-                    color: 'yellow',
-                    value: 'warning',
-                    label: '延迟'
-                }, {
-                    color: 'red',
-                    value: 'danger',
-                    label: '阻塞'
-                }, {
-                    color: 'not_open',
-                    value: '',
-                    label: '无'
-                }, {
-                    color: 'unconnection',
-                    value: 'danger',
-                    label: '连接失败'
-                }, {
-                    color: 'unexecute',
-                    value: 'danger',
-                    label: '无法使用'
-                }, {
-                    color: 'uninstall',
-                    value: 'danger',
-                    label: '未安装'
-                }, {
-                    color: 'not_running',
-                    value: 'danger',
-                    label: '未运行'
-                }],
-                queue_hearteat: {
-                    'daemon': {
-                        queue_status: 'not_running',
-                        is_repeat: 0,
-                    },
-                    'cron': {
-                        queue_status: 'not_open',
-                        is_repeat: 0,
-                    },
-                    'job': {
-                        queue_status: 'not_open',
-                        is_repeat: 0,
-                    },
-                    'redis': {
-                        queue_status: 'not_open',
-                        is_repeat: 0,
-                    }
-                },
-
-
                 chart_data: [],
                 plugins: [],
                 list: [{}],
@@ -603,25 +399,29 @@
                     count: 0,
                     icon: "icon-fontclass-renshu",
                     color: "#2cc08d",
-                    backgroundColor: "#e5f8f2"
+                    backgroundColor: "#e5f8f2",
+                    link: '{!! yzWebFullUrl('member.member') !!}',
                 }, {
                     title: "今日订单数",
                     count: 0,
                     icon: "icon-fontclass-shangpindingdan",
                     color: "#f3766c",
-                    backgroundColor: "#fdeeec"
+                    backgroundColor: "#fdeeec",
+                    link: '{!! yzWebFullUrl('order.order-list.index', ['o_time' => 'create_time']) !!}',
                 }, {
                     title: "待付款订单",
                     count: 0,
                     icon: "icon-ht_content_tixian",
                     color: " #ecb134",
-                    backgroundColor: "#fcf9e9"
+                    backgroundColor: "#fcf9e9",
+                    link: '{!! yzWebFullUrl('order.order-list.index', ['o_status' => 'waitPay']) !!}',
                 }, {
                     title: "待发货订单",
                     count: 0,
                     icon: "icon-ht_content_order",
                     color: "#4d8bfc",
-                    backgroundColor: "#f0f4ff"
+                    backgroundColor: "#f0f4ff",
+                    link: '{!! yzWebFullUrl('order.order-list.index', ['o_status' => 1]) !!}',
                 }, {
                     title: "今日交易额",
                     count: 0,
@@ -665,7 +465,6 @@
             setData(data) {
                 this.loading = true;
 
-                this.queue_hearteat = data.queue_hearteat;
                 this.chart_data = data.chart_data;
                 this.plugins = data.plugins;
                 this.list = data.goods;
@@ -720,18 +519,6 @@
                     if (response.data.result) {
                         let data=response.data.data;
                         this.setData(data);
-                        let system_data = data.system || {};
-                        this.status_show = (system_data && system_data.is_show) ? system_data.is_show : 0;
-                        this.status_show = 1;
-                        setTimeout(() => {
-                            this.status_content = `最近1分钟平均负载：${system_data.loadAvg?system_data.loadAvg[0]:''}<br>最近5分钟平均负载：${system_data.loadAvg?system_data.loadAvg[1]:''}<br>最近15分钟平均负载：${system_data.loadAvg?system_data.loadAvg[2]:''}`
-                            this.status_rate = system_data.loadAvg ? system_data.loadAvg[3] : 0;
-                            this.disk_content = `容量：${system_data.disk?system_data.disk.total:''}G<br>已用：${system_data.disk?system_data.disk.used:''}G<br>可用：${system_data.disk?system_data.disk.free:''}G<br>使用率：${system_data.disk?system_data.disk.percent:''}%`
-                            this.loadAvg = system_data.loadAvg;
-                            this.cpu = system_data.cpu;
-                            this.ram = system_data.RAM;
-                            this.disk = system_data.disk;
-                        }, 500);
                     } else {
                         this.$message({
                             message: response.data.msg,

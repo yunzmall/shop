@@ -42,7 +42,7 @@ class MediaController extends BaseController
                 $query->where('uid', \YunShop::app()->uid);
             }
 
-        }])->where('source_type',$sourceType)->orderBy('sort', 'desc')->get()->toArray();
+        }])->where('source_type',$sourceType)->orderBy('id', 'desc')->get()->toArray();
 
         $allCount = $this->coreAttchment->uniacid()->where('type',$sourceType);
         $unCount = $this->coreAttchment->uniacid()->where('type',$sourceType)->where(function($query){
@@ -200,6 +200,17 @@ class MediaController extends BaseController
         foreach ($core_attach as $attach)
         {
             if ($attach['upload_type']) {
+                $remote_url = '';
+                if ($remote['type'] == 2) {
+                    $remote_url = $remote['alioss']['url'];
+                }
+                if ($remote['type'] == 4) {
+                    $remote_url = $remote['cos']['url'];
+                }
+                if ($remote_url && strexists($attach['attachment'], $remote_url)) {
+                    $str_len = strlen($remote_url);
+                    $attach['attachment'] = substr($attach['attachment'], $str_len+1);
+                }
                 if (config('app.framework') == 'platform')
                 {
                     $status = file_remote_delete($attach['attachment'], $attach['upload_type'], $remote);
@@ -210,9 +221,6 @@ class MediaController extends BaseController
                 }
             } else {
                 $status = file_delete($attach['attachment']);
-            }
-            if (is_error($status)) {
-                return $this->errorJson($status['message']);
             }
             $attach->delete();
         }

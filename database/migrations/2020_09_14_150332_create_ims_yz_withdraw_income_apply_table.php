@@ -25,6 +25,8 @@ class CreateImsYzWithdrawIncomeApplyTable extends Migration
                 $table->integer('created_at')->nullable();
                 $table->integer('deleted_at')->nullable();
             });
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE " . app('db')->getTablePrefix()
+                . "yz_withdraw_income_apply comment '财务--会员收入提现状态表'");//表注释
         }
     }
 

@@ -34,9 +34,16 @@ class DoublePaymentRepair
      */
     public function handle()
     {
-        $this->orderPay->fastRefund();
+        $result = $this->orderPay->fastRefund();
 
-        $this->message[]="{$this->orderPay->pay_type_id}退款成功";
+        if ($result['status']) {
+            $this->message[]="{$this->orderPay->pay_type_name}[{$this->orderPay->pay_type_id}]退款成功";
+        } else {
+            $this->message[]="{$this->orderPay->pay_type_name}[{$this->orderPay->pay_type_id}]退款失败：{$result['msg']}";
+
+            return false;
+        }
+
         return $this->message;
     }
 

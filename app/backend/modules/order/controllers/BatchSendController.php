@@ -1,6 +1,6 @@
 <?php
 /**
- * Author: 芸众商城 www.yunzshop.com
+ * Author:  
  * Date: 2017/11/21
  * Time: 下午4:01
  */
@@ -59,7 +59,7 @@ class BatchSendController extends BaseController
                 } catch (ShopException $exception) {
                     return $this->errorJson($exception->getMessage());
                 }
-                $this->readExcel();
+//                $this->readExcel();
                 $this->handleOrders($this->getRow(), $send_data);
                 $this->sendMessage($this->uid);
                 $msg = $this->success_num . '个订单发货成功。';
@@ -70,6 +70,8 @@ class BatchSendController extends BaseController
 
         return view('order.batch_send_vue', [])->render();
     }
+
+    protected $importData;
 
     /**
      * @name 保存excel文件
@@ -86,19 +88,22 @@ class BatchSendController extends BaseController
             throw new ShopException('不是xls、xlsx文件格式！');
         }
 
-        $newOriginalName = md5($originalName . str_random(6)) . $ext;
-        \Storage::disk('orderexcel')->put($newOriginalName, file_get_contents($realPath));
 
-        $this->originalName = $newOriginalName;
+        $this->importData = \app\exports\ExcelService::importToArray($file);
+
+//        $newOriginalName = md5($originalName . str_random(6)) .'.'. $ext;
+//        \Storage::disk('orderexcel')->put($newOriginalName, file_get_contents($realPath));
+//        $this->originalName = $newOriginalName;
     }
 
+
     /**
-     * @name 读取文件
+     * 读取文件
      * @author
      */
     private function readExcel()
     {
-        $this->reader = \Excel::load(storage_path('app/public/orderexcel') . '/' . $this->originalName);
+        //$this->reader = \Excel::load(storage_path('app/public/orderexcel') . '/' . $this->originalName);
     }
 
     /**
@@ -108,6 +113,13 @@ class BatchSendController extends BaseController
      */
     private function getRow()
     {
+
+        $values = $this->importData[0];
+        array_shift($values); // 删除标题
+
+        return $values?:[];
+
+
         $values = [];
         $sheet = $this->reader->getActiveSheet();
         $highestRow = $sheet->getHighestRow();
@@ -219,18 +231,26 @@ class BatchSendController extends BaseController
     public function getExample()
     {
         $export_data[0] = ["订单编号", "快递单号"];
-        \Excel::create('批量发货数据模板', function ($excel) use ($export_data) {
-            $excel->setTitle('Office 2005 XLSX Document');
-            $excel->setCreator('芸众商城')
-                ->setLastModifiedBy("芸众商城")
-                ->setSubject("Office 2005 XLSX Test Document")
-                ->setDescription("Test document for Office 2005 XLSX, generated using PHP classes.")
-                ->setKeywords("office 2005 openxml php")
-                ->setCategory("report file");
-            $excel->sheet('info', function ($sheet) use ($export_data) {
-                $sheet->rows($export_data);
-            });
-        })->download('csv');//->export('xls');
+
+
+        $file_name = date('Y-m-d-h-i-s', time()) . "批量发货数据模板.xls";
+
+
+        return  \app\exports\ExcelService::fromArrayExport($export_data, $file_name);
+
+        // 商城更新，无法使用
+//        \Excel::create('批量发货数据模板', function ($excel) use ($export_data) {
+//            $excel->setTitle('Office 2005 XLSX Document');
+//            $excel->setCreator('芸众商城')
+//                ->setLastModifiedBy("芸众商城")
+//                ->setSubject("Office 2005 XLSX Test Document")
+//                ->setDescription("Test document for Office 2005 XLSX, generated using PHP classes.")
+//                ->setKeywords("office 2005 openxml php")
+//                ->setCategory("report file");
+//            $excel->sheet('info', function ($sheet) use ($export_data) {
+//                $sheet->rows($export_data);
+//            });
+//        })->download('csv');//->export('xls');
     }
 
     private function sendMessage($uid)

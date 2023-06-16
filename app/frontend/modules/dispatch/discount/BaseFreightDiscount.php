@@ -14,5 +14,21 @@ use app\frontend\modules\order\discount\BaseDiscount;
 
 abstract class BaseFreightDiscount  extends BaseDiscount
 {
-   
+    /**
+     * @var \app\frontend\modules\dispatch\models\OrderFreight|mixed
+     */
+    protected $orderFreight;
+
+    public function __construct(PreOrder $order)
+    {
+        $this->orderFreight = $order->getFreightManager();
+        parent::__construct($order);
+    }
+
+
+    public function validate()
+    {
+        return true;
+    }
+
 }

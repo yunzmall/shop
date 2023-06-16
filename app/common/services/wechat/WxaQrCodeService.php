@@ -23,18 +23,18 @@ class WxaQrCodeService
 
     private $new = false; //是否重新生成
 
-
+    // 后缀名
+    private $suffix = '.png';
 
     protected $parameters;
 
     /**
-     * @param $url
-     * @param $patch
-     * @throws ShopException
+     * @param $new bool 生成新的
+     * @param $storage_path string 图片存储相对路径
      */
-    function __construct($patch, $new = false)
+    public function __construct($storage_path, $new = false)
     {
-        $this->patch = $patch;
+        $this->patch = $storage_path;
 
         $this->new =  $new;
     }
@@ -45,6 +45,15 @@ class WxaQrCodeService
     public function setParameter($key, $value)
     {
         $this->parameters[$key] = $value;
+    }
+
+    /**
+     * @description 请使用jpeg为图片后缀名格式,微信小程序生产的图片就是jpeg的.随便设置不影响显示, 但是会影响GD库使用该图为图像资源
+     * @return void
+     */
+    public function setSuffixJpeg()
+    {
+        $this->suffix = '.jpeg';
     }
 
     /**
@@ -169,6 +178,15 @@ class WxaQrCodeService
     }
 
     /**
+     * 设置小程序图片唯一标识
+     * @param $name
+     */
+    public function setFileId($code)
+    {
+        $this->fileName = md5($code).$this->suffix;
+    }
+
+    /**
      * 获取小程序码文件名
      * @return string
      */
@@ -176,7 +194,7 @@ class WxaQrCodeService
     {
         if (!isset($this->fileName)) {
             $file_name = md5(json_encode($this->getAllParameters()));
-            $this->fileName = $file_name.'.png';
+            $this->fileName = $file_name.$this->suffix;
         }
         return $this->fileName;
     }

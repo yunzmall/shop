@@ -6,7 +6,7 @@
  * Time: 16:36
  */
 
-namespace app\common\events\order;
+namespace app\common\events\coupon;
 
 /**
  * 优惠券到期

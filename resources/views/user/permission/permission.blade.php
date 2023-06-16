@@ -13,7 +13,7 @@
                                    class='perm-all'
                                    {{in_array($keyOne, $rolePermission) ? 'disabled' : ''}}
                                    data-group='{{$keyOne}}' {{in_array($keyOne, $userPermissions) ? 'checked' : ''}} />
-                            {{$valueOne['name'] or ''}}
+                            {{$valueOne['name'] ?? ''}}
                         </label>
                     </div>
                     <!-- 第二级-->
@@ -31,7 +31,7 @@
                                                   data-child='{{$keyTwo}}'
                                                    {{in_array($keyTwo, $rolePermission) ? 'disabled' : ''}}
                                                    {{in_array($keyTwo, $userPermissions) ? 'checked' : ''}}/>
-                                           <b>{{$valueTwo['name'] or ''}}</b>
+                                           <b>{{$valueTwo['name'] ?? ''}}</b>
                                        </label>
                                         <!-- 第三级-->
                                         @if(isset($valueTwo['child']))
@@ -48,7 +48,7 @@
                                                        data-op="{{$keyThird}}"
                                                         {{in_array($keyThird, $rolePermission) ? 'disabled' : ''}}
                                                         {{in_array($keyThird, $userPermissions) ? 'checked' : ''}}/>
-                                                    {{$valueThird['name'] or ''}}
+                                                    {{$valueThird['name'] ?? ''}}
                                             </label>
                                                 @endif
                                             @endforeach

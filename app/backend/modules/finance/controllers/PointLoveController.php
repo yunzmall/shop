@@ -4,12 +4,13 @@
  * Date:    2017/11/21 上午11:14
  * Email:   livsyitian@163.com
  * QQ:      995265288
- * User:    芸众商城 www.yunzshop.com
+ * User:
  ****************************************************************/
 
 namespace app\backend\modules\finance\controllers;
 
 
+use app\backend\modules\finance\services\PointService;
 use app\backend\modules\member\models\Member;
 use app\common\components\BaseController;
 use app\common\exceptions\ShopException;
@@ -21,11 +22,14 @@ class PointLoveController extends BaseController
 {
     public function index()
     {
-
-        return view('finance.point.point_love',[
-            'memberModel' => $this->getMemberModel(),
-            'love_name' => $this->getLoveName()
-        ])->render();
+        if (request()->ajax()) {
+            return $this->successJson('ok', [
+                'memberModel' => $this->getMemberModel(),
+                'love_name' => $this->getLoveName(),
+                'tab_list' => PointService::getVueTags(),
+            ]);
+        }
+        return view('finance.point.point_love')->render();
     }
 
 
@@ -45,15 +49,15 @@ class PointLoveController extends BaseController
         $validator = $_model->validator();
         if ($validator->fails()) {
 
-            $this->error($validator->messages()->first());
+            $this->errorJson($validator->messages()->first());
 
         } else {
 
             $result = $_model->save();
             if ($result) {
-                return $this->message('修改成功',Url::absoluteWeb('finance.point-love.index',['member_id' => $member_id]));
+                return $this->successJson('修改成功');
             }
-            $this->error('数据储存失败，请重试');
+            $this->errorJson('数据储存失败，请重试');
         }
 
 

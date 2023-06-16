@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/2/22
  * Time: 19:41
  */
@@ -13,6 +13,32 @@ use app\common\models\GoodsCategory;
 
 class GoodsService
 {
+    //商品分类保存
+    public static function store($goods_id, $categorys, $cat_level,$category_to_option = [])
+    {
+        (new GoodsCategory())->delCategory($goods_id);
+        $category_to_option_open = \Setting::get('shop.category.category_to_option') ? : 0;
+        if (!empty($categorys)) {
+            foreach ($categorys as $key => $val) {
+
+                $small = $val[(count($val) - 1)];
+                $category_id = $small['id'];
+                $category_ids = implode(',', array_column($val, 'id'));
+                $goodsCategory = [
+                    'goods_id' =>$goods_id,
+                    'category_id' => $category_id,
+                    'category_ids' => $category_ids,
+                    'goods_option_id' => $category_to_option_open ? ($category_to_option[$key]['goods_option_id'] ? : 0) : 0,
+                ];
+
+                $goodsCategoryModel = new GoodsCategory();
+                if (!$goodsCategoryModel->fill($goodsCategory)->save()) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
 
     public static function saveGoodsCategory($goodsModel, $categorys, $shopset)
     {
@@ -117,13 +143,5 @@ class GoodsService
         return true;
     }
 
-    /**
-     * @param $goods
-     * @return string
-     */
-    public static function getList($goods)
-    {
-        return '';
-    }
 
 }

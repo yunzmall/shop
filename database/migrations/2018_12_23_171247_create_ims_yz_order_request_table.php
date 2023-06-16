@@ -22,6 +22,9 @@ class CreateImsYzOrderRequestTable extends Migration {
                 $table->integer('created_at')->nullable();
                 $table->integer('deleted_at')->nullable();
             });
+
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE `".app('db')->getTablePrefix()."yz_order_request` comment'订单--创建请求参数记录'");//表注释
+
         }
     }
 

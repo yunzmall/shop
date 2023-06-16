@@ -1,15 +1,20 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:  
  * Date: 17/2/23
  * Time: 下午2:27
  */
 
 namespace app\frontend\modules\member\services\factory;
 
+use app\common\exceptions\ShopException;
+use app\common\helpers\Client;
+use app\common\models\Member;
 use app\frontend\modules\member\services\MemberAnchorAppService;
+use app\frontend\modules\member\services\MemberAppLspWalletService;
 use app\frontend\modules\member\services\MemberAppYdbService;
+use app\frontend\modules\member\services\MemberBusinessScanCodeService;
 use app\frontend\modules\member\services\MemberCpsAppService;
 use app\frontend\modules\member\services\MemberDouyinService;
 use app\frontend\modules\member\services\MemberMiniAppFaceService;
@@ -48,28 +53,65 @@ class MemberFactory
     const LOGIN_APP_CPS = 15;
     const LOGIN_PC_OFFICE_ACCOUNT = 16;
     const LOGIN_WORK = 17;
+    const LOGIN_APP_LSP_WALLET = 18;
+    const LOGIN_BUSINESS_SCAN_CODE = 19; //企业微信pc端扫码登录
 
-    public static function create($type = null)
+    public static function create(&$type = null)
     {
         $className = null;
         $scope = request()->input('scope');
         $is_pc_qrcode = request()->input('is_pc_qrcode') ?: 0;//1-PC扫码登录 0-否
 
-        switch ($scope)
-        {
+        if (empty($type) || $type == 'undefined') {
+            $type = Client::getType();
+        }
+
+        switch ($scope) {
             case 'tfb':
                 return new MemberTFBService();
-                break;
             case 'freelogin':
                 return new FreeloginService();
-                break;
             case 'tjpcps':
-                return new MemberTjpCpsService();
+                if (request()->app_token && app('plugins')->isEnabled('aggregation-cps') && (!request()->appid || \Yunshop\AggregationCps\services\SettingManageService::getTrueKey() == request()->appid)) {
+                    return new MemberTjpCpsService();
+                }
+                break;
+            case 'yearendbox':
+                if (app('plugins')->isEnabled('year-end-box')) {
+                    // 插件: 年末礼盒
+                    return new \Yunshop\YearEndBox\services\YearEndBoxLoginService();
+                }
+                break;
+            case 'jinepay':
+                if (app('plugins')->isEnabled('jinepay')) {
+                    // 插件: 锦银E付
+                    return new \Yunshop\Jinepay\services\LoginService();
+                }
+                break;
+            case 'yzx_pay':
+                if (app('plugins')->isEnabled('code-science-pay') && \Setting::get('code-science-pay.set.plugin_enable')) {
+                    // 插件: 豫章行代金券支付
+                    return new \Yunshop\CodeSciencePay\services\CodeSciencePayLogin();
+                }
                 break;
         }
 
-        switch($type)
-        {
+        if (Client::setWechatByMobileLogin($type)) {
+            $type = self::LOGIN_MOBILE;
+        }
+
+        $registerSet = \Setting::get('shop.register');
+        if ((!$registerSet['login_mode'] || in_array('mobile_code', $registerSet['login_mode'])) && request()->input('is_sms') == 1) {
+            // todo 待优化，需要考虑其他很多种情况
+            $type = self::LOGIN_MOBILE_CODE;
+        }
+
+        // 小程序-智能相册webview加载
+        if ($type == self::LOGIN_MOBILE && request()->input('webview') == 1) {
+            $type = self::LOGIN_OFFICE_ACCOUNT;
+        }
+
+        switch ($type) {
             case self::LOGIN_OFFICE_ACCOUNT:
                 $className = new MemberOfficeAccountService();
                 break;
@@ -83,10 +125,10 @@ class MemberFactory
                 $className = new MemberWechatService();
                 break;
             case self::LOGIN_MOBILE:
-                if((int)$is_pc_qrcode == 1){
+                if ((int)$is_pc_qrcode == 1) {
                     $className = new MemberWechatQrcodeService();
                     break;
-                }else{
+                } else {
                     $className = new MemberMobileService();
                     break;
                 }
@@ -121,10 +163,24 @@ class MemberFactory
                 $className = new MemberPcOfficeAccountService();
                 break;
             case self::LOGIN_WORK:
-                $className = new MemberWorkService();
+                $query_string = $_SERVER['QUERY_STRING'];
+
+                if (strpos($query_string, 'client=work')) {
+                    $className = new MemberWorkService();
+                } else {
+                    $className = new MemberOfficeAccountService();
+                }
+
+                break;
+            case self::LOGIN_APP_LSP_WALLET:
+                $className = new MemberAppLspWalletService();
+                break;
+
+            case self::LOGIN_BUSINESS_SCAN_CODE:
+                $className = new MemberBusinessScanCodeService();
                 break;
             default:
-                $className = null;
+                throw new ShopException('应用登录授权失败', ['login_status' => -4]);
         }
         return $className;
     }

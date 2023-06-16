@@ -68,7 +68,7 @@ class RechargeController extends BaseController
             $news_link = $news_link ?:'';
             \app\common\services\MessageService::notice($temp_id, $msg, $this->memberModel->uid, \YunShop::app()->uniacid,$news_link);
 
-            return $this->message('积分充值成功', $this->successUrl());
+            return $this->successJson('积分充值成功');
         }
         return view('point.recharge', $this->getResultData());
     }
@@ -83,7 +83,7 @@ class RechargeController extends BaseController
         $this->rechargeModel->fill($this->getRechargeData());
         $validator = $this->rechargeModel->validator();
         if ($validator->fails()) {
-            return $this->error($validator->messages()->first());
+            return $this->errorJson($validator->messages()->first());
         }
         return $this->rechargeModel->save();
     }

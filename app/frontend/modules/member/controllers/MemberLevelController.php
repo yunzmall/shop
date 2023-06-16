@@ -1,6 +1,6 @@
 <?php
 /**
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/12/8
  * Time: 上午11:54
  */
@@ -89,13 +89,17 @@ class MemberLevelController extends ApiController
                 $memberData['avatar'] = 'https:' . substr($member_info['avatar'], strpos($member_info['avatar'], '//'));
             }
             $memberData['avatar'] = $member_info['avatar'];
-            $memberData['validity'] = $member_info['yz_member']['validity'] && $this->settingLevel['term'] ? $member_info['yz_member']['validity'] : 0;
+            $memberData['validity'] = $member_info['yz_member']['validity'] && ($this->settingLevel['term']) ? $member_info['yz_member']['validity'] : 0;
         }
 
         $shopSet = \Setting::get('shop.shop');
         foreach ((new ServiceController())->index() as $k => $v) {
             $shopSet[$k] = $v;
         }
+        foreach ($data as $k => $v) {
+            $data[$k]['validity'] = $v['validity'] && ($this->settingLevel['term'] || $this->settingLevel['level_type'] != 2) ? $v['validity'] : 0;
+        }
+
         $shopContact = \Setting::get('shop.contact');
         $levelData = [
             'member_data'      => $memberData,

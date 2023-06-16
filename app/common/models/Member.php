@@ -9,10 +9,12 @@ use app\common\events\member\BecomeAgent;
 use app\common\events\member\PluginCreateRelationEvent;
 use app\common\exceptions\AppException;
 use app\common\exceptions\MemberNotLoginException;
+use app\common\facades\Setting;
 use app\common\models\member\MemberChildren;
 use app\common\models\member\MemberDel;
 use app\common\models\member\MemberParent;
 use app\common\models\point\PointBalanceSet;
+use app\common\observers\McMemberObserver;
 use app\common\services\PluginManager;
 use app\common\modules\memberCart\MemberCartCollection;
 use app\common\services\popularize\PortType;
@@ -22,6 +24,7 @@ use app\frontend\modules\member\models\MemberWechatModel;
 use app\frontend\repositories\MemberAddressRepository;
 use Carbon\Carbon;
 use Yunshop\AggregationCps\models\AggregationCpsOrderModel;
+use Yunshop\AggregationCps\models\MemberAggregationAppModel;
 use Yunshop\AreaDividend\models\AreaDividendAgent;
 use Yunshop\Commission\models\Agents;
 use Yunshop\Gold\frontend\services\MemberCenterService;
@@ -40,7 +43,7 @@ use Yunshop\WechatCustomers\common\models\MemberCustomer;
 
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 21/02/2017
  * Time: 12:58
  */
@@ -156,6 +159,12 @@ class Member extends BackendModel
         return static::$current;
     }
 
+    public static function boot()
+    {
+        parent::boot();
+        self::observe(new McMemberObserver());
+    }
+
     public function pointLove()
     {
         return $this->hasOne('app\common\models\finance\PointLoveSet', 'member_id', 'uid');
@@ -229,12 +238,12 @@ class Member extends BackendModel
     {
         return $this->hasMany(MemberTagsRelationModel::class, 'member_id', 'uid');
     }
-	
-	//企业微信客户
-	public function hasOneCustomers()
-	{
-		return $this->hasOne(MemberCustomer::class, 'uid', 'uid');
-	}
+
+    //企业微信客户
+    public function hasOneCustomers()
+    {
+        return $this->hasOne(MemberCustomer::class, 'uid', 'uid');
+    }
 
     /**
      * 会员－订单1:1关系 todo 会员和订单不是一对多关系吗?
@@ -244,6 +253,11 @@ class Member extends BackendModel
     public function hasOneOrder()
     {
         return $this->hasOne('app\common\models\Order', 'uid', 'uid');
+    }
+
+    public function hasManyOrder()
+    {
+        return $this->hasMany('app\common\models\Order', 'uid', 'uid');
     }
 
     /**
@@ -382,6 +396,11 @@ class Member extends BackendModel
         return $query->where('uid', $uid);
     }
 
+    public function levelName()
+    {
+        return $this->yzMember->level->level_name ?? Setting::get('shop.member.level_name') ?? "普通会员";
+    }
+
     /**
      * @param static $query
      */
@@ -511,6 +530,37 @@ class Member extends BackendModel
             ->first();
     }
 
+	/**
+	 * 昵称手机号隐藏
+	 * @return array|mixed|string|string[]|null
+	 */
+	public function getNicknameAttribute()
+	{
+		$preg = '/^1(3\d|4[5-9]|5[0-35-9]|6[567]|7[0-8]|8\d|9[0-35-9])\d{8}$/';
+		if (preg_match($preg,$this->getAttributeFromArray('nickname'))) {
+			return substr_replace($this->getAttributeFromArray('nickname'),'*******',2,7);
+		}
+		return $this->getAttributeFromArray('nickname');
+	}
+
+    /**
+     * 会员头像格式化
+     * @return array|mixed|string|string[]|null
+     */
+    public function getAvatarAttribute()
+    {
+        return $this->getAttributeFromArray('avatar') ? yz_tomedia($this->getAttributeFromArray('avatar')) : yz_tomedia(\Setting::get('shop.member.headimg'));
+    }
+
+    /**
+     * 判断是否有设置过头像
+     * @return array|mixed|string|string[]|null
+     */
+    public function getHasAvatarAttribute()
+    {
+        return $this->getAttributeFromArray('avatar') && $this->getAttributeFromArray('nickname') ? 1 : 0;
+    }
+
     /**
      * 添加评论默认头像
      * @return mixed
@@ -546,10 +596,8 @@ class Member extends BackendModel
     {
         $model = MemberShopInfo::getMemberShopInfo($member_id);
 
-        if (1 != $model->inviter && 2 != $model->status) {
-            $relation = new MemberRelation();
-            $relation->becomeChildAgent($mid, $model);
-        }
+		$relation = new MemberRelation();
+		$relation->becomeChildAgent($mid, $model);
 
         if ($mark_id && $mark) {
             event(new PluginCreateRelationEvent($mid, $model, $mark, $mark_id));
@@ -578,12 +626,18 @@ class Member extends BackendModel
      */
     public function rules()
     {
-        return [
+        $rule = [
             // 'mobile' => 'required|numeric',
-            'realname'  => 'required|between:2,10',
+//            'realname'  => 'required|between:2,10',
             //'avatar' => 'required',
             'telephone' => 'regex:/^1\d{10}$/',
         ];
+
+        if (\Setting::get('shop.form')['base']['name'] == 1) {
+            $rule['realname'] = 'required|between:2,10';
+        }
+
+        return $rule;
     }
 
 
@@ -595,43 +649,23 @@ class Member extends BackendModel
     public static function createRealtion($member_id, $upperMemberId = NULL)
     {
         $model = MemberShopInfo::getMemberShopInfo($member_id);
-        \Log::info('registe_1: member_id, ', [$member_id, $model]);
         $code_mid = self::getMemberIdForInviteCode();
-        \Log::info('registe_2: mid', $code_mid);
-
         if (!is_null($code_mid)) {
-
             //邀请码关系链
-            $codemodel = new MemberInvitationCodeLog();
-            \Log::info('registe_3_code', \YunShop::request()->invite_code);
-
-            if (!$codemodel->where('member_id', $member_id)->where('mid', $code_mid)->first()) {
-                \Log::info('add_codemodel');
-                $codemodel->uniacid = \YunShop::app()->uniacid;
-                \Log::info('--uniacid', \YunShop::app()->uniacid);
-                $codemodel->invitation_code = trim(\YunShop::request()->invite_code);
-                \Log::info('--invitation_code', \YunShop::request()->invite_code);
-
-                $codemodel->member_id = $member_id; //使用者id
-                \Log::info('--member_id', $member_id);
-
-                $codemodel->mid = $code_mid; //邀请人id
-                \Log::info('--mid', $code_mid);
-
-                $codemodel->save();
-                \Log::info('registe_4', $codemodel->save());
-
-            } else {
-                \Log::info('已存在');
-            }
-
-
+            $code_model = new MemberInvitationCodeLog();
+            $code_model->uniacid = \YunShop::app()->uniacid;
+            $code_model->invitation_code = trim(\YunShop::request()->invite_code);
+            $code_model->member_id = $member_id; //使用者id
+            $code_model->mid = $code_mid; //邀请人id
+            $code_model->save();
             file_put_contents(storage_path("logs/" . date('Y-m-d') . "_invitecode.log"), print_r($member_id . '-' . \YunShop::request()->invite_code . '-' . $code_mid . '-reg' . PHP_EOL, 1), FILE_APPEND);
         }
-
         $mid = !is_null($code_mid) ? $code_mid : self::getMid();
         $mid = !is_null($upperMemberId) ? $upperMemberId : $mid;
-
+        \Log::debug('--------member_id---------', $member_id);
+        \Log::debug('--------upper_member_id---------', $upperMemberId);
+        \Log::debug('--------mid---------', self::getMid());
+        \Log::debug('--------code_mid---------', $code_mid);
         event(new BecomeAgent($mid, $model));
     }
 
@@ -665,7 +699,8 @@ class Member extends BackendModel
             if ($micro_set['is_open_miceo'] == 0) {
                 $data['micro'] = '';
             } else {
-                $data['micro'] = GetButtonService::verify(\YunShop::app()->getMemberId());
+                $data['micro'] = GetButtonService::
+                verify(\YunShop::app()->getMemberId());
             }
         } else {
             $data['micro'] = '';
@@ -860,7 +895,7 @@ class Member extends BackendModel
             }
 
             if (in_array($uid, $curr_arr)) {
-                throw new AppException('修改关系链后冲突');
+                throw new AppException('修改关系链后冲突，不能填写自己的邀请码或者下级的邀请码');
             }
         }
 
@@ -885,11 +920,11 @@ class Member extends BackendModel
                 return $mini_app->openid;
                 break;
             case 71:
-                if (!app('plugins')->isEnabled('aggregation-cps')){
+                if (!app('plugins')->isEnabled('aggregation-cps')) {
                     return '';
                 }
-                $mini_app = AggregationCpsOrderModel::where('member_id',$member_id)->first();
-                return $mini_app->openid ? : '';
+                $mini_app = AggregationCpsOrderModel::where('member_id', $member_id)->first();
+                return $mini_app->openid ?: '';
                 break;
             default:
                 $fans = McMappingFans::getFansById($member_id);
@@ -1070,5 +1105,17 @@ class Member extends BackendModel
 //        }
 
         return $is_invite;
+    }
+
+    public static function memberCustomer($uid)
+    {
+        return self::select(['avatar', 'nickname', 'realname', 'mobile', 'credit1', 'credit2'])
+            ->uniacid()
+            ->where('uid', $uid);
+    }
+
+    public function hasOneAggregationCpsMember()
+    {
+        return $this->hasOne(MemberAggregationAppModel::class, 'member_id', 'uid');
     }
 }

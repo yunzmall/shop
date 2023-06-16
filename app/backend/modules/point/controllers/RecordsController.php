@@ -5,7 +5,7 @@
  * Email:   livsyitian@163.com
  * QQ:      995265288
  * IDE:     PhpStorm
- * User:    芸众商城 www.yunzshop.com
+ * User:     
  ****************************************************************/
 
 
@@ -13,9 +13,11 @@ namespace app\backend\modules\point\controllers;
 
 
 use app\backend\modules\finance\models\PointLog;
+use app\backend\modules\finance\services\PointService;
 use app\backend\modules\member\models\MemberGroup;
 use app\backend\modules\member\models\MemberLevel;
 use app\common\components\BaseController;
+use app\common\facades\Setting;
 use app\common\helpers\PaginationHelper;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
@@ -23,20 +25,29 @@ class RecordsController extends BaseController
 {
     public function index()
     {
-        return view('point.records', $this->resultData());
+        if (request()->ajax()) {
+            return $this->successJson('ok', $this->resultData());
+        }
+        return view('point.records');
     }
 
     private function resultData()
     {
-        $recordsModels = $this->recordsModels();
+        $recordsModels = $this->recordsModels()->toArray();
+        $shopSet = Setting::get('shop.member');
 
+        foreach ($recordsModels['data'] as &$item) {
+            $item['member']['avatar'] = $item['member']['avatar'] ? tomedia($item['member']['avatar']) : tomedia($shopSet['headimg']);
+            $item['member']['nickname'] = $item['member']['nickname'] ?: '未更新';
+            $item['member']['uid'] = $item['member']['uid'] ?: '';
+        }
         return [
-            'page'          => $this->page($recordsModels),
-            'search'        => $this->searchParams(),
-            'pageList'      => $recordsModels,
-            'memberLevel'   => $this->memberLevels(),
-            'memberGroup'   => $this->memberGroups(),
+            'search' => $this->searchParams(),
+            'pageList' => $recordsModels,
+            'memberLevel' => $this->memberLevels(),
+            'memberGroup' => $this->memberGroups(),
             'sourceComment' => $this->sourceComment(),
+            'tab_list' => PointService::getVueTags(),
         ];
     }
 
@@ -64,7 +75,9 @@ class RecordsController extends BaseController
     private function recordsModels()
     {
         $recordsModels = PointLog::uniacid()->with(['member']);
-
+        if (request()->member_id) {
+            $recordsModels->where('member_id', request()->member_id);
+        }
         if ($search = $this->searchParams()) {
             $recordsModels = $recordsModels->search($search);
         }

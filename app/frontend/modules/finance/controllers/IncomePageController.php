@@ -218,6 +218,7 @@ class IncomePageController extends ApiController
             'withdraw_limit' => $withdraw_limit,
             'withdraw_date' => $this->getWithdrawDate(),
             'show_member_id' => PortType::showMemberId(\YunShop::request()->type),
+            'member_auth_pop_switch' => \Setting::get('plugin.min_app.member_auth_pop_switch') ? 1 : 0,
         ];
         if(is_null($integrated)){
             return $this->successJson('ok', $data);

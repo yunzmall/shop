@@ -4,7 +4,7 @@
  * Date:    2017/12/29 下午3:40
  * Email:   livsyitian@163.com
  * QQ:      995265288
- * User:    芸众商城 www.yunzshop.com
+ * User:
  ****************************************************************/
 
 namespace app\backend\modules\member\controllers;
@@ -28,12 +28,17 @@ class MemberAddressController extends BaseController
 
     public function index()
     {
+        return view('member.address.records', [])->render();
+    }
+    public function show()
+    {
         $addressList = $this->memberAddressRepository->getAddressList($this->getMemberId());
 
-        return view('member.address.records', [
+        return $this->successJson('ok', [
             'member' => $this->getMemberModel(),
-            'address' => $addressList
-        ])->render();
+            'address' => $addressList,
+            'is_street' => \Setting::get('shop.trade.is_street')
+        ]);
     }
 
     private function getMemberModel()

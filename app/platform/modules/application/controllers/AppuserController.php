@@ -62,7 +62,8 @@ class AppuserController extends BaseController
     }
 
 	public function delete()
-	{	
+	{
+
 		$id = request()->id;
         
         $info = AppUser::find($id);
@@ -70,6 +71,11 @@ class AppuserController extends BaseController
         if (!$id || !$info) {
             return $this->errorJson(0, '请选择要删除的用户');
         }
+
+        if (\YunShop::app()->uid != 1 && $info->role == 'manager') {
+            return $this->errorJson('您不是超级管理员，无法删除管理员!');
+        }
+
 
         \Log::debug('----------删除用户(排查)----------', $id);
         $info->delete();
@@ -134,8 +140,14 @@ class AppuserController extends BaseController
     		return $this->errorJson('请输入要查询的用户名');
     	}
     	// return AdminUser::searchUsers($data)->get();
-    	
-    	return $this->successJson('查询成功', AdminUser::where('username', 'like', '%'.$data['search']['realname'].'%')
-            ->Orwhere('uid', $data['search']['realname'])->get());
+
+        $user = AdminUser::where('type','!=',3)
+            ->where(function ($query) use ($data) {
+                $query->where('username', 'like', '%'.$data['search']['realname'].'%')
+                    ->Orwhere('uid', $data['search']['realname']);
+            })
+            ->get();
+
+        return $this->successJson('查询成功', $user);
     }
 }

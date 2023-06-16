@@ -12,6 +12,7 @@ namespace app\backend\modules\income\controllers;
 
 use app\backend\modules\income\models\Income;
 use app\common\components\BaseController;
+use app\common\facades\Setting;
 use app\common\helpers\PaginationHelper;
 use app\common\services\ExportService;
 
@@ -21,31 +22,53 @@ class IncomeRecordsController extends BaseController
     //收入明细
     public function index()
     {
-        $records = Income::records()->withMember();
+        if (request()->ajax()) {
+            $records = Income::records()->withMember();
 
-        $search = \YunShop::request()->search;
-        if ($search) {
-            //dd($search);
-            $records = $records->search($search)->searchMember($search);
+            $search = \YunShop::request()->search;
+            if ($search) {
+                $records = $records->search($search)->searchMember($search);
+            }
+            $pageList = $records->orderBy('id', 'desc')->paginate();
+            $amount = $records->sum('amount');
+            $shopSet = Setting::get('shop.member');
+            $pageList->map(function ($item) {
+                $item->member->nickname = $item->member->nickname ?:
+                    ($item->member->mobile ? substr($item->member->mobile, 0, 2) . '******' . substr($item->member->mobile, -2, 2) : '无昵称会员');
+            });
+            $pageList = $pageList->toArray();
+            foreach ($pageList['data'] as &$item) {
+                if (!$item['member']) {
+                    $item['member'] = [
+                        'nickname' => '已注销或已删除会员',
+                        'avatar' => tomedia($shopSet['headimg']),
+                    ];
+                }
+            }
+            return $this->successJson('ok', [
+                'pageList' => $pageList,
+                'search' => $search,
+                'income_type_comment' => $this->getIncomeTypeComment(),
+                'amount' => $amount
+            ]);
         }
-
-        $pageList = $records->orderBy('created_at','desc')->paginate();
-        $page = PaginationHelper::show($pageList->total(),$pageList->currentPage(),$pageList->perPage());
-
-        return view('income.income_records',[
-            'pageList'          => $pageList,
-            'page'              => $page,
-            'search'            => $search,
-            'income_type_comment' => $this->getIncomeTypeComment()
-        ])->render();
+        return view('income.income_records')->render();
 
     }
 
     //收入明细导出excel
-    public function export(){
-        $records = Income::records()->withMember()->orderBy('created_at','desc');
+    public function export()
+    {
+        $records = Income::records()->withMember()->orderBy('created_at', 'desc');
         $search = \YunShop::request()->search;
         if ($search) {
+            if (isset($search['time'])) {
+                $search['time'] = explode(',', $search['time']);
+                $search['time'] = [
+                    'start' => $search['time'][0],
+                    'end' => $search['time'][1]
+                ];
+            }
             $records = $records->search($search)->searchMember($search);
         }
 

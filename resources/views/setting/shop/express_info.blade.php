@@ -67,13 +67,20 @@
                             <template>
                                     <el-radio-group v-model="express_type" >
                                         <el-radio label="1">快递鸟</el-radio>
-                                        <el-radio label="2">芸签</el-radio>
+                                        <el-radio label="2">快递查询</el-radio>
                                     </el-radio-group>
                             </template>
-                            <p>芸签快递查询套餐费用远低于快递鸟，购买请联系客服！</p>
+{{--                            <p>芸签快递查询套餐费用远低于快递鸟，购买请联系客服！</p>--}}
                         </el-form-item>
                         <template v-if="express_type=='1'">
-                            <el-form-item label="是否收费接口">
+                            <el-form-item label="套餐类型">
+                                <el-radio-group v-model="form.KDN.package_type">
+                                    <el-radio :label="1">在途监控</el-radio>
+                                    <el-radio :label="2">快递查询</el-radio>
+                                </el-radio-group>
+
+                            </el-form-item>
+                            <el-form-item label="是否收费接口" v-show="form.KDN.package_type=='1'">
                                 <template>
                                     <el-switch
                                             v-model="form.KDN.express_api"
@@ -103,7 +110,7 @@
                             </el-form-item>
                             <el-form-item label="AppSecret" >
                                 <el-input v-model="yun_form.YQ.appSecret"  style="width:70%;"></el-input>
-                                <p>接口总数:[[yun_form.YQ.apiTotalCount]] 单;接口使用总数: [[yun_form.YQ.statistics]] 单;接口剩余总数:[[yun_form.YQ.surplus]] 单;</p>
+                                <p>接口总数:[[yun_form.YQ.apiTotalCount]] 单;接口使用总数: [[yun_form.YQ.statistics]] 单;接口剩余总数:[[yun_form.YQ.surplus]] 单;到期时间：[[yun_form.YQ.expireData]]</p>
                             </el-form-item>
                         </template>
                     </div>
@@ -128,6 +135,7 @@
                             appSecret:'',
                             apiTotalCount:0,
                             statistics:0,
+                            expireData:'',
                             surplus:0
                         }
                     },
@@ -138,6 +146,7 @@
                             appKey:'',
                             Mobile:'',
                             CustomerName:'',
+                            package_type:1
                         },
                     },
                 }
@@ -155,10 +164,11 @@
                                 }
                             }
                             if(response.data.data.type == 2){
-                                console.log(response.data.data.statistics,45454545)
+                                // console.log(response.data.data.statistics)
                                 this.yun_form.YQ.statistics = response.data.data.statistics.statistics;
                                 this.yun_form.YQ.apiTotalCount = response.data.data.statistics.apiTotalCount;
                                 this.yun_form.YQ.surplus = response.data.data.statistics.apiTotalCount - response.data.data.statistics.statistics;
+                                this.yun_form.YQ.expireData = response.data.data.statistics.expireData;
                             }
                             if(response.data.data.type){
                                 this.express_type=String(response.data.data.type)

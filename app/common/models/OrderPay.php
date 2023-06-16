@@ -1,15 +1,19 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/4/26
  * Time: 上午11:32
  */
 
 namespace app\common\models;
 
+use app\common\events\order\BeforeOrderMergePayEvent;
 use app\common\events\order\OrderPayValidateEvent;
+use app\common\exceptions\ShopException;
+use app\common\payment\PaymentConfig;
 use app\common\traits\HasProcessTrait;
+
 //use app\frontend\models\Member;
 use app\frontend\modules\order\models\PreOrder;
 use app\frontend\modules\order\OrderCollection;
@@ -24,6 +28,7 @@ use app\frontend\modules\payType\CreditPay;
 use app\frontend\modules\payType\Remittance;
 use app\frontend\modules\payment\managers\OrderPaymentTypeManager;
 use Illuminate\Support\Facades\App;
+use app\common\services\SystemMsgService;
 
 /**
  * Class OrderPay
@@ -212,27 +217,34 @@ class OrderPay extends BaseModel
         }
 
         $this->orders->each(function (\app\common\models\Order $order) {
-        	if ($order->status > Order::WAIT_PAY) {
+            if ($order->status > Order::WAIT_PAY) {
                 throw new AppException('(ID:' . $order->id . ')订单已付款,请勿重复付款');
             }
             if ($order->status == Order::CLOSE) {
                 throw new AppException('(ID:' . $order->id . ')订单已关闭,无法付款');
             }
+//            \Log::debug('支付前监听开始',$order->id);
+//            event($event = new BeforeOrderMergePayEvent($this, $order, $this->pay_type_id));
+//            if ($event->isBreak()) {
+//                throw new AppException('(ID:' . $order->id . ')订单无法支付,' . $event->plugin_msg . ':' . $event->error_msg);
+//            }
+//            \Log::debug('支付前监听结束',$order->id);
         });
         if (bccomp($this->orders->sum('price'), $this->amount) != 0) {
             throw new AppException('(ID' . $this->id . '),此流水号对应订单价格发生变化,请重新请求支付');
         };
     }
 
-	/**
-	 * 支付事件校验，点击支付按钮时触发
-	 */
+    /**
+     * 支付事件校验，点击支付按钮时触发
+     */
     private function OrderPayValidate()
-	{
-		$this->orders->each(function (\app\common\models\Order $order) {
-			event(new OrderPayValidateEvent($order));
-		});
-	}
+    {
+        // 支付类型
+        $this->orders->each(function (\app\common\models\Order $order) {
+            event(new OrderPayValidateEvent($order,$this));
+        });
+    }
 
     /**
      * @throws AppException
@@ -250,14 +262,14 @@ class OrderPay extends BaseModel
         return $this->hasMany(PayOrder::class, 'out_order_no', 'pay_sn');
     }
 
-	/**
-	 * 代付记录
-	 * @return \Illuminate\Database\Eloquent\Relations\HasOne
-	 */
+    /**
+     * 代付记录
+     * @return \Illuminate\Database\Eloquent\Relations\HasOne
+     */
     public function behalfPay()
-	{
-		return $this->hasOne(OrderBehalfPayRecord::class,'order_pay_id','id');
-	}
+    {
+        return $this->hasOne(OrderBehalfPayRecord::class, 'order_pay_id', 'id');
+    }
 
     /**
      * 获取支付参数
@@ -277,8 +289,8 @@ class OrderPay extends BaseModel
             $this->pay_type_id = $payTypeId;
         }
         $this->payValidate();
-		// 支付前校验事件
-		$this->OrderPayValidate();
+        // 支付前校验事件
+        $this->OrderPayValidate();
         // 从丁哥的接口获取统一的支付参数
 
         $query_str = $this->getPayType()->getPayParams($payParams);
@@ -331,32 +343,89 @@ class OrderPay extends BaseModel
             $amount = $this->amount;
         } else {
             event(new \app\common\events\order\BeforeOrderRefundedEvent($order));
-            $amount = $order->price;
+
+            $refundedPrice = \app\common\models\refund\RefundApply::getAfterSales($order->id)->sum('price');
+            //这里减去订单已部分退款金额
+            $amount =  max(bcsub($order->price, $refundedPrice,2),0);
+
         }
 
-        $pay = PayFactory::create($this->pay_type_id);
+        //预约商品服务费不退
+        if (!is_null(\app\common\modules\shop\ShopConfig::current()->get('store_reserve_refund_price')) && $order->status == Order::COMPLETE) {
+            $class = array_get(\app\common\modules\shop\ShopConfig::current()->get('store_reserve_refund_price'), 'class');
+            $function = array_get(\app\common\modules\shop\ShopConfig::current()->get('store_reserve_refund_price'), 'function');
+            $plugin_res = $class::$function($order);
+            if ($plugin_res['res']) {
+                $amount = $plugin_res['price'];
+            }
+        }
+
+        //$pay = PayFactory::create($this->pay_type_id);
+
+        $payAdapter = new \app\common\modules\refund\RefundPayAdapter($this->pay_type_id);
 
         $totalmoney = $this->amount; //订单总金额
 
         try {
-            $result = $pay->doRefund($this->pay_sn, $totalmoney, $amount);
+            //$result = $pay->doRefund($this->pay_sn, $totalmoney, $amount);
 
-//            if ($result) {
-//                $this->status = OrderPay::STATUS_REFUNDED;
-//                $this->refund_time = time();
-//                $this->save();
-//            }
+            $result =  $payAdapter->pay($this->pay_sn, $totalmoney, $amount);
+
+            if ($result['status']) {
+                $this->updateRefund($this->id);
+            }
 
             return $result;
         } catch (\Exception $e) {
-            \Log::debug('错误支付回调参数',$e->getMessage());
+            $systemMsg = new SystemMsgService;
+
+            $msgContent = $order? "订单号{$order->order_sn}" : "支付号：{$this->pay_sn}";
+
+            $errorData = [
+                'title' => '订单快速退款失败',
+                'content' => strval($e->getMessage())."，{$msgContent}",
+                'redirect_url' => '',
+                'redirect_param' => ''
+            ];
+            $systemMsg->sendSysMsg(7,$errorData);
+
+            \Log::debug('错误支付回调参数', $e->getMessage());
             throw new AppException($e->getMessage());
         }
     }
-    public function refund(){
+
+    public function updateRefund($id)
+    {
+        if ($id) {
+            OrderPay::where('id', $id)->where('status', '!=', OrderPay::STATUS_REFUNDED)->update([
+                'status' => OrderPay::STATUS_REFUNDED,
+                'refund_time' => time(),
+            ]);
+        }
+    }
+
+    public function updatePayStatus($pay_type_id)
+    {
+
+        OrderPay::where('id', $this->id)->update([
+            'pay_type_id' => $pay_type_id,
+            'status' => OrderPay::STATUS_PAID,
+            'pay_time' => time(),
+        ]);
+
+        //todo 这里不用save是防止模型有修改其他参数一起更新风险
+//        $this->pay_type_id = $pay_type_id;
+//        $this->status = self::STATUS_PAID;
+//        $this->pay_time = time();
+//        $this->save();
+    }
+
+    public function refund()
+    {
         $this->status = OrderPay::STATUS_REFUNDED;
         $this->save();
     }
+
     /**
      * 快速退款(退回余额)
      * @throws AppException

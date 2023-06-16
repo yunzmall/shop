@@ -9,6 +9,7 @@
 namespace app\common\services;
 
 
+use app\common\providers\PluginServiceProvider;
 use Illuminate\Container\Container;
 
 class PluginApplication extends Container
@@ -17,6 +18,7 @@ class PluginApplication extends Container
      * @var Plugin
      */
     private $plugin;
+
 
     public function __construct(Plugin $plugin)
     {
@@ -42,6 +44,16 @@ class PluginApplication extends Container
 
     }
 
+    public function publishes(array $path)
+    {
+        app()->getProvider(PluginServiceProvider::class)->toPublishes($path,$this->plugin->name);
+    }
+
+    public function toPublishes()
+    {
+
+    }
+
     protected function setConfig()
     {
 
@@ -53,6 +65,16 @@ class PluginApplication extends Container
     }
 
     public function getWidgetItems()
+    {
+        return [];
+    }
+
+
+    /**
+     * 前端插件挂件配置
+     * @return array
+     */
+    public function getFrontendWidgetConfig() :array
     {
         return [];
     }

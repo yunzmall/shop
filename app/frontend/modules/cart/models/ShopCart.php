@@ -28,6 +28,14 @@ class ShopCart extends BaseModel
 
     protected $disable;
 
+    /**
+     * @var CartGoodsCollection
+     */
+    protected $allCartGoods;
+
+    protected $failureCart;
+
+
     public function init(CartGoodsCollection $carts, $member = null, $request = null)
     {
 
@@ -35,13 +43,45 @@ class ShopCart extends BaseModel
 
         $this->setRequest($request);
 
-        $this->setCarts($carts);
+        $this->allCartGoods($carts);
+
+        $this->setCarts();
 
         $this->cartValidate();
 
         $this->setInitAttributes();
 
 
+    }
+
+    public function allCartGoods(CartGoodsCollection $carts)
+    {
+        $this->allCartGoods = $carts;
+    }
+
+    //注入店铺的购物车商品记录
+    public function setCarts()
+    {
+        $normalCarts = $this->allCartGoods->filterNormalGoods();
+
+        $this->setRelation('carts', $normalCarts);
+
+        $this->carts->setShop($this);
+    }
+
+
+    //注入店铺的购物车商品记录
+    public function setFailureCart()
+    {
+        return $this->allCartGoods->filterInvalidGoods();
+    }
+
+    public function getFailureCart()
+    {
+        if (!isset($this->failureCart)) {
+            $this->failureCart = $this->setFailureCart();
+        }
+        return $this->failureCart;
     }
 
     public function cartValidate()
@@ -80,14 +120,6 @@ class ShopCart extends BaseModel
         }
 
         return $result;
-    }
-
-
-    //注入店铺的购物车商品记录
-    public function setCarts(CartGoodsCollection $carts)
-    {
-        $this->setRelation('carts', $carts);
-        $this->carts->setShop($this);
     }
 
 

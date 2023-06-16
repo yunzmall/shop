@@ -1,159 +1,226 @@
 @extends('layouts.base')
-@section('title', '会员详情')
+@section('title', '添加会员详情')
 @section('content')
-    <link href="{{static_url('yunshop/css/member.css')}}" media="all" rel="stylesheet" type="text/css"/>
-    <div class="w1200 m0a">
-        <div class="rightlist">
-            <!-- 新增加右侧顶部三级菜单 -->
-            <div class="right-titpos">
-                <ul class="add-snav">
-                    <li class="active"><a href="{{yzWebUrl('member.member.index')}}">会员管理</a></li>
-                    <li><a href="#">&nbsp;<i class="fa fa-angle-double-right"></i> &nbsp;会员详情</a></li>
-                </ul>
+<link href="{{static_url('yunshop/css/total.css')}}" media="all" rel="stylesheet" type="text/css" />
+<style scoped>
+    /* 标题 */
+    .el-form-item__label {
+        font-weight: 600;
+    }
+
+    /* 头部 */
+    .head {
+        position: relative;
+        height: 800px;
+    }
+
+    /* 表单盒子 */
+    .form_item_box {
+        width: 1200px;
+        margin: 50px auto
+    }
+
+    /* 头像 */
+    .head_portrait {
+        width: 90px;
+        height: 90px;
+        margin-top: 13px;
+        border-radius: 5px;
+    }
+
+    /* 脚部 */
+    /* .fixed {
+        margin-left: -10px;
+        width: 100%;
+        padding: 0;
+        padding-top: 10px;
+        position: absolute;
+        bottom: 0;
+        box-shadow: 0px -1px 10px rgba(0, 0, 0, .1);
+    } */
+
+    /* 页脚盒子 */
+    /* .fixed_box {
+        width: 300px;
+        height: 40px;
+        margin: 0 auto;
+    } */
+    .inp-w{
+        width:600px;
+    }
+</style>
+<div class="all">
+    <div id="app">
+        <!-- 面包屑导航 -->
+        <div style="margin-top:20px">
+            <el-breadcrumb style="user-select:none;" separator-class="el-icon-arrow-right">
+                <el-breadcrumb-item :to="{ path: '/' }"><span @click="hisGo(-1)">会员管理</span></el-breadcrumb-item>
+                <el-breadcrumb-item :to="{ path: '/' }"><span @click="hisGo(-1)">全部会员</span></el-breadcrumb-item>
+                <el-breadcrumb-item :to="{ path: '/' }">添加会员</el-breadcrumb-item>
+            </el-breadcrumb>
+        </div>
+        <!-- 头部 -->
+        <div class="total-head head">
+            <div class="vue-title">
+                <div class="vue-title-left"></div>
+                <div class="vue-title-content">添加会员</div>
             </div>
-            <!-- 新增加右侧顶部三级菜单结束 -->
-            <form action="{{yzWebUrl('member.member.add-member')}}" method='post' onsubmit="return isRemeber()"
-                  class='form-horizontal'>
-                <input type="hidden" name="op" value="add-member">
-                <input type="hidden" name="c" value="site"/>
-                <input type="hidden" name="a" value="entry"/>
-                <input type="hidden" name="m" value="yun_shop"/>
-                <input type="hidden" name="do" value="member"/>
-                <div class='panel panel-default'>
-                    <div class='panel-body'>
-                        <div class="form-group">
-                            <label class="col-xs-12 col-sm-3 col-md-2 control-label">粉丝</label>
-                            <div class="col-sm-9 col-xs-12">
-                                <img src='{{$img}}'
-                                     style='width:100px;height:100px;padding:1px;border:1px solid #ccc'/>
-                                {{$member['nickname']}}
-                            </div>
+            <el-form label-width="100px" :model="ruleForm" style="cursor: pointer;" status-icon :rules="rules" ref="ruleForm" label-width="100px" class="demo-ruleForm">
+                <!-- 表单列表 -->
+                <div class="form_item_box">
+                    <el-form-item label="粉丝">
+                        <div>
+                            <img  class="head_portrait" :src="avatar" alt="">
                         </div>
-
-                        <div class="form-group">
-                            <label class="col-xs-12 col-sm-3 col-md-2 control-label">绑定手机</label>
-                            <div class="col-sm-9 col-xs-12">
-                                <input type="text" name="mobile" class="form-control" id="mobile"
-                                       value=""/>
-                            </div>
-                        </div>
-
-                        <div class="form-group">
-                            <label class="col-xs-12 col-sm-3 col-md-2 control-label">登录密码</label>
-                            <div class="col-sm-9 col-xs-12">
-                                <input type="password" name="password" class="form-control" id="password1"/>
-                            </div>
-                            <p id="p_ti"></p>
-                        </div>
-
-                        <div class="form-group">
-                            <label class="col-xs-12 col-sm-3 col-md-2 control-label">确认密码</label>
-                            <div class="col-sm-9 col-xs-12">
-                                <input type="password" name="confirm_password" class="form-control" id="password2"/>
-                            </div>
-                        </div>
-
-                    </div>
-
-                    <div class='panel-body'>
-                        <div class="form-group">
-                            <label class="col-xs-12 col-sm-3 col-md-2 control-label"></label>
-                            <div class="col-sm-9 col-xs-12">
-                                <input type="submit"  name="submit" value="提交" class="btn btn-success"/>
-                                <input type="hidden" name="token" value="{{$var['token']}}"/>
-                                <input type="button" class="btn btn-default" name="submit" onclick="history.go(-1)"
-                                       value="返回" style='margin-left:10px;'/>
-                            </div>
-                        </div>
-                    </div>
+                    </el-form-item>
+                    <el-form-item prop="bindPhone"  label="绑定手机">
+                        <el-input clearable v-model=" ruleForm.bindPhone"  class="inp-w" autocomplete="off"></el-input>
+                    </el-form-item>
+                    <el-form-item prop="loginPad" label="登录密码">
+                        <el-input clearable v-model="ruleForm.loginPad" type="password" class="inp-w" autocomplete="off">
+                        </el-input>
+                    </el-form-item>
+                    <el-form-item prop="affirmPad" label="确认密码">
+                        <el-input clearable v-model="ruleForm.affirmPad" type="password" class="inp-w" autocomplete="off">
+                        </el-input>
+                    </el-form-item>
                 </div>
-            </form>
+            </el-form>
+    </div>
+    <div class="total-floo fixed">
+            <div class="fixed_box">
+                <el-form>
+                    <el-form-item>
+                        <el-button @click="sumbit('ruleForm')" type="primary">提交</el-button>
+                        <el-button @click="returnEvent">返回</el-button>
+                    </el-form-item>
+                </el-form>
+            </div>
         </div>
     </div>
-
-    <script>
-        $(function () {
-            $('#change_relation').click(function () {
-                $('#modal-module-menus-members').modal();
-            });
-
-            $('#members_record').click(function() {
-                $('#modal-module-members-record').modal();
-
-                $.get('{!! yzWebUrl('member.member.member_record') !!}', {
-                    member: '{{$member['yz_member']['member_id']}}'
-                    }, function (dat) {
-                        $('#module-members-record').html(dat);
+</div>
+<script>
+    const vm = new Vue({
+        el: "#app",
+        name: "auth",
+        delimiters: ["[[", "]]"],
+        data() {
+            //校验手机号
+            let validatorPhone = function(rule, value, callback) {
+                if (value === '') {
+                    callback(new Error('手机号不能为空'))
+                } else {
+                    if (!value||isNaN(value)||value.length!=11) {
+                        callback(new Error('手机号格式错误'))
                     }
-                );
-            });
-        });
-
-        $("#tijiao").onclick(function(){
-            alert(11);
-            $.post('{!! yzWebUrl("member.member.add-member") !!}',{
-                mobile:$("#mobile").val(),
-                password:$("#password1").val(),
-                confirm_password:$("#password2").val()
-            },function(result){
-
-            });
-        });
-            {{--var mobile = $("#mobile").val();--}}
-            {{--var password = $("#password1").val();--}}
-            {{--var confirm_password = $("#password2").val();--}}
-            {{--$.post("{!! yzWebUrl('member.member.add-member') !!}", {--}}
-            {{--mobile: mobile,--}}
-            {{--password: password,--}}
-            {{--confirm_password: confirm_password,--}}
-            {{--}, function (json) {--}}
-            {{--var json = $.parseJSON(json);--}}
-            {{--if (json.status == 1) {--}}
-            {{--}--}}
-            {{--});--}}
-
-        function isRemeber() {
-            if ($("#mobile").val() == "") {
-                alert("手机号码不能为空！");
-                $("#mobile").focus();
-                return false;
-            }
-
-            if (!$("#mobile").val().match(/^1\d{10}$/)) {
-                alert("手机号码格式不正确！");
-                $("#mobile").focus();
-                return false;
-            }
-            // if ($("#password1").val()=="" || $("#password2").val() == ""){
-            //     alert('密码框不能为空');
-            //     return false;
-            // }
-
-            if ($("#password1").val() != $("#password2").val() ){
-                alert("两次密码不正确");
-                return false;
-            }
-            // if ($("#password1").val().length < 6 || !$("#password1").val().match(/^[A-Za-z0-9@!#\$%\^&\*]+$/)){
-            //     alert("密码格式不正确！");
-            //     return false;
-            // }
-
-            return true;
-        }
-
-        function select_member(o) {
-            $.get('{!! yzWebUrl('member.member.change_relation') !!}', {
-                    parent: $.trim(o.uid),
-                    member: '{{$member['yz_member']['member_id']}}'
-                }, function (dat) {
-                    if (1 == dat.status) {
-                        $("#parent_info").html("[" + o.uid + "]" + o.nickname);
-                        $('#parent_id').val(o.uid);
-                    }
-
-                    $("#modal-module-menus-members .close").click();
+                    callback();
+                    return false;
+                    let reg = /^[1][3,4,5,7,8][0-9]{9}$/;
+                    if (!reg.test(value)) {
+                        callback(new Error('手机号格式错误'))
+                    };
+                    callback();
                 }
-            );
+            };
+            //校验密码
+            let validatePass = (rule, value, callback) => {
+                if (value === '') {
+                    callback(new Error('请输入密码'));
+                } else {
+                    if (this.ruleForm.affirmPad !== '') {
+                        this.$refs.ruleForm.validateField('affirmPad');
+                    }
+                    callback();
+                }
+            };
+            //校验确认密码
+            let validatePass2 = (rule, value, callback) => {
+                if (value === '') {
+                    callback(new Error('请再次输入密码'));
+                } else if (value !== this.ruleForm.loginPad) {
+                    callback(new Error('两次输入密码不一致!'));
+                } else {
+                    callback();
+                }
+            }
+            return {
+                avatar: "",
+                ruleForm: {
+                    bindPhone: '',
+                    loginPad: '',
+                    affirmPad: ''
+                },
+                rules: {
+                    bindPhone: [{
+                        validator: validatorPhone,
+                        trigger: 'blur'
+                    }],
+                    loginPad: [{
+                        validator: validatePass,
+                        trigger: 'blur'
+                    }],
+                    affirmPad: [{
+                        validator: validatePass2,
+                        trigger: 'blur'
+                    }],
+                }
+            }
+        },
+        created() {
+            this.postAddVip();
+             //优化在不同设备固定定位挡住的现象设置父元素的内边距
+            //  window.onload = function() {
+            //         let all = document.querySelector(".all");
+            //         let h = window.innerHeight * 0.05;
+            //         all.style.paddingBottom = h + "px";
+            //     }
+        },
+        methods: {
+            //回退
+            hisGo(i) {
+                //  console.log(i);
+                history.go(i)
+            },
+            postAddVip(i) {
+                this.$http.post("{!!yzWebFullUrl('member.member.add-member-data')!!}", {
+                    item: i,
+                    mobile: this.ruleForm.bindPhone,
+                    password: this.ruleForm.loginPad,
+                    confirm_password: this.ruleForm.affirmPad,
+                }).then(res => {
+                    console.log(res);
+                    let {
+                        data
+                    } = res.body;
+                    this.avatar = data.img
+                    //弹框
+                    // console.log(res.data.result);
+                    // console.log(res.data.msg);
+                    if (i === 1) {
+                        if (res.data.result === 1) {
+                            this.$message.success(res.data.msg);
+                            let url = `{!! yzWebFullUrl('member.member.index') !!}`;
+                            setTimeout(() => {
+                                window.location.href = url;
+                            }, 1000)
+                        } else {
+                            this.$message.error(res.data.msg + "请重新输入")
+                        }
+                    }
+                })
+            },
+            sumbit(formName) {
+                this.$refs[formName].validate((valid) => {
+                    if (valid) {
+                        this.postAddVip(1);
+                    } else {
+                        return false;
+                    }
+                });
+            },
+            returnEvent() {
+                history.go(-1);
+            }
         }
-    </script>
-@endsection
+    })
+</script>@endsection

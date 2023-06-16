@@ -14,7 +14,7 @@ use Yunshop\YzSupply\services\YzOrderValidate;
 
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/2/23
  * Time: 上午10:17
  */
@@ -143,10 +143,79 @@ class MemberCartController extends ApiController
     }
 
     /**
+     * [batchStore 批量加入购物车]
+     * @return [type] [description]
+     * @param [type] [goods_id商品id,total添加数量,option_id规格]
+     */
+    public function batchStore()
+    {
+        //商品数据
+        $goodsData = request()->input('goods_data');
+
+        $data = array(
+            'member_id' => \YunShop::app()->getMemberId(),
+            'uniacid' => \YunShop::app()->uniacid,
+        );
+
+        $errorGoodsId = []; //添加失败的商品id
+        $successGoodsId = []; //添加成功的商品id
+
+        foreach ($goodsData as $key=>$value) {
+
+            // $this->validate([
+            //     'goods_id' => 'required|integer|min:0',
+            //     'total' => 'required|integer|min:0',
+            //     'option_id' => 'integer|min:0',
+            // ]);
+
+            $data['goods_id'] = $value['goods_id'];
+            $data['total'] = $value['total'];
+            $data['option_id'] = $value['option_id'];
+
+            $hasGoodsModel = app('OrderManager')->make('MemberCart')->hasGoodsToMemberCart($data);
+            // $cart_id = $hasGoodsModel['id'];
+
+            if ($hasGoodsModel) {
+                $num = intval($value['total']) ?: 1;
+                $hasGoodsModel->total = $hasGoodsModel->total + $num;
+                $hasGoodsModel->validate();
+
+                if ($hasGoodsModel->update()) {
+                    $successGoodsId[] = $value['goods_id'];
+                    continue;
+                }
+                $errorGoodsId[] = $value['goods_id'];
+                
+            } else {
+
+                $cartModel = app('OrderManager')->make('MemberCart', $data);
+                $cartModel->validate();
+                $validator = $cartModel->validator($cartModel->getAttributes());
+                event(new \app\common\events\cart\AddCartEvent($cartModel->getAttributes()));
+
+                if ($validator->fails()) {
+                    $errorGoodsId[] = $value['goods_id'];
+                } elseif ($cartModel->save()) {
+                    event(new \app\common\events\cart\AddCartEvent($cartModel));
+                    $successGoodsId[] = $value['goods_id'];
+                } else {
+                   $errorGoodsId[] = $value['goods_id'];
+                }
+
+            }
+
+        }
+
+        return $this->successJson("添加成功",['success'=>$successGoodsId,'error'=>$errorGoodsId]);
+    }
+
+    /**
      * Add member cart
      */
     public function store()
     {
+        event(new \app\common\events\cart\BeforeSaveCartVerify(request()->input('goods_id'), request()->input('total'), 'goodsCart'));
+        
         $this->validate([
             'goods_id' => 'required|integer|min:0',
             'total' => 'required|integer|min:0',
@@ -170,9 +239,27 @@ class MemberCartController extends ApiController
 //dd($cart_id);
 
 
+        //todo 商品权限最低购买数量处理
+        $min_buy_limit = 0;
+        $goodsPrivilege = $cartModel->goods->hasOnePrivilege;
+        //商品有购物权限并且设置了起购数量
+        if (isset($goodsPrivilege) && $goodsPrivilege->min_buy_limit) {
+            //有设置按规格控制购买权限
+            if ($cartModel->isOption() && $goodsPrivilege->option_id_array) {
+                //并且该规格再限制里面
+                if (in_array($cartModel->option_id, $goodsPrivilege->option_id_array)) {
+                    $min_buy_limit = $goodsPrivilege->min_buy_limit;
+                }
+            } else {
+                $min_buy_limit = $goodsPrivilege->min_buy_limit;
+            }
+            $cartModel->total =  max( $cartModel->total, $min_buy_limit);
+        }
+
+
         if ($hasGoodsModel) {
             $num = intval(request()->input('total')) ?: 1;
-            $hasGoodsModel->total = $hasGoodsModel->total + $num;
+            $hasGoodsModel->total = max($hasGoodsModel->total + $num, $min_buy_limit);
 
             $hasGoodsModel->validate();
 
@@ -194,6 +281,7 @@ class MemberCartController extends ApiController
             if ($cartModel->save()) {
                 event(new \app\common\events\cart\AddCartEvent($cartModel));
                 return $this->successJson("添加购物车成功", [
+                    'cart_id' => $cartModel->id,
                     'cart_num' => \app\frontend\models\MemberCart::getCartNum(\YunShop::app()->getMemberId()),
                 ]);
             } else {
@@ -216,11 +304,31 @@ class MemberCartController extends ApiController
         }
 
         if ($cartId && $num) {
+            /**
+             * @var MemberCart $cartModel
+             */
             $cartModel = app('OrderManager')->make('MemberCart')->find($cartId);
             if ($cartModel) {
+
+                //todo 商品权限最低购买数量处理
+                $min_buy_limit = 0;
+                $goodsPrivilege = $cartModel->goods->hasOnePrivilege;
+                //商品有购物权限并且设置了起购数量
+                if (isset($goodsPrivilege) && $goodsPrivilege->min_buy_limit) {
+                    //有设置按规格控制购买权限
+                    if ($cartModel->isOption() && $goodsPrivilege->option_id_array) {
+                        //并且该规格再限制里面
+                        if (in_array($cartModel->option_id, $goodsPrivilege->option_id_array)) {
+                            $min_buy_limit = $goodsPrivilege->min_buy_limit;
+                        }
+                    } else {
+                        $min_buy_limit = $goodsPrivilege->min_buy_limit;
+                    }
+                }
                 $cartModel->total = $cartModel->total + $num;
 
-                if ($cartModel->total < 1) {
+
+                if ($cartModel->total < 1 || $cartModel->total < $min_buy_limit) {
                     $result = MemberCartService::clearCartByIds([$cartModel->id]);
                     if ($result) {
                         return $this->successJson('移除购物车成功。');
@@ -251,9 +359,27 @@ class MemberCartController extends ApiController
         if ($cartId && $num) {
             $cartModel = app('OrderManager')->make('MemberCart')->find($cartId);
             if ($cartModel) {
+
+
+                //todo 商品权限最低购买数量处理
+                $min_buy_limit = 0;
+                $goodsPrivilege = $cartModel->goods->hasOnePrivilege;
+                //商品有购物权限并且设置了起购数量
+                if (isset($goodsPrivilege) && $goodsPrivilege->min_buy_limit) {
+                    //有设置按规格控制购买权限
+                    if ($cartModel->isOption() && $goodsPrivilege->option_id_array) {
+                        //并且该规格再限制里面
+                        if (in_array($cartModel->option_id, $goodsPrivilege->option_id_array)) {
+                            $min_buy_limit = $goodsPrivilege->min_buy_limit;
+                        }
+                    } else {
+                        $min_buy_limit = $goodsPrivilege->min_buy_limit;
+                    }
+                }
+
                 $cartModel->total = $num;
 
-                if ($cartModel->total < 1) {
+                if ($cartModel->total < 1 || $cartModel->total < $min_buy_limit) {
                     $result = MemberCartService::clearCartByIds([$cartModel->id]);
                     if ($result) {
                         return $this->successJson('移除购物车成功。');

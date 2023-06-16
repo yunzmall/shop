@@ -94,6 +94,7 @@
                                 </el-switch>
                             </template>
                             <div style="font-size: 12px;">提示：标准微信支付、及其他微信支付接口（云收银）总开关。微信支付授权目录填写路径：域名/addons/yun_shop/</div>
+                            <div style="font-size: 14px;color: red;">开通第三方支付，可享受更实惠的费率、实现代付等功能，详询客服！</div>
                         </el-form-item>
                         <el-form-item label="标准微信支付">
                             <template>
@@ -115,6 +116,16 @@
                                 </el-switch>
                             </template>
                             <div style="font-size: 12px;">提示：只支持手机浏览器，pc不支持</div>
+                        </el-form-item>
+                        <el-form-item label="微信付款码支付">
+                            <template>
+                                <el-switch
+                                        v-model="form.wechat_micro"
+                                        active-value="1"
+                                        inactive-value="0"
+                                >
+                                </el-switch>
+                            </template>
                         </el-form-item>
                         <el-form-item label="微信扫码支付">
                             <template>
@@ -206,37 +217,16 @@
                                 </el-switch>
                             </template>
                         </el-form-item>
-                        <el-form-item label="接口方式"  >
-                            <template>
-                                <el-radio-group v-model="form.alipay_pay_api">
-                                    <el-radio label="0">旧接口</el-radio>
-                                    <el-radio label="1">新接口</el-radio>
-                                </el-radio-group>
-                            </template>
-                        </el-form-item>
-                        <el-form-item label="收款支付宝账号"  v-if="form.alipay_pay_api=='0'">
-                            <el-input v-model="form.alipay_account" style="width:70%;"></el-input>
-                            <div style="font-size: 12px;">提示：卖家支付宝账号</div>
-                        </el-form-item>
-                        <el-form-item label="合作者身份"  v-if="form.alipay_pay_api=='0'">
-                            <el-input v-model="form.alipay_partner" style="width:70%;"></el-input>
-                            <div style="font-size: 12px;">提示：签约的支付宝账号对应的支付宝唯一用户号,以 2088 开头的 16 位纯数字组成</div>
-                        </el-form-item>
-                        <el-form-item label="校验密钥"  v-if="form.alipay_pay_api=='0'" >
-                            <el-input v-model="form.alipay_secret" style="width:70%;" type="text"></el-input>
-                            <div style="font-size: 12px;">提示：支付宝开放平台--账户中心--mapi网关产品密钥--MD5密钥</div>
-                        </el-form-item>
-
-                        <el-form-item label="应用ID"  v-if="form.alipay_pay_api=='1'">
+                        <el-form-item label="应用ID">
                             <el-input v-model="form.alipay_app_id" style="width:60%;"></el-input>
                         </el-form-item>
-                        <el-form-item label="开发者私钥" v-if="form.alipay_pay_api=='1'">
+                        <el-form-item label="开发者私钥">
                             <el-input v-model="form.rsa_private_key" type="textarea" style="width:70%;" v-if="show"></el-input>
                         </el-form-item>
-                        <el-form-item label="支付宝公钥" v-if="form.alipay_pay_api=='1'">
+                        <el-form-item label="支付宝公钥">
                             <el-input v-model="form.rsa_public_key" type="textarea" style="width:70%;" v-if="show"></el-input>
                         </el-form-item>
-                        <el-form-item label="" v-if="!show&&form.alipay_pay_api=='1'" >
+                        <el-form-item label="">
                             <el-button type="primary" @click="Reset">重新设置公私钥</el-button>
                         </el-form-item>
                     </div>
@@ -255,29 +245,17 @@
                             {{--<div>开启后，需在支付宝支付接口--新接口处设置应用ID、开发者私钥、支付宝公钥</div>--}}
                         </el-form-item>
                         <div v-if="form.alipay_withdrawals=='1'">
-                            <el-form-item label="转账接口版本">
-                                <template>
-                                    <el-radio-group v-model="form.alipay_transfer">
-                                        <el-radio label="0">公钥模式</el-radio>
-                                        <el-radio label="1">公钥证书模式</el-radio>
-                                    </el-radio-group>
-                                </template>
-                                <div  v-if="form.alipay_transfer=='0'" style="font-size: 12px;">
-                                    需在支付宝支付接口--新接口处设置应用ID、开发者私钥、支付宝公钥
-                                </div>
-                                <div v-if="form.alipay_transfer=='1'">需上传：应用公钥证书、支付宝公钥证书、支付宝根证书</div>
-                            </el-form-item>
 
-                            <el-form-item label="应用ID"  v-if="form.alipay_transfer =='1'">
+                            <el-form-item label="应用ID">
                                 <el-input v-model="form.alipay_transfer_app_id" style="width:60%;"></el-input>
                             </el-form-item>
 
-                            <el-form-item label="应用私钥" v-if="form.alipay_transfer=='1'">
+                            <el-form-item label="应用私钥">
                                 <el-input v-model="form.alipay_transfer_private" type="textarea" style="width:70%;" v-if="alipay_transfer_private_show"></el-input>
                                 <span style="color:#29BA9C;font-size:12px;" v-if="form.alipay_transfer_private && !alipay_transfer_private_show ">已填写</span>
-                                <el-button type="primary" @click="ResetValue('alipay_transfer_private')" v-if="form.alipay_transfer_private && !alipay_transfer_private_show">重置</el-button>
+                                <el-button type="primary" @click="ResetValue('alipay_transfer_private')" v-if="!alipay_transfer_private_show">重置</el-button>
                             </el-form-item>
-                            <el-form-item label="应用公钥证书"  v-if="form.alipay_transfer==1">
+                            <el-form-item label="应用公钥证书">
                                 <el-upload
                                         class="upload-demo"
                                         action="{!! yzWebFullUrl('setting.shop.newUpload') !!}"
@@ -291,7 +269,7 @@
                                 <span style="color:#5adda2;font-size:12px;"  v-if="form.alipay_app_public_cert">已上传</span>
                                 {{--<div style="font-size:12px;">提示：下载应用公钥证书</div>--}}
                             </el-form-item>
-                            <el-form-item label="支付宝公钥证书"  v-if="form.alipay_transfer==1">
+                            <el-form-item label="支付宝公钥证书">
                                 <el-upload
                                         class="upload-demo"
                                         action="{!! yzWebFullUrl('setting.shop.newUpload') !!}"
@@ -305,7 +283,7 @@
                                 <span style="color:#5adda2;font-size:12px;"  v-if="form.alipay_public_cert">已上传</span>
                                 {{--<div style="font-size:12px;">提示：下载支付宝公钥证书</div>--}}
                             </el-form-item>
-                            <el-form-item label="支付宝根证书"  v-if="form.alipay_transfer==1">
+                            <el-form-item label="支付宝根证书">
                                 <el-upload
                                         class="upload-demo"
                                         action="{!! yzWebFullUrl('setting.shop.newUpload') !!}"
@@ -339,7 +317,6 @@
                     <div style="background: #eff3f6;width:100%;height:15px;"></div>
                     <div class="block">
                         <div class="title"><span style="width: 4px;height: 18px;background-color: #29ba9c;margin-right:15px;display:inline-block;"></span><b>找人代付</b></div>
-
                         <el-form-item label="是否开启">
                             <template>
                                 <el-switch
@@ -351,11 +328,14 @@
                             </template>
                             <div style="font-size: 12px;">开启后,(买家)下单后，可将订单分享给小伙伴(朋友圈、微信群、微信好友)请他帮忙付款。</div>
                         </el-form-item>
-                        <el-form-item label="发起人求助"  >
+                        <el-form-item label="发起人求助">
                             <el-input v-model="form.another_share_title" style="width:70%;"></el-input>
                             <div style="font-size: 12px;">提示：默认分享标题：土豪大大，跪求代付</div>
                         </el-form-item>
-
+                        <el-form-item label="代付页面">
+                            <el-radio v-model="form.another_share_type" :label="1">样式一</el-radio>
+                            <el-radio v-model="form.another_share_type" :label="2">样式二</el-radio>
+                        </el-form-item>
                     </div>
                     <div style="background: #eff3f6;width:100%;height:15px;"></div>
                     <div class="block">
@@ -403,6 +383,28 @@
                         </el-form-item>
 
                     </div>
+
+                    <div style="background: #eff3f6;width:100%;height:15px;"></div>
+                    <div class="block">
+                        <div class="title"><span style="width: 4px;height: 18px;background-color: #29ba9c;margin-right:15px;display:inline-block;"></span><b>微信支付-V3新版</b></div>
+                        <el-form-item label="是否开启">
+                            <template>
+                                <el-switch
+                                        v-model="form.weixin_apiv3"
+                                        active-value="1"
+                                        inactive-value="0"
+                                >
+                                </el-switch>
+                            </template>
+                            <div style="font-size: 12px;">提示：当前设置只针对新版微信提现打款（商家转账到零钱功能），用着旧版（企业付款到零钱）功能的请勿开启</div>
+                        </el-form-item>
+                        <el-form-item label="微信apiV3密钥"  >
+                            <el-input v-model="form.weixin_apiv3_secret" style="width:70%;" type="text"  v-if="weixin_apiv3_secret_show" ></el-input>
+                            <span style="color:#29BA9C;font-size:12px;" v-if="form.weixin_apiv3_secret && !weixin_apiv3_secret_show ">已上传</span>
+                            <el-button type="primary" @click="ResetValue('weixin_apiv3_secret')" v-if="form.weixin_apiv3_secret && !weixin_apiv3_secret_show">重置</el-button>
+                            <div>获取路径：微信支付商户平台>账户设置>API安全--设置ApiV3密钥（32位数）</div>
+                        </el-form-item>
+                    </div>
             </div>
             <div class="confirm-btn">
                 <el-button type="primary" @click="submit">提交</el-button>
@@ -426,16 +428,19 @@
                         weixin_secret_show:true,
                         weixin_apisecret_show:true,
                         alipay_transfer_private_show:true,
+                        weixin_apiv3_secret_show:true,
                         set:set,
                         form:{
                             ios_virtual_pay: set.ios_virtual_pay,
                             weixin: set.weixin,
+                            weixin_apiv3: set.weixin_apiv3,
                             secret:1,
                             weixin_pay: set.weixin_pay,
                             weixin_appid: set.weixin_appid,
                             weixin_secret: set.weixin_secret,
                             weixin_mchid: set.weixin_mchid,
                             weixin_apisecret: set.weixin_apisecret,
+                            weixin_apiv3_secret: set.weixin_apiv3_secret,
                             weixin_version: set.weixin_version?set.weixin_version:'0',
                             weixin_cert:set.weixin_cert?set.weixin_cert:'',
                             weixin_key:set.weixin_key?set.weixin_key:'',
@@ -447,6 +452,7 @@
                             alipay: set.alipay,
                             wechat_h5 : set.wechat_h5,
                             wechat_native : set.wechat_native,
+                            wechat_micro : set.wechat_micro,
                             alipay_pay_api: set.alipay_pay_api?set.alipay_pay_api:'0',
                             alipay_name: set.alipay_name,
                             alipay_account: set.alipay_account?set.alipay_account:'',
@@ -465,6 +471,7 @@
                             credit: set.credit,
                             another: set.another,
                             another_share_title:set.another_share_title,
+                            another_share_type:set.another_share_type?set.another_share_type:1,
                             remittance:set.remittance,
                             COD: set.COD,
                             remittance_bank: set.remittance_bank,
@@ -520,6 +527,9 @@
                     if(this.set.alipay_transfer_private){
                         this.alipay_transfer_private_show=false
                     }
+                    if (this.set.weixin_apiv3_secret) {
+                        this.weixin_apiv3_secret_show=false;
+                    }
                 },
                 certReset(){
                     this.Certshow=true
@@ -545,7 +555,10 @@
                             this.form.alipay_transfer_private = ''
                             this.alipay_transfer_private_show = true
                             break;
-
+                        case 'weixin_apiv3_secret' :
+                            this.form.weixin_apiv3_secret = ''
+                            this.weixin_apiv3_secret_show = true
+                            break;
                     }
                 },
                 submit() {
@@ -554,11 +567,13 @@
                     this.$http.post('{!! yzWebFullUrl('setting.shop.pay') !!}',{'pay':this.form}).then(function (response){
                         if (response.data.result) {
                             this.$message({message: response.data.msg,type: 'success'});
+                            loading.close();
                         }else {
                             this.$message({message: response.data.msg,type: 'error'});
+                            loading.close();
                         }
-                        loading.close();
-                        location.reload();
+                        // loading.close();
+                        // location.reload();
                     },function (response) {
                         this.$message({message: response.data.msg,type: 'error'});
                     })

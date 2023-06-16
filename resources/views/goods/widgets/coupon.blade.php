@@ -59,9 +59,9 @@
 
                     <div class="input-group coupon-item" style="margin-top:5px; width: 60%">
                         <input class="coupon_id" type="hidden" name="widgets[coupon][coupon_id][]" value="{{ $list['coupon_id'] }}"/>
-                        <input class="form-control coupon_name" type="text" maxlength="30" name='widgets[coupon][coupon_name][]' value='{{ $list['coupon_name'] or '' }}' readonly/>
+                        <input class="form-control coupon_name" type="text" maxlength="30" name='widgets[coupon][coupon_name][]' value='{{ $list['coupon_name'] ?? ''}}' readonly/>
                         <div class="input-group-addon"><button type="button" class="input-group-add">选择优惠券</button></div>
-                        <input type="text" class="form-control" name='widgets[coupon][coupon_several][]' value='{{ $list['coupon_several'] or '' }}'/>
+                        <input type="text" class="form-control" name='widgets[coupon][coupon_several][]' value='{{ $list['coupon_several'] ?? ''}}'/>
                         <span class="input-group-addon unit">张</span>
                         <div class='input-group-btn'>
                             <button class='btn btn-danger' type='button'
@@ -138,9 +138,9 @@
 
                         <div class="input-group coupon-item" style="margin-top:5px; width: 60%">
                             <input class="coupon_id" type="hidden" name="widgets[coupon][share_coupon][coupon_id][]" value="{{ $share['coupon_id'] }}"/>
-                            <input class="form-control coupon_name" type="text" maxlength="30" name='widgets[coupon][share_coupon][coupon_name][]' value='{{ $share['coupon_name'] or '' }}' readonly/>
+                            <input class="form-control coupon_name" type="text" maxlength="30" name='widgets[coupon][share_coupon][coupon_name][]' value='{{ $share['coupon_name'] ?? ''}}' readonly/>
                             <div class="input-group-addon"><button type="button" class="input-group-add">选择优惠券</button></div>
-                            <input type="text" class="form-control" name='widgets[coupon][share_coupon][coupon_several][]' value='{{ $share['coupon_several'] or '' }}'/>
+                            <input type="text" class="form-control" name='widgets[coupon][share_coupon][coupon_several][]' value='{{ $share['coupon_several'] ?? ''}}'/>
                             <span class="input-group-addon unit">张</span>
                             <div class='input-group-btn'>
                                 <button class='btn btn-danger' type='button'

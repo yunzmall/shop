@@ -15,6 +15,7 @@ use app\common\events\member\MemberFirstChilderenEvent;
 use app\common\events\member\MemberNewOfflineEvent;
 use app\common\events\member\MemberRelationEvent;
 use app\common\events\MessageEvent;
+use app\common\models\member\MemberInvitationCodeLog;
 use app\common\models\notice\MessageTemp;
 use app\common\modules\member\MemberRelationRepository;
 use app\common\services\MessageService;
@@ -218,7 +219,11 @@ class MemberRelation extends BaseModel
      */
     public function becomeChildAgent($mid, $model)
     {
+		$parent = null;
+
         $set = self::getSetInfo()->first();
+		$become_child =  intval($set->become_child);
+		$become_check = intval($set->become_check);
 
         if (empty($set) || $set->status == 0) {
             return;
@@ -226,78 +231,62 @@ class MemberRelation extends BaseModel
 
         $member = MemberShopInfo::getMemberShopInfo($model->member_id);
 
-        if (empty($member)) {
+		if (empty($member)) {
             return;
         }
 
-        if ($member->is_agent == 1) {
-            return;
-        }
+		if (!$member->inviter) {
+			if (!empty($mid)) {
+				$parent =  MemberShopInfo::getMemberShopInfo($mid);
+			} else {
+				if ($member->parent_id == 0) {
+					if (empty($become_child)) {
+						$model->child_time = time();
+						$model->inviter = 1;
+						\Log::debug(sprintf('会员id-%d确定上线id-%d', $model->member_id, $mid));
+						$model->save();
+					}
+				}
+			}
+			$parent_is_agent = !empty($parent) && $parent->is_agent == 1 && $parent->status == 2;
+			$curr_parent_id = $model->parent_id;
 
-        $parent = null;
+			if ($parent_is_agent && $member->member_id != $parent->member_id) {
+				$this->changeChildAgent($mid, $model);
+				if (empty($become_child)) {
+					$model->inviter = 1;
+					\Log::debug(sprintf('会员id-%d确定上线id-%d', $model->member_id, $mid));
+					//notice
+					self::sendAgentNotify($member->member_id, $mid);
+					event(new MemberNewOfflineEvent($member->member_id,$mid, false));//新增下线事件
+				} else {
+					\Log::debug(sprintf('会员id-%d未确定上线id-%d', $model->member_id, $mid));
+					$model->inviter = 0;
+				}
+				$model->save();
+				if ($curr_parent_id != $model->parent_id) {
+					event(new MemberCreateRelationEvent($model, $mid));
+					event(new MemberFirstChilderenEvent(['member_id' => $mid]));
+				}
+			}
+		}
 
-        $become_child =  intval($set->become_child);
-        $become_check = intval($set->become_check);
-
-        if (!empty($mid)) {
-            $parent =  MemberShopInfo::getMemberShopInfo($mid);
-        } else {
-            if ($member->inviter == 0 && $member->parent_id == 0) {
-                if (empty($become_child)) {
-                    $model->child_time = time();
-                    $model->inviter = 1;
-                    \Log::debug(sprintf('会员id-%d确定上线id-%d', $model->member_id, $mid));
-
-                    $model->save();
-                }
-            }
-        }
-
-        $parent_is_agent = !empty($parent) && $parent->is_agent == 1 && $parent->status == 2;
-        $curr_parent_id = $model->parent_id;
-
-        if ($parent_is_agent && empty($member->inviter)) {
-            if ($member->member_id != $parent->member_id) {
-                $this->changeChildAgent($mid, $model);
-
-                if (empty($become_child)) {
-                    $model->inviter = 1;
-                    \Log::debug(sprintf('会员id-%d确定上线id-%d', $model->member_id, $mid));
-
-                    self::rewardPoint($model->parent_id, $model->member_id);
-
-                    //notice
-                    self::sendAgentNotify($member->member_id, $mid);
-                    event(new MemberNewOfflineEvent($member->member_id,$mid));//新增下线事件
-                } else {
-                    \Log::debug(sprintf('会员id-%d未确定上线id-%d', $model->member_id, $mid));
-                    $model->inviter = 0;
-                }
-
-                $model->save();
-
-                if ($curr_parent_id != $model->parent_id) {
-                    event(new MemberCreateRelationEvent($model, $mid));
-                    event(new MemberFirstChilderenEvent(['member_id' => $mid]));
-                }
-
-            }
-        }
+		if ($member->is_agent == 1 && $member->status == 2) {
+			return;
+		}
 
         if (empty($set->become) ) {
             $model->is_agent = 1;
-
             if ($become_check == 0) {
                 $model->status = 2;
                 $model->agent_time = time();
-
                 if ($model->inviter == 0) {
                     $model->inviter = 1;
                 }
             } else {
                 $model->status = 1;
+                $model->apply_time = time();
             }
-
             if ($model->save()) {
                 self::setRelationInfo($model, $curr_parent_id);
             }
@@ -314,20 +303,15 @@ class MemberRelation extends BaseModel
     public static function checkOrderConfirm($uid)
     {
         $set = self::getSetInfo()->first();
-
         if (empty($set) || $set->status == 0) {
             return;
         }
-
         $member = MemberShopInfo::getMemberShopInfo($uid);
-
         if (empty($member)) {
             return;
         }
-
         $curr_parent_id = $member->parent_id;
         $become_child = intval($set->become_child);
-
         if ($member->parent_id == 0) {
             \Log::debug(sprintf('会员上线ID进入时1-: %d', $member->parent_id));
             if ($become_child == 1 && empty($member->inviter)) {
@@ -340,31 +324,20 @@ class MemberRelation extends BaseModel
             $parent = MemberShopInfo::getMemberShopInfo($member->parent_id);
             \Log::debug(sprintf('会员上线ID进入时2-: %d', $member->parent_id));
             $parent_is_agent = !empty($parent) && $parent->is_agent == 1 && $parent->status == 2;
-
-            if ($parent_is_agent) {
-                if ($become_child == 1) {
-                    if (empty($member->inviter) && $member->member_id != $parent->member_id) {
-                        \Log::debug(sprintf('会员赋值 parent_id: %d', $parent->member_id));
-                        $member->parent_id = $parent->member_id;
-                        $member->child_time = time();
-                        $member->inviter = 1;
-
-                        self::rewardPoint($member->parent_id, $member->member_id);
-
-                        $member->save();
-
-                        if ($curr_parent_id != $member->parent_id) {
-                            event(new MemberCreateRelationEvent($member, $member->parent_id));
-                        }
-
-                        //message notice
-                        self::sendAgentNotify($member->member_id, $parent->member_id);
-                        event(new MemberNewOfflineEvent($member->member_id,$parent->member_id));//新增下线事件
-                    }
+            if ($parent_is_agent && $become_child == 1 && !$member->inviter && $member->member_id != $parent->member_id) {
+                \Log::debug(sprintf('会员赋值 parent_id: %d', $parent->member_id));
+                $member->parent_id = $parent->member_id;
+                $member->child_time = time();
+                $member->inviter = 1;
+                $member->save();
+                if ($curr_parent_id != $member->parent_id) {
+                    event(new MemberCreateRelationEvent($member, $member->parent_id));
                 }
+                //message notice
+                self::sendAgentNotify($member->member_id, $parent->member_id);
+                event(new MemberNewOfflineEvent($member->member_id,$parent->member_id, false));//新增下线事件
             }
         }
-
         if ($curr_parent_id != $member->parent_id) {
             event(new MemberFirstChilderenEvent(['member_id' => $uid]));
         }
@@ -380,15 +353,12 @@ class MemberRelation extends BaseModel
     {
         // Yy edit:2019-03-06
         self::$orderId = $orderId;
-
         $set = self::getSetInfo()->first();
         $become_check = intval($set->become_check);
-
         \Log::debug('付款后');
         if (empty($set) || $set->status == 0) {
             return;
         }
-
         $member = MemberShopInfo::getMemberShopInfo($uid);
         if (empty($member)) {
             return;
@@ -396,11 +366,8 @@ class MemberRelation extends BaseModel
         \Log::debug(sprintf('会员上线-%d', $member->parent_id));
         $become_child = intval($set->become_child);
         $curr_parent_id = $member->parent_id;
-
         $parent = MemberShopInfo::getMemberShopInfo($member->parent_id);
-
         $parent_is_agent = !empty($parent) && $parent->is_agent == 1 && $parent->status == 2;
-
         //成为下线
         if ($member->parent_id == 0) {
             if ($become_child == 2 && empty($member->inviter)) {
@@ -409,32 +376,21 @@ class MemberRelation extends BaseModel
                 $member->save();
             }
         } else {
-            if ($parent_is_agent) {
-                if ($become_child == 2) {
-                    if (empty($member->inviter) && $member->member_id != $parent->member_id) {
-                        $member->parent_id = $parent->member_id;
-                        $member->child_time = time();
-                        $member->inviter = 1;
-
-                        self::rewardPoint($member->parent_id, $member->member_id);
-
-                        $member->save();
-
-                        if ($curr_parent_id != $member->parent_id) {
-                            event(new MemberCreateRelationEvent($member, $member->parent_id));
-                        }
-
-                        //message notice
-                        self::sendAgentNotify($member->member_id, $parent->member_id);
-                        event(new MemberNewOfflineEvent($member->member_id,$parent->member_id));//新增下线事件
-                    }
+            if ($parent_is_agent && $become_child == 2 && !$member->inviter && $member->member_id != $parent->member_id) {
+                $member->parent_id = $parent->member_id;
+                $member->child_time = time();
+                $member->inviter = 1;
+                $member->save();
+                if ($curr_parent_id != $member->parent_id) {
+                    event(new MemberCreateRelationEvent($member, $member->parent_id));
                 }
+                //message notice
+                self::sendAgentNotify($member->member_id, $parent->member_id);
+                event(new MemberNewOfflineEvent($member->member_id,$parent->member_id, false));//新增下线事件
             }
         }
-
         //发展下线资格
         $isagent = $member->is_agent == 1 && $member->status == 2;
-
         \Log::debug('会员成为推广员',$isagent);
         \Log::debug('会员成为推广员设置',$set);
         if (!$isagent && empty($set->become_order)) {
@@ -804,7 +760,8 @@ class MemberRelation extends BaseModel
         }
     }
 
-    public static function rewardPoint($parent_id, $member_id) {
+    public static function rewardPoint($parent_id, $member_id)
+    {
         $memberRelation = new \app\common\services\member\MemberRelation();
         $memberRelation->rewardPoint($parent_id, $member_id);
     }

@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/3/27
  * Time: 下午1:52
  */
@@ -275,6 +275,11 @@ class Income extends BaseModel
     public function hasManyIncome()
     {
         return $this->hasMany(self::class, "create_month", "create_month");
+    }
+
+    public function hasManyOrder()
+    {
+        return $this->hasOne(Order::class, "order_sn", "order_sn");
     }
 
     public static function updatedIncomePayStatus($id, $updatedData)

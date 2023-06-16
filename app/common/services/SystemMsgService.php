@@ -14,16 +14,54 @@ use app\framework\Support\Facades\Log;
 
 class SystemMsgService
 {
+    public static $msg_type = [
+        [
+            'id' => 1,
+            'type_name' => '系统通知',
+            'icon_src' => 'icon-ht_content_systemmessage',
+        ],
+        [
+            'id' => 2,
+            'type_name' => '订单通知',
+            'icon_src' => 'icon-ht_content_order',
+        ],
+        [
+            'id' => 3,
+            'type_name' => '提现通知',
+            'icon_src' => 'icon-ht_content_tixian',
+        ],
+        [
+            'id' => 4,
+            'type_name' => '申请通知',
+            'icon_src' => 'icon-ht_content_apply',
+        ],
+        [
+            'id' => 5,
+            'type_name' => '商品通知',
+            'icon_src' => 'icon-ht_content_goods',
+        ],
+        [
+            'id' => 6,
+            'type_name' => '优惠券',
+            'icon_src' => 'icon-ht_content_coupons',
+        ],
+        [
+            'id' => 7,
+            'type_name' => '退款通知',
+            'icon_src' => 'icon-ht_content_coupons',
+        ],
+    ];
+
     //链接跳转配置
     public static $url = [
-        'order' => 'order.list.index',  //商城全部订单页面
+        'order' => 'order.order-list.index',  //商城全部订单页面
         'cashier_order' => 'plugin.store-cashier.admin.order.detail',//商城收银台订单
         'store_order' => 'plugin.store-cashier.admin.stores.store-order.detail',//商城门店订单
         'group_order' => 'plugin.fight-groups.admin.controllers.order-management.list-order',//商城拼团订单
         'lease_order' => 'plugin.lease-toy.admin.order.index',//商城租凭订单
         'supplier_order' => 'plugin.supplier.admin.controllers.order.supplier-order.index',//商城供应商订单
         'jd_order' => 'plugin.jd-supply.admin.order-list.index',//商城聚合供应链订单
-        'yz_order' => 'plugin.yz-supply.admin.order-list.index',//商城芸众供应链订单
+        'yz_order' => 'plugin.yz-supply.admin.order-vue-list.index',//商城芸众供应链订单
         'appointment_order' => 'plugin.appointment.admin.order.index',//商城预约订单
         'withdraw' => 'withdraw.records', //提现记录页面
         'coupon' => 'coupon.coupon.index', //优惠券列表页面
@@ -47,6 +85,10 @@ class SystemMsgService
         'advert-market_apply' => 'plugin.advert-market.admin.apply.manage.index', //广告主申请页面
         'room_apply' => 'plugin.room.admin.anchor-manage.apply', //主播申请页面
         'circle_apply' => 'plugin.circle.admin.circle.index', //圈子审核页面
+        'member_cancel_apply' => 'member.member-cancel.verify', //账号注销申请页面
+        'hotel_order' => 'plugin.hotel.admin.hotels.hotel-order.index', // 酒店订单页面
+        'micro_communities_trick' => 'plugin.micro-communities.admin.trick.index', // 微社区帖子页面
+        'video_share' => 'plugin.video-share.admin.videoGoods.index', // 视频分享页面
     ];
     public function __construct($uniacid = '')
     {
@@ -78,6 +120,8 @@ class SystemMsgService
                 //商品库存
             case 6:
                 //优惠券
+            case 7:
+                //退款通知
                 return $this->addMessage($params,$msgType);break;
             default:
                 \Log::error("系统通知-------消息类型错误");
@@ -145,8 +189,7 @@ class SystemMsgService
                 'name'=>'商城',
                 'redirect_url'=>'order',
                 'redirect_param' => [
-                    'search[ambiguous][string]'=>$order_sn,
-                    'search[ambiguous][field]'=>'order'
+                    'order_sn'=>$order_sn,
                 ]
             ],
             31 => [
@@ -196,7 +239,7 @@ class SystemMsgService
                 ]
             ],
             120=>[
-                'name'=>'聚合供应链',
+                'name'=>'供应链',
                 'redirect_url'=>'yz_order',
                 'redirect_param' => [
                     'search[ambiguous][string]'=>$order_sn,
@@ -324,41 +367,32 @@ class SystemMsgService
     }
 
     //优惠券通知
-    public function couponNotice($couponId)
+    public function couponNotice()
     {
-        //判断此次发送的优惠券是否剩余数量为0了，为0了说明有新的一种优惠券领取完成，执行发送消息
-        $thisCoupon = Coupon::uniacid()
-            ->withCount('hasManyMemberCoupon')
-            ->where('id', '=', $couponId)
-            ->first();
-        if(empty($thisCoupon)){
-            Log::error('优惠券系统消息通知----优惠券信息未找到');
-            return false;
-        }
-        if($thisCoupon->plugin_id <> 0){
-            //只计算商城优惠券，门店等的不计算
-            return false;
-        }
-
-        if($thisCoupon['total'] == -1 ||$thisCoupon['total'] > $thisCoupon['has_many_member_coupon_count']){
-            //该优惠券属于无限领取或者剩余数量不等于0
-            return false;
-        }
-
         //获取剩余数量为0的优惠券集合
         $couponData = Coupon::uniacid()
             ->withCount('hasManyMemberCoupon')
             ->where('total','>',-1)//非无限领取
             ->where('plugin_id',0)//商城优惠券
-            ->get()->toArray();
+            ->get();
         if(empty($couponData)){
             return false;
         }
         foreach ($couponData as $k=>$v){
-            if($v['total'] >= $v['has_many_member_coupon_count']){
+            //发送优惠券归0消息的逻辑改为优惠券数量每一次归0只发送一次消息
+            //如果从最新一次消息归0消息发出后，从未补充过优惠券则不发送消息。
+            $last = SysMsgLog::uniacid()->where('redirect_param','like','%|'. $v['id'].'|%')->where('type_id',6)->orderByDesc('id')->limit(1)->get()->toArray();
+            if(!empty($last)){
+                $count=$v->couponIncreaseRecords()->where('created_at','>',$last[0]['created_at'])->count();
+                if(!$count){
+                    unset($couponData[$k]);
+                }
+            }
+            if($v['total'] > $v['has_many_member_coupon_count']){
                 unset($couponData[$k]);
             }
         }
+        $couponData=$couponData->toArray();
         if(empty($couponData)){
             return false;
         }
@@ -368,7 +402,8 @@ class SystemMsgService
             'content' => '',
             'redirect_url' => 'coupon',
             'redirect_param' => [
-                'last_stock'=>0
+                'laststock'=>0,
+                'ids'=>'|'.implode('|',array_column($couponData,'id')).'|'
             ]
         ];
         return $this->sendSysMsg($msg_type,$param);
@@ -529,6 +564,36 @@ class SystemMsgService
                     'redirect_url' => 'circle_apply',
                     'redirect_param' => [
                         'search[member_id]'=>$model->member_id
+                    ]
+                ];
+            case 'member_cancel':
+                $nickname = $this->getMemberNickname($model->member_id);
+                return [
+                    'title'=>'您有会员发起注销申请，请及时处理！',
+                    'content' => '时间:'.date('Y-m-d H:i:s').' || 会员:'.$nickname.' || 状态:待审核',
+                    'redirect_url' => 'member_cancel_apply',
+                    'redirect_param' => [
+                        'member_id'=>$model->id
+                    ]
+                ];
+            case 'micro-communities':
+                $nickname = $this->getMemberNickname($model->user_id);
+                return [
+                    'title'=>'您有会员发布新的帖子，请及时处理审核！',
+                    'content' => '时间:'.$model->created_at.' || 会员:'.$nickname.' || 状态:待审核',
+                    'redirect_url' => 'micro_communities_trick',
+                    'redirect_param' => [
+                        'search[uid]'=>$model->user_id
+                    ]
+                ];
+            case 'video-share':
+                $nickname = $this->getMemberNickname($model->uid);
+                return [
+                    'title'=>'您有会员发布新的视频，请及时处理审核！',
+                    'content' => '时间:'.$model->created_at.' || 会员:'.$nickname.' || 状态:待审核',
+                    'redirect_url' => 'video_share',
+                    'redirect_param' => [
+                        'id'=>$model->id
                     ]
                 ];
             default:

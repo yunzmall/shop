@@ -80,9 +80,9 @@
                     <div class="title"><div style="display:flex;align-items:center;"><div style="display:flex;align-items:center;"><span style="width: 4px;height: 18px;background-color: #29ba9c;margin-right:15px;display:inline-block;"></span><b>插件管理</b><span style="color: #999999;font-size:12px;display:inline-block;margin-left:16px;">如存在未授权插件，您可能正在使用盗版插件，为了保障您的权益，请尽快联系客服处理！</span></div><span></div><el-button type="primary"><a href="{{yzWebUrl('plugin.plugins-market.Controllers.new-market.show')}}" style="color:#fff;">插件安装/升级</a></el-button></div>
                     <div>
                         <div>
-                            <el-input v-model="search_form.title"  style="width:15%;margin-right:15px;"></el-input>
+                            <el-input placeholder="请输入插件名称" v-model="search_form.title"  style="width:15%;margin-right:15px;"></el-input>
                             <template>
-                                <el-select v-model="search_form.permit_status"  style="margin-right:15px;">
+                                <el-select placeholder="是否授权" v-model="search_form.permit_status"  style="margin-right:15px;">
                                     <el-option
                                             v-for="item in permit"
                                             :key="item.value"
@@ -92,7 +92,7 @@
                                 </el-select>
                             </template>
                             <template>
-                                <el-select v-model="search_form.status"  style="margin-right:15px;">
+                                <el-select placeholder="全部状态" v-model="search_form.status"  style="margin-right:15px;">
                                     <el-option
                                             v-for="item in action"
                                             :key="item.value"
@@ -102,7 +102,7 @@
                                 </el-select>
                             </template>
                             <template>
-                                <el-select v-model="search_form.update_status"  style="margin-right:15px;">
+                                <el-select placeholder="是否可升级" v-model="search_form.update_status"  style="margin-right:15px;">
                                     <el-option
                                             v-for="item in update"
                                             :key="item.value"

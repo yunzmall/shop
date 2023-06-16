@@ -1,6 +1,6 @@
 <?php
 /**
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2019/4/24
  * Time: 下午3:10
  */
@@ -9,7 +9,9 @@ namespace app\payment\controllers;
 
 use app\common\helpers\Url;
 use app\common\models\AccountWechats;
+use app\common\services\finance\Withdraw;
 use app\common\services\Pay;
+use app\common\services\PayFactory;
 use app\payment\PaymentController;
 use Yunshop\ConvergePay\models\WithdrawLog;
 use Yunshop\ConvergePay\services\NotifyService;
@@ -17,15 +19,86 @@ use app\common\events\withdraw\WithdrawSuccessEvent;
 
 class ConvergepayController extends PaymentController
 {
-    private $attach = [];
     private $parameter = [];
+
 
     public function __construct()
     {
         parent::__construct();
 
-        $this->parameter = $_GET;
+        $this->parameter = $_REQUEST;
     }
+
+    public function notifyUrl()
+    {
+        if (empty(\YunShop::app()->uniacid)) {
+
+            if (!$this->getResponse('r5_Mp')) {
+                \Log::debug('汇聚支付回调公众号为空--->', $this->parameter);
+                echo 'No official account exists.';exit();
+            }
+
+            \Setting::$uniqueAccountId = \YunShop::app()->uniacid =$this->getResponse('r5_Mp');
+
+            AccountWechats::setConfig(AccountWechats::getAccountByUniacid(\YunShop::app()->uniacid));
+        }
+
+
+        $payType = $this->getConvergePayType()[$this->getResponse('rc_BankCode')];
+
+        if (!$payType) {
+            \Log::debug('未知汇聚支付类型---'.$this->getResponse('rc_BankCode'));
+            echo 'Unknown payment type';exit();
+        }
+
+        $this->log($this->parameter, $payType['name']);
+
+
+        if ($this->getSignResult()) {
+            if ($this->getResponse('r6_Status') == '100') {
+                \Log::debug("<------{$payType['name']} 业务处理----");
+
+                $data = $this->data($payType['name'], $payType['pay_type_id']);
+                $this->payResutl($data);
+
+                \Log::debug("----{$payType['name']} 处理结束---->");
+                echo 'success';
+            } else {
+                //其他错误
+                \Log::debug("------{$payType['name']} 支付失败-----");
+                echo 'fail';
+            }
+        } else {
+            //签名验证失败
+            \Log::debug("------{$payType['name']} 签名验证失败-----");
+            echo 'fail1';
+        }
+
+    }
+
+    public function getConvergePayType()
+    {
+        return [
+            'ALIPAY_H5' => [
+                'name' => '汇聚-支付宝H5',
+                'pay_type_id' => PayFactory::CONVERGE_ALIPAY_H5_PAY,
+            ],
+            'UNIONPAY_H5' => [
+                'name' => '汇聚-云闪付',
+                'pay_type_id' => PayFactory::CONVERGE_UNION_PAY,
+            ],
+            'WEIXIN_CARD' => [
+                'name' => '汇聚-微信付款码',
+                'pay_type_id' => PayFactory::CONVERGE_WECHAT_CARD_PAY,
+            ],
+            'ALIPAY_CARD' => [
+                'name' => '汇聚-支付宝付款码',
+                'pay_type_id' => PayFactory::CONVERGE_ALIPAY_CARD_PAY,
+            ],
+
+        ];
+    }
+
 
     public function notifyUrlWechat()
     {
@@ -47,7 +120,12 @@ class ConvergepayController extends PaymentController
             if ($_GET['r6_Status'] == '100') {
                 \Log::debug('------微信支付-HJ 验证成功-----');
 
-                $data = $this->data('微信支付-HJ', '28');
+                if ($_GET['rc_BankCode'] == 'WEIXIN_CARD'){
+                    \Log::debug('------汇聚支付-微信付款码支付');
+                    $data = $this->data('汇聚支付-微信付款码', PayFactory::CONVERGE_WECHAT_CARD_PAY);
+                }else{
+                    $data = $this->data('微信支付-HJ', '28');
+                }
 
                 $this->payResutl($data);
                 \Log::debug('----微信支付-HJ 结束----');
@@ -74,9 +152,9 @@ class ConvergepayController extends PaymentController
         }
 
         if (0 == $_GET['state'] && $_GET['errorDetail'] == '成功') {
-            redirect(Url::absoluteApp('member/payYes', ['i' => $this->getResponse('r5_Mp')]))->send();
+            return redirect(Url::absoluteApp('member/payYes', ['i' => $this->getResponse('r5_Mp')]))->send();
         } else {
-            redirect(Url::absoluteApp('member/payErr', ['i' => $this->getResponse('r5_Mp')]))->send();
+            return redirect(Url::absoluteApp('member/payErr', ['i' => $this->getResponse('r5_Mp')]))->send();
         }
     }
 
@@ -99,7 +177,12 @@ class ConvergepayController extends PaymentController
             if ($_GET['r6_Status'] == '100') {
                 \Log::debug('------支付宝支付-HJ 验证成功-----');
 
-                $data = $this->data('支付宝支付', '29');
+                if ($_GET['rc_BankCode'] == 'ALIPAY_CARD'){
+                    \Log::debug('------汇聚支付-支付宝付款码支付');
+                    $data = $this->data('汇聚支付-支付宝付款码', PayFactory::CONVERGE_ALIPAY_CARD_PAY);
+                }else{
+                    $data = $this->data('支付宝-HJ支付', '29');
+                }
                 $this->payResutl($data);
 
                 \Log::debug('----支付宝支付-HJ 结束----');
@@ -125,9 +208,46 @@ class ConvergepayController extends PaymentController
         }
 
         if (0 == $_GET['state'] && $_GET['errorDetail'] == '成功') {
-            redirect(Url::absoluteApp('member/payYes', ['i' => $this->getResponse('r5_Mp')]))->send();
+            return redirect(Url::absoluteApp('member/payYes', ['i' => $this->getResponse('r5_Mp')]))->send();
         } else {
-            redirect(Url::absoluteApp('member/payErr', ['i' => $this->getResponse('r5_Mp')]))->send();
+            return redirect(Url::absoluteApp('member/payErr', ['i' => $this->getResponse('r5_Mp')]))->send();
+        }
+    }
+
+    //银联支付回调
+    public function notifyUrlUnionPay()
+    {
+        if (empty(\YunShop::app()->uniacid)) {
+            if (!$this->getResponse('r5_Mp')) {
+                \Log::debug('汇聚支付回调公众号为空--->', $this->parameter);
+                echo 'No official account exists.';exit();
+            }
+
+            \Setting::$uniqueAccountId = \YunShop::app()->uniacid = $this->getResponse('r5_Mp');
+
+            AccountWechats::setConfig(AccountWechats::getAccountByUniacid(\YunShop::app()->uniacid));
+        }
+
+        $this->log($this->parameter, '汇聚云闪付支付');
+
+        if ($this->getSignResult()) {
+            if ($_GET['r6_Status'] == '100') {
+                \Log::debug('<------汇聚云闪付支付 业务处理----');
+
+                $data = $this->data('汇聚云闪付支付', PayFactory::CONVERGE_UNION_PAY);
+                $this->payResutl($data);
+
+                \Log::debug('----汇聚云闪付支付 处理结束---->');
+                echo 'success';
+            } else {
+                //其他错误
+                \Log::debug('------汇聚云闪付支付 支付失败-----');
+                echo 'fail';
+            }
+        } else {
+            //签名验证失败
+            \Log::debug('------汇聚云闪付支付 签名验证失败-----');
+            echo 'fail1';
         }
     }
 
@@ -259,6 +379,8 @@ class ConvergepayController extends PaymentController
                 $withdrawLog->desc = $parameter->input('errorCodeDesc');
                 $withdrawLog->response_data = $parameter->input();
                 $withdrawLog->save();
+
+                Withdraw::payFail($withdrawLog->withdraw_sn);
 
                 echo json_encode([
                     'statusCode' => 2002,

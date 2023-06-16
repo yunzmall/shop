@@ -37,7 +37,25 @@ class AppServiceProvider extends ServiceProvider
         \Event::listen(StatementPrepared::class, function ($event) {
             $event->statement->setFetchMode(\PDO::FETCH_ASSOC);
         });
-	}
+        $preg_arr = [
+            '/\/business\/(.*?)\//',
+            '/\/andaCallback\/(.*?)\//',
+            '/\/eplusCallback\/(.*?)\//',
+            '/\/outside\/(.*?)\//',
+        ];
+        foreach ($preg_arr as $v){
+            preg_match($v,request()->getRequestUri(),$match);
+            if ($match[1]) {
+                request()->offsetSet('i',$match[1]);
+                break;
+            }
+        }
+//$preg = '/\/business\/(.*?)\//';
+//        preg_match($preg,request()->getRequestUri(),$match);
+//        if ($match[1]) {
+//            request()->offsetSet('i',$match[1]);
+//        }
+    }
 
     /**
      * Register any application services.
@@ -50,28 +68,27 @@ class AppServiceProvider extends ServiceProvider
 		if (strpos(request()->getRequestUri(), '/api.php') >= 0) {
 			error_reporting(0);
 		}
-        if ($this->app->environment() !== 'production') {
-            $this->app->register(\Orangehill\Iseed\IseedServiceProvider::class);
-            $this->app->register(\Barryvdh\LaravelIdeHelper\IdeHelperServiceProvider::class);
-            $this->app->register(\Way\Generators\GeneratorsServiceProvider::class);
-            $this->app->register(\Xethron\MigrationsGenerator\MigrationsGeneratorServiceProvider::class);
-			DB::listen(function ($sql) {
-					foreach ($sql->bindings as $i => $binding) {
-						if ($binding instanceof \DateTime) {
-							$sql->bindings[$i] = $binding->format('\'Y-m-d H:i:s\'');
-						} else {
-							if (is_string($binding)) {
-								$sql->bindings[$i] = "'$binding'";
-							}
-						}
-					}
-					// Insert bindings into query
-					$query = str_replace(array('%', '?'), array('%%', '%s'), $sql->sql);
-					$query = vsprintf($query, $sql->bindings);
-					// Save the query to file
-					(new SqlLog())->getLogger()->getLogger()->addInfo($query);;
-			});
-        }
+//        if ($this->app->environment() !== 'production') {
+//            $this->app->register(\Orangehill\Iseed\IseedServiceProvider::class);
+//            $this->app->register(\Barryvdh\LaravelIdeHelper\IdeHelperServiceProvider::class);
+//
+//			DB::listen(function ($sql) {
+//					foreach ($sql->bindings as $i => $binding) {
+//						if ($binding instanceof \DateTime) {
+//							$sql->bindings[$i] = $binding->format('\'Y-m-d H:i:s\'');
+//						} else {
+//							if (is_string($binding)) {
+//								$sql->bindings[$i] = "'$binding'";
+//							}
+//						}
+//					}
+//					// Insert bindings into query
+//					$query = str_replace(array('%', '?'), array('%%', '%s'), $sql->sql);
+//					$query = vsprintf($query, $sql->bindings);
+//					// Save the query to file
+//					(new SqlLog())->getLogger()->getLogger()->addInfo($query);;
+//			});
+//        }
         //增加模板扩展tpl
         \View::addExtension('tpl', 'blade');
         //配置表

@@ -151,12 +151,6 @@ class DragondepositController  extends PaymentController
         if ($refundApply) {
             //退款状态设为完成
             RefundOperationService::refundComplete(['id' => $refundApply->id]);
-            RefundMessageService::passMessage($refundApply);//通知买家
-
-            event(new AfterOrderRefundSuccessEvent($refundApply));
-            if (app('plugins')->isEnabled('instation-message')) {
-                event(new \Yunshop\InstationMessage\event\OrderRefundSuccessEvent($refundApply));
-            }
         }
         MerchantOrder::uniacid()->where('tradeOrdNo',$lcgRefund->tradeOrdNo)->update(['status' => MerchantOrder::STATUS_CANCEL]);
 

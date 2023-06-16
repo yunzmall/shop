@@ -17,14 +17,12 @@ class CreateYzApiRefreshTokenTable extends Migration
             Schema::create('yz_api_refresh_token', function (Blueprint $table) {
                 $table->increments('id');
                 $table->integer('uniacid')->default(0)->nullable();
-                $table->string('refresh_token')->nullable();
-                $table->integer('expires_at')->nullable();
-                $table->boolean('revoked');
-
+                $table->string('refresh_token')->nullable()->comment('刷新令牌');
+                $table->integer('expires_at')->nullable()->comment('有效期至');
+                $table->boolean('revoked')->comment('是否撤回');
                 $table->timestamps();
-
-
             });
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE " . app('db')->getTablePrefix() . "yz_api_refresh_token comment 'api--刷新令牌'");//表注释
         }
     }
 

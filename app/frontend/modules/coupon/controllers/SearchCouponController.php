@@ -1,9 +1,9 @@
 <?php
 /**
  * Created by PhpStorm.
- * Name: 芸众商城系统
- * Author: 广州市芸众信息科技有限公司
- * Profile: 广州市芸众信息科技有限公司位于国际商贸中心的广州，专注于移动电子商务生态系统打造，拥有芸众社交电商系统、区块链数字资产管理系统、供应链管理系统、电子合同等产品/服务。官网 ：www.yunzmall.com  www.yunzshop.com
+ *
+ * 
+ *
  * Date: 2021/9/7
  * Time: 16:27
  */
@@ -72,7 +72,9 @@ class SearchCouponController  extends ApiController
         if ($coupons->isEmpty()) {
             return $this->errorJson('没有找到记录', []);
         }
-
+        foreach ($coupons as &$item) {
+            $item->has_many_member_coupon_count = MemberCoupon::uniacid()->where('coupon_id' ,$item->id)->pluck('uid')->unique()->count();
+        }
         //添加"是否可领取" & "是否已抢光" & "是否已领取"的标识
         $couponsData = $this->getCouponData($coupons, $search);
 
@@ -176,7 +178,7 @@ class SearchCouponController  extends ApiController
 
             //增加属性 - 对于该优惠券,用户可领取的数量
             if ($item->get_max != self::NO_LIMIT) {
-                $item->api_remaining = $item->get_max - $item->member_got;
+                $item->api_remaining = $item->get_max - $item->member_got_count;
                 if ($item->api_availability < 0) { //考虑到优惠券设置会变更,比如原来允许领取6张,之后修改为3张,那么可领取张数可能会变成负数
                     $item->api_availability = 0;
                 }

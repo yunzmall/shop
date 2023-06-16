@@ -2,6 +2,7 @@
 
 namespace app\common\repositories;
 
+use app\common\helpers\Cache;
 use app\common\models\Option;
 use app\common\models\UniAccount;
 use Illuminate\Support\Facades\DB;
@@ -20,6 +21,11 @@ class OptionRepository extends Repository
     public function __construct()
     {
         try {
+            if ($load_option = Cache::get('load_option')) {
+                $this->group = $load_option['group'];
+                $this->items = $load_option['items'];
+                return;
+            }
             if (\YunShop::app()->uniacid) {
                 $options = Option::whereIn('uniacid', [0, \YunShop::app()->uniacid])->get();
             } else {
@@ -44,7 +50,7 @@ class OptionRepository extends Repository
                     $uniacItems = array_merge($this->group[0], $uniacItems);
                 }
             }
-
+            Cache::put('load_option', ['group' => $this->group, 'items' => $this->items], 60);
         } catch (QueryException $e) {
             $this->items = [];
         }
@@ -111,7 +117,6 @@ class OptionRepository extends Repository
             return;
         }
     }
-
     /**
      * Do really save modified options to database.
      *

@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 02/03/2017
  * Time: 18:25
  */
@@ -10,12 +10,12 @@ namespace app\common\models\user;
 
 
 use app\common\models\BaseModel;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 
 class UserProfile extends BaseModel
 {
-
     public $table =   'users_profile';
 
     public $timestamps = false;
@@ -129,8 +129,8 @@ class UserProfile extends BaseModel
      * @return array */
     public  function atributeNames() {
         return [
-            'realname'=> "姓名不能为空",
-            'moblie' => "请输入正确的手机号码"
+            'realname'=> "姓名",
+            'mobile' => "手机号码"
         ];
     }
     /**
@@ -141,7 +141,8 @@ class UserProfile extends BaseModel
     {
         $rules =  [
             'realname' => 'required|max:10',
-            'mobile' => 'regex:/^1\d{10}$/',Rule::unique($this->table)->ignore(request()->id, 'uid')
+            'mobile' => ['regex:/^1\d{10}$|^(0\d{2,3}-?|\(0\d{2,3}\))?[1-9]\d{4,7}(-\d{1,8})?$/',Rule::unique($this->table)->ignore(request()->id,'uid')],
+            Rule::unique($this->table)->ignore(request()->id, 'uid')
         ];
 
         return $rules;

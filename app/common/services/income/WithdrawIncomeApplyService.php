@@ -9,6 +9,7 @@
 namespace app\common\services\income;
 
 
+use app\common\events\withdraw\WithdrawRebutAuditEvent;
 use app\common\models\income\WithdrawIncomeApply;
 
 class WithdrawIncomeApplyService
@@ -35,13 +36,21 @@ class WithdrawIncomeApplyService
                   'updated_at'  => time(),
               ];
          }
-         if (WithdrawIncomeApply::insert($data)) {
+         if (count($data) > 5000) {
+             $listData = collect($data)->chunk(5000)->toArray();
+             foreach ($listData as $item) {
+                 WithdrawIncomeApply::insert($item);
+             }
              return true;
+         } else {
+             if (WithdrawIncomeApply::insert($data)) {
+                 return true;
+             }
          }
          return false;
      }
 
-     public static function apply($withdraw_model)
+     public static function apply($withdraw_model,$auditScene='')
      {
          $audit_ids = $withdraw_model->audit_ids;
          $rebut_ids = $withdraw_model->rebut_ids;
@@ -51,6 +60,10 @@ class WithdrawIncomeApplyService
 		 }
          if (!empty($rebut_ids)) {
 			 WithdrawIncomeApply::where('withdraw_id', $withdraw_model->id)->whereIn('income_id', $rebut_ids)->update(['status' => self::APPLY_REBUT]);
+             //审核场景为后台审核执行驳回事件
+             if ($auditScene == 'backend') {
+                 event(new WithdrawRebutAuditEvent($withdraw_model,$rebut_ids));
+             }
 		 }
          if (!empty($invalid_ids)) {
 			 WithdrawIncomeApply::where('withdraw_id', $withdraw_model->id)->whereIn('income_id', $invalid_ids)->update(['status' => self::APPLY_INVALID]);

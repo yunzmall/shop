@@ -1,9 +1,9 @@
 <?php
 /**
  * Created by PhpStorm.
- * Name: 芸众商城系统
- * Author: 广州市芸众信息科技有限公司
- * Profile: 广州市芸众信息科技有限公司位于国际商贸中心的广州，专注于移动电子商务生态系统打造，拥有芸众社交电商系统、区块链数字资产管理系统、供应链管理系统、电子合同等产品/服务。官网 ：www.yunzmall.com  www.yunzshop.com
+ *
+ *
+ *
  * Date: 2021/7/20
  * Time: 11:15
  */
@@ -17,6 +17,11 @@ use app\common\models\Order;
 use app\common\models\OrderPay;
 use app\common\helpers\Url;
 
+/**
+ * 废弃，现在支付完成使用新接口 order.merge-pay.check-order-pay
+ * Class CallbackPageController
+ * @package app\frontend\modules\payment\controllers
+ */
 class CallbackPageController extends BaseController
 {
     public function index()
@@ -39,7 +44,7 @@ class CallbackPageController extends BaseController
         }
 
         if (strexists($redirect, 'http://') || strexists($redirect, 'https://')) {
-            $min_redirect_url = $this->shopAppletsRedirect();
+            $min_redirect_url = $this->shopAppletsRedirect($orderPay);
         } else {
             $min_redirect_url = $redirect;
         }
@@ -63,13 +68,22 @@ class CallbackPageController extends BaseController
     }
 
 
-    protected function shopAppletsRedirect()
+    protected function shopAppletsRedirect($orderPay)
     {
         //支付跳转
         $min_redirect_url = '';
         $trade = \Setting::get('shop.trade');
         if (!is_null($trade) && isset($trade['min_redirect_url']) && !empty($trade['min_redirect_url'])) {
             $min_redirect_url = $trade['min_redirect_url'];
+        }
+
+        if($orderPay) {
+            //优惠卷分享页
+            $share_bool = \app\frontend\modules\coupon\services\ShareCouponService::showIndex($orderPay->order_ids, $orderPay->uid);
+            if ($share_bool) {
+                $ids = rtrim(implode('_', $orderPay->order_ids), '_');
+                $min_redirect_url = '/packageD/coupon_share/coupon_share?orderid=' . $ids;
+            }
         }
 
         return $min_redirect_url;

@@ -28,6 +28,7 @@ class CouponUseController extends BaseController
         return view('coupon.coupon-use', [
             'list' => json_encode($list),
             'use_type' => json_encode(CouponUseLog::$TypeComment),
+            'member_id' => request()->member_id,
         ])->render();
     }
 

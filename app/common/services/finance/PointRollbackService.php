@@ -4,7 +4,7 @@
  * Date:    2017/9/1 下午4:33
  * Email:   livsyitian@163.com
  * QQ:      995265288
- * User:    芸众商城 www.yunzshop.com
+ * User:
  ****************************************************************/
 
 namespace app\common\services\finance;
@@ -26,11 +26,15 @@ class PointRollbackService
      */
     public function orderCancel($event)
     {
+        // 执行订单赠送积分扣除
+        (new PointRefund())->exec($event);
+
         if (!Setting::get('point.set.point_rollback')) {
             return;
         }
 
         $this->orderModel = $event->getOrderModel();
+
         $this->rollbackCoinExchange();
         $pointDeduction = $this->getOrderPointDeduction();
         if (!$pointDeduction) {
@@ -60,8 +64,9 @@ class PointRollbackService
             'point_income_type' => PointService::POINT_INCOME_GET,
             'point_mode' => PointService::POINT_MODE_ROLLBACK,
             'member_id' => $this->orderModel->uid,
+            'order_id' => $this->orderModel->id,
             'point' => $coin,
-            'remark' => '订单：' . $this->orderModel->order_sn . '关闭，返还积分抵扣积分' . $coin,
+            'remark' => '订单：[' . $this->orderModel->order_sn . ']关闭，返还积分抵扣积分' . $coin,
         ];
         (new PointService($data))->changePoint();
     }
@@ -92,8 +97,9 @@ class PointRollbackService
             'point_income_type' => PointService::POINT_INCOME_GET,
             'point_mode' => PointService::POINT_MODE_ROLLBACK,
             'member_id' => $this->orderModel->uid,
+            'order_id' => $this->orderModel->id,
             'point' => $point,
-            'remark' => '订单：' . $this->orderModel->order_sn . '关闭，返还积分抵扣积分' . $point,
+            'remark' => '订单：[' . $this->orderModel->order_sn . ']关闭，返还积分抵扣积分' . $point,
         ];
     }
 

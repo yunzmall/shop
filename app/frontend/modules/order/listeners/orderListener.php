@@ -6,13 +6,16 @@ use app\backend\modules\job\models\FailedJob;
 use app\common\events\order\AfterOrderCanceledEvent;
 use app\common\events\order\AfterOrderCancelSentEvent;
 use app\common\events\order\AfterOrderCreatedEvent;
+use app\common\events\order\AfterOrderPackageSentEvent;
 use app\common\events\order\AfterOrderPaidEvent;
 use app\common\events\order\AfterOrderReceivedEvent;
 use app\common\events\order\AfterOrderSentEvent;
+use app\common\facades\Setting;
 use app\common\listeners\order\FirstOrderListener;
 use app\common\models\Order;
 use app\common\models\UniAccount;
 use app\common\services\SystemMsgService;
+use app\framework\Support\Facades\Log;
 use app\frontend\modules\order\services\MessageService;
 use app\frontend\modules\order\services\MiniMessageService;
 use app\frontend\modules\order\services\OrderService;
@@ -20,6 +23,7 @@ use app\frontend\modules\order\services\OtherMessageService;
 use app\frontend\modules\order\services\SmsMessageService;
 use Carbon\Carbon;
 use Illuminate\Contracts\Events\Dispatcher;
+use Illuminate\Database\Events\TransactionBeginning;
 use Illuminate\Database\Events\TransactionCommitted;
 use Illuminate\Database\Events\TransactionRolledBack;
 use Illuminate\Support\Facades\Artisan;
@@ -75,9 +79,23 @@ class orderListener
             return;
         }
         if (!$order->isVirtual()) {
-            (new MessageService($order))->sent();
+            //多包裹发货微信通知走包裹发送事件 AfterOrderPackageSentEvent
+            if(!$order->is_all_send_goods){
+                (new MessageService($order))->sent();
+            }
             (new OtherMessageService($order))->sent();
             (new SmsMessageService($order))->sent();
+        }
+    }
+
+    public function onPackageSent(AfterOrderPackageSentEvent $event)
+    {
+        $order = Order::find($event->getOrderModel()->id);
+        if($order->notSendMessage()) {
+            return;
+        }
+        if (!$order->isVirtual()) {
+            (new MessageService($order))->packageSent();
         }
     }
 
@@ -119,21 +137,25 @@ class orderListener
         $events->listen(AfterOrderReceivedEvent::class, self::class . '@onReceived');
         $events->listen(AfterOrderPaidEvent::class, \app\common\listeners\member\AfterOrderPaidListener::class . '@handle', 1);
         $events->listen(AfterOrderReceivedEvent::class, \app\common\listeners\member\AfterOrderReceivedListener::class . '@handle', 1);
-
+        $events->listen(AfterOrderPackageSentEvent::class, self::class . '@onPackageSent');
         $events->listen(TransactionCommitted::class, function (TransactionCommitted $event) {
             app(\Illuminate\Contracts\Bus\Dispatcher::class)->dbTransactionCommitted($event);
         });
         $events->listen(TransactionRolledBack::class, function ($event) {
             app(\Illuminate\Contracts\Bus\Dispatcher::class)->dbTransactionRollBack($event);
         });
+		$events->listen(TransactionBeginning::class, function ($event) {
+			app(\Illuminate\Contracts\Bus\Dispatcher::class)->dbTransactionBeginning($event);
+		});
+		
         // 订单自动任务
         $events->listen('cron.collectJobs', function () {
 
-            //todo 不用了,因为存redis 订单号日期不对应
-//            \Cron::add('GenerateOrderSn', '0 */1 * * *', function () {
-//                (new \app\frontend\modules\order\listeners\GenerateOrderSn())->handle();
-//                return;
-//            });
+            //todo 订单支付回调时间超过订单关闭时间，报错误自动退款
+            \Cron::add('GenerateOrderSn', '*/30 * * * *', function () {
+                (new \app\frontend\modules\order\listeners\PayExceptionRefundCron())->handle();
+                return;
+            });
 
 
             \Cron::add("DaemonQueue", '*/1 * * * *', function () {
@@ -204,8 +226,17 @@ class orderListener
             });
             $uniAccount = UniAccount::getEnable();
             foreach ($uniAccount as $u) {
-                \YunShop::app()->uniacid = $u->uniacid;
-                \Setting::$uniqueAccountId = $uniacid = $u->uniacid;
+                Setting::$uniqueAccountId =  \YunShop::app()->uniacid = $accountId = $uniacid = $u->uniacid;
+                //订单自动发货
+                $sendMin = 5;
+//                if ((int)Setting::get('shop.trade.send')) {
+                    // 开启自动收货时
+                    Log::info("--{$accountId}订单自动发货任务注册--");
+                    \Cron::add("OrderSend{$u->uniacid}", '*/' . $sendMin . ' * * * *', function () use ($accountId) {
+                        Log::info("--{$accountId}订单自动发货开始执行--");
+                        OrderService::autoSend($accountId);
+                    });
+//                }
 
                 // 订单自动收货执行间隔时间 默认60分钟
                 $receive_min = 5;//(int)\Setting::get('shop.trade.receive_time') ?: 60;

@@ -26,6 +26,9 @@ class PluginSettleService
             case 'teamDividend':
                 $class = new \Yunshop\TeamDividend\services\ReturnFormatService();
                 break;
+            case 'weeklyRewards':
+                $class = new \Yunshop\WeeklyRewards\services\ReturnFormatService();
+                break;
             default:
                 $class = null;
         }
@@ -68,6 +71,12 @@ class PluginSettleService
                 break;
             case 'teamDividend':
                 if (\Setting::get('plugin.team_dividend.settlement_model')) {
+                    $bool = true;
+                }
+                break;
+            case 'weeklyRewards':
+                $week = array_pluck(\Setting::getAllByGroup('weekly-rewards')->toArray(), 'value', 'key');
+                if ($week['dividend_settle'] || $week['area_settle']) {
                     $bool = true;
                 }
                 break;

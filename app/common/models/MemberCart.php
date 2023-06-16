@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/3/2
  * Time: 下午4:47
  */
@@ -34,6 +34,11 @@ class MemberCart extends BaseModel
         return !empty($this->option_id);
     }
 
+    public function goodsOption()
+    {
+        return $this->belongsTo(app('GoodsManager')->make('GoodsOption'), 'option_id');
+    }
+
     public function goods()
     {
         return $this->belongsTo(app('GoodsManager')->make('Goods'));
@@ -53,16 +58,44 @@ class MemberCart extends BaseModel
         //todo 验证商品是否启用规格
         $this->goods->verifyOption($this->option_id);
 
-        //$this->getAllMemberCarts()->validate();
         //商品基本验证
-
         $this->goods->generalValidate($this->member, $this->total);
 
+
+        //商品购买权限验证
+        if (isset($this->goods->hasOnePrivilege)) {
+
+            //开启按规格限制购买
+            if ( $this->goods->hasOnePrivilege->option_id_array && $this->isOption()) {
+                $privilegeValidate = new \app\common\services\goods\GoodsOptionBuyLimit($this->goods->hasOnePrivilege, $this->goodsOption);
+
+                $privilegeValidate->goodsValidate($this->member, $this->total);
+            } else {
+                $this->goods->hasOnePrivilege->validate($this->member, $this->total);
+            }
+        }
+        
         if ($this->isOption()) {
+
             $this->goodsOptionValidate();
         } else {
             $this->goodsValidate();
         }
+
+        //插件下单购物车验证配置
+        $configs = \app\common\modules\shop\ShopConfig::current()->get('shop-foundation.member-cart.validate');
+        if ($configs) {
+            foreach ($configs as $configK => $pluginConfig) {
+                $class = array_get($pluginConfig,'class');
+                $function =array_get($pluginConfig,'function');
+                if(class_exists($class) && method_exists($class,$function) && is_callable([$class,$function])){
+                    $class::$function($this);
+
+                }
+
+            }
+        }
+
 
     }
 
@@ -114,10 +147,8 @@ class MemberCart extends BaseModel
     public function getGroupId()
     {
         // 判断是否拆单。如果开启商品拆单，则将每种商品拆成不同订单，不考虑规格数量.只拆商城的商品订单
-        if ($this->goods->plugin_id == 0) {
-            if (\Setting::get('shop.order.order_apart')) {
-                return $this->goods_id;
-            }
+        if ($this->goods->plugin_id == 0 && !request()->is_shop_pos && \Setting::get('shop.order.order_apart')){
+            return $this->goods_id;
         }
 
         // 厂家拆单

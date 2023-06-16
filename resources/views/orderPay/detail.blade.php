@@ -97,7 +97,7 @@
 @endsection('content')
 @section('js')
     <script>
-        var app = new Vue({
+        let app = new Vue({
             el: '#app-order-pay',
             delimiters: ['[[', ']]'],
             data() {

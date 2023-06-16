@@ -52,8 +52,8 @@ class GoodsAdapter
     public function _getVipDiscountAmount()
     {
         if (!isset($this->vipDiscountAmount)) {
-            $this->vipDiscountAmount = $this->goods()->getVipDiscountAmount($this->currentCalculator()->getGoodsPriceAdapter());
-            $this->vipDiscountLog = $this->goods()->vipDiscountLog;
+            $this->vipDiscountAmount = $this->currentCalculator()->getVipDiscountAmount($this->currentCalculator()->getGoodsPriceAdapter());
+            $this->vipDiscountLog = $this->currentCalculator()->vipDiscountLog;
         }
         return $this->vipDiscountAmount;
     }

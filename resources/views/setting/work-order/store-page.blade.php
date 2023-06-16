@@ -110,45 +110,48 @@ b{
                     <div class="block">
                     <div class="title"><span style="width: 4px;height: 24px;background-color: #29ba9c;margin-right:15px;display:inline-block;"></span><b>加密信息</b><span style="font-size:12px;margin-left:20px;display:inline-block;">加密信息(此部分信息将做加密处理，为方便您的问题尽快处理请放心填写)</span></div>
                     <div class="password_box" >
-                            <el-form-item label="站点网址：">
-                                <el-input v-model="first_list.website_url" :disabled="nameShow" style="width:760px;"></el-input>
-                            </el-form-item>
-                            <el-form-item label="创始人账号：">
-                                <el-input v-model=" first_list.founder_account" style="width:760px;"></el-input>
-                            </el-form-item>
-                            <el-form-item label="创始人密码：">
-                                <el-input type="password" v-model=" first_list.founder_password" style="width:760px;"></el-input>
-                            </el-form-item>
-                            <el-form-item label="服务器IP：">
-                                <el-input v-model=" first_list.server_ip" style="width:760px;"></el-input>
-                            </el-form-item> 
-                            <el-form-item label="服务器root密码：">
-                                <el-input type="password" v-model=" first_list.root_password" style="width:760px;"></el-input>
-                            </el-form-item>
-                            <el-form-item label="服务器SSH端口：">
-                                <el-input v-model=" first_list.ssh_port" style="width:760px;"></el-input>
-                            </el-form-item>
-                            <el-form-item label="数据库访问地址：">
-                                <el-input v-model=" first_list.database_address" style="width:760px;"></el-input>
-                            </el-form-item>
-                            <el-form-item label="数据库用户名：">
-                                <el-input v-model=" first_list.database_username" style="width:760px;"></el-input>
-                            </el-form-item>
-                            <el-form-item label="数据库密码：">
-                                <el-input type="password" v-model=" first_list.database_password" style="width:760px;"></el-input>
-                            </el-form-item>
-                            <el-form-item label="网站目录位置：">
-                                <el-input v-model=" first_list.root_directory" style="width:760px;"></el-input>
-                            </el-form-item>
-                            <el-form-item>
-                                如果您的服务器由官方部署，可不填写网站目录位置！
-                            </el-form-item>
-                            <el-form-item label="联系QQ：" style="margin-top:20px;">
-                                        <el-input v-model="first_list.qq" style="width:760px;"></el-input>
-                            </el-form-item>
-                            <el-form-item label="手机号：">
-                                        <el-input v-model="first_list.mobile" style="width:760px;"></el-input>
-                            </el-form-item>
+                        <el-form-item label="站点网址：">
+                            <el-input v-model="first_list.website_url" :disabled="nameShow" style="width:760px;"></el-input>
+                        </el-form-item>
+                        <el-form-item label="创始人账号：">
+                            <el-input v-model=" first_list.founder_account" style="width:760px;"></el-input>
+                        </el-form-item>
+                        <el-form-item label="创始人密码：">
+                            <el-input type="password" v-model=" first_list.founder_password" style="width:760px;"></el-input>
+                        </el-form-item>
+                        <el-form-item label="服务器IP：">
+                            <el-input v-model=" first_list.server_ip" style="width:760px;"></el-input>
+                        </el-form-item>
+                        <el-form-item label="服务器账号：">
+                            <el-input v-model=" first_list.root_username" style="width:760px;"></el-input>
+                        </el-form-item>
+                        <el-form-item label="服务器密码：">
+                            <el-input type="password" v-model=" first_list.root_password" style="width:760px;"></el-input>
+                        </el-form-item>
+                        <el-form-item label="服务器SSH端口：">
+                            <el-input v-model=" first_list.ssh_port" style="width:760px;"></el-input>
+                        </el-form-item>
+                        <el-form-item label="数据库访问地址：">
+                            <el-input v-model=" first_list.database_address" style="width:760px;"></el-input>
+                        </el-form-item>
+                        <el-form-item label="数据库用户名：">
+                            <el-input v-model=" first_list.database_username" style="width:760px;"></el-input>
+                        </el-form-item>
+                        <el-form-item label="数据库密码：">
+                            <el-input type="password" v-model=" first_list.database_password" style="width:760px;"></el-input>
+                        </el-form-item>
+                        <el-form-item label="网站目录位置：">
+                            <el-input v-model=" first_list.root_directory" style="width:760px;"></el-input>
+                        </el-form-item>
+                        <el-form-item>
+                            如果您的服务器由官方部署，可不填写网站目录位置！
+                        </el-form-item>
+                        <el-form-item label="联系QQ：" style="margin-top:20px;">
+                                    <el-input v-model="first_list.qq" style="width:760px;"></el-input>
+                        </el-form-item>
+                        <el-form-item label="手机号：">
+                                    <el-input v-model="first_list.mobile" style="width:760px;"></el-input>
+                        </el-form-item>
                     </div>
                     </div>
                 </div>
@@ -267,8 +270,12 @@ b{
                     this.$message.error('请输入服务器ip地址');
                     return;
                 }
+                if (this.first_list.root_username=='') {
+                    this.$message.error('请输入服务器账号');
+                    return;
+                }
                 if (this.first_list.root_password=='') {
-                    this.$message.error('请输入root密码');
+                    this.$message.error('请输入服务器密码');
                     return;
                 }
                 if (this.first_list.ssh_port=='') {

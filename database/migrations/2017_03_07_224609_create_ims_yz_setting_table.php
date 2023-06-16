@@ -20,6 +20,7 @@ class CreateImsYzSettingTable extends Migration {
                 $table->string('key');
                 $table->string('type');
                 $table->text('value', 65535);
+                $table->unique(['group', 'key'], 'un_group_key');
             });
         }
 	}

@@ -61,7 +61,15 @@
                 </div>
             </div>
             
-            <upload-multimedia-img :upload-show="uploadShow" :type="type" :name="chooseImgName" :sel-Num="selNum" @replace="changeProp" @sure="sureImg"></upload-multimedia-img>
+            <upload-multimedia-img 
+                :upload-show="uploadShow" 
+                :type="type" 
+                :name="chooseImgName" 
+                :sel-Num="selNum"
+                @replace="changeProp" 
+                @sure="sureImg"
+                >
+        </upload-multimedia-img>
             <pop :show="show" @replace="changeLink" @add="parHref"></pop>
             <program :pro="pro" @replacepro="changeprogram" @addpro="parpro"></program>
 

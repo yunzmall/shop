@@ -2,19 +2,26 @@
 
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/2/24
  * Time: 下午4:35
  */
 
 namespace app\frontend\modules\order\services;
 
+use app\backend\modules\goods\models\GoodsTradeSet;
+use app\backend\modules\order\services\OrderPackageService;
+use app\common\events\order\AfterOrderPackageSentEvent;
+use app\common\events\order\BeforeOrderPackageEvent;
+use app\common\events\order\BeforeOrderSendEvent;
 use app\common\exceptions\AppException;
+use app\common\facades\Setting;
 use app\common\models\DispatchType;
 use app\common\models\Order;
 
 use app\common\models\order\Express;
 use app\common\models\order\OrderGoodsChangePriceLog;
+use app\common\models\order\OrderPackage;
 use app\common\modules\orderGoods\OrderGoodsCollection;
 
 
@@ -190,6 +197,8 @@ class OrderService
         $where[] = ['deleted_at', '=', 0];
         //清除快递信息
         $data = Express::where($where)->delete();
+        // 清除包裹
+        OrderPackage::where('order_id',$param['order_id'])->delete();
         //修改订单部分发货状态
         //Order::where('id',$param['order_id'])->update(['is_all_send_goods'=>0]);
         $orderOperation->is_all_send_goods = 0;
@@ -206,6 +215,11 @@ class OrderService
     {
         $orderOperation = OrderClose::find($param['order_id']);
 
+
+        if (!empty(array_except($param,['order_id']))) {
+            $orderOperation->params = $param;
+        }
+
         return self::OrderOperate($orderOperation);
     }
 
@@ -218,6 +232,10 @@ class OrderService
     public static function orderForceClose($param)
     {
         $orderOperation = OrderForceClose::find($param['order_id']);
+
+        if (!empty(array_except($param,['order_id']))) {
+            $orderOperation->params = $param;
+        }
 
         return self::OrderOperate($orderOperation);
     }
@@ -328,6 +346,8 @@ class OrderService
      */
     public static function addOrderExpress($param)
     {
+        event(new BeforeOrderPackageEvent(Order::find($param['order_id']), $param));
+        DB::transaction(function ()use($param){
         /**
          * 根据$param中的订单id和订单商品ids保存快递信息
          * 如果订单已发货就return
@@ -343,33 +363,58 @@ class OrderService
         $db_express_model->express_code = $param['express_code'] ?: '';
         //当code获取不到物流，并且 有传过来物流名称则使用传过来的（主要针对供应链）
         $express_company_name = array_get(ExpressCompany::create()->where('value', $param['express_code'])->first(), 'name', '其他快递');
-        if (empty($express_company_name) && !empty($param['express_company_name'])) $express_company_name = $param['express_company_name'];
+        if ($express_company_name == "其他快递" && !empty($param['express_company_name'])) $express_company_name = $param['express_company_name'];
 
         $db_express_model->express_company_name = $express_company_name;
         $db_express_model->express_sn = $param['express_sn'] ?: '';
         $db_express_model->save();
-        if (empty($param['order_goods_ids'])) {
-            //修改订单商品状态
-            $where[] = ['order_id', '=', $param['order_id']];
-            $where[] = ['order_express_id', '=', null];
-            $param['order_goods_ids'] = OrderGoods::where($where)->update(['order_express_id' => $db_express_model->id]);
+
+        if (empty($param['order_goods_ids'])) {// 将所有未发货的商品全部发货
+            // 获取剩余未发货的商品
+            $new_order_goods = OrderPackageService::getNotDeliverGoods($param['order_id']);
+
+            // 单包裹发货
+            OrderPackageService::saveOneOrderPackage((int)$param['order_id'],(int)$db_express_model->id,$new_order_goods);
             //修改订单表是否全部发货 为全部发货
             Order::where('id', $param['order_id'])->update(['is_all_send_goods' => 2]);
         } else {
-            //修改订单商品状态
-            $where[] = ['order_id', '=', $param['order_id']];
-            $where[] = ['order_express_id', '=', null];
-            $param['order_goods_ids'] = OrderGoods::where($where)->whereIn('id', $param['order_goods_ids'])->update(['order_express_id' => $db_express_model->id]);
-            $is_all_send = OrderGoods::where($where)->first();
-            //判断是否有还未发货的，如果没有状态变更为已全部发货
-            if (empty($is_all_send)) {
-                //修改订单表是否全部发货 为全部发货
+            // 新做的参数，可能有些地方没改到
+            if(empty($param['order_package'])){// 没有此参数，则将order_goods_ids里未发货的商品全部发货
+                // 获取剩余未发货的商品
+                $order_goods = OrderGoods::uniacid()
+                    ->where('order_id',$param['order_id'])
+                    ->whereIn('id',$param['order_goods_ids'] ?: [])
+                    ->whereNull('order_express_id')
+                    ->get()
+                    ->makeVisible('order_id');
+                $order_package = OrderPackage::getOrderPackage($param['order_id'])->where('order_express_id','!=',false);
+                $new_order_goods = OrderPackageService::filterGoods($order_goods,$order_package);
+
+                // 单包裹发货
+                OrderPackageService::saveOneOrderPackage((int)$param['order_id'],(int)$db_express_model->id,$new_order_goods);
+            }else{// order_package数据结构[['order_goods_id' => int,'total' => int],['order_goods_id' => int,'total' => int]...]
+                // 获取剩余未发货的商品
+                $new_order_goods = OrderPackageService::getNotDeliverGoods($param['order_id']);
+
+                // 校验包裹商品
+                $new_order_package = collect($param['order_package']);
+                OrderPackageService::checkGoodsPackage($new_order_package,$new_order_goods);
+
+                // 单包裹发货
+                OrderPackageService::saveOneOrderPackage((int)$param['order_id'],(int)$db_express_model->id,$new_order_package);
+                event(new AfterOrderPackageSentEvent(Order::find($param['order_id'])));
+            }
+
+            // 全部发货则改订单状态
+            $new_order_goods = OrderPackageService::getNotDeliverGoods($param['order_id']);
+            if($new_order_goods->isEmpty()){
                 Order::where('id', $param['order_id'])->update(['is_all_send_goods' => 2]);
+            }else{
+                Order::where('id', $param['order_id'])->update(['is_all_send_goods' => 1]);
             }
         }
         return true;
-//
-//        return self::orderSend($param);
+        });
     }
 
     /**
@@ -407,6 +452,8 @@ class OrderService
 
         $order->setOrderGoodsChangePriceLogs($orderGoodsChangePriceLogs);//todo
         $order->setOrderChangePriceLog();
+        $order->setClerkId($param['clerk_id']);
+        $order->setClerkType($param['clerk_type']);
         $order->setDispatchChangePrice($param['dispatch_price']);
 
         return self::OrderOperate($order);
@@ -434,6 +481,98 @@ class OrderService
         });
     }
 
+    public static function autoSend($accountId)
+    {
+        Setting::$uniqueAccountId =  \YunShop::app()->uniacid = $accountId;
+        if ($minutes = (int)Setting::get('shop.trade.send')) {
+            \app\backend\modules\order\models\Order::waitSend()->normal()
+                ->with('hasManyOrderGoods')
+                ->withCount('hasManyOrderGoods as order_goods_count')
+                ->whereIn('plugin_id', [0,92]) //只发自营商品
+                ->where('pay_time', '<', (int)Carbon::now()->subMinutes($minutes)->timestamp)
+                ->chunk(1000, function ($orders) {
+                    if (!$orders->isEmpty()) {
+                        foreach ($orders as $order) {
+                            if ($order->order_goods_count == 1) {
+                                $goods_trade = GoodsTradeSet::where('goods_id', $order->hasManyOrderGoods->first()->goods_id)->first();
+                                if ($goods_trade && $goods_trade->auto_send) {
+                                    $auto_send_day = $goods_trade->auto_send_day;
+                                    if ($auto_send_day > 1) {
+                                        $auto_send_day -= 1;
+                                        $auto_send_day = $order->pay_time->addDays($auto_send_day)->format('Y-m-d');
+                                    } else {
+                                        $auto_send_day = $order->pay_time->format('Y-m-d');
+                                    }
+                                    $auto_send_day .= " {$goods_trade->auto_send_time}:00";
+                                    $auto_send_timestamp = strtotime($auto_send_day);
+                                    if ($auto_send_timestamp < $order->pay_time->timestamp) {
+                                        $auto_send_timestamp = Carbon::createFromTimestamp($auto_send_timestamp)->addDays(1)->timestamp;
+                                    }
+                                    if ($auto_send_timestamp > time()) {
+                                        continue;
+                                    }
+                                }
+                            }
+                            try {
+                                $param = [
+                                    "dispatch_type_id" => 1,
+                                    "order_id" => $order->id,
+                                ];
+                                OrderService::orderSend($param);
+                            } catch (\Exception $e) {
+                                \Log::error("订单:{$order->id}自动发货失败", $e->getMessage());
+
+                            }
+                        }
+                    }
+                });
+        } else {
+            \app\backend\modules\order\models\Order::waitSend()->normal()
+                ->with('hasManyOrderGoods')
+                ->withCount('hasManyOrderGoods as order_goods_count')
+                ->whereIn('plugin_id', [0,92]) //只发自营商品
+                ->chunk(1000, function ($orders) {
+                    if (!$orders->isEmpty()) {
+                        foreach ($orders as $order) {
+                            if ($order->order_goods_count != 1) {
+                                continue;
+                            }
+                            $goods_trade = GoodsTradeSet::where('goods_id', $order->hasManyOrderGoods->first()->goods_id)->first();
+                            if (!$goods_trade || !$goods_trade->auto_send) {
+                                continue;
+                            }
+                            $auto_send_day = $goods_trade->auto_send_day;
+                            if ($auto_send_day > 1) {
+                                $auto_send_day -= 1;
+                                $auto_send_day = $order->pay_time->addDays($auto_send_day)->format('Y-m-d');
+                            } else {
+                                $auto_send_day = $order->pay_time->format('Y-m-d');
+                            }
+                            $auto_send_day .= " {$goods_trade->auto_send_time}:00";
+                            $auto_send_timestamp = strtotime($auto_send_day);
+                            if ($auto_send_timestamp < $order->pay_time->timestamp) {
+                                $auto_send_timestamp = Carbon::createFromTimestamp($auto_send_timestamp)->addDays(1)->timestamp;
+                            }
+                            if ($auto_send_timestamp > time()) {
+                                continue;
+                            }
+
+                            try {
+                                $param = [
+                                    "dispatch_type_id" => 1,
+                                    "order_id" => $order->id,
+                                ];
+                                OrderService::orderSend($param);
+                            } catch (\Exception $e) {
+                                \Log::error("订单:{$order->id}自动发货失败", $e->getMessage());
+
+                            }
+                        }
+                    }
+                });
+        }
+    }
+
     /**
      * 自动收货
      * {@inheritdoc}
@@ -442,26 +581,37 @@ class OrderService
     {
         \YunShop::app()->uniacid = $uniacid;
         \Setting::$uniqueAccountId = $uniacid;
-        $days = (int)\Setting::get('shop.trade.receive');
-
-        if (!$days) {
+        $time_type = (int)\Setting::get('shop.trade.receive_time_type');
+        $time = (int)\Setting::get('shop.trade.receive');
+        if (!$time) {
             return;
         }
+        $dispatch_type_id = [
+            DispatchType::SELF_DELIVERY, DispatchType::HOTEL_CHECK_IN, DispatchType::DELIVERY_STATION_SEND,
+            DispatchType::DRIVER_DELIVERY, DispatchType::PACKAGE_DELIVER, DispatchType::PACKAGE_DELIVERY
+        ];
+        \app\backend\modules\order\models\Order::waitReceive()->where('auto_receipt', 0)
+            ->whereNotIn('dispatch_type_id', $dispatch_type_id)
+            ->where(function ($q) use ($time, $time_type) {
+                if ($time_type) {
+                    $q->where('send_time', '<', (int)Carbon::now()->subMinutes($time)->timestamp);
+                } else {
+                    $q->where('send_time', '<', (int)Carbon::now()->subDays($time)->timestamp);
+                }
+            })
+            ->normal()
+            ->chunk(1000, function ($orders) {
+                if (!$orders->isEmpty()) {
+                    $orders->each(function ($order) {
+                        try {
+                            OrderService::orderReceive(['order_id' => $order->id]);
+                        } catch (\Exception $e) {
+                            \Log::error("订单:{$order->id}自动收货失败", $e->getMessage());
 
-        \app\backend\modules\order\models\Order::waitReceive()->where('auto_receipt', 0)->whereNotIn('dispatch_type_id', [DispatchType::SELF_DELIVERY, DispatchType::HOTEL_CHECK_IN, DispatchType::DELIVERY_STATION_SEND, DispatchType::DRIVER_DELIVERY, DispatchType::PACKAGE_DELIVER])->where('send_time', '<', (int)Carbon::now()->addDays(-$days)->timestamp)->normal()->chunk(1000, function ($orders) {
-            if (!$orders->isEmpty()) {
-                $orders->each(function ($order) {
-                    try {
-                        OrderService::orderReceive(['order_id' => $order->id]);
-                    } catch (\Exception $e) {
-                        \Log::error("订单:{$order->id}自动收货失败", $e->getMessage());
-
-                    }
-                });
-            }
+                        }
+                    });
+                }
         });
-
-
     }
 
     /**
@@ -472,11 +622,19 @@ class OrderService
     {
         \YunShop::app()->uniacid = $uniacid;
         \Setting::$uniqueAccountId = $uniacid;
-        $days = (int)\Setting::get('shop.trade.close_order_days');
-        if (!$days) {
+        $time_type = (int)\Setting::get('shop.trade.close_order_time_type');
+        $time = (int)\Setting::get('shop.trade.close_order_days');
+        if (!$time) {
             return;
         }
-        $orders = \app\backend\modules\order\models\Order::waitPay()->where('plugin_id', '<>', 70)->where('create_time', '<', (int)Carbon::now()->addDays(-\Setting::get('shop.trade.close_order_days'))->timestamp)->normal()->get();
+        $orders = \app\backend\modules\order\models\Order::waitPay()->whereNotIn('plugin_id', [70,158,161])   //淘京拼CPS(70)  抖音CPS(158)的订单不走自动关闭
+            ->where(function ($q) use ($time, $time_type) {
+                if ($time_type) {
+                    $q->where('create_time', '<', (int)Carbon::now()->subMinutes($time)->timestamp);
+                } else {
+                    $q->where('create_time', '<', (int)Carbon::now()->subDays($time)->timestamp);
+                }
+            })->normal()->get();
         if (!$orders->isEmpty()) {
             $orders->each(function ($order) {
                 try {
@@ -503,5 +661,24 @@ class OrderService
         if ($order['status'] == 2) {
             OrderService::orderReceive(['order_id' => $order['id']]);
         }
+    }
+
+    public static function getReceiptGoodsNotice()
+    {
+        $msg = Setting::get('shop.order.receipt_goods_notice');
+
+        return self::verifyOrderReceipt($msg);
+    }
+
+    public static function verifyOrderReceipt($msg)
+    {
+        $verify_str = str_replace(' ', '', $msg);
+
+        // 如果传入内容都是空格
+        if (empty($verify_str)) {
+            $msg = '';
+        }
+
+        return $msg;
     }
 }

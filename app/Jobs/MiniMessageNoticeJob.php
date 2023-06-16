@@ -100,7 +100,8 @@ class MiniMessageNoticeJob implements  ShouldQueue
         \Log::debug('=================22222 access_token 2222================');
         \Log::debug($access_token);
         if(!$access_token){
-            $this->return_err('获取 access_token 时异常，微信内部错误');
+            \Log::debug('获取 access_token 时异常，微信内部错误');
+            return;
         }else{
             $templateUrl = sprintf($opUrl,$access_token);
             $listRes = self::curl_post($templateUrl,$rawPost);

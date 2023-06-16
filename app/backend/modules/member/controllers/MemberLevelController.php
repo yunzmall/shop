@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/2/27
  * Time: 上午10:44
  */
@@ -19,178 +19,177 @@ use app\common\helpers\Url;
 
 class MemberLevelController extends BaseController
 {
+    /**
+     * 加载模板
+     * @return string
+     * @throws \Throwable
+     */
+    public function index()
+    {
+        return view('member.level.list', [])->render();
+    }
+
     /*
      * Member level pager list
      * 17.3,31 restructure
      *
      * @autor yitian */
-    public function index()
+    public function show()
     {
-        //echo '<pre>'; print_r(Setting::get('shop.member')); exit;
         $pageSize = 10;
         $levelList = MemberLevel::getLevelPageList($pageSize);
-        $pager = PaginationHelper::show($levelList->total(), $levelList->currentPage(), $levelList->perPage());
-
-        return view('member.level.list', [
+        return $this->successJson('ok', [
             'levelList' => $levelList,
-            'pager' => $pager,
-            'shopSet' => Setting::get('shop.member')
-        ])->render();
+            'level_type' => Setting::get('shop.member')['level_type']
+        ]);
 
     }
 
     public function searchGoods()
     {
-        $goods = Goods::getGoodsByNameLevel(\YunShop::request()->keyword);
+        $goods = Goods::getGoodsByNameLevelNew(request()->keyword);
         foreach ($goods as $k => $v) {
             $goods[$k]['thumb'] = yz_tomedia($v['thumb']);
         }
-        return view('member.goods_query', [
+        return $this->successJson('ok', [
             'goods' => $goods,
-        ])->render();
+        ]);
     }
 
     /*
      * Add member level
      *
      * @autor yitian */
+    public function form()
+    {
+        $id = request()->id;
+        return view('member.level.form', [
+            'id' => $id,
+            'shopSet' => Setting::get('shop.member'),
+            'integral' => (app('plugins')->isEnabled('integral') && \Yunshop\Integral\Common\Services\SetService::getIntegralSet()['member_show']) ? 1 : 0
+        ])->render();
+    }
+
     public function store()
     {
-
         $levelModel = new memberLevel();
-
         $requestLevel = \YunShop::request()->level;
-        if($requestLevel) {
+        $get_setting = Setting::get('shop.member');
+        $shop_set = [
+            'level_type' => $get_setting['level_type'],
+            'level_discount_calculation' => empty($get_setting['level_discount_calculation']) ? 0 : $get_setting['level_discount_calculation']
+        ];
+        if ($requestLevel) {
             //将数据赋值到model
             $levelModel->fill($requestLevel);
             //其他字段赋值
             $levelModel->uniacid = \YunShop::app()->uniacid;
-            // if (!$levelModel->goods_id) {
-            //     $levelModel->goods_id = 0;
-            // }
-            // $levelModel->validity = $requestLevel['validity'] ? $requestLevel['validity'] : 0;
             unset($levelModel->goods);
             unset($levelModel->goods_id);
 
-            if ($requestLevel['goods'] ) {
-
+            if ($requestLevel['goods']) {
                 foreach ($requestLevel['goods'] as $k => $v) {
-                    
                     if ($v['goods_id']) {
-
                         $arr[] = $v['goods_id'];
                     }
                 }
             } else {
                 $arr[] = [];
             }
-            
-            if (empty($requestLevel['goods_id'])) {
-                
-                $levelModel->goods_id = implode(',', array_unique($arr));
 
+            if (empty($requestLevel['goods_id'])) {
+                $levelModel->goods_id = implode(',', array_unique($arr));
             } else {
-                $ids = implode(',', array_unique(array_merge(array_filter($arr), array_values($requestLevel['goods_id']))));  
+                $ids = implode(',', array_unique(array_merge(array_filter($arr), array_values($requestLevel['goods_id']))));
                 $levelModel->goods_id = $ids;
             }
             //字段检测
             $validator = $levelModel->validator();
             if ($validator->fails()) {//检测失败
-                $this->error($validator->messages());
+                return $this->errorJson($validator->errors()->first(),$shop_set);
             } else {
                 //数据保存
                 if ($levelModel->save()) {
                     //显示信息并跳转
-                    return $this->message('添加会员等级成功', Url::absoluteWeb('member.member-level.index'));
-                }else{
-                    $this->error('添加会员等级失败');
+                    return $this->successJson('添加会员等级成功', ['data' => true]);
+                } else {
+                    return $this->errorJson('添加会员等级失败');
                 }
             }
         }
 
-        return view('member.level.form', [
-            'level' => $levelModel,
-            'shopSet' => Setting::get('shop.member')
-        ])->render();
+        return $this->successJson('ok', [
+            'shopSet' => $shop_set
+        ]);
     }
+
     /**
      * Modify membership level
      */
     public function update()
     {
         $levelModel = MemberLevel::getMemberLevelById(\YunShop::request()->id);
-        if(!$levelModel){
-            return $this->message('无此记录或已被删除','','error');
+        if (!$levelModel) {
+            return $this->message('无此记录或已被删除', '', 'error');
         }
         $requestLevel = \YunShop::request()->level;
-        $goods = MemberLevel::getGoodsId($levelModel['goods_id']);
-
-        if($requestLevel) {
-            if(!isset($requestLevel['goods_id'])){
+        $requestLevel['order_count'] = isset($requestLevel['order_count']) ? $requestLevel['order_count'] : 0;
+        if ($levelModel['goods_id']) {
+            $goods = MemberLevel::getGoodsId($levelModel['goods_id']);
+            $levelModel->goods = $goods ? $goods->toArray() : [];
+        }
+        $get_setting = Setting::get('shop.member');
+        $shop_set = [
+            'level_type' => $get_setting['level_type'],
+            'level_discount_calculation' => empty($get_setting['level_discount_calculation']) ? 0 : $get_setting['level_discount_calculation']
+        ];
+        if ($requestLevel) {
+            if (!isset($requestLevel['goods_id'])) {
                 $requestLevel['goods_id'] = 0;
+            }else{
+                $requestLevel['goods_id'] = implode(',',array_unique(array_filter($requestLevel['goods_id'])));
             }
+            unset($levelModel->goods);
+            unset($requestLevel['goods']);
             $levelModel->fill($requestLevel);
-
-            if ($requestLevel['goods'] || $requestLevel['goods_id']) {
-                unset($levelModel->goods);
-                unset($levelModel->goods_id);
-
-                if ($requestLevel['goods']) {
-
-                    foreach ($requestLevel['goods'] as $k => $v) {
-
-                        if ($v['goods_id']) {
-
-                            $arr[] = $v['goods_id'];
-                        }
-                    }
-                } else {
-                    $arr[] = '';
-                }
-
-                if (empty($requestLevel['goods_id'])) {
-
-                    $levelModel->goods_id = implode(',', array_unique($arr));
-
-                } else {
-                    $ids = implode(',', array_unique(array_merge(array_filter($arr), array_values($requestLevel['goods_id']))));
-                    $levelModel->goods_id = $ids;
-                }
-            }
 
             $validator = $levelModel->validator();
             if ($validator->fails()) {//检测失败
-                $this->error($validator->messages());
+                return $this->errorJson($validator->messages());
             } else {
-                if ($levelModel->save()) {
-                    return $this->message('修改会员等级信息成功', Url::absoluteWeb('member.member-level.index'));
-                }else{
-                    $this->error('修改会员等级信息失败');
+//                $saveModel = \app\common\models\MemberLevel::find(\YunShop::request()->id);
+//                $bool = $saveModel->fill($requestLevel)->save();
+                if ($levelModel->fill($requestLevel)->save()) {
+                    return $this->successJson('修改会员等级信息成功', ['data' => true]);
+                } else {
+                    return $this->errorJson('修改会员等级信息失败');
                 }
             }
         }
 
-        return view('member.level.form', [
+        return $this->successJson('获取数据成功', [
             'levelModel' => $levelModel,
-            'goods' => $goods ? $goods->toArray() : [],
-            'shopSet' => Setting::get('shop.member')
-        ])->render();
+            'shopSet' => $shop_set
+        ]);
     }
+
     /*
      * Delete membership
      *
      * @author yitain */
     public function destroy()
     {
-        $levelModel = MemberLevel::getMemberLevelById(\YunShop::request()->id);
-        if(!$levelModel) {
-            return $this->message('未找到记录或已删除','','error');
+        $id = \YunShop::request()->id;
+        $uniacid = \YunShop::app()->uniacid;
+        $levelModel = MemberLevel::getMemberLevelById($id);
+        if (!$levelModel) {
+            return $this->error('未找到记录或已删除');
         }
-        if($levelModel->delete()) {
-            MemberShopInfo::where('level_id',\YunShop::request()->id)->update(['level_id'=>'0']);
-            return $this->message('删除等级成功',Url::absoluteWeb('member.member-level.index'));
-        }else{
-            return $this->message('删除等级失败','','error');
+        if ($levelModel->where(['uniacid' => $uniacid, 'id' => $id])->delete()) {
+            MemberShopInfo::where('level_id', $id)->update(['level_id' => '0']);
+            return $this->successJson('删除等级成功', ['data' => true]);
+        } else {
+            return $this->error('删除等级失败');
         }
     }
 
@@ -199,8 +198,8 @@ class MemberLevelController extends BaseController
     {
         $keyword = request()->keyword;
 
-        $level = MemberLevel::uniacid()->where('level_name','like','%'.$keyword.'%')->select('id','level_name')->get()->toArray();
-        return $this->successJson('ok',$level);
+        $level = MemberLevel::uniacid()->where('level_name', 'like', '%' . $keyword . '%')->select('id', 'level_name')->get()->toArray();
+        return $this->successJson('ok', $level);
     }
 
 }

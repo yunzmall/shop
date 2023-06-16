@@ -2,7 +2,7 @@
 
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/4/11
  * Time: 下午3:57
  */
@@ -14,15 +14,19 @@ use app\common\events\member\RegisterByMobile;
 use app\common\events\order\AfterOrderCanceledEvent;
 use app\common\events\order\AfterOrderReceivedEvent;
 use app\common\events\order\AfterOrderPaidEvent;
+use app\common\events\order\AfterOrderRefundedEvent;
+use app\common\events\order\AfterOrderRefundSuccessEvent;
 use app\common\events\withdraw\WithdrawPayedEvent;
 use app\common\models\finance\PointQueue;
 use app\common\models\Order;
 use app\common\services\finance\CalculationPointService;
 use app\common\services\finance\PointQueueService;
+use app\common\services\finance\PointRefund;
 use app\common\services\finance\PointRollbackService;
 use app\common\services\finance\PointService;
 use app\common\services\point\BindMobileAward;
 use app\common\services\point\IncomeWithdrawAward;
+use app\common\services\point\ParentReward;
 use app\common\services\point\PointToLoveQueue;
 use app\Jobs\OrderBonusJob;
 use Illuminate\Foundation\Bus\DispatchesJobs;
@@ -69,6 +73,15 @@ class PointListener
         $events->listen(
             AfterOrderCanceledEvent::class,
             PointRollbackService::class . '@orderCancel'
+        );
+
+        /**
+         *
+         * 订单退款成功,扣除赠送积分
+         */
+        $events->listen(
+            AfterOrderRefundSuccessEvent::class,
+            PointRefund::class . '@refundReturn'
         );
 
         /**
@@ -131,18 +144,26 @@ class PointListener
     {
         \Log::debug('收货完成赠送积分,订单ID' . $event->getOrderModel()->id);
         $this->orderModel = Order::find($event->getOrderModel()->id);
-        if ($this->orderModel->uid == 0) {
+
+        // 当会员为0 || 插件id为152(插件: 面对面服务).
+        if ($this->orderModel->uid == 0 || $this->orderModel->plugin_id == 152) {
             return;
         }
 
         $this->pointSet = $this->orderModel->getSetting('point.set');
 
+        //验证是否奖励
+        if (!$this->isReward($this->orderModel)) {
+            return;
+        }
         // 订单商品赠送积分[ps:商品单独设置]
 //        $this->givingTime($this->orderModel);
         self::byGoodsGivePoint($this->orderModel);
 
         // 订单金额赠送积分[ps:积分基础设置]
         $this->orderGivePoint($this->orderModel);
+
+        (new ParentReward())->handle($this->orderModel,'receive');
 
         // 订单插件分红记录
         (new OrderBonusJob('yz_point_log', 'point', 'order_id', 'id', 'point', $this->orderModel))->handle();
@@ -156,12 +177,19 @@ class PointListener
     {
         \Log::debug('支付完成赠送积分,订单ID' . $event->getOrderModel()->id);
         $this->orderModel = Order::find($event->getOrderModel()->id);
-        if ($this->orderModel->uid == 0) {
+
+        // 当会员为0 || 插件id为152(插件: 面对面服务).
+        if ($this->orderModel->uid == 0 || $this->orderModel->plugin_id == 152) {
             return;
         }
         $this->pointSet = $this->orderModel->getSetting('point.set');
+        //验证是否奖励
+        if (!$this->isReward($this->orderModel)) {
+            return;
+        }
         // 订单商品赠送积分[ps:商品单独设置]
         self::afterByGoodsGivePoint($this->orderModel);
+        (new ParentReward())->handle($this->orderModel,'pay');
     }
 
 //    private function givingTime($orderModel)
@@ -182,7 +210,8 @@ class PointListener
             'point_income_type' => 1,
             'member_id'         => $this->orderModel->uid,
             'order_id'          => $this->orderModel->id,
-            'point_mode'        => 1
+            'order_goods_id'    => $order_goods_model->id,
+            'point_mode'        => PointService::POINT_MODE_GOODS,
         ];
         $pointData += CalculationPointService::calculationPointByGoods($order_goods_model);
         return $pointData;
@@ -194,7 +223,7 @@ class PointListener
             'point_income_type' => 1,
             'member_id'         => $this->orderModel->uid,
             'order_id'          => $this->orderModel->id,
-            'point_mode'        => 2
+            'point_mode'        => PointService::POINT_MODE_ORDER,
         ];
 
         $pointData += CalculationPointService::calculationPointByOrder($orderModel);
@@ -210,13 +239,29 @@ class PointListener
         }
     }
 
-    public function byGoodsGivePoint($orderModel)
+    public function byGoodsGivePoint(Order $orderModel)
     {
 
         // 验证订单商品是立即赠送还是每月赠送
         foreach ($orderModel->hasManyOrderGoods as $orderGoods) {
+
+            //已退款商品不赠送
+            if ($orderGoods->isRefund()) {
+                \Log::debug('已售后订单商品不赠送积分,id='.$orderGoods->id);
+                continue;
+            }
             // 商品营销数据
             $goodsSale = $orderGoods->hasOneGoods->hasOneSale;
+
+
+            if (is_null($goodsSale)) {
+                \Log::debug('收货-商品已被删除无法获取营销信息,goods_id='.$orderGoods->goods_id,[
+                    'order_goods_id' => $orderGoods->id,
+                ]);
+                continue;
+            }
+
+
             // 赠送积分数组[ps:放到这是因为(每月赠送)需要赠送积分总数]
             $is_special_settlement=false;
 
@@ -251,7 +296,7 @@ class PointListener
                 PointQueue::handle($this->orderModel, $goodsSale, $point_data['point']);
             } else {
                 //1-每月赠送 2-支付后赠送
-                if (!in_array($goodsSale->point_type,[1,2])) {
+                if ($goodsSale && !in_array($goodsSale->point_type,[1,2])) {
                     // 订单完成立即赠送[ps:原业务逻辑]
                     self::addPointLog($point_data);
                 }
@@ -266,6 +311,15 @@ class PointListener
         foreach ($orderModel->hasManyOrderGoods as $orderGoods) {
             // 商品营销数据
             $goodsSale = $orderGoods->hasOneGoods->hasOneSale;
+
+
+            if (is_null($goodsSale)) {
+                \Log::debug('支付-商品已被删除无法获取营销信息,goods_id='.$orderGoods->goods_id,[
+                    'order_goods_id' => $orderGoods->id,
+                ]);
+                continue;
+            }
+
             // 赠送积分数组[ps:放到这是因为(每月赠送)需要赠送积分总数]
             $is_special_settlement=false;
 
@@ -337,6 +391,16 @@ class PointListener
         \Log::debug('赠送积分');
         $pointData = $this->getPointDateByOrder($orderModel);
         $this->addPointLog($pointData);
+    }
+
+    public function isReward($orderModel)
+    {
+        if ($this->pointSet['balance_pay_reward'] && $orderModel->pay_type_id == 3) {
+            \Log::debug('开启余额支付，不赠送积分');
+            return false;
+        }
+
+        return true;
     }
 
 

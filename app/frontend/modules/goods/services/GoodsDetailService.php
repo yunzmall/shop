@@ -5,6 +5,7 @@ namespace app\frontend\modules\goods\services;
 
 
 
+use app\common\facades\Setting;
 use Yunshop\StoreCashier\common\models\StoreSetting;
 use Yunshop\StoreCashier\store\models\StoreGoods;
 
@@ -26,6 +27,7 @@ class GoodsDetailService extends GoodsDetailBaseService
 		$sale[] = $this->getBalanceSale($shopSet);
 		$sale[] = $this->getPointSale($shopSet);
 		$sale[] = $this->getCouponSale();
+        $sale[] = $this->getFullPieceSale();
 		return array_filter($sale);
 	}
 
@@ -46,6 +48,36 @@ class GoodsDetailService extends GoodsDetailBaseService
 		}
 		return $data;
 	}
+
+    private function getFullPieceSale()
+    {
+        $data = [];
+        $settings = Setting::get('shop.fullPieceNew');
+        foreach ($settings['fullPiece'] as $k=>$v) {
+            if (in_array($this->goods_model->id,$v['goods'])) {
+                $data['name'] = '满件优惠';
+                $data['key'] = 'full_piece';
+                $data['type'] = 'array';
+                $data['value'] = [];
+                $rules = collect($v['rules']);
+                $rules = $rules->sortBy(function ($setting) {
+                    return $setting['enough'];
+                });
+                $rules->map(function ($item) use (&$data,$v) {
+                    if ($v['discount_type']) {//折扣
+                        $discount = '打'.$item['reduce'].'折';
+                    } else {//立减
+                        $discount = '立减'.$item['reduce'].'元';
+                    }
+                    $data['value'][] = '满'.$item['enough'].'件，'.$discount;
+                });
+                if (!$data['value']) {
+                    return [];
+                }
+            }
+        }
+        return $data;
+    }
 
 	private function getPointAllSale($shopSet)
 	{
@@ -85,52 +117,73 @@ class GoodsDetailService extends GoodsDetailBaseService
 
 	private function getPointSale($shopSet)
 	{
-		$point = app('GoodsDetail')->make('GoodsDetailInstance')->getPointSet()?:[];
-		$data['name'] = $shopSet['credit1'] ?: '积分';
-		$data['key'] = 'point';
-		$data['type'] = 'array';
-		$set = \Setting::get('point.set');
-		if ((strlen($this->goods_model->hasOneSale->point) === 0) || $this->goods_model->hasOneSale->point != 0) {
-			if ($this->goods_model->hasOneSale->point) {
-				$points = $this->goods_model->hasOneSale->point;
-			} elseif (!empty($point['value']['set']['give_point']) && $point['value']['set']['give_point'] != 0) {//门店抵扣设置
-				$points = $point['value']['set']['give_point'].'%';
-			} else {
-				$points = $set['give_point'] ? $set['give_point'] : 0;
-			}
-			if (!empty($points)) {
-				$data['value'][] = '购买赠送' . $points . $data['name'];
-			}
-		}
-		//设置不等于0,支持积分抵扣
-		//积分抵扣优先级 商品独立设置 ---> 门店设置 ---> 积分统一设置
+        $set = \Setting::get('point.set');
 
-		if ($set['point_deduct'] && (strlen($this->goods_model->hasOneSale->max_point_deduct) === 0 || $this->goods_model->hasOneSale->max_point_deduct != 0)) {
-			if ($this->goods_model->hasOneSale->max_point_deduct) {
-				$max_point_deduct = $this->goods_model->hasOneSale->max_point_deduct . '元';
-			} elseif (strlen($point['value']['set']['money_max']) !== 0) {
-				if (!($point['value']['set']['money_max'] === 0 || $point['value']['set']['money_max'] === '0')) {
-					$max_point_deduct = $point['value']['set']['money_max'] . '%';
-				}
-			} else {
-				$max_point_deduct = $set['money_max'] ? $set['money_max'] . '%': 0;
-			}
+        $point = app('GoodsDetail')->make('GoodsDetailInstance')->getPointSet()?:[];
+        $data['name'] = $shopSet['credit1'] ?: '积分';
+        $data['key'] = 'point';
+        $data['type'] = 'array';
 
-			if (!empty(mb_substr($max_point_deduct, 0,-1))) {
-				$data['value'][] = '最高抵扣' . $max_point_deduct;
-			}
-		}
+        if ((strlen($this->goods_model->hasOneSale->point) === 0) || $this->goods_model->hasOneSale->point != 0) {
+            if ($this->goods_model->hasOneSale->point) {
+                $points = $this->goods_model->hasOneSale->point;
+            } elseif (!empty($point['value']['set']['give_point']) && $point['value']['set']['give_point'] != 0) {//门店抵扣设置
+                $points = $point['value']['set']['give_point'].'%';
+            } else {
+                $points = $set['give_point'] ?: 0;
+            }
 
-		if ($set['point_deduct'] && (strlen($this->goods_model->hasOneSale->min_point_deduct) === 0 || $this->goods_model->hasOneSale->min_point_deduct != 0)) {
-			if ($this->goods_model->hasOneSale->min_point_deduct) {
-				$min_point_deduct = $this->goods_model->hasOneSale->min_point_deduct . '元';
-			} else {
-				$min_point_deduct = $set['money_min'] ? $set['money_min'] . '%' : 0;
-			}
-			if (!empty(mb_substr($min_point_deduct, 0,-1))) {
-				$data['value'][] = '最少抵扣' . $min_point_deduct;
-			}
-		}
+            $tradeGoodsPointsServer =  new TradeGoodsPointsServer;
+
+            if (!empty($points)) {
+                $points = $tradeGoodsPointsServer->getPoint($points, $this->goods_model->price, $this->goods_model->cost_price);
+                $data['value'][] = '购买赠送' . $points . $data['name'];
+                // 后台设置 积分-> 商品详情页 开启时 显示积分数据,否则显示空
+                $data['points'] = $set['goods_point']['goods_page'] ? $points : '' ;
+            }
+
+            $tradeGoodsPointsServer->setSingletonGoodsModel( $this->goods_model);
+            $this->goods_model->hasManyOptions->each(function ($option) {
+                $option->append('points');
+            });
+
+        }
+
+        //是否开启积分抵扣显示
+        if ($set['goods_page_deduct_show'] != 1) {
+            //设置不等于0,支持积分抵扣
+            //积分抵扣优先级 商品独立设置 ---> 门店设置 ---> 积分统一设置
+            if ($set['point_deduct'] && (strlen($this->goods_model->hasOneSale->max_point_deduct) === 0 || $this->goods_model->hasOneSale->max_point_deduct != 0)) {
+                $goods_point_deduct_unit = $this->goods_model->hasOneSale->point_deduct_type ? '' : '元';
+
+                if ($this->goods_model->hasOneSale->max_point_deduct) {
+                    $max_point_deduct = $this->goods_model->hasOneSale->max_point_deduct . $goods_point_deduct_unit;
+                } elseif (strlen($point['value']['set']['money_max']) !== 0) {
+                    if (!($point['value']['set']['money_max'] === 0 || $point['value']['set']['money_max'] === '0')) {
+                        $max_point_deduct = $point['value']['set']['money_max'] . '%';
+                    }
+                } else {
+                    $max_point_deduct = $set['money_max'] ? $set['money_max'] . '%': 0;
+                }
+
+                if (!empty(mb_substr($max_point_deduct, 0,-1))) {
+                    $data['value'][] = '最高抵扣' . $max_point_deduct;
+                }
+            }
+
+            if ($set['point_deduct'] && (strlen($this->goods_model->hasOneSale->min_point_deduct) === 0 || $this->goods_model->hasOneSale->min_point_deduct != 0)) {
+                $goods_point_deduct_unit = $this->goods_model->hasOneSale->point_deduct_type ? '' : '元';
+                if ($this->goods_model->hasOneSale->min_point_deduct) {
+                    $min_point_deduct = $this->goods_model->hasOneSale->min_point_deduct . $goods_point_deduct_unit;
+                } else {
+                    $min_point_deduct = $set['money_min'] ? $set['money_min'] . '%' : 0;
+                }
+                if (!empty(mb_substr($min_point_deduct, 0,-1))) {
+                    $data['value'][] = '最少抵扣' . $min_point_deduct;
+                }
+            }
+        }
+
 
 		if (!empty($data['value'])) {
 			return $data;

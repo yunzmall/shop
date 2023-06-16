@@ -80,10 +80,10 @@ class ShareCouponService
         $member_coupon = MemberCoupon::create($data);
         //写入log
         if ($member_coupon) { //发放优惠券成功
-            $logData['log'] = '用户( ID 为 ' . $receiveUid . ' )通过用户( ID为 ' . $share_model->member_id . ' )的分享领取 1 张优惠卷(ID 为 ' . $couponModel->id . ' )';
+            $logData['log'] = '用户( ID 为 ' . $receiveUid . ' )通过用户( ID为 ' . $share_model->member_id . ' )的分享领取 1 张优惠券(ID 为 ' . $couponModel->id . ' )';
 
         } else { //发放优惠券失败
-            $logData['log'] = '分享领取失败：用户( ID 为 ' . $receiveUid . ' )通过用户( ID为 ' . $share_model->member_id . ' )的分享领取 1 张优惠卷(ID 为 ' . $couponModel->id . ' )';
+            $logData['log'] = '分享领取失败：用户( ID 为 ' . $receiveUid . ' )通过用户( ID为 ' . $share_model->member_id . ' )的分享领取 1 张优惠券(ID 为 ' . $couponModel->id . ' )';
             \Log::debug($logData['log']);
             return false;
         }
@@ -107,7 +107,7 @@ class ShareCouponService
     }
 
     /**
-     * @param $coupon_ids array 优惠卷数组
+     * @param $coupon_ids array 优惠券数组
      * @param $key int 数组下标
      * @param string $type 处理方式
      * @return array

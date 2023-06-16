@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Collection;
 
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2018/5/21
  * Time: 下午17:34
  */

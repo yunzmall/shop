@@ -1,12 +1,13 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:  
  * Date: 17/2/22
  * Time: 下午4:44
  */
 
 namespace app\frontend\modules\member\services;
+
 
 use app\common\exceptions\MemberErrorMsgException;
 use app\common\facades\EasyWeChat;
@@ -44,11 +45,7 @@ class MemberOfficeAccountService extends MemberService
 
         $callback = ($_SERVER['REQUEST_SCHEME'] ? $_SERVER['REQUEST_SCHEME'] : 'http') . '://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
 
-        $wechat_scope = 'snsapi_userinfo';
-
-        if ($scope == 'base') {
-            $wechat_scope = 'snsapi_base';
-        }
+        $wechat_scope = $this->wechatScope();
 
         $config = [
             'oauth' => [
@@ -61,22 +58,21 @@ class MemberOfficeAccountService extends MemberService
         $oauth = $app->oauth;
 
         if (!empty($code)) {
-            $redirect_url = $this->_getClientRequestUrl();
-
             $oauthUser = $oauth->user();
-
             $userinfo = $oauthUser->getOriginal();
 
             $userinfo['access_token'] = $oauthUser->getAccessToken();
             $userinfo['expires_in'] = 7200;
             $userinfo['refresh_token'] = $oauthUser->getRefreshToken();
-
+            \Log::debug('-----EasyWeChat-----', [$userinfo['openid']]);
             $user = $app->user->get($userinfo['openid']);
 
-            $userinfo = array_merge($userinfo, $user);
+            $userinfo = array_merge($user, $userinfo);
 
             //Login
             $member_id = $this->memberLogin($userinfo);
+
+            if($member_id) event(new \app\common\events\member\MemberLoginEvent($member_id));
 
             Session::set('member_id', $member_id);
             setcookie('Yz-Token', encrypt($userinfo['access_token'] . '\t' . ($userinfo['expires_in'] + time()) . '\t' . $userinfo['openid'] . '\t' . $scope), time() + self::TOKEN_EXPIRE);
@@ -86,7 +82,8 @@ class MemberOfficeAccountService extends MemberService
 
             exit;
         }
-        redirect($redirect_url)->send();
+
+        redirect($this->_getClientRequestUrl())->send();
         exit;
     }
 
@@ -354,12 +351,14 @@ class MemberOfficeAccountService extends MemberService
 
     public function addFansMember($uid, $uniacid, $userinfo)
     {
+        if ($userinfo['openid']){
         McMappingFansModel::insertData($userinfo, array(
             'uid' => $uid,
             'acid' => $uniacid,
             'uniacid' => $uniacid,
             'salt' => Client::random(8),
         ));
+        }
     }
 
     public function getFansModel($openid)
@@ -407,6 +406,21 @@ class MemberOfficeAccountService extends MemberService
                 'refresh_expires_in_1' => time() + (28 * 24 * 3600)
             ]
         );
+    }
+
+    public function checkMemberInfo($mcMember, $fansMember, $yzMember)
+    {
+        if ($mcMember->uid != $yzMember->member_id) {
+            $mcMember->uid = $yzMember->member_id;
+
+            $mcMember->save();
+        }
+
+        if ($fansMember->uid != $yzMember->member_id) {
+            $fansMember->uid = $yzMember->member_id;
+
+            $fansMember->save();
+        }
     }
 
     /**
@@ -505,23 +519,33 @@ class MemberOfficeAccountService extends MemberService
     {
         $from = \YunShop::request()->scope;
 
+        if (Setting::get('shop.member')['wechat_login_mode'] == '1') {
+            return (new MemberMobileService)->checkLogged();
+        }
+
         if (isset($_COOKIE['Yz-Token'])) {
             try {
                 $yz_token = decrypt($_COOKIE['Yz-Token']);
-
                 list($token, $expires, $openid, $scope) = explode('\t', $yz_token);
             } catch (DecryptException $e) {
+                setcookie('Yz-Token', '', time() - self::TOKEN_EXPIRE);
                 return false;
             }
 
             if ($scope === 'base' && $from != $scope) {
                 $login->jump = true;
+                setcookie('Yz-Token', '', time() - self::TOKEN_EXPIRE);
                 return false;
             }
+			if (empty($openid)) {
+                setcookie('Yz-Token', '', time() - self::TOKEN_EXPIRE);
+				return false;
+			}
+			$yz_member = SubMemberModel::getMemberByOpenid($openid);
 
-            $yz_member = SubMemberModel::getMemberByOpenid($openid);
-
-            if (is_null($yz_member) || $yz_member->member_id == 0) {
+			// 增加token验证
+            if (is_null($yz_member) || $yz_member->member_id == 0 || $yz_member->access_token_1 != $token) {
+                setcookie('Yz-Token', '', time() - self::TOKEN_EXPIRE);
                 return false;
             }
 
@@ -533,5 +557,20 @@ class MemberOfficeAccountService extends MemberService
         }
 
         return false;
+    }
+
+    private function wechatScope()
+    {
+        if (strpos($this->_getClientRequestUrl(), 'cashier_pay')) {
+            $set = \Setting::get('plugin.store');
+
+            if (isset($set['is_open_warrant']) && 1 == $set['is_open_warrant']) {
+                return 'snsapi_userinfo';
+            }
+
+            return 'snsapi_base';
+        }
+
+        return 'snsapi_userinfo';
     }
 }

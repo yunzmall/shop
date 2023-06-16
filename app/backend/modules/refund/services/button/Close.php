@@ -9,11 +9,13 @@
 namespace app\backend\modules\refund\services\button;
 
 
+use app\common\models\refund\RefundApply;
+
 class Close extends RefundButtonBase
 {
     public function getApi()
     {
-        return 'refund.operation.close';
+        return 'refund.vue-operation.close';
     }
 
     public function getName()
@@ -28,7 +30,7 @@ class Close extends RefundButtonBase
 
     public function enable()
     {
-        return $this->refund->isRefunding();
+        return $this->refund->isRefunding() && RefundApply::WAIT_CHECK < $this->refund->status;
     }
 
     public function getType()

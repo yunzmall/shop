@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 10/03/2017
  * Time: 16:42
  */
@@ -14,6 +14,7 @@ use app\common\components\BaseController;
 use app\common\exceptions\ShopException;
 use app\common\helpers\Url;
 use app\common\services\plugin\DeliveryDriverSet;
+use app\common\services\plugin\PluginService;
 use Datatables;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Config;
@@ -24,7 +25,7 @@ use Ixudra\Curl\Facades\Curl;
 
 class PluginsController extends BaseController
 {
-	public $terminal = 'wechat|min|wap';
+    public $terminal = 'wechat|min|wap';
     private $request_domain = 'https://yun.yunzmall.com';
 
     public function showManage()
@@ -128,6 +129,41 @@ class PluginsController extends BaseController
         }
     }
 
+    /**
+     * 关键字搜索
+     * @param PluginService $service
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function searchPluginList(PluginService $service)
+    {
+        if (!app('plugins')->isEnabled('plugins-market')) {
+            return $this->errorJson('未安装插件市场插件！');
+        }
+        $keyword = request("keyword");
+        $plugin_list = $service->ajaxPluginList($keyword);
+        return $this->successJson('ok', $plugin_list);
+    }
+
+    /**
+     * name 插件标识
+     * version 版本
+     * @param PluginService $service
+     * @return \Illuminate\Http\JsonResponse|void
+     * @throws ShopException
+     * @throws \app\common\exceptions\AppException
+     */
+    public function installPlugin(PluginService $service)
+    {
+        $this->validate(['name' => 'required', 'version' => 'required']);
+        $pluginData = [
+            'name' => request('name'),
+            'version' => request('version'),
+        ];
+        $result = $service->install($pluginData);
+        if ($result) {
+            return $this->successJson('安装成功！');
+        }
+    }
 
     public function getPluginData()
     {
@@ -181,32 +217,41 @@ class PluginsController extends BaseController
         ]);
     }
 
-	public function getPluginList()
-	{
-		$class = $this->getType();
-		$data = [];
-		$plugins = Menu::current()->getPluginMenus();//全部插件
-		foreach ($plugins as $key => $plugin) {
-			$name = explode('.',$plugin['url'])[1];
-			if (!$plugin['type']) {
-				continue;
-			}
+    public function getPluginList()
+    {
+        if (request()->ajax()) {
+            $class = $this->getType();
+            $data = [];
+            $plugins = Menu::current()->getPluginMenus();//全部插件
 
-			$terminal = app('plugins')->getPlugin($name)->terminal;
+            foreach ($plugins as $key => &$plugin) {
+                $name = explode('.', $plugin['url'])[1];
+                if (!$plugin['type'] || empty($plugin) || !can($key)) {
+                    unset($plugins[$key]);
+                    continue;
+                }
 
-			$data[$plugin['type']][$key] = $plugin;
-			$data[$plugin['type']][$key]['terminal'] = explode('|',$terminal);
-			$data[$plugin['type']][$key]['description'] = app('plugins')->getPlugin($name)->description?:$plugin['name'];
-			$data[$plugin['type']][$key]['icon_url'] = file_exists(base_path('static/yunshop/plugins/list-icon/img/' . $plugin['list_icon'] . '.png')) ? static_url("yunshop/plugins/list-icon/img/{$plugin['list_icon']}.png") : static_url("yunshop/plugins/list-icon/img/default2.png");
-			$data[$plugin['type']][$key]['url'] = $this->canAccess($key);
+                $terminal = app('plugins')->getPlugin($name)->terminal;
+                $uni_name = app('plugins')->getPlugin($name)->name;
+                $plugin['color'] = $plugin['color'] ?: $this->getType()[$plugin['type']]['color'];
+                $plugin['terminal'] = $terminal ? explode('|', $terminal) : [];
+                $plugin['top_show'] = app('plugins')->isTopShow($key);
+                $plugin['description'] = app('plugins')->getPlugin($name)->description ?: $plugin['name'];
+                $plugin['icon_url'] = file_exists(base_path('static/yunshop/plugins/list-icon/icon/' . $uni_name . '.png')) ? static_url("yunshop/plugins/list-icon/icon/{$uni_name}.png") : static_url("yunshop/plugins/list-icon/icon/default.png");
+                $plugin['url'] = $plugin['url_params'] ? yzWebFullUrl($this->canAccess($key)) . "&" . $plugin['url_params'] : yzWebFullUrl($this->canAccess($key));
+                $data[$plugin['type']][$key] = $plugin;
+            }
+            $result = [
+                'plugins' => $plugins,
+                'data' => $data,
+                'class' => $class,
+                'has_founder' => PermissionService::isFounder(),
+            ];
+            return $this->successJson('ok', $result);
+        }
+        return view('admin.pluginslist');
+    }
 
-		}
-		return view('admin.pluginslist', [
-			'plugins' => $plugins,
-			'data' => $data,
-			'class' => $class
-		]);
-	}
     public static function canAccess($item)
     {
         $current_menu = Menu::current()->getPluginMenus()[$item];
@@ -258,7 +303,7 @@ class PluginsController extends BaseController
 //        $data['action'] ?: app('plugins')->enTopShow($data['name'], 1);
         if ($data['action']) {
             app('plugins')->enTopShow($data['name'], 0);
-            return $this->message('取消顶部栏成功', Url::web('plugins.getPluginList'));
+            return $this->successJson('取消顶部栏成功');
         } else {
 
             $menu = config(config('app.menu_key', 'menu'));
@@ -274,7 +319,7 @@ class PluginsController extends BaseController
             }
 
             app('plugins')->enTopShow($data['name'], 1);
-            return $this->message('添加顶部栏成功', Url::web('plugins.getPluginList'));
+            return $this->successJson('添加顶部栏成功');
         }
     }
 
@@ -312,6 +357,10 @@ class PluginsController extends BaseController
                 'name' => '行业类',
                 'color' => '#eb6f50',
             ],
+            'supply' => [
+                'name' => '供应链类',
+                'color' => '#ffffff',
+            ],
             'marketing' => [
                 'name' => '营销类',
                 'color' => '#f0b652',
@@ -340,6 +389,10 @@ class PluginsController extends BaseController
                 'name' => '区块链类',
                 'color' => '#469de2',
             ],
+            'douyin' => [
+                'name' => '抖音类应用',
+                'color' => '#ffffff',
+            ]
         ];
     }
 
@@ -373,10 +426,10 @@ class PluginsController extends BaseController
      */
     public function jump()
     {
-        if(app('plugins')->isEnabled('plugins-market')){
+        if (app('plugins')->isEnabled('plugins-market')) {
             return view('Yunshop\PluginsMarket::new_market')->render();
-        }else{
-            return $this->message('请先开启插件市场插件',yzWebFullUrl('plugins.get-plugin-data'));
+        } else {
+            return $this->message('请先开启插件市场插件', yzWebFullUrl('plugins.get-plugin-data'));
         }
     }
 }

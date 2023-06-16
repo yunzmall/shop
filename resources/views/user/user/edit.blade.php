@@ -34,7 +34,7 @@
     margin-right:10px;
     line-height:63px;
 	background-color: #ffffff;
-	box-shadow: 0px 8px 23px 1px 
+	box-shadow: 0px 8px 23px 1px
 		rgba(51, 51, 51, 0.3);
     background-color:#fff;
     text-align:center;
@@ -68,7 +68,7 @@ b{
 }
 </style>
 <div id='re_content' >
-<div class="vue-crumbs">    
+<div class="vue-crumbs">
                 <a @click="goBack">系统</a> > 权限管理 > 操作员管理 > 添加操作员
     </div>
     <div class="con">
@@ -76,7 +76,7 @@ b{
         <el-form ref="form" :model="form" label-width="15%">
             <div class="block">
             <div class="title"><span style="width: 4px;height: 18px;background-color: #29ba9c;margin-right:15px;display:inline-block;"></span><b>操作员</b></div>
-                <el-form-item label="角色"> 
+                <el-form-item label="角色">
                 <template>
                   <el-select v-model="widgets.role_id" placeholder="请选择" @change="getcheck">
                     <el-option label="点击选择角色" value="0"></el-option>
@@ -89,7 +89,7 @@ b{
                   </el-select>
                 </template>
                 <div>用户可以在此角色权限的基础上附加其他权限</div>
-                </el-form-item> 
+                </el-form-item>
                 <el-form-item label="操作员用户名">
                     <el-input v-model="form.username"  style="width:60%;" disabled="true"></el-input>
                 </el-form-item>
@@ -111,13 +111,14 @@ b{
                         >
                         </el-switch>
                     </template>
-                
+
                 </el-form-item>
-               
+
             </div>
             <div style="background: #eff3f6;width:100%;height:15px;"></div>
             <div class="block">
             <div class="title"><span style="width: 4px;height: 18px;background-color: #29ba9c;margin-right:15px;display:inline-block;"></span><b>操作员权限</b></div>
+            <el-checkbox v-model="ischeckedAll"  style="margin-left:30px;" @change="checkedAll"><b>一键勾选</b></el-checkbox>
             <el-collapse v-model="active" accordion>
                 <template v-for="(item,index) in permissions" class="warp">
                   <el-collapse-item  :name="index">
@@ -154,7 +155,7 @@ b{
           let permissions = {!!json_encode($permissions)?:'[]' !!}
           let rolePermission = {!!json_encode($rolePermission)?:'{}' !!}
           let userPermissions = {!!json_encode($userPermissions)?:'{}' !!}
-       
+
            return {
                 rolePermission:rolePermission,
                 userPermissions:userPermissions,
@@ -177,17 +178,24 @@ b{
                   },
                 },
                 arr:[],
+                ischeckedAll:false,//是否全选
            }
         },
         mounted () {
           this.getAlchecked();
         },
         methods: {
+            checkedAll(){
+                    this.permissions.forEach(item=>{
+                        item.checked = this.ischeckedAll;
+                        this.firstUpdate(item)
+                    })
+                },
             goBack() {
                 window.location.href = `{!! yzWebFullUrl('setting.shop.index') !!}`;
                 },
             firstUpdate(item){
-                if(item.checked){
+                if(item.checked){;
                     if(item.child&&item.child.length>0){
                         item.child.forEach((list,index)=>{
                             list.checked=true
@@ -222,7 +230,7 @@ b{
                     if(list.child&&list.child.length>0){
                         list.child.forEach((obj,index)=>{
                                     obj.checked=false
-                        }) 
+                        })
                     }
                 }
                 let a=item.child.some((block,index)=>{
@@ -240,7 +248,7 @@ b{
                     let a=list.child.some((obj,index)=>{
                         return obj.checked==true
                     })
-                    
+
                     if(a){
                         list.checked=true
                     }else{
@@ -251,7 +259,7 @@ b{
                     let b=item.child.some((list,index)=>{
                         return list.checked==true
                     })
-                    
+
                     if(b){
                         item.checked=true
                     }else{
@@ -365,11 +373,11 @@ b{
                             this.$forceUpdate()
                             }else{
                               this.$message({message: response.data.msg,type: 'error'});
-                            }            
+                            }
                          },function (response) {
                             this.$message({message: response.data.msg,type: 'error'});
                       })
-                     
+
             },
             submit() {
                 if(!this.form.password){

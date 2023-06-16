@@ -49,9 +49,12 @@ class PreOrderPay extends OrderPay
             if ($order->status == Order::CLOSE) {
                 throw new AppException('(ID:' . $order->id . ')订单已关闭,无法付款');
             }
+            if ($order->is_pending) {
+                throw new AppException('(ID:' . $order->id . ')订单已锁定,无法付款');
+            }
 
             //找人代付  商米D2支付方式有冲突，加pos_pay请求
-            if ($order->uid != \YunShop::app()->getMemberId() && !Member::getPid() && $this->pay_type_id != PayType::BACKEND && !request()->pos_pay) {
+            if ($order->uid != \YunShop::app()->getMemberId() && !Member::getPid() && !in_array($this->pay_type_id,[PayType::BACKEND,PayType::VIDEO_SHOP_PAY]) && !request()->pos_pay) {
                 throw new AppException('(ID:' . $order->id . ')该订单属于其他用户');
             }
             // 转账付款审核中
@@ -59,7 +62,7 @@ class PreOrderPay extends OrderPay
                 throw new AppException('(ID:' . $order->id . ')该订单处于转账审核中,请先关闭转账审核申请,再选择其他支付方式');
             }
             // 校验订单商品库存
-            event(new BeforeOrderPayValidateEvent($order));
+            event(new BeforeOrderPayValidateEvent($order,$this));
         });
         // 订单金额验证
         if ($orders->sum('price') < 0) {

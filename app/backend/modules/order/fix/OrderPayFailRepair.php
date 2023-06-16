@@ -13,6 +13,7 @@ use app\common\events\payment\ChargeComplatedEvent;
 use app\common\models\Order;
 use app\common\models\OrderPay;
 use app\common\models\PayRequestDataLog;
+use app\common\models\PayResponseDataLog;
 use app\common\services\PayFactory;
 use app\frontend\modules\order\services\OrderService;
 
@@ -46,8 +47,14 @@ class OrderPayFailRepair
          * @var OrderPay $orderPay
          */
         $orderPay = $this->order->orderPays->where('status', 1)->sort(function ($orderPay){
-            return $orderPay->update_at;
+            return $orderPay->updated_at;
         })->first();
+
+        if (!$orderPay) {
+            $this->message[] = $this->order->order_sn.'未存在状态为已支付的支付流水记录';
+            return false;
+        }
+
         $orderPay->pay();
         $this->message[] = $this->order->order_sn.'已修复';
         // todo 剩余的记录执行退款
@@ -74,7 +81,17 @@ class OrderPayFailRepair
         if (count($this->order->orderPays->where('status', 1)) > 0) {
             return true;
         }
+
         $paySns = $this->order->orderPays->pluck('pay_sn');
+
+        $payResponse = PayResponseDataLog::whereIn('out_order_no',$paySns)->get();
+
+
+        $this->message[] = "共{$payResponse->count()}条支付回调记录，需要联系技术人工处理";
+        return false;
+
+
+        //todo 以下代码有问题，原因每种支付请求和回调存的参数不一致所以无法准确获得到支付金额
 
         $payResult = PayRequestDataLog::whereIn('out_order_no',$paySns)->get();
 

@@ -2,10 +2,14 @@
 
 namespace app\frontend\modules\order\models;
 
+use app\frontend\models\order\PreOrderPlugin;
 use app\frontend\modules\dispatch\discount\EnoughReduce;
+use app\frontend\modules\dispatch\models\OrderFreight;
 use app\frontend\modules\order\coinExchange\OrderCoinExchangeManager;
+use app\frontend\modules\order\discount\OrderFreightDeductionPriceNode;
 use app\frontend\modules\order\OrderFee;
 use app\frontend\modules\order\serviceFee\OrderServiceFeeManager;
+use app\frontend\modules\order\taxFee\OrderTaxFeeManager;
 use Illuminate\Http\Request;
 use app\common\models\BaseModel;
 use app\common\models\DispatchType;
@@ -37,6 +41,7 @@ use Illuminate\Support\Collection;
  * @property OrderDeductionCollection orderDeductions
  * @property Collection orderDiscounts
  * @property Collection orderFees
+ * @property Collection orderTaxFees
  * @property Collection orderCoupons
  * @property Collection orderSettings
  * @property int id
@@ -68,10 +73,12 @@ class PreOrder extends Order
      * @var Member $belongsToMember
      */
     public $belongsToMember;
+
     /**
-     * @var OrderDispatch 运费类
+     * @var OrderFreight  运费类
      */
-    protected $orderDispatch;
+    protected $freightManager;
+
     /**
      * @var OrderDiscount 优惠类
      */
@@ -80,6 +87,10 @@ class PreOrder extends Order
      * @var OrderFee 手续费类
      */
     protected $orderFeeManager;
+    /**
+     * @var OrderTaxFeeManager 税费类
+     */
+    protected $orderTaxFeeManager;
     /**
      * @var OrderDeductManager 抵扣类
      */
@@ -127,6 +138,14 @@ class PreOrder extends Order
             $this->discountWeight++;
             return new OrderDiscountPriceNode($this, $discount, 2000 + $this->discountWeight);
         });
+
+
+        //订单运费抵扣节点
+        $deductionFreightNodes = $this->getOrderDeductions()->map(function (PreOrderDeduction $orderDeduction) {
+            $this->discountWeight++;
+            return new OrderFreightDeductionPriceNode($this, $orderDeduction, 8000 + $this->discountWeight);
+        })->values();
+
         // 订单最低抵扣节点
         $deductionMinNodes = $this->getOrderDeductions()->map(function (PreOrderDeduction $orderDeduction) {
 
@@ -141,9 +160,16 @@ class PreOrder extends Order
         });
 
         // 按照weight排序
-        $nodes = $nodes->merge($discountNodes)->merge($deductionMinNodes)->merge($deductionRestNodes)->sortBy(function (PriceNode $priceNode) {
-            return $priceNode->getWeight() . $priceNode->getKey();
+        $nodes = $nodes
+            ->merge($discountNodes)
+            ->merge($deductionFreightNodes)
+            ->merge($deductionMinNodes)
+            ->merge($deductionRestNodes)
+            ->sortBy(function (PriceNode $priceNode) {
+            return $priceNode->getWeight();
         })->values();
+
+//        $nodes->map(function ($a) {dump($a->getKey());});dd($nodes);
 
         return $nodes;
     }
@@ -167,9 +193,9 @@ class PreOrder extends Order
         $this->setMember($member);
         $this->beforeCreating();
         $this->setOrderGoods($orderGoods);
-
+        $this->setOrderPlugin();
+        $this->setGoodsTradeLog();
         $this->afterCreating();
-
         $this->initAttributes();
 
         return $this;
@@ -204,13 +230,36 @@ class PreOrder extends Order
         return $this->discount;
     }
 
-    public function getOrderDispatch()
+    /**
+     * 获取订单运费计算类
+     * @return OrderFreight
+     */
+    final public function getFreightManager()
     {
-        if (!isset($this->orderDispatch)) {
-            $this->orderDispatch = new OrderDispatch($this);
+        if (!isset($this->freightManager)) {
+            $this->freightManager = $this->_getFreightManager();
         }
-        return $this->orderDispatch;
+        return $this->freightManager;
     }
+
+    /**
+     * 返回指定的运费计算类
+     * @return OrderFreight
+     */
+    protected function _getFreightManager()
+    {
+        //默认自定义订单运费
+        //return new \app\frontend\modules\dispatch\models\DefaultOrderFreight($this,100);
+        return new OrderFreight($this);
+    }
+
+//    public function getOrderDispatch()
+//    {
+//        if (!isset($this->orderDispatch)) {
+//            $this->orderDispatch = new OrderDispatch($this);
+//        }
+//        return $this->orderDispatch;
+//    }
 
     /**
      * @return OrderDeductManager
@@ -221,6 +270,11 @@ class PreOrder extends Order
             $this->orderDeductManager = new OrderDeductManager($this);
         }
         return $this->orderDeductManager;
+    }
+
+    public function getFreightDeduction()
+    {
+        return $this->getFreightManager()->orderFreightDeduction();
     }
 
     /**
@@ -331,6 +385,8 @@ class PreOrder extends Order
         $orderInvoice->setOrder($this);
     }
 
+
+
     public function getOrderDispatchType()
     {
         if (isset($this->orderDispatchType)) {
@@ -390,13 +446,24 @@ class PreOrder extends Order
     }
 
     /**
-     *
+     *订单复写数据生成前绑定方法
      */
     public function afterCreating()
     {
 
     }
+    
+    public function setOrderPlugin()
+    {
+        $orderPlugin = new PreOrderPlugin();
+        $orderPlugin->setOrder($this);
+    }
 
+    public function setGoodsTradeLog()
+    {
+        $goods_trade = new PreGoodsTradeLog();
+        $goods_trade->setOrder($this);
+    }
 
     /**
      * 显示订单数据
@@ -415,16 +482,20 @@ class PreOrder extends Order
      */
     protected function initAttributes()
     {
+
         $attributes = array(
             'price' => $this->getPrice(),//订单最终支付价格
             'order_goods_price' => $this->getOrderGoodsPrice(),//订单商品成交价
+            'vip_order_goods_price' => $this->getVipOrderGoodsPrice(),//订单商品成交价
             'goods_price' => $this->getGoodsPrice(),//订单商品原价
             'cost_amount' => $this->getCostPrice(),//订单商品原价
             'discount_price' => $this->getDiscountAmount(),//订单优惠金额
             'fee_amount' => $this->getFeeAmount(),//订单手续费金额
             'service_fee_amount' => $this->getServiceFeeAmount(),//订单服务费金额
             'deduction_price' => $this->getDeductionAmount(),//订单抵扣金额
-            'dispatch_price' => $this->getDispatchAmount(),//订单运费
+            'initial_freight' => $this->getInitialFreight(),//订单初始运费金额
+            'dispatch_price' => $this->getDispatchAmount(),//订单最终运费
+            'tax_fee' => $this->getTaxFeeAmount(),//订单税费金额
             'goods_total' => $this->getGoodsTotal(),//订单商品总数
 
             'is_virtual' => $this->isVirtual(),//是否是虚拟商品订单
@@ -437,11 +508,9 @@ class PreOrder extends Order
             //发票信息应该保存到订单发票表上
             'invoice_type' => $this->getRequest()->input('invoice_type'),//发票类型
             'rise_type' => $this->getRequest()->input('rise_type'),//收件人或单位
-            // 'call'=>$this->getRequest()->input('call'),//抬头或单位名称
             'collect_name' => $this->getRequest()->input('call'),//抬头或单位名称
             'company_number' => $this->getRequest()->input('company_number'),//单位识别号
         );
-//dd($this->priceCache);
         $attributes = array_merge($this->getAttributes(), $attributes);
         $this->setRawAttributes($attributes);
 
@@ -467,7 +536,33 @@ class PreOrder extends Order
             $this->orderAddress->validateAddress();
         }
 
+        // 订单保存前，验证配送方式
+        if (!is_null($this->orderDispatchType) &&
+            method_exists($this->orderDispatchType, 'validateDelivery')
+            && is_callable([$this->orderDispatchType, 'validateDelivery'])
+        ) {
+            $this->orderDispatchType->validateDelivery();
+        }
+
+        $this->loadPluginsRelations();
+
         $this->setOrderRequest($this->getRequest()->input());
+    }
+
+    //订单插件关系验证和关系保存
+    protected function loadPluginsRelations()
+    {
+        $relations = \app\common\modules\shop\ShopConfig::current()->get('shop-foundation.order-save-relations');
+        foreach ($relations as $relation) {
+
+            if ($relation['class']) {
+                $relationModel = call_user_func($relation['class'], []);
+                $relationModel->setOrder($this);
+                if ($relationModel->validateSave()) {
+                    $this->setRelation($relation['key'], $relationModel);
+                }
+            }
+        }
     }
 
     public function setOrderRequest(array $input)
@@ -526,7 +621,8 @@ class PreOrder extends Order
     {
 
         $price = max($this->getPriceAfter($this->getPriceNodes()->last()->getKey()), 0);
-        return $price;
+        //四舍六入五成双 银行家算法，
+        return round($price,2,PHP_ROUND_HALF_EVEN);
     }
 
     /**
@@ -557,6 +653,15 @@ class PreOrder extends Order
     }
 
     /**
+     * 获取总税费金额
+     * @return Collection
+     */
+    protected function getTaxFeeAmount()
+    {
+        return $this->getOrderTaxFeeManager()->getAmount();
+    }
+
+    /**
      * 获取总手续费金额
      * @return Collection
      */
@@ -582,6 +687,14 @@ class PreOrder extends Order
         return $this->orderServiceFeeManager;
     }
 
+    public function getOrderTaxFeeManager()
+    {
+        if (!isset($this->orderTaxFeeManager)) {
+            $this->orderTaxFeeManager = new OrderTaxFeeManager($this);
+        }
+        return $this->orderTaxFeeManager;
+    }
+
     /**
      * 获取订单抵扣金额
      * @return int
@@ -593,18 +706,33 @@ class PreOrder extends Order
     }
 
     /**
-     * 计算订单运费
+     * 计算订单最终运费
      * @return int|number
      */
     public function getDispatchAmount()
     {
-
-        return $this->getOrderDispatch()->getFreight();
+        return $this->getFreightManager()->getFinalFreightAmount();
+//        return $this->getOrderDispatch()->getFreight();
     }
+
+    /**
+     * 计算订单初始运费
+     * @return int|number
+     */
+    public function getInitialFreight()
+    {
+        return $this->getFreightManager()->getInitialFreightAmount();
+    }
+
 
     public function getDispatchAmountAttribute()
     {
         return $this->getDispatchAmount();
+    }
+
+    public function getInitialFreightAttribute()
+    {
+        return $this->getInitialFreight();
     }
 
     /**
@@ -613,10 +741,10 @@ class PreOrder extends Order
      * @author: Merlin
      * @Time: 2020/11/24   17:27
      */
-    public function getEnoughReduce()
-    {
-        return new EnoughReduce($this);
-    }
+//    public function getEnoughReduce()
+//    {
+//        return new EnoughReduce($this);
+//    }
 
     /**
      * 公众号
@@ -692,7 +820,7 @@ class PreOrder extends Order
     /**
      * @var array 需要批量更新的字段
      */
-    private $batchSaveRelations = ['orderGoods', 'orderSettings', 'orderCoupons', 'orderDiscounts', 'orderDeductions', 'orderFees', 'orderServiceFees'];
+    private $batchSaveRelations = ['orderGoods', 'orderSettings', 'orderCoupons', 'orderDiscounts', 'orderDeductions', 'orderFees', 'orderTaxFees', 'orderServiceFees'];
 
     /**
      * 保存关联模型

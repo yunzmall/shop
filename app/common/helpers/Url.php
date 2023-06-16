@@ -3,7 +3,7 @@ namespace app\common\helpers;
 /**
  * Url生成类
  *
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 21/02/2017
  * Time: 18:02
  */

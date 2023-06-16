@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:  
  * Date: 2017/3/3
  * Time: 上午9:10
  */
@@ -11,24 +11,28 @@ namespace app\frontend\modules\order\controllers;
 use app\common\components\ApiController;
 use app\common\exceptions\AppException;
 use app\common\models\DispatchType;
+use app\common\models\Goods;
 use app\common\models\Member;
 use app\common\models\Order;
+use app\common\models\PayType;
 use app\framework\Http\Request;
 use app\frontend\models\OrderAddress;
 use app\common\services\goods\VideoDemandCourseGoods;
 use app\frontend\modules\member\models\MemberModel;
 use app\frontend\modules\member\services\MemberService;
+use app\frontend\modules\goods\services\TradeGoodsPointsServer;
 use Yunshop\Diyform\models\OrderGoodsDiyForm;
+use app\frontend\modules\order\services\OrderService;
 use Yunshop\PhotoOrder\models\OrderModel;
 use Yunshop\StoreReserve\models\ReserveOrder;
 
 class DetailController extends ApiController
 {
-	/**
-	 * @param Request $request
-	 * @return \Illuminate\Http\JsonResponse
-	 * @throws AppException
-	 */
+    /**
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     * @throws AppException
+     */
     public function index(Request $request)
     {
 
@@ -37,6 +41,26 @@ class DetailController extends ApiController
         ]);
         $orderId = request()->query('order_id');
         $order = $this->getOrder()->with(['hasManyOrderGoods', 'orderDeduction', 'orderDiscount', 'orderFees', 'orderServiceFees', 'orderCoupon', 'orderInvoice', 'orderAddress'])->find($orderId);
+
+        if (is_null($order)) {
+            return $this->errorJson('订单不存在');
+        }
+
+        $order->hasManyOrderGoods->each(function ($orderGoods) {
+            //评论
+            $orderGoods->hasOneComment;
+            //计算积分显示
+            $goodModel = Goods::withTrashed()->find($orderGoods->goods_id);
+            $orderGoods->points = $this->setGoodPoints($goodModel, $orderGoods->price, $orderGoods->goods_cost_price);
+
+            if ($orderGoods->order->refund_id) {
+                $orderGoods->refunded_total = $orderGoods->manyRefundedGoodsLog
+                    ->where('refund_id', '!=', $orderGoods->order->refund_id)->sum('refund_total');
+            } else {
+                $orderGoods->refunded_total = $orderGoods->manyRefundedGoodsLog->sum('refund_total');
+            }
+        });
+
 
         if ($order->orderInvoice) {
             $invoice = $order->orderInvoice;
@@ -50,6 +74,7 @@ class DetailController extends ApiController
             return $this->errorJson('未找到数据', []);
         }
         $data = $order->toArray();
+        $data['pay_type_name'] = $this->getPayTypeName($order);//自定义显示支付类型名称
         $invoice->invoice = ("0" != $invoice->invoice) ? 1 : 0;
         $data['invoice_type'] = $invoice->invoice_type;
         $data['email'] = $invoice->email;
@@ -81,6 +106,8 @@ class DetailController extends ApiController
                                 'title' => $formType[$formKey]['tp_name'],
                                 'content' => $formItem,
                                 'type' => $formKey,
+                                'data_type' => $formType[$formKey]['data_type'],
+                                'value' => $formItem
                             ];
                         }
                         //
@@ -112,6 +139,11 @@ class DetailController extends ApiController
                 $data['button_models'] = $backups_button;
             }
 
+            $data['is_boss'] = false;
+            if ($order->store->uid == MemberService::getCurrentMemberModel()->uid) {
+                $data['is_boss'] = true;//店长标识
+            }
+
             if ($order['dispatch_type_id'] == DispatchType::SELF_DELIVERY) {
                 // $data['address_info'] = \Yunshop\StoreCashier\common\models\SelfDelivery::where('order_id', $order['id'])->first();
 
@@ -133,6 +165,8 @@ class DetailController extends ApiController
             $value['thumb'] = yz_tomedia($value['thumb']);
             //视频点播
             $value['is_course'] = $videoDemand->isCourse($value['goods_id']);
+
+
         }
 
         $configs = \app\common\modules\shop\ShopConfig::current()->get('shop-foundation.order.order_detail');
@@ -149,15 +183,38 @@ class DetailController extends ApiController
                 }
             }
         }
+
+        //前端通用-订单详情页额外文本 #15299
+        //应需求 后续有插件需要在订单详情进行显示的可往配置里添加对应的文本供前端直接显示
+        $other_order_data_configs = \app\common\modules\shop\ShopConfig::current()->get('shop-foundation.order.order_detail.other_order_data');
+        if ($other_order_data_configs) {
+            $data['other_order_data'] = array_merge(...$this->setOtherOrderData($other_order_data_configs,$data['id']));
+        }
+
         if ($order['dispatch_type_id'] == 2) {
             $data['custom'] = $this->custom();
         }
-
+        $data['receipt_goods_notice'] = OrderService::getReceiptGoodsNotice();
 
         return $this->successJson($msg = 'ok', $data);
     }
 
-    private function custom()
+    protected function setOtherOrderData($other_order_data_configs,$id)
+    {
+        $data = null;
+        foreach ($other_order_data_configs as $item) {
+            $class = array_get($item,'class');
+            $function = array_get($item,'function');
+
+            if(class_exists($class) && method_exists($class,$function) && is_callable([$class,$function])){
+                $data[] = $class::$function($id);
+            }
+        }
+
+        return $data;
+    }
+
+    protected function custom()
     {
         $custom = '';
         if ($this->aSwitch()) {
@@ -168,17 +225,46 @@ class DetailController extends ApiController
                 $this->jumpUrl(\YunShop::request()->type, Member::getMid());
             }
             //自定义表单
-            $custom = (new MemberService())->memberInfoAttrStatus($member_info->yzMember);
+            $custom = (new MemberService())->newMemberInfoAttrStatus($member_info);
         }
         return $custom;
     }
 
-    private function memberId()
+    /**
+     * 自定义显示支付方式名称
+     * @param $order
+     * @return string
+     */
+    protected function getPayTypeName($order)
+    {
+        if ($order->pay_type_id != PayType::CASH_PAY && $order->status == Order::WAIT_PAY) {
+            return '未支付';
+        }
+        $append = '';
+        if ($order->hasOneBehalfPay) {
+            $append = "（代付:{$order->hasOneBehalfPay->behalf_id}）";
+        }
+
+        if ($order->pay_type_id == PayType::CREDIT) {
+            $setCredit = \Setting::get('shop.shop.credit');
+            return ($setCredit ?: '余额') . $append;
+        }
+
+        $pay_type_name = $order->hasOnePayType->name;
+        if (app('plugins')->isEnabled('pay-manage')) {
+            $pay_type_name = \Yunshop\PayManage\models\PayType::currentPayAlias($order->pay_type_id);
+        }
+
+
+        return $pay_type_name.$append;
+    }
+
+    protected function memberId()
     {
         return \YunShop::app()->getMemberId();
     }
 
-    private function aSwitch()
+    protected function aSwitch()
     {
         return \app\common\facades\Setting::get('plugin.store.membership_open') == 1;
     }
@@ -187,4 +273,27 @@ class DetailController extends ApiController
     {
         return app('OrderManager')->make('Order');
     }
+
+    /**
+     * @description 获取积分
+     * @param $goodsModel
+     * @param $goods_market_price
+     * @param $goods_cost_price
+     * @return mixed|string
+     */
+    protected function setGoodPoints($goodsModel, $goods_market_price, $goods_cost_price)
+    {
+        $points = '';
+        $tradeGoodsPointsServer = new TradeGoodsPointsServer;
+
+        if ($tradeGoodsPointsServer->close(TradeGoodsPointsServer::ORDER_PAGE)) {
+            return $points;
+        }
+
+        $tradeGoodsPointsServer->getPointSet($goodsModel);
+        $points = $tradeGoodsPointsServer->finalSetPoint($points);
+
+        return $tradeGoodsPointsServer->getPoint($points, $goods_market_price, $goods_cost_price);
+    }
+
 }

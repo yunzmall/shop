@@ -13,8 +13,10 @@ use app\backend\models\Withdraw;
 use app\backend\modules\member\models\MemberShopInfo;
 use app\backend\modules\menu\Menu;
 use app\common\components\BaseController;
+use app\common\helpers\Cache;
 use app\common\models\Goods;
 use app\common\models\Order;
+use app\common\models\Setting;
 use app\common\services\CollectHostService;
 use app\common\services\System;
 use app\host\HostManager;
@@ -32,86 +34,68 @@ class SurveyController extends BaseController
 {
     public function index()
     {
-        return view('survey.index'/*, ['data' => json_encode($this->_allData())]*/);
+        return view('survey.index');
     }
 
     private function _allData()
     {
-        $menu = Menu::current()->getPluginMenus();
+        ini_set('memory_limit',-1);
+
         (new CollectHostService(request()->getHttpHost()))->handle();
 
-        //常用功能
-        $plugins = [];
-        foreach ($menu as $key => $itme) {
-            if (isset($itme['menu']) && $itme['menu'] == 1 && can($key) && ($itme['top_show'] == 1 || app('plugins')->isTopShow($key))) {
-                $plugins[$key] = $itme;
-                if (!file_exists(base_path('static/yunshop/plugins/list-icon/img/' . $itme['list_icon'] . '.png'))) {
-                    $plugins[$key]['icon_url'] = static_url("yunshop/plugins/list-icon/img/default.png");
-                } else {
-                    $plugins[$key]['icon_url'] = static_url("yunshop/plugins/list-icon/img/{$itme['list_icon']}.png");
-                }
-                $plugins[$key]['url'] = yzWebFullUrl($itme['url']);
-            }
-        }
-
+        $notSearchPlugin=[158,161];// 抖音cps、聚推联盟商品不显示
         //销售量前10条数据
-        $goods = Goods::uniacid()->orderBy('real_sales', 'desc')->offset(0)
+        $goods = Goods::uniacid()->whereNotIn('plugin_id',$notSearchPlugin)->orderBy('real_sales', 'desc')->offset(0)
             ->take(10)->select('id', 'title', 'real_sales', 'created_at')->get();
 
         //订单数据
         $start_today = strtotime(Carbon::now()->startOfDay()->format('Y-m-d H:i:s'));
         $end_today = strtotime(Carbon::now()->endOfDay()->format('Y-m-d H:i:s'));
 
-        $where = [['uniacid',\YunShop::app()->uniacid]];
-        if($without_count_plugin_id = \app\common\modules\shop\ShopConfig::current()->get('without_count_order_plugin_id') ? : []){  //不统计的订单plugin_id
-            $where[] = [function ($query) use ($without_count_plugin_id){
-                $query->whereNotIn('plugin_id',$without_count_plugin_id);
-            }];
+        //不统计的订单plugin_id
+        $without_count_plugin_id = \app\common\modules\shop\ShopConfig::current()->get('without_count_order_plugin_id') ?: [];
+        //获取已开启的且不在不统计的订单的插件id
+        $pluginIds=array_column((new \app\backend\modules\order\services\OrderViewService)->getOrderType(),'plugin_id');
+        $pluginIds=array_filter($pluginIds,function($item)use($without_count_plugin_id){
+            return !in_array($item,$without_count_plugin_id);
+        });
+
+        $where = [['uniacid', \YunShop::app()->uniacid]];
+        $orderResult = DB::table('yz_order')->selectRaw('status, count(status) as total')->where($where)->whereIn('plugin_id',$pluginIds)->whereIn('status', [0, 1])->groupBy('status')->get();
+
+        foreach ($orderResult as $rows) {
+            //待支付订单
+            if ($rows['status'] == 0) {
+                $to_be_paid = $rows['total'];
+            }
+
+            //待发货订单
+            if ($rows['status'] == 1) {
+                $to_be_shipped = $rows['total'];
+            }
         }
-
-        //待支付订单
-        $to_be_paid = Order::where($where)->getQuery()->selectRaw('count(*) as to_be_paid ')->where('status', 0)->first();
-        //待发货订单
-        $to_be_shipped = Order::where($where)->getQuery()->selectRaw('count(*) as to_be_shipped ')->where('status', 1)->first();
         //今日订单数据
-
-        $today_order = Order::where($where)->getQuery()->selectRaw('sum(price) as money , count(id) as total')->whereBetween('created_at', [$start_today, $end_today])->whereIn('status', [1, 2, 3])->first();
+        $today_order = DB::table('yz_order')->selectRaw('sum(price) as money , count(id) as total')->where($where)->whereIn('plugin_id',$pluginIds)->whereBetween('created_at', [$start_today, $end_today])->whereIn('status', [1, 2, 3])->first();
 
         //会员总数
         $member = DB::table('mc_members')
             ->select([DB::raw('count(1) as total')])
             ->where('mc_members.uniacid', \YunShop::app()->uniacid)
-            ->leftJoin('yz_member_del_log', 'mc_members.uid', '=', 'yz_member_del_log.member_id')
-            ->whereNull('yz_member_del_log.member_id')
             ->join('yz_member', 'mc_members.uid', '=', 'yz_member.member_id')
             ->whereNull('yz_member.deleted_at')
             ->first();
 
         //=============获取图表数据
 
-        //dd($this->getRedisStatus());
-        //队列运行情况
-        $current_time = time();
-        $queue_hearteat = [
-            'daemon' => $this->daemonStatus(),
-            'cron' => \app\backend\modules\survey\models\CronHeartbeat::getLog($current_time),
-            'job' => \app\backend\modules\survey\models\JobHeartbeat::getLog($current_time),
-            'redis' => $this->getRedisStatus()
-        ];
-
         $all_data = [
-            'queue_hearteat' => $queue_hearteat,
-            'queue_hearteat_icon' => 'icon-fontclass-deng',
-            'plugins' => $plugins,
             'goods' => $goods,
             'member_count' => $member['total'],
             'member_count_icon' => 'icon-fontclass-renshu',
             'chart_data' => $this->getOrderData(),
-            'system' => $this->getSystemStatus(),
             'system_icon' => 'icon-fontclass-deng',
             'order' => [
-                'to_be_paid' => $to_be_paid['to_be_paid'] ?: 0,
-                'to_be_shipped' => $to_be_shipped['to_be_shipped'] ?: 0,
+                'to_be_paid' => $to_be_paid ?: 0,
+                'to_be_shipped' => $to_be_shipped ?: 0,
                 'today_order_money' => $today_order['money'] ?: 0,
                 'today_order_count' => $today_order['total'] ?: 0,
                 'paid_icon' => 'icon-ht_content_tixian',
@@ -127,6 +111,7 @@ class SurveyController extends BaseController
             'order_url' => '',
             'sales_url' => '',
         ];
+
         if (app('plugins')->isEnabled('shop-statistics')) {
             $all_data['is_enabled_statistics'] = 1;
             $all_data['order_url'] = yzWebFullUrl('plugin.shop-statistics.backend.order.show');
@@ -191,53 +176,7 @@ class SurveyController extends BaseController
         return $this->orderTotals[$timeField][$date];
     }
 
-    /**
-     * @return array
-     *   uninstall redis未安装
-     *   unexecute redis未执行
-     */
-    private function getRedisStatus()
-    {
-        try {
-            if (!class_exists('Predis\Client')) {
-                return array('queue_status' => 'uninstall', 'msg' => '未安装');
-            }
 
-            $res = \Illuminate\Support\Facades\Redis::ping() == 'PONG';
-
-            if ($res) {
-                return array('queue_status' => 'green', 'msg' => '正常');
-            }
-        } catch (ConnectionException $exception) {
-            return array('queue_status' => 'unconnection', 'msg' => '连接失败');
-        } catch (\Exception $exception) {
-            return array('queue_status' => 'unexecute', 'msg' => '无法使用');
-        }
-
-    }
-
-    private function daemonStatus()
-    {
-        $all_status = app('supervisor')->getState();
-        $queue_status = 'green';
-        $msg = '正常';
-        $title = '';
-        if (!function_exists('stream_socket_server')) {
-            return array('queue_status' => 'yellow', 'msg' => '请解禁stream_socket_server函数');
-        }
-        foreach ($all_status as $hostname => $status) {
-            $code = '正常';
-            if ($status->val['statecode'] != 1) {
-                $queue_status = 'not_running';
-                $msg = $code = '异常';
-            }
-            $title .= '服务器' . $hostname . "：$code\r\n";
-        }
-        if (count($all_status) == 1) {
-            $title = $msg;
-        }
-        return array('queue_status' => $queue_status, 'msg' => $msg, 'title' => $title);
-    }
 
     private function getSystemStatus()
     {
@@ -253,8 +192,8 @@ class SurveyController extends BaseController
         $guide_list = $this->getGuideList();
         foreach ($guide_list as $k => &$v) {
             foreach ($v['list'] as $k2 => &$v2) {
-                if(isset($v2['supper_admin']) and $v2['supper_admin'] === 1){
-                    if(!(\YunShop::app()->role === 'founder')){
+                if (isset($v2['supper_admin']) and $v2['supper_admin'] === 1) {
+                    if (!(\YunShop::app()->role === 'founder')) {
                         unset($guide_list[$k]['list'][$k2]);
                         continue;
                     }
@@ -317,8 +256,9 @@ class SurveyController extends BaseController
             $setting = \Setting::get('plugin.min_app');
             if ($setting['switch'] and $setting['key'] and $setting['secret']) {
                 $data['is_mini_app_config'] = 1;
-                if (!$mini_code = \Setting::get('shop.mini_code')) {
-                    // 生成小程序二维码，图片和地址保存到storage目录和setting表
+                if (!(($mini_code = Cache::get('survey_mini_app_code')) and file_exists($mini_code))) {
+
+                    // 生成小程序二维码，图片保存到storage目录
                     $config = [
                         'app_id' => $setting['key'],
                         'secret' => $setting['secret'],
@@ -333,17 +273,17 @@ class SurveyController extends BaseController
                         }
 
                         if ($response instanceof \EasyWeChat\Kernel\Http\StreamResponse) {
-                            $filename = $response->saveAs(dirname(__FILE__,6) . '/storage/app/public/qr/home', 'home_mini_code_' . \YunShop::app()->uniacid . '_' . time());
+                            if (config('app.framework') == 'platform') {
+                                $file_path = base_path('storage/app/public/qr/home');
+                            } else {
+                                $file_path = dirname(dirname(base_path())) . '/attachment/app/public/qr/home';
+                            }
+                            $filename = $response->saveAs($file_path, 'home_mini_code_' . \YunShop::app()->uniacid);
                         }
 
                         if (isset($filename)) {
-                            $file_url = request()->getSchemeAndHttpHost() . config('app.webPath') . '/storage/app/public/qr/home/' . $filename;
-                            $res = \Setting::set('shop.mini_code', $file_url);
-                            if ($res){
-                                $data['mini_app_code'] = $file_url;
-                            }else{
-                                $data['mini_app_code_error'] = '保存小程序码失败';
-                            }
+                            Cache::put('survey_mini_app_code', $file_path . '/' . $filename, 60);
+                            $data['mini_app_code'] = yz_tomedia($file_path . '/' . $filename);
                         } else {
                             $data['mini_app_code_error'] = '保存小程序码失败';
                         }
@@ -351,9 +291,9 @@ class SurveyController extends BaseController
                         $data['mini_app_code_error'] = '生成小程序码失败,请检查配置';
                     }
                 } else {
-                    $data['mini_app_code'] = $mini_code;
+                    $data['mini_app_code'] = yz_tomedia($mini_code);
                 }
-            }else{
+            } else {
                 $data['is_mini_app_config'] = 0;
             }
         }
@@ -381,14 +321,22 @@ class SurveyController extends BaseController
         return $data;
     }
 
+    private function deleteCode()
+    {
+
+        // 删除旧数据
+        Setting::uniacid()->where('group', 'shop')->where('key', 'like', 'mini_code%')->delete();
+    }
+
     /**
      * 提现动态
      * @return array
      */
     private function getWithdrawal()
     {
-        $withdrawModel = Withdraw::records();
-        $list = $withdrawModel->select('id', 'member_id', 'created_at', 'amounts')
+        $list = Withdraw::with(['hasOneMember' => function ($query) {
+            return $query->select('uid', 'nickname', 'avatar');
+        }])->select('id', 'member_id', 'created_at', 'amounts')
             ->orderBy('created_at', 'desc')
             ->limit(20)
             ->get();
@@ -415,15 +363,17 @@ class SurveyController extends BaseController
         if (app('plugins')->isEnabled('browse-footprint')) {
             $data['is_enabled'] = 1;
             $data['url'] = yzWebFullUrl('plugin.browse-footprint.admin.index.index');
-
+            $prefix = app('db')->getTablePrefix();
+            $uniacid = \YunShop::app()->uniacid;
             $list = BrowseFootprintModel::select('created_at', 'port_type', 'ip', 'ip_name', 'member_id', 'cookie', 'day', 'url')
+                ->from(DB::raw("(select * from {$prefix}yz_browse_footprint where uniacid = $uniacid order by id desc limit 5000) as {$prefix}yz_browse_footprint"))
                 ->with([
                     'hasOneMember' => function ($q) {
                         $q->select('uid', 'nickname', 'avatar', 'realname');
                     }
                 ])
                 ->search([])
-                ->groupBy('cookie','member_id')
+                ->groupBy('cookie', 'member_id')
                 ->orderBy('created_at', 'desc')
                 ->orderBy('id', 'desc')
                 ->paginate(20);
@@ -432,8 +382,8 @@ class SurveyController extends BaseController
             $cookie_arr = $list->pluck('cookie')->toArray();
             $member_arr = $list->pluck('member_id')->toArray();
             $merge_arr = array_merge($cookie_arr, $member_arr);
-            $day_arr = BrowseFootprintModel::uniacid()
-                ->selectRaw('min(day) as min_day,cookie,member_id')
+            $day_arr = BrowseFootprintModel::selectRaw('min(day) as min_day,cookie,member_id')
+                ->from(DB::raw("(select * from {$prefix}yz_browse_footprint where uniacid = $uniacid order by id desc limit 5000) as {$prefix}yz_browse_footprint"))
                 ->where(function ($query) use ($merge_arr) {
                     foreach ($merge_arr as $item) {
                         if ($item == null) {
@@ -718,7 +668,7 @@ class SurveyController extends BaseController
                     ],
                     [
                         'name' => '企业微信管理',
-                        'route' => 'plugin.work-wechat.manage.plugins.getPluginList',
+                        'route' => 'plugin.work-wechat-platform.admin.crop.index',
                         'is_plugin' => 1,
                         'icon' => 'icon-fontclass-qiyeweix'
                     ],

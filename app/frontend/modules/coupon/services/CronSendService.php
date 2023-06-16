@@ -29,31 +29,30 @@ class CronSendService
     {
         $this->record = $record;
         $this->numReason = $numReason;
-        $this->type = $type;//1:订单完成 2:每月发放
+        $this->type = $type;//1:订单完成 2:每月发放 3:订单支付
     }
 
     public function sendCoupon()
     {
         $coupon = Coupon::uniacid()->where('id',$this->record->coupon_id)->first();
-        if($coupon)
-        {
+        if($coupon) {
             $this->coupon = $coupon;
-        }else{
+        }else {
             $this->numReason = $this->numReason.'优惠券不存在';
             return;
         }
         $res = $this->judgeCoupon();
-        if($res && $this->sendNum>0)
-        {
+        if($res && $this->sendNum>0) {
             for ($i = 1; $i <= $this->sendNum; $i++) {
                 (new CouponSendService())->sendCouponToMember($this->record->hasOneOrderGoods->uid, $this->record->coupon_id, 4, $this->record->hasOneOrderGoods->hasOneOrder->order_sn);
             }
        }
-       if($this->type == 1)
-       {
+       if($this->type == 1) {
            $this->endOrderSend();
-       }elseif ($this->type == 2){
+       } elseif ($this->type == 2) {
             $this->endMonthSend();
+       } elseif ($this->type == 3) {
+           $this->endOrderSend();
        }
     }
 

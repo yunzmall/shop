@@ -18,6 +18,8 @@ class CreateImsYzAdminRoleUserTable extends Migration
                 $table->integer('role_id');
                 $table->integer('user_id');
             });
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE " . app('db')->getTablePrefix() . "yz_admin_role_user comment '角色管理-管理员用户与角色中间表'");//表注释
+
         }
     }
 

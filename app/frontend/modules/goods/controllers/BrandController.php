@@ -2,7 +2,7 @@
 
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/3/3
  * Time: 下午2:29
  */
@@ -23,6 +23,9 @@ use app\frontend\modules\goods\services\BrandService;
 
 class BrandController extends ApiController
 {
+    protected $publicAction = ['getBrand'];
+    protected $ignoreAction = ['getBrand'];
+
     public function getBrand()
     {
         app('db')->cacheSelect = true;
@@ -61,7 +64,7 @@ class BrandController extends ApiController
         }
         $brand_detail->desc = html_entity_decode($brand_detail->desc);
 
-        $list = Goods::select('id', 'id as goods_id', 'title', 'thumb', 'price', 'market_price')
+        $list = Goods::select('id', 'id as goods_id', 'title', 'thumb', 'price', 'market_price','plugin_id')
             ->where("status", 1)
             ->where(function($query) {
                 //$query->where("plugin_id", 0)->orWhere('plugin_id', 40)->orWhere('plugin_id', 92);

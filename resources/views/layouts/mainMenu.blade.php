@@ -2,7 +2,7 @@
     <i class="fa fa-bars" style="color:#333"></i>
 </div>
 <div class="yz-menu-header">
-    <nav class="navbar navbar-transparent navbar-absolute" >
+    <nav class="navbar navbar-transparent navbar-absolute" style="display: flex;flex-direction: row-reverse;height: 52px;">
         <!-- <div class="container-fluid"> -->
             <div class="navbar-minimize" style="margin:0;padding:0;margin-left:20px;">
             {{--<h4>{{YunShop::app()->account['name']}}</h4>--}}
@@ -11,10 +11,10 @@
 {{--                <h4>{{YunShop::app()->account['name']}}</h4>--}}
             </div>
             <div class="collapse navbar-collapse" style="float:right">
-                <ul class="nav navbar-nav navbar-right">
+                <ul class="nav navbar-nav navbar-right" style="display: flex;">
                     <li>
-                        @if (!YunShop::isRole())
-                            <a href="#pablo" class="dropdown-toggle" data-toggle="dropdown">
+{{--                        @if (!YunShop::isRole())--}}
+                            <a href="#pablo" class="dropdown-toggle" data-toggle="dropdown" style="display: flex;">
                                 <i class="material-icons" style="float: left;">dashboard</i>
                                 <p class="" style="float: left;">{{YunShop::app()->account['name']}}</p>
                             </a>
@@ -33,18 +33,18 @@
                                         @endif
                                         <li onclick="openPwd()"> <a ><span class="fa fa-edit fa-fw"></span>个人信息</a> </li>
                                     @endif
-                                    @if(request()->getHost() != 'test.yunzshop.com' && env('APP_ENV') != 'production')
+                                    @if(config('app.env') != 'production')
                                         <li> <a target="_blank" href="{{yzWebUrl('menu.index')}}"><span class="fa fa-align-justify fa-fw"></span>菜单管理</a></li>
                                     @endif
-                                    <li> <a target="_blank" href="{{yzWebUrl('member.member.updateWechatOpenData')}}"><span class="fa fa-cube fa-fw"></span>微信开放平台数据同步</a></li>
+                                    {{--<li> <a target="_blank" href="{{yzWebUrl('member.member.updateWechatOpenData')}}"><span class="fa fa-cube fa-fw"></span>微信开放平台数据同步</a></li>--}}
                                     <li> <a target="_self" href="{{yzWebUrl('cache.update')}}" onclick="return confirm('确认更新缓存？');return false;"><span class="fa fa-refresh fa-fw"></span>更新缓存</a></li>
                                     <!-- <li> <a href="{{yzWebUrl('setting.shop.entry')}}"> <span class="fa fa-camera-retro fa-fw"></span>商城入口 </a>  </li> -->
                                 </ul>
                             @endif
-                        @endif
+{{--                        @endif--}}
                     </li>
                     <li class="dropdown">
-                        <a href="#" class="dropdown-toggle" data-toggle="dropdown">
+                        <a href="#" class="dropdown-toggle" data-toggle="dropdown" style="display: flex;">
                             <i class="material-icons" style="float:left">person</i>
                             {{--<span class="notification">5</span>--}}
                             <p class="" style="float:left">
@@ -93,7 +93,7 @@
                     </button>
                 </form>--}}
             </div>
-            <div class="navbar-header" style="width:68%">
+            <div class="navbar-header" style="width:100%">
                 {{--<button type="button" class="navbar-toggle" data-toggle="collapse">
                     <span class="sr-only">Toggle navigation</span>
                     <span class="icon-bar"></span>
@@ -122,9 +122,9 @@
                                 </li>
                             @elseif($value['menu'] == 1)
                                 <li class="{{in_array($key,\app\backend\modules\menu\Menu::current()->getItems()) ? 'active' : ''}}">
-                                    <a href="{{isset($value['url']) ? yzWebFullUrl($value['url']):''}}{{$value['url_params'] or ''}}">
+                                    <a href="{{isset($value['url']) ? yzWebFullUrl($value['url']):''}}{{$value['url_params'] ?? ''}}">
                                         <i class="fa {{array_get($value,'icon','fa-circle-o') ?: 'fa-circle-o'}}"></i>
-                                        {{$value['name'] or ''}}
+                                        {{$value['name'] ?? ''}}
                                     </a>
                                 </li>
                             @endif

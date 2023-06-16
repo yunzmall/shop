@@ -18,6 +18,7 @@
             <el-tab-pane label="分享领取记录" name="4"></el-tab-pane>
             <el-tab-pane label="使用记录" name="5"></el-tab-pane>
             <el-tab-pane label="领券中心幻灯片" name="6"></el-tab-pane>
+            <el-tab-pane label="会员优惠券" name="7"></el-tab-pane>
         </el-tabs>
         </div>
         <div class="vue-head">
@@ -124,6 +125,7 @@
 </div>
 
 <script>
+    let member_id = {!! $member_id?:'0' !!};
     let use_type = [];
     let obj = {!! $use_type?:'{}' !!};
     for(let i in obj) {
@@ -138,7 +140,7 @@
                 activeName:'5',
                 list:[],
                 times:[],
-                
+                member_id:member_id,
                 search_form:{
 
                 },
@@ -169,6 +171,9 @@
                 if(this.times && this.times.length>0) {
                     json.time = [];
                     json.time = {start:this.times[0],end:this.times[1]}
+                }
+                if (this.member_id) {
+                    json.member_id = this.member_id
                 }
                 console.log(json)
                 let loading = this.$loading({target:document.querySelector(".content"),background: 'rgba(0, 0, 0, 0)'});
@@ -238,6 +243,9 @@
                 }
                 else if(val.name == 6) {
                     window.location.href = `{!! yzWebFullUrl('coupon.slide-show') !!}`;
+                }
+                else if(val.name == 7) {
+                    window.location.href = `{!! yzWebFullUrl('coupon.member-coupon.index') !!}`;
                 }
             },
             

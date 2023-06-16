@@ -19,6 +19,7 @@ use app\frontend\modules\member\models\MemberModel;
 use Crypt;
 use app\common\models\MemberShopInfo;
 use Illuminate\Contracts\Encryption\DecryptException;
+use Illuminate\Support\Facades\Redis;
 
 class MemberAppYdbService extends MemberService
 {
@@ -36,83 +37,59 @@ class MemberAppYdbService extends MemberService
         $password = \YunShop::request()->password;
         $uuid     = trim($_REQUEST['uuid']);
 
+        $redirect_url = request()->yz_redirect;
+
         if (!empty($mobile) && !empty($password)) {
-            if (\Request::isMethod('post') && MemberService::validate($mobile, $password)) {
-                $has_mobile = MemberModel::checkMobile($uniacid, $mobile);
-
-                if (!empty($has_mobile)) {
-                    $password = md5($password . $has_mobile->salt);
-
-                    $member_info = MemberModel::getUserInfo($uniacid, $mobile, $password)->first();
-
-                } else {
-                    return show_json(7, "用户不存在");
-                }
-
-                if (!empty($member_info)) {
-                    $member_info = $member_info->toArray();
-
-                    //生成分销关系链
-                    Member::createRealtion($member_info['uid']);
-
-                    $yz_member = MemberShopInfo::getMemberShopInfo($member_info['uid']);
-
-                    if (!empty($yz_member)) {
-                        $yz_member = $yz_member->toArray();
-
-                        $data = MemberModel::userData($member_info, $yz_member);
-                    } else {
-                        $data = $member_info;
-                    }
-
-                    if (!empty($uuid)) {
-                        $wechat_member = MemberWechatModel::getFansById($member_info['uid']);
-                        if (!empty($wechat_member)) {
-                            if ($uuid != $wechat_member->uuid) {
-                                MemberWechatModel::updateData($member_info['uid'], array('uuid' => $uuid));
-                            }
-                        } else {
-                            MemberWechatModel::replace(array(
-                                'uniacid'   => $uniacid,
-                                'member_id' => $member_info['uid'],
-                                'openid'    => $member_info['mobile'],
-                                'nickname'  => $member_info['nickname'],
-                                'gender'    => $member_info['gender'],
-                                'avatar'    => $member_info['avatar'],
-                                'province'  => $member_info['resideprovince'],
-                                'city'      => $member_info['residecity'],
-                                'country'   => $member_info['nationality'],
-                                'uuid'      => $uuid
-                            ));
-                        }
-                    }
-
-                    Session::set('member_id', $member_info['uid']);
-
-                    setcookie('Yz-appToken', encrypt($member_info['mobile'] . '\t' . $member_info['uid']), time() + self::TOKEN_EXPIRE);
-
-                    return show_json(1, $data);
-                } else {
-                    return show_json(6, "手机号或密码错误");
-                }
-            } else {
+            if (!\Request::isMethod('post') || !MemberService::validate($mobile, $password)) {
                 return show_json(6, "手机号或密码错误");
             }
+            $remain_time = $this->getLoginLimit($mobile);
+            if($remain_time){
+                return show_json(6, "账号锁定中，请".$remain_time."分钟后再登录");
+            }
+            $has_mobile = MemberModel::checkMobile($uniacid, $mobile);
+            if (!$has_mobile) {
+                return show_json(7, "用户不存在");
+            }
+            $password = md5($password . $has_mobile->salt);
+            $member_info = MemberModel::getUserInfo($uniacid, $mobile, $password)->first();
+            if (!$member_info) {
+                $error_count = $this->setLoginLimit($mobile);
+                if ($error_count > 0) {
+                    return show_json(6, "密码错误！你还剩" . $error_count . "次机会");
+                } else {
+                    return show_json(6, "密码错误次数已达5次，您的账号已锁定，请30分钟之后登录！");
+                }
+            }
+            $member_info = $member_info->toArray();
+            //生成分销关系链
+            Member::createRealtion($member_info['uid']);
+            $yz_member = MemberShopInfo::getMemberShopInfo($member_info['uid']);
+            if ($yz_member) {
+                $yz_member = $yz_member->toArray();
+                $data = MemberModel::userData($member_info, $yz_member);
+            } else {
+                $data = $member_info;
+            }
+            Session::set('member_id', $member_info['uid']);
+            setcookie('Yz-appToken', encrypt($member_info['mobile'] . '\t' . $member_info['uid']), time() + self::TOKEN_EXPIRE);
+            MemberService::countReset($mobile);
+
+            $data['redirect_url'] = base64_decode($redirect_url);
+            return show_json(1, $data);
         } else {
             $para = \YunShop::request();
             \Log::debug('获取用户信息：', print_r($para, 1));
             $member = MemberWechatModel::getUserInfo($para['openid']);
-            if($member){
+            if ($member) {
                 Session::set('member_id', $member['member_id']);
                 $this->redirect_link($para['openid']);
             }
-
             if ($para['openid'] && $para['token']) {
                 $this->app_get_userinfo($para['token'], $para['openid'], $uuid);
             } elseif ($para['openid']) {
                 $this->redirect_link($para['openid']);
             }
-
             if ($para['apptoken']) {
                 $openid = Crypt::decrypt($para['apptoken']);
                 $member = MemberWechatModel::getUserInfo($openid);
@@ -120,9 +97,7 @@ class MemberAppYdbService extends MemberService
                     return show_json(3, '登录失败，请重试');
                 }
                 Session::set('member_id', $member['member_id']);
-
                 setcookie('Yz-appToken', encrypt($openid . '\t' . $member['member_id']), time() + self::TOKEN_EXPIRE);
-
                 return show_json(1, $member->toArray());
             }
         }

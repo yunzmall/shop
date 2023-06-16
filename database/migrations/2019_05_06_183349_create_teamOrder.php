@@ -25,6 +25,9 @@ class CreateTeamOrder extends Migration
                 $table->integer('created_at')->nullable();
                 $table->integer('updated_at')->nullable();
             });
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE " . app('db')->getTablePrefix()
+                . "yz_team_order_statistics comment '订单--团队订单统计表'");//表注释
+
         }
     }
 

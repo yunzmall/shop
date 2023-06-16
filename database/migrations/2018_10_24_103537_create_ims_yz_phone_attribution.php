@@ -26,6 +26,9 @@ class CreateImsYzPhoneAttribution extends Migration
                 $table->integer('updated_at')->nullable();
                 $table->integer('deleted_at')->nullable();
             });
+            \Illuminate\Support\Facades\DB::statement(
+                "ALTER TABLE `" . app('db')->getTablePrefix() . "yz_phone_attribution` comment '商城--电话号码归属地'"
+            );
         }
     }
 

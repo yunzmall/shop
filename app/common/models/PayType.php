@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/2/28
  * Time: 上午11:32
  */
@@ -82,7 +82,31 @@ class PayType extends BaseModel
     const WECHAT_CPS_APP_PAY = 71; //聚合CPS微信支付
     const XFPAY_WECHAT = 78; //商云客聚合支付-微信支付
     const XFPAY_ALIPAY = 79; //商云客聚合支付-支付宝
+    const SANDPAY_ALIPAY = 81; //杉德支付宝
+    const SANDPAY_WECHAT = 82; //杉德微信支付
+    const LAKALA_WECHAT = 83; //拉卡拉微信支付
+    const LAKALA_ALIPAY = 84; //拉卡拉支付宝
+    const LESHUA_ALIPAY = 85; //乐刷支付宝
+    const LESHUA_WECHAT = 86; //乐刷微信
+    const LESHUA_POS = 87; //乐刷pos收银
+    const LSP_PAY = 88; //加速池支付
+    const CONVERGE_ALIPAY_H5_PAY = 89; //汇聚支付宝H5
+    const CONVERGE_UNION_PAY = 91; //汇聚云闪付支付
+    const WECHAT_TRADE_PAY = 92;//微信支付(视频号)
 
+    const SILVER_POINT_ALIPAY = 96;// 支付宝-银典支付
+    const SILVER_POINT_WECHAT = 97;// 微信-银典支付
+    const SILVER_POINT_UNION = 98;// 银联快捷-银典支付
+
+    const CODE_SCIENCE_PAY_YU = 99;// 豫章行代金券支付
+    const EPLUS_ALI_PAY = 100;
+    const EPLUS_WECHAT_PAY = 101;
+    const EPLUS_MINI_PAY = 102;
+    const LSP_WALLET_PAY = 103;//钱包支付
+    const JINEPAY = 104;    //锦银E付
+
+    const AUTH_PAY = 105;    //微信借权支付(本质是微信h5支付)
+    const VIDEO_SHOP_PAY = 108; //视频号小店
 
     /**
      * 查询所有分类类型

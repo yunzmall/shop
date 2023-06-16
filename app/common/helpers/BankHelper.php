@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2019/6/10
  * Time: 下午 02:16
  */
@@ -918,7 +918,7 @@ class BankHelper
                         'type' => 'DC',
                     ],
                     [
-                        'reg'  => '/^(620043|)\d{12}$/',
+                        'reg'  => '/^(620043)\d{12}$/',
                         'type' => 'PC',
                     ],
                 ],

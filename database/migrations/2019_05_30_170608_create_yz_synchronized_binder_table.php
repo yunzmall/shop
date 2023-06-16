@@ -28,6 +28,8 @@ class CreateYzSynchronizedBinderTable extends Migration
                 $table->integer('created_at')->nullable();
                 $table->integer('updated_at')->nullable();
             });
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE `".app('db')->getTablePrefix()
+                ."yz_synchronized_binder` comment '会员--会员绑定手机合并记录表'");
         }
     }
 

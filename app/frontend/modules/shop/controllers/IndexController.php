@@ -17,7 +17,7 @@ use app\common\helpers\Cache;
 use Yunshop\Love\Common\Services\SetService;
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/3/3
  * Time: 22:16
  */
@@ -46,7 +46,8 @@ class IndexController extends ApiController
     //获取推荐品牌
     public function getRecommentBrandList()
     {
-        $request = Brand::uniacid()->select('id', 'name', 'logo')->where('is_recommend', 1)->get();
+        $request = Brand::uniacid()->select('id', 'name', 'logo')
+            ->where('is_recommend', 1)->get();
         foreach ($request as &$item) {
             if ($item['logo']) {
                 $item['logo'] = replace_yunshop(yz_tomedia($item['logo']));
@@ -67,11 +68,13 @@ class IndexController extends ApiController
                 $query->where('status', 1)->where('start_time', '<=', $time);
             })
             ->with('hasOneGoodsLimitBuy')
-            ->where("is_recommand", 1)
+//            ->where("is_recommand", 1)
             ->where("status", 1)
             ->whereInPluginIds()
+            ->orderBy("is_recommand", 'desc')
             ->orderBy("display_order", 'desc')
             ->orderBy("id", 'desc')
+            ->limit(6)
             ->get();
        // $timeGoods->vip_level_status;
         if (!empty($timeGoods->toArray())) {
@@ -87,11 +90,15 @@ class IndexController extends ApiController
     public function getRecommentGoods()
     {
         //$goods = new Goods();
-        $field = ['id as goods_id', 'thumb', 'title', 'price', 'market_price'];
+        $field = ['id as goods_id', 'thumb', 'title', 'price', 'market_price', 'has_option'];
 //        if (!Cache::has('YZ_Index_goodsList')) {
         $goods_model = \app\common\modules\shop\ShopConfig::current()->get('goods.models.commodity_classification');
         $goods_model = new $goods_model;
+
         $goodsList = $goods_model->uniacid()->select(DB::raw(implode(',', $field)))
+            ->with(['hasManyOptions' => function ($query) {
+                return $query->select('id', 'goods_id', 'product_price');
+            }])
             ->where("is_recommand", 1)
             ->where("status", 1)
             ->whereInPluginIds()
@@ -105,6 +112,12 @@ class IndexController extends ApiController
         foreach ($goodsList as $key => &$item){
             $item['vip_level_status'] = $item->vip_level_status;
             $item['thumb'] = yz_tomedia($item->thumb);
+            if ($item->has_option && !$item->hasManyOptions->isEmpty()) {
+                $min_price = $item->hasManyOptions->min('product_price');
+                $max_price = $item->hasManyOptions->max('product_price');
+                $item->price = $min_price==$max_price?$min_price:$min_price.'-'.$max_price;
+            }
+
 //            dd($key,$item->vip_level_status);
         }
            if($goodsList){
@@ -177,19 +190,24 @@ class IndexController extends ApiController
     public function getAdv()
     {
         $adv = Adv::first();
-        $advs = [];
-        if ($adv) {
-            $i = 0;
-            foreach ($adv->advs as $key => $value) {
-                if ($value['img'] || $value['link']) {
-                    $advs[$i]['img'] = yz_tomedia($value['img']);
-                    $advs[$i]['link'] = $value['link'];
-                    $advs[$i]['small_link'] = $value['small_link'];
-                    $i += 1;
-                }
+        $advertises = $adv['advs'] ?: [];
+        $new_advertises = [];
+        if ($advertises) {
+            foreach ($advertises as $key => $value) {
+                $advArr = [];
+                $advArr['sort'] = $key;
+                $advArr['img'] = $value['img'] ? yz_tomedia($value['img']) : '';
+                $advArr['link'] = $value['link'];
+                $advArr['small_link'] = $value['small_link'];
+                $new_advertises[] = $advArr;
             }
+
+            $field = array_column($new_advertises, 'sort');
+            array_multisort($field, SORT_ASC, $new_advertises);
         }
-        return $advs;
+
+
+        return $new_advertises;
     }
 
     public function getPayProtocol(Request $request, $integrated = null)

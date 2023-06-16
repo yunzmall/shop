@@ -28,6 +28,7 @@ class CreateImsYzCoreAttachment extends Migration
                 $table->integer('updated_at')->nullable();
                 $table->integer('deleted_at')->nullable();
             });
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE " . app('db')->getTablePrefix() . "yz_core_attachment comment '本地图片表'");//表注释
         }
     }
 

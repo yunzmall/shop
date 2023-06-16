@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/3/7
  * Time: 下午2:01
  */
@@ -9,7 +9,9 @@
 namespace app\common\models\order;
 
 
+use app\common\exceptions\ShopException;
 use app\common\models\BaseModel;
+use app\common\models\Order;
 use app\common\models\OrderGoods;
 use Ixudra\Curl\Facades\Curl;
 
@@ -21,6 +23,8 @@ use Ixudra\Curl\Facades\Curl;
  * @property string tel
  * @property string status_name
  * @property string express_company_name
+ * @property OrderPackage hasManyOrderPackage
+ * @property OrderPackage hasOneOrderPackage
  * @property array data
  */
 class Express extends BaseModel
@@ -32,14 +36,19 @@ class Express extends BaseModel
     protected $guarded = ['data'];
     protected $appends = ['tel'];
 
-    public function getExpress($express = null, $express_sn = null)
+    public function getExpress($express = null, $express_sn = null, $phoneLastFour = '')
     {
 
         if (!isset($express_sn)) {
             $express_sn = $this->express_sn;
         }
 
-        $result = app('logistics')->getTraces($express, $express_sn,'',$this->order_id);
+
+        if (empty($phoneLastFour) && 'SF' == $express){
+            $phoneLastFour = $this->getMobile($this->order_id);
+        }
+
+        $result = app('logistics')->getTraces($express, $express_sn,'',$phoneLastFour);
 
         if (empty($result)) {
             return array();
@@ -47,6 +56,24 @@ class Express extends BaseModel
         $result['status_name'] = $this->expressStatusName($result['state']);
 
         return $result;
+    }
+
+    /**
+     * @param $order_id
+     * @return bool|string
+     * @throws ShopException
+     */
+    public function getMobile($order_id)
+    {
+        if (empty($order_id)){
+            throw new ShopException("订单id为空");
+        }
+        $address = Order::uniacid()->with(['address'])->where('id',$order_id)->first();
+        if (empty($address['address']['mobile'])){
+            throw new ShopException("订单收货人号码为空");
+        }
+        $mobile = substr($address['address']['mobile'],-4);
+        return $mobile;
     }
 
     private function kD100($express, $express_sn)
@@ -67,6 +94,7 @@ class Express extends BaseModel
         return array_get($mapping, $this->express_company_name, '');
     }
     /*
+     * todo 都没用了，发货被人改了没有保存order_express_id
      * 多包裹
      */
     public function ordergoods(){
@@ -81,5 +109,21 @@ class Express extends BaseModel
             4 => '问题件',
         ];
         return $state_name_map[$key];
+    }
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
+    public function hasManyOrderPackage()
+    {
+        return $this->hasMany(OrderPackage::class,'order_express_id','id');
+    }
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\HasOne
+     */
+    public function hasOneOrderPackage()
+    {
+        return $this->hasOne(OrderPackage::class,'order_express_id');
     }
 }

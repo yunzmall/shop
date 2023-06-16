@@ -1,85 +1,31 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/3/17
  * Time: 下午12:01
  */
 
 namespace app\common\services\alipay;
 
-use app\common\components\alipay\Wap2\SdkPayment;
 use app\common\exceptions\AppException;
-use app\common\helpers\Client;
 use app\common\helpers\Url;
-use app\common\models\Order;
 use app\common\models\OrderPay;
 use app\common\models\PayOrder;
 use app\common\models\PayType;
-use app\common\services\alipay\f2fpay\model\AlipayConfig;
-use app\common\services\alipay\f2fpay\model\builder\AlipayTradeWapPayContentBuilder;
-use app\common\services\alipay\f2fpay\service\AlipayTradeService;
-use app\common\services\alipay\MobileAlipay;
-use app\common\services\alipay\WebAlipay;
-use app\common\services\alipay\WapAlipay;
-use app\common\models\Member;
-use app\common\services\alipay\AopClient;
-use app\common\services\alipay\AlipayTradeRefundRequest;
 use app\common\services\Pay;
-use app\common\services\PayFactory;
+use app\common\services\Utils;
+use Yunshop\StoreCashier\store\common\service\RefreshToken;
+use Yunshop\StoreCashier\store\models\StoreAlipaySetting;
 
 class AlipayJsapiPayService extends Pay
 {
-    private $_pay = null;
-    private $pay_type;
-
-    public function __construct()
-    {
-        $this->_pay = $this->createFactory();
-        $this->pay_type = config('app.pay_type');
-    }
-
-    private function createFactory()
-    {
-        $type = $this->getClientType();
-        switch ($type) {
-            case 'web':
-                $pay = new WebAlipay();
-                break;
-            case 'mobile':
-                $pay = new MobileAlipay();
-                break;
-            case 'wap':
-                $pay = new WapAlipay();
-                break;
-            default:
-                $pay = null;
-        }
-
-        return $pay;
-    }
-
-    /**
-     * 获取客户端类型
-     *
-     * @return string
-     */
-    private function getClientType()
-    {
-        if (Client::isMobile()) {
-            return 'wap';
-        } elseif (Client::is_app()) {
-            return 'mobile';
-        } else {
-            return 'web';
-        }
-    }
 
     /**
      * 订单支付
-     * @param array $data
-     * @param int $payType
-     * @return 提交表单HTML文本|mixed|string
+     * @param $data
+     * @param $payType
+     * @return mixed
      * @throws \Exception
      */
     public function doPay($data = [], $payType = 49)
@@ -87,36 +33,50 @@ class AlipayJsapiPayService extends Pay
         $op = "支付宝订单支付 订单号：" . $data['order_no'];
         $pay_type_name = PayType::get_pay_type_name($payType);
         $this->log($data['extra']['type'], $pay_type_name, $data['amount'], $op, $data['order_no'], Pay::ORDER_STATUS_NON, \YunShop::app()->getMemberId());
-
         $alipay_set = \Setting::get('shop.alipay_set');
-        $uniacid = substr($data['body'], strrpos($data['body'], ':')+1);
-        $alipay = new AlipayTradeWapPayContentBuilder();
-        $alipayConfig = new AlipayConfig();
-        $config = $alipayConfig->getConfig();
-
-        $appAuthToken = '';
+        $config = [
+            'app_id' => $alipay_set['app_id'],
+            'ali_public_key' => $alipay_set['alipay_public_key'],
+            'private_key' => $alipay_set['merchant_private_key'],
+            'notify_url' => Url::shopSchemeUrl('payment/alipay/jsapiNotifyUrl.php'),
+            'return_url' => Url::shopSchemeUrl('payment/alipay/returnUrl.php'),
+            'app_auth_token' => ''
+        ];
+        $order = [
+            'body' => \YunShop::app()->uniacid,
+            'subject' => mb_substr($data['subject'], 0, 256),
+            'out_trade_no' => $data['order_no'] . '_' . \YunShop::app()->uniacid . '_' . $this->getRoyalty($alipay_set),
+            'total_amount' => $data['amount'],
+            'http_method' => 'GET'
+        ];
+        if ($this->getRoyalty($alipay_set)) {
+            $order['extend_params'] = ['royalty_freeze' => true];
+        }
         if (!$alipay_set['app_type']) {
             //第三方应用授权令牌,商户授权系统商开发模式下使用
-            $appAuthToken = $alipayConfig->getAuthToken();//根据真实值填写
-            $pid = $alipay_set['pid'];//分佣
-            $alipay->setSysServiceProviderId($pid);
+            $config['app_auth_token'] = $this->getAuthToken($alipay_set);
+            $order['sys_service_provider_id'] = $alipay_set['pid'];
         }
-        $alipay->setOutTradeNo($data['order_no'].'_'.\YunShop::app()->uniacid.'_'.$alipayConfig->getRoyalty());
-        $alipay->setTotalAmount($data['amount']);
-        $alipay->setSubject(mb_substr($data['subject'], 0, 256));
-        $alipay->setBody($uniacid);
-        $alipay->setAppAuthToken($appAuthToken);
-        $return_url = \Setting::get('alipay-web.return_url');
-        $notify_url = Url::shopSchemeUrl('payment/alipay/jsapiNotifyUrl.php');
-        $barPay = new AlipayTradeService($config);
-        $barPayResult = $barPay->wapPay($alipay, $return_url, $notify_url);
-
-        return $barPayResult;
-
+        return \Yansongda\Pay\Pay::alipay($config)->wap($order)->getTargetUrl();
     }
 
-    public function doRefund($out_trade_no, $totalmoney, $refundmoney='0')
+    public function doRefund($out_trade_no, $totalmoney, $refundmoney = '0')
     {
+        if ($refundmoney <= 0) {
+            throw new AppException('退款金额不能小于等于0');
+        }
+
+
+        if (app('plugins')->isEnabled('store-cashier')) {
+            $orderPay = OrderPay::where('pay_sn', $out_trade_no)->first();
+            $storeOrder = \Yunshop\StoreCashier\common\models\StoreOrder::where('order_id', $orderPay->orders->first()->id)->first();
+            if (!$storeOrder) {
+                throw new AppException('请确认订单是否为门店订单');
+            }
+        } else {
+            throw new AppException('未开启门店收银');
+        }
+
         $out_refund_no = $this->setUniacidNo(\YunShop::app()->uniacid);
         $op = '支付宝退款 订单号：' . $out_trade_no . '退款单号：' . $out_refund_no . '退款总金额：' . $totalmoney;
         if (empty($out_trade_no)) {
@@ -125,170 +85,86 @@ class AlipayJsapiPayService extends Pay
         $pay_type_id = OrderPay::get_paysn_by_pay_type_id($out_trade_no);
         $pay_type_name = PayType::get_pay_type_name($pay_type_id);
         $refund_order = $this->refundlog(Pay::PAY_TYPE_REFUND, $pay_type_name, $totalmoney, $op, $out_trade_no, Pay::ORDER_STATUS_NON, 0);
-
         //支付宝交易单号
         $pay_order_model = PayOrder::getPayOrderInfo($out_trade_no)->first();
-        if ($pay_order_model) {
-
-            $refund_data = array(
-                'out_trade_no' => $pay_order_model ->out_order_no,
-                'trade_no' => $pay_order_model ->trade_no,
-                'refund_amount' => $totalmoney,
-                'refund_reason' => '正常退款',
-                'out_request_no' => $out_refund_no
-            );
-
-            if ($pay_type_id == 10) {
-                $result = $this->apprefund($refund_data);
-                if ($result) {
-                    $this->changeOrderStatus($refund_order, Pay::ORDER_STATUS_COMPLETE, $result['trade_no']);
-                    $this->payResponseDataLog($out_trade_no, '支付宝APP退款', json_encode($result));
-                    return true;
-                } else {
-                    return false;
-                }
-            } else {
-
-                $set = \Setting::get('shop.pay');
-                if (isset($set['alipay_pay_api']) && $set['alipay_pay_api'] == 1) {
-                    $result =  $this->alipayRefund2($refund_data, $set);
-                    if ($result) {
-                        $this->changeOrderStatus($refund_order, Pay::ORDER_STATUS_COMPLETE, $result['trade_no']);
-                        $this->payResponseDataLog($out_trade_no, '商城支付宝2.0新接口退款', json_encode($result));
-                        return true;
-                    } else {
-                        return false;
-                    }
-                } else {
-                    $alipay = app('alipay.web');
-                    $alipay->setOutTradeNo($pay_order_model->trade_no);
-                    $alipay->setTotalFee($totalmoney);
-
-                    return $alipay->refund($out_refund_no);
-                }
-            }
-        } else {
+        if (empty($pay_order_model)) {
             return false;
         }
-    }
 
-    private function changeOrderStatus($model, $status, $trade_no)
-    {
-        $model->status = $status;
-        $model->trade_no = $trade_no;
-        $model->save();
-    }
+        $refund_data = array(
+            'out_trade_no' => $pay_order_model->out_order_no,
+            'trade_no' => $pay_order_model->trade_no,
+            'refund_amount' => $refundmoney,
+            'refund_reason' => '正常退款',
+            'out_request_no' => $out_refund_no
+        );
 
-    public function alipayRefund2($refund_data, $set)
-    {
-        $aop = new AopClient();
-        $request = new AlipayTradeRefundRequest();
-        $aop->gatewayUrl = 'https://openapi.alipay.com/gateway.do';
-        $aop->appId = decrypt($set['alipay_app_id']);
-        $aop->alipayrsaPublicKey = decrypt($set['rsa_public_key']);
-        $aop->rsaPrivateKey = decrypt($set['rsa_private_key']);
-        $aop->apiVersion = '1.0';
-        $aop->signType = 'RSA2';
-        $aop->postCharset='UTF-8';
-        $aop->format='json';
-        $json = json_encode($refund_data);
-        $request->setBizContent($json);
-        $result = $aop->execute($request);
-        $res = json_decode($result, 1);
-        if(!empty($res)&&$res['alipay_trade_refund_response']['code'] == '10000'){
-            return $res['alipay_trade_refund_response'];
-        } else {
-            throw new AppException($res['alipay_trade_refund_response']['msg'] . '-' . $res['alipay_trade_refund_response']['sub_msg']);
-        }
-    }
-
-    public function apprefund($refund_data)
-    {
-        $set = \Setting::get('shop_app.pay');
-        $aop = new AopClient();
-        $request = new AlipayTradeRefundRequest();
-        $aop->gatewayUrl = 'https://openapi.alipay.com/gateway.do';
-        $aop->appId = $set['alipay_appid'];
-        $aop->alipayrsaPublicKey = $set['refund_alipay_sign_public'] ?: $set['alipay_sign_public'];
-        $aop->rsaPrivateKey = $set['refund_alipay_sign_private'] ?: $set['alipay_sign_private'];
-        $aop->apiVersion = '1.0';
-        $aop->signType = $set['refund_newalipay'] == 1 ? 'RSA2' : 'RSA';
-        $aop->postCharset='UTF-8';
-        $aop->format='json';
-        $json = json_encode($refund_data);
-        $request->setBizContent($json);
-        $result = $aop->execute($request);
-        $res = json_decode($result, 1);
-        if(!empty($res)&&$res['alipay_trade_refund_response']['code'] == '10000'){
-            return $res['alipay_trade_refund_response'];
-        } else {
-            throw new AppException($res['alipay_trade_refund_response']['msg'] . '-' . $res['alipay_trade_refund_response']['sub_msg']);
-        }
-    }
-
-    public function doWithdraw($member_id, $out_trade_no, $money, $desc = '', $type=1)
-    {
-        $batch_no = $this->setUniacidNo(\YunShop::app()->uniacid);
-
-        $op = '支付宝提现 批次号：' . $out_trade_no . '提现金额：' . $money;
-        $this->withdrawlog(Pay::PAY_TYPE_REFUND, $this->pay_type[Pay::PAY_MODE_ALIPAY], $money, $op, $out_trade_no, Pay::ORDER_STATUS_NON, $member_id);
-
-        $alipay = app('alipay.web');
-
-        $alipay->setTotalFee($money);
-
-        $member_info = Member::getUserInfos($member_id)->first();
-
-        if ($member_info) {
-            $member_info = $member_info->toArray();
-        } else {
-            throw new AppException('会员不存在');
+        // 获取人脸支付插件设置
+        $alipaySet = \Setting::get('shop.alipay_set');
+        if (!$alipaySet) {
+            throw new AppException('请检查人脸支付设置');
         }
 
-        if (!empty($member_info['yz_member']['alipay']) && !empty($member_info['yz_member']['alipayname'])) {
-            $account = $member_info['yz_member']['alipay'];
-            $name = $member_info['yz_member']['alipayname'];
-        } else {
-            throw new AppException('没有设定支付宝账号');
+        $alipayStoreSet = StoreAlipaySetting::uniacid()->where('store_id', $storeOrder->store_id)->first();
+        if (!$alipayStoreSet) {
+            throw new AppException('请检查门店人脸支付设置');
         }
 
-        return $alipay->withdraw($account, $name, $out_trade_no, $batch_no);
+        Utils::dataDecrypt($set);
+        $config = [
+            'app_id' => $alipaySet['app_id'],
+            'ali_public_key' => $alipaySet['alipay_public_key'],
+            'private_key' => $alipaySet['merchant_private_key'],
+            'app_auth_token' => $alipayStoreSet['app_auth_token'],
+        ];
+        $result = \Yansongda\Pay\Pay::alipay($config)->refund($refund_data);
+        if (!empty($result) && $result['code'] == '10000') {
+            $refund_order->status = Pay::ORDER_STATUS_COMPLETE;
+            $refund_order->trade_no = $result['trade_no'];
+            $refund_order->save();
+            $this->payResponseDataLog($out_trade_no, '支付宝(服务商)wap退款', json_encode($result));
+            return true;
+        }
+        \Log::debug('---alipay-app---', [$refund_data, $result]);
+        throw new AppException($result['msg'] . '-' . $result['sub_msg']);
     }
 
-    public function doBatchWithdraw($withdraws)
+    public function doWithdraw($member_id, $out_trade_no, $money, $desc = '', $type = 1)
     {
-        $account = [];
-        $name    = [];
-
-        $batch_no = $this->setUniacidNo(\YunShop::app()->uniacid);
-
-        foreach ($withdraws as $withdraw) {
-            $op = '支付宝提现 批次号：' . $withdraw->withdraw_sn . '提现金额：' . $withdraw->actual_amounts;
+        return false;
+    }
 
 
-            $this->withdrawlog(Pay::PAY_TYPE_REFUND, $this->pay_type[Pay::PAY_MODE_ALIPAY], $withdraw->actual_amounts, $op, $withdraw->withdraw_sn, Pay::ORDER_STATUS_NON, $withdraw->member_id);
-        }
-
-        $alipay = app('alipay.web');
-
-        foreach ($withdraws as $withdraw) {
-            $member_info = Member::getUserInfos($withdraw->member_id)->first();
-
-            if ($member_info) {
-                $member_info = $member_info->toArray();
-            } else {
-                throw new AppException('会员不存在');
-            }
-
-            if (!empty($member_info['yz_member']['alipay']) && !empty($member_info['yz_member']['alipayname'])) {
-                $account[] = $member_info['yz_member']['alipay'];
-                $name[]    = $member_info['yz_member']['alipayname'];
-            } else {
-                throw new AppException('没有设定支付宝账号');
+    private function getRoyalty($set)
+    {
+        $result = 0;
+        if ($set['royalty']) {
+            $sub_set = StoreAlipaySetting::where('store_id', request()->store_id)->first();
+            if ($sub_set->royalty && !$sub_set->no_authorized_royalty) {
+                $result = 1;
             }
         }
+        return $result;
+    }
 
-        return $alipay->batchWithdraw($account, $name, $withdraws, $batch_no);
+    /**
+     * @return mixed
+     * @throws \Exception
+     */
+    private function getAuthToken($set)
+    {
+        $app_auth_token = '';
+        if (!$set['app_type']) {
+            $storeAlipaySetting = StoreAlipaySetting::uniacid()->where('store_id', request()->store_id)->first();
+            if (!$storeAlipaySetting) {
+                throw new AppException('门店未授权支付宝');
+            }
+            if ($storeAlipaySetting->expires_in < time()) {
+                $storeAlipaySetting = RefreshToken::refreshToken();
+            }
+            $app_auth_token = $storeAlipaySetting->app_auth_token;
+        }
+        return $app_auth_token;
     }
 
     public function buildRequestSign()

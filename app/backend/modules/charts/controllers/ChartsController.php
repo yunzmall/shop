@@ -4,7 +4,7 @@
  * Date:    2017/10/20 上午9:36
  * Email:   livsyitian@163.com
  * QQ:      995265288
- * User:    芸众商城 www.yunzshop.com
+ * User:
  ****************************************************************/
 
 namespace app\backend\modules\charts\controllers;

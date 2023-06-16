@@ -16,12 +16,14 @@ class CreateImsYzBalanceRechargeActivityTable extends Migration {
             Schema::create('yz_balance_recharge_activity', function (Blueprint $table) {
                 $table->integer('id', true);
                 $table->integer('uniacid');
-                $table->integer('member_id');
-                $table->integer('activity_id');
-                $table->integer('partake_count');
+                $table->integer('member_id')->comment('参与会员ID');
+                $table->integer('activity_id')->comment('活动ID');
+                $table->integer('partake_count')->comment('参与次数');;
                 $table->integer('created_at');
                 $table->integer('updated_at');
             });
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE " . app('db')->getTablePrefix() . "yz_balance_recharge_activity comment '财务--充值活动记录表'");//表注释
+
         }
 	}
 

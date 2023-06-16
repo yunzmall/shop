@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * Author: 芸众商城 www.yunzshop.com
+ * Author:
  * Date: 2017/3/31
  * Time: 上午11:28
  */
@@ -93,7 +93,7 @@ class WithdrawController extends BaseController
     {
         $set = Setting::getByGroup('pay_password')['withdraw_verify'] ?: [];
         $phone = $set['phone'];
-        if (!$phone || empty($set['is_phone_verify'])) {
+        if (!$phone) {
             return $this->errorJson('无需发送验证码');
         }
         $sms = app('sms')->sendWithdrawSet($phone,'86','_withdrawVerify');
@@ -114,7 +114,7 @@ class WithdrawController extends BaseController
             return $this->errorJson('请填写验证码');
         }
         $set = Setting::getByGroup('pay_password')['withdraw_verify'] ?: [];
-        if (empty($set) || empty($set['is_phone_verify'])) {
+        if (empty($set)) {
             return $this->successJson('无需验证');
         }
         $check = app('sms')->checkCode($set['phone'],$code,'_withdrawVerify');

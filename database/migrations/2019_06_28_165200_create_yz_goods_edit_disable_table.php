@@ -25,6 +25,7 @@ class CreateYzGoodsEditDisableTable extends Migration
                 $table->integer('updated_at')->nullable();
                 $table->integer('deleted_at')->nullable();
             });
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE " . app('db')->getTablePrefix() . "yz_goods_edit_disable comment '门店-收银台--商品禁止编辑记录表'");//表注释
         }
     }
 

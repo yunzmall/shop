@@ -50,6 +50,12 @@ class Cosapi {
             case 'ap-singapore' :
                 $region = 'sgp';
                 break;
+            case 'ap-nanjing' :
+                $region = 'nj';
+                break;
+            case 'ap-chongqing' :
+                $region = 'cq';
+                break;
         }
 
         self::$region = $region;

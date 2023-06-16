@@ -25,6 +25,7 @@ class CreateImsYzIncomeLogTable extends Migration
                 $table->integer('created_at')->nullable();
                 $table->integer('deleted_at')->nullable();
             });
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE " . app('db')->getTablePrefix() . "yz_income_log comment '会员收入修改记录表'");//表注释
         }
     }
 

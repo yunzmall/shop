@@ -3,7 +3,7 @@
 namespace app\common\services\address;
 
 /**
-* 
+* 之前需要手动修改的地址
 */
 class StreetAddress
 {

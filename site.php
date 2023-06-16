@@ -1,6 +1,6 @@
 <?php
 /**
- * 芸众商城模块微站定义
+模块微站定义
  *
  * @url http://bbs.yunzshop.com/
  */
